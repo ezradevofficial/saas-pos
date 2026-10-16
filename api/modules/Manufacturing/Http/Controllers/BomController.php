@@ -41,7 +41,7 @@ class BomController
 
     public function index(ListBomsRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
     {
-        $query = Bom::query()->with(BomList::RELATIONS);
+        $query = Bom::query()->with(BomList::relations());
         $request->applyFilters($query);
         $status = (string) $request->validated('status', 'active');
 

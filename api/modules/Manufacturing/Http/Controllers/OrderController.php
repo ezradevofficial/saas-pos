@@ -116,6 +116,6 @@ class OrderController
 
     private function detail(Order $order): OrderResource
     {
-        return OrderResource::make(Order::query()->with([...OrderList::RELATIONS, 'releaser', 'closer'])->findOrFail($order->id))->detail();
+        return OrderResource::make(Order::query()->with(OrderList::RELATIONS)->findOrFail($order->id))->detail();
     }
 }

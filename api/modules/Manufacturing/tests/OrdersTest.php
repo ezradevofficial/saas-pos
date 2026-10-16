@@ -5,6 +5,7 @@ namespace Modules\Manufacturing\Tests;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\Scope;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Modules\Inventory\Models\Movement;
 use Modules\Manufacturing\Events\MaterialsMoved;
@@ -173,5 +174,35 @@ class OrdersTest extends TestCase
         $this->get("/api/v1/manufacturing/orders/{$order['id']}/print", $this->headersFor())->assertOk()->assertSee('Bread 800 g');
         $csv = $this->get('/api/v1/manufacturing/orders?format=csv', $this->headersFor())->assertOk()->streamedContent();
         $this->assertStringContainsString($order['number'], $csv);
+    }
+
+    public function test_the_order_list_loads_who_released_and_closed_with_the_page(): void
+    {
+        // Review item 5 (stage 7D closing): releaser and closer come with the page, not one query per row.
+        $count = function (): int {
+            $queries = 0;
+            $on = true;
+            DB::listen(function () use (&$queries, &$on) {
+                if ($on) {
+                    $queries++;
+                }
+            });
+            $rows = $this->api('GET', 'manufacturing/orders?status=all')->assertOk()->json('data');
+            $this->assertNotEmpty(array_filter(array_column($rows, 'released_by')));
+            $on = false;
+
+            return $queries;
+        };
+        $this->released($this->bread, '10');
+        $this->api('GET', 'manufacturing/orders?status=all')->assertOk();
+        $one = $count();
+        $other = $this->colleague($this->owner);
+        $this->inTenant(fn () => $this->assign($other, $this->roles->get('owner'), Scope::tenant()));
+        $this->released($this->bread, '20');
+        $this->api('POST', 'manufacturing/orders', ['location_id' => $this->locationA->id, 'item_id' => $this->bread->id, 'qty' => '5'], $other)->assertCreated();
+        $order = $this->plan($this->bread, '30', by: $other);
+        $this->api('POST', "manufacturing/orders/{$order['id']}/release", [], $other)->assertOk();
+
+        $this->assertSame($one, $count());
     }
 }

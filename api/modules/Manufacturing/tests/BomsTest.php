@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Modules\Manufacturing\Models\BomVersion;
 use Modules\Manufacturing\Tests\Concerns\BuildsManufacturing;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -209,5 +210,35 @@ class BomsTest extends TestCase
         $this->api('GET', "manufacturing/boms/{$made['bom']['id']}")->assertOk()->assertJsonPath('data.current_version', null);
         $this->api('POST', 'manufacturing/orders', ['location_id' => $this->locationA->id, 'item_id' => $this->bread->id, 'qty' => '10'])
             ->assertUnprocessable()->assertJsonPath('code', 'no_bom_in_force');
+    }
+
+    public function test_the_bom_list_reads_versions_and_drafts_once_per_page(): void
+    {
+        // Review item 4 (stage 7D closing): the version in force and the draft come batched, not per row.
+        $count = function (string $uri): int {
+            $queries = 0;
+            DB::listen(function () use (&$queries) {
+                $queries++;
+            });
+            $this->api('GET', $uri)->assertOk();
+            DB::flushQueryLog();
+
+            return $queries;
+        };
+        $this->breadBom();
+        $this->burgerRecipe();
+        $this->api('GET', 'manufacturing/boms')->assertOk();
+        $three = $count('manufacturing/boms');
+        $this->publishedBom($this->yeast, 'production', [['item_id' => $this->flour->id, 'qty' => '1']]);
+        $this->publishedBom($this->water, 'production', [['item_id' => $this->flour->id, 'qty' => '1']]);
+        $made = $this->publishedBom($this->bran, 'production', [['item_id' => $this->flour->id, 'qty' => '1']]);
+        $this->api('POST', "manufacturing/boms/{$made['bom']['id']}/versions")->assertCreated();
+
+        $rows = $this->api('GET', 'manufacturing/boms?sort=item')->assertOk()->json('data');
+        $this->assertCount(6, $rows);
+        $bran = collect($rows)->firstWhere('item.code', 'BRAN');
+        $this->assertSame([1, true], [$bran['current_version']['version_no'], $bran['draft_id'] !== null]);
+        $this->assertNull(collect($rows)->firstWhere('item.code', 'BREAD')['draft_id']);
+        $this->assertSame($three, $count('manufacturing/boms'));
     }
 }

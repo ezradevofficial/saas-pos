@@ -10,10 +10,13 @@ use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
 use App\Core\Tenancy\Models\Company;
+use Carbon\CarbonImmutable;
+use Closure;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * MFG-02: a bill of materials (`production`, made to stock) or a recipe
@@ -74,5 +77,32 @@ class Bom extends Model implements HasScope
     public function versions(): HasMany
     {
         return $this->hasMany(BomVersion::class)->orderBy('version_no');
+    }
+
+    /** MFG-03: the draft version, if any (one per BOM). */
+    public function draftVersion(): HasOne
+    {
+        return $this->hasOne(BomVersion::class)->where('status', BomVersion::DRAFT);
+    }
+
+    /** MFG-03: published versions, the one in force first (load with inForceFirst() to batch a page). */
+    public function publishedVersions(): HasMany
+    {
+        return $this->hasMany(BomVersion::class)->where('status', BomVersion::PUBLISHED);
+    }
+
+    /**
+     * Eager loads for a page of BOMs (review item 4): the published versions in
+     * force by $at, latest first (the first is the one in force), and the draft.
+     *
+     * @return array<string, Closure|string>
+     */
+    public static function versionLoads(CarbonImmutable $at): array
+    {
+        return [
+            'publishedVersions' => fn ($query) => $query->where('effective_from', '<=', $at->format('Y-m-d H:i:s.uP'))
+                ->orderByDesc('effective_from')->orderByDesc('version_no'),
+            'draftVersion:id,bom_id,status',
+        ];
     }
 }

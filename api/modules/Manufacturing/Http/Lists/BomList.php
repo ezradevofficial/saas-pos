@@ -5,15 +5,28 @@ namespace Modules\Manufacturing\Http\Lists;
 use App\Core\Lists\ListColumn;
 use App\Core\Lists\ListSort;
 use App\Core\MasterData\Items\Item;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Manufacturing\CustomFields\BomEntity;
 use Modules\Manufacturing\Http\Resources\BomResource;
+use Modules\Manufacturing\Models\Bom;
 
 /** MFG-02, MFG-27: BOMs and recipes, by item. */
 class BomList extends ManufacturingList
 {
     public const RELATIONS = ['company', 'item'];
+
+    /**
+     * What a page or an export chunk loads at once: the relations, the
+     * versions in force and the drafts (review item 4).
+     *
+     * @return array<int|string, mixed>
+     */
+    public static function relations(): array
+    {
+        return [...self::RELATIONS, ...Bom::versionLoads(CarbonImmutable::now())];
+    }
 
     public function name(): string
     {
@@ -70,6 +83,6 @@ class BomList extends ManufacturingList
 
     public function exportRelations(): array
     {
-        return self::RELATIONS;
+        return self::relations();
     }
 }

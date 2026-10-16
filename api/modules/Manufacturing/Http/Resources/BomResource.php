@@ -35,7 +35,11 @@ class BomResource extends JsonResource
     {
         /** @var Bom $bom */
         $bom = $this->resource;
-        $current = app(Versions::class)->ofBom($bom->id, CarbonImmutable::now());
+        // Review item 4: a list page loads these once (Bom::versionLoads); a single BOM reads them here.
+        $current = $bom->relationLoaded('publishedVersions') ? $bom->publishedVersions->first() : app(Versions::class)->ofBom($bom->id, CarbonImmutable::now());
+        $draft = $bom->relationLoaded('draftVersion')
+            ? $bom->draftVersion?->id
+            : BomVersion::query()->where('bom_id', $bom->id)->where('status', BomVersion::DRAFT)->value('id');
 
         return [
             'id' => $bom->id,
@@ -45,7 +49,7 @@ class BomResource extends JsonResource
             'item' => Refs::item($bom->item),
             'archived_at' => Refs::at($bom->archived_at),
             'current_version' => $current === null ? null : self::version($current),
-            'draft_id' => BomVersion::query()->where('bom_id', $bom->id)->where('status', BomVersion::DRAFT)->value('id'),
+            'draft_id' => $draft,
             'custom' => (object) app(CustomFieldPresenter::class)->present($request->user(), BomEntity::KEY, $bom->custom),
             ...($this->detail ? $this->details($bom, $request) : []),
         ];
