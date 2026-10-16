@@ -16,6 +16,7 @@ use Modules\CRM\Models\Lead;
 use Modules\CRM\Models\Opportunity;
 use Modules\CRM\Models\Quote;
 use Modules\CRM\Support\CrmAccess;
+use Modules\Ecommerce\Contracts\CustomerOrders;
 use Modules\Loyalty\Contracts\CustomerBalances;
 use Modules\POS\Contracts\CustomerSales;
 
@@ -59,6 +60,8 @@ class CustomerOverview
             'pos' => class_exists(CustomerSales::class) ? app(CustomerSales::class)->forCustomer($user, $party->id, self::RECENT) : null,
             'loyalty' => class_exists(CustomerBalances::class) ? app(CustomerBalances::class)->forCustomer($user, $party->id) : null,
             'accounting' => class_exists(CustomerReceivables::class) ? app(CustomerReceivables::class)->forCustomer($user, $party->id, self::RECENT) : null,
+            // ECOM-34: online orders (docs/modules/ecommerce.md), through E-commerce's read contract.
+            'ecommerce' => class_exists(CustomerOrders::class) ? app(CustomerOrders::class)->forCustomer($user, $party->id, self::RECENT) : null,
         ];
     }
 }

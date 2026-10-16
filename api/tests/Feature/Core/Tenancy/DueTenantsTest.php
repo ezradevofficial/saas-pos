@@ -37,6 +37,8 @@ class DueTenantsTest extends TestCase
             'app_tenants_with_loyalty_sales_to_reprocess',
             // CRM-27.
             'app_tenants_with_due_crm_reminders',
+            // ECOM-14.
+            'app_tenants_with_expired_ecom_reservations',
         ];
         $runtime = DB::selectOne('select current_user as name')->name;
         $owner = config('database.connections.pgsql_owner.username');

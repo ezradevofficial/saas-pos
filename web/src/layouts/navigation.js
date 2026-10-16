@@ -171,6 +171,20 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    // E-commerce and delivery (docs/modules/ecommerce.md, Screens): only while the module is active (RBAC-08).
+    id: 'ecommerce',
+    label: (t) => t('nav.groups.ecommerce'),
+    items: [
+      { to: '/ecommerce/orders', icon: 'orders', label: (t) => t('nav.ecommerceOrders'), permission: 'ecommerce.order.view', module: 'ecommerce' },
+      { to: '/ecommerce/deliveries', icon: 'deliveries', label: (t) => t('nav.ecommerceDeliveries'), permission: 'ecommerce.delivery.view', module: 'ecommerce' },
+      { to: '/ecommerce/inbox', icon: 'whatsapp', label: (t) => t('nav.ecommerceInbox'), permission: 'ecommerce.whatsapp.view', module: 'ecommerce' },
+      { to: '/ecommerce/cashups', icon: 'payments', label: (t) => t('nav.ecommerceCashups'), permission: 'ecommerce.cashup.view', module: 'ecommerce' },
+      { to: '/ecommerce/riders', icon: 'users', label: (t) => t('nav.ecommerceRiders'), permission: ['ecommerce.delivery.view', 'ecommerce.rider.manage'], module: 'ecommerce' },
+      { to: '/ecommerce/reports', icon: 'chart', label: (t) => t('nav.ecommerceReports'), permission: 'ecommerce.report.view', module: 'ecommerce' },
+      { to: '/ecommerce/settings', icon: 'settings', label: (t) => t('nav.ecommerceSettings'), permission: ['ecommerce.store.view', 'ecommerce.store.manage'], module: 'ecommerce' },
+    ],
+  },
+  {
     // INV-19, docs/modules/inventory.md (Screens): only while the Inventory module is active (RBAC-08).
     id: 'inventory',
     label: (t) => t('nav.groups.inventory'),

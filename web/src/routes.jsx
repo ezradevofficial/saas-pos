@@ -205,6 +205,14 @@ import Opportunities, { OpportunityDetail, OpportunityForm } from './pages/crm/O
 import Quotes, { QuoteDetail, QuoteEditor } from './pages/crm/Quotes'
 import CrmTargets from './pages/crm/Targets'
 import './pages/crm/register'
+import { Cashups as CashupsPage, Deliveries as DeliveriesPage, Riders as RidersPage } from './pages/ecommerce/Delivery'
+import { CASHUP_VIEW as ECOM_CASHUP_VIEW, DELIVERY_VIEW as ECOM_DELIVERY_VIEW, ORDER_VIEW as ECOM_ORDER_VIEW, REPORT_VIEW as ECOM_REPORT_VIEW, RIDERS_VIEW as ECOM_RIDERS_VIEW, SETTINGS_VIEW as ECOM_SETTINGS_VIEW, WHATSAPP_VIEW as ECOM_WHATSAPP_VIEW } from './pages/ecommerce/ecommerceData'
+import EcomInbox from './pages/ecommerce/Inbox'
+import EcomOrders, { OrderDetail as EcomOrderDetail } from './pages/ecommerce/Orders'
+import EcomReports from './pages/ecommerce/Reports'
+import EcomStoreSettings from './pages/ecommerce/StoreSettings'
+import { ShopLayout } from './shop/ShopLayout'
+import { ShopAccount, ShopCart, ShopCheckout, ShopHome, ShopOrder, ShopProduct } from './shop/ShopPages'
 import Held from './pages/pos/Held'
 import SaleDetail from './pages/pos/SaleDetail'
 import Sales from './pages/pos/Sales'
@@ -312,6 +320,19 @@ export const routes = [
       { path: '/approvals/email/:token', element: <EmailApproval /> },
     ],
   },
+  // ECOM-05: the storefront, open to everyone on the tenant's host; it never uses a tenant user's sign-in.
+  {
+    path: '/shop/:store',
+    element: <ShopLayout />,
+    children: [
+      { index: true, element: <ShopHome /> },
+      { path: 'products/:slug', element: <ShopProduct /> },
+      { path: 'cart', element: <ShopCart /> },
+      { path: 'checkout', element: <ShopCheckout /> },
+      { path: 'orders/:number', element: <ShopOrder /> },
+      { path: 'account', element: <ShopAccount /> },
+    ],
+  },
   // PRC-07, PRC-08: the supplier portal, open to everyone; it never uses a tenant user's sign-in.
   {
     element: <PortalLayout />,
@@ -415,6 +436,17 @@ export const routes = [
         ['/crm/calendar', CRM_ACTIVITY_VIEW, <CrmCalendar key="crm-calendar" />],
         ['/crm/targets', CRM_TARGET_VIEW, <CrmTargets key="crm-targets" />],
         ['/crm/settings', CRM_SETTINGS_VIEW, <CrmSettings key="crm-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // E-commerce and delivery (docs/modules/ecommerce.md, Screens): the API answers 403 module_inactive without the module.
+      ...[
+        ['/ecommerce/orders', ECOM_ORDER_VIEW, <EcomOrders key="ecom-orders" />],
+        ['/ecommerce/orders/:orderId', ECOM_ORDER_VIEW, <EcomOrderDetail key="ecom-order" />],
+        ['/ecommerce/deliveries', ECOM_DELIVERY_VIEW, <DeliveriesPage key="ecom-deliveries" />],
+        ['/ecommerce/inbox', ECOM_WHATSAPP_VIEW, <EcomInbox key="ecom-inbox" />],
+        ['/ecommerce/cashups', ECOM_CASHUP_VIEW, <CashupsPage key="ecom-cashups" />],
+        ['/ecommerce/riders', ECOM_RIDERS_VIEW, <RidersPage key="ecom-riders" />],
+        ['/ecommerce/reports', ECOM_REPORT_VIEW, <EcomReports key="ecom-reports" />],
+        ['/ecommerce/settings', ECOM_SETTINGS_VIEW, <EcomStoreSettings key="ecom-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // INV-19, docs/modules/inventory.md (Screens): the Inventory back office (the API answers 403 module_inactive without the module).
       ...[

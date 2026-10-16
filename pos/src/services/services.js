@@ -5,7 +5,7 @@ import { createClockGate } from '../hr/clockGate';
 import { createClockStore } from '../hr/clockStore';
 import { apiUrl } from '../config';
 import { createDatabase } from '../db';
-import { createCredentials } from '../device/credentials';
+import { createCredentials, createRiderCredentials } from '../device/credentials';
 import i18n from '../i18n';
 import { createApiClient } from '../sync/api';
 import { createSyncEngine } from '../sync/engine';
@@ -14,6 +14,7 @@ import { createSyncStore } from '../sync/store';
 import { syncMedia } from '../theme/media';
 import { createPosStore } from '../pos/posStore';
 import { createSelling } from '../pos/selling';
+import { createRider } from '../rider/rider';
 
 /**
  * Everything the screens use, built once: the database, the keystore
@@ -24,10 +25,13 @@ import { createSelling } from '../pos/selling';
  * voids, refunds and cash movements locally and in the outbox;
  * services.posStore reads them back.
  *
+ * Rider (ECOM-28): services.rider keeps the rider's deliveries and their
+ * queued status updates.
+ *
  * Clock-in (HR-22, HR-23): services.clockGate checks clock-in PINs and
  * records punches; services.clockStore reads them back.
  */
-export function createServices({ database, fetchImpl, credentialsBackend, netInfo = NetInfo, baseUrl = apiUrl, api: apiOverride } = {}) {
+export function createServices({ database, fetchImpl, credentialsBackend, netInfo = NetInfo, baseUrl = apiUrl, api: apiOverride, riderApi: riderApiOverride } = {}) {
   const db = database ?? createDatabase();
   const store = createSyncStore(db);
   const credentials = createCredentials(credentialsBackend);
@@ -48,7 +52,11 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const selling = createSelling({ engine, posStore, api });
   const clockStore = createClockStore(db);
   const clockGate = createClockGate({ clockStore, engine, credentials });
-  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, clockStore, clockGate };
+  // ECOM-28: the rider screen, signed in with the rider's own token (never the device's).
+  const riderCredentials = createRiderCredentials(credentialsBackend);
+  const riderApi = riderApiOverride ?? createApiClient({ baseUrl, getToken: () => riderCredentials.token(), getLocale: () => i18n.language, fetchImpl });
+  const rider = createRider({ api: riderApi, store, credentials: riderCredentials });
+  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, clockStore, clockGate, riderCredentials, rider };
 }
 
 export const ServicesContext = createContext(null);

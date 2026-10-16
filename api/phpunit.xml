@@ -66,6 +66,8 @@
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- ECOM-24: the fake WhatsApp driver signs with this in tests only (no default anywhere). -->
+        <env name="ECOMMERCE_WHATSAPP_FAKE_SECRET" value="test-only-whatsapp-secret"/>
         <!-- NFR-05: snapshot caching is tested on its own (SyncPullTest). -->
         <env name="SYNC_SNAPSHOT_TTL" value="0"/>
         <env name="SESSION_DRIVER" value="array"/>

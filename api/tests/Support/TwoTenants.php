@@ -22,6 +22,7 @@ use App\Core\Limits\PlanAllowances;
 use App\Core\Limits\Units;
 use App\Core\Limits\UsageLimits;
 use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\NotificationsServiceProvider;
@@ -34,6 +35,7 @@ use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
@@ -50,6 +52,11 @@ use Illuminate\Testing\TestResponse;
 use Modules\Accounting\Models\QueuedSource;
 use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
+use Modules\Ecommerce\Customers\CustomerCodeNotification;
+use Modules\Ecommerce\Models\Conversation;
+use Modules\Ecommerce\Models\Delivery;
+use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\WhatsApp\FakeWhatsAppProvider;
 use Modules\HR\Events\AttendancePeriodClosed;
 use Modules\HR\Events\LeaveApproved;
 use Modules\HR\Models\Employee;
@@ -588,6 +595,10 @@ final class TwoTenants
         // lead form and its lead, leads (one converted), opportunities, a draft quote, an activity,
         // a logged email and a target.
         $crm = self::crm($test, $owner, $tenantId, $ownerId, $managerId, $company, $branch, $customer, $item, $uoms['BOX'], $upper);
+        // E-commerce (docs/modules/ecommerce.md): the module switched on; a live store with a product and a
+        // zone, a WhatsApp chat, a signed-in customer, the Owner as rider, orders delivered (one cashed up)
+        // and one accepted and assigned.
+        $ecommerce = self::ecommerce($test, $owner, $tenantId, $ownerId, $company, $branch, $location, $item, $uoms['EA'], $priceList, $taxCode, $paymentMethod, $key, $upper);
         // Payroll (docs/modules/payroll.md): the module switched on with the fictional
         // test pack (never the shipped one), settings, a pay group, items, the HR
         // employees copied with their pay setup, an item, a loan, unpaid leave and a
@@ -680,13 +691,14 @@ final class TwoTenants
                 ...$hr,
                 ...$fixedAssets,
                 ...$crm,
+                ...$ecommerce['ids'],
                 ...$payroll,
                 ...$accounting,
                 ...$loyalty,
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, "hook-token-{$key}", $callbackToken])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, "hook-token-{$key}", $callbackToken, ...$ecommerce['contacts']])),
         );
     }
 
@@ -1396,6 +1408,100 @@ final class TwoTenants
             'crm_quote' => $quote,
             'crm_activity' => $activity,
             'crm_target' => $target,
+        ];
+    }
+
+    /**
+     * The E-commerce fixture of one tenant (docs/modules/ecommerce.md): the
+     * module switched on; the item priced per unit; a live store on the
+     * tenant's subdomain with a product, a zone, cash on delivery and M-Pesa;
+     * a WhatsApp chat (a message in, a reply out); a customer signed in on the
+     * storefront; the Owner as rider; an order delivered and cashed up, one
+     * delivered and not yet cashed up (the cash-up route's control), and one
+     * accepted and assigned (the routes' order and delivery).
+     *
+     * @return array{ids: array<string, string>, contacts: list<string>}
+     */
+    private static function ecommerce(TestCase $test, array $owner, string $tenantId, string $ownerId, string $company, string $branch, string $location, string $item, string $each,
+        string $priceList, string $taxCode, string $paymentMethod, string $key, string $upper): array
+    {
+        $owner = [...$owner, 'Accept' => 'application/json'];
+        [$cash, $slug] = app(TenantContext::class)->run($tenantId, function () use ($company) {
+            app(ModuleRegistry::class)->activate('ecommerce');
+
+            return [
+                PaymentMethod::query()->where('company_id', $company)->where('type', 'cash')->where(fn ($q) => $q->whereNull('currency')->orWhere('currency', 'KES'))->orderBy('position')->value('id'),
+                Tenant::query()->value('slug'),
+            ];
+        });
+        $baseDomain = config('branding.base_domain');
+        config(['branding.base_domain' => 'shop.example.test']);
+        $host = ['X-Shop-Host' => "{$slug}.shop.example.test", 'Accept' => 'application/json', 'Accept-Language' => 'en'];
+
+        self::ok($test->postJson("/api/v1/price-lists/{$priceList}/prices", ['item_id' => $item, 'uom_id' => $each, 'amount_minor' => '11250', 'currency' => 'KES'], $owner), 201);
+        $store = self::ok($test->postJson('/api/v1/ecommerce/stores', [
+            'company_id' => $company, 'branch_id' => $branch, 'location_id' => $location, 'handle' => "duka-{$key}", 'name' => "Shop {$upper}", 'currency' => 'KES',
+            'price_list_id' => $priceList, 'pickup_enabled' => true, 'pickup_location_ids' => [$location], 'delivery_tax_code_id' => $taxCode,
+            'payment_methods' => [['kind' => 'cod', 'payment_method_id' => $cash], ['kind' => 'mpesa', 'payment_method_id' => $paymentMethod]],
+        ], $owner), 201)->json('data.id');
+        self::ok($test->patchJson("/api/v1/ecommerce/stores/{$store}", ['status' => 'live', 'contact_phone' => '+2547000004'.($key === 'a' ? '11' : '12')], $owner));
+        $product = self::ok($test->postJson("/api/v1/ecommerce/stores/{$store}/products", ['item_ids' => [$item]], $owner), 201)->json('data.0.id');
+        self::ok($test->patchJson("/api/v1/ecommerce/products/{$product}", ['published' => true, 'description' => "Sold online {$upper}"], $owner));
+        $zone = self::ok($test->postJson("/api/v1/ecommerce/stores/{$store}/zones", ['name' => "Zone {$upper}", 'fee_minor' => '20000', 'areas' => ["Area {$upper}"]], $owner), 201)->json('data.id');
+
+        // ECOM-24, ECOM-25: a chat by WhatsApp (the fake provider) and a reply.
+        $webhook = self::ok($test->postJson("/api/v1/ecommerce/stores/{$store}/whatsapp-token", [], $owner), 201)->json('data.token');
+        $chatPhone = $key === 'a' ? '254711000401' : '254711000402';
+        $body = (string) json_encode(['messages' => [['id' => "wamid.{$key}.1", 'from' => $chatPhone, 'name' => "Chat {$upper}", 'text' => "Hello {$upper}"]]]);
+        self::ok($test->call('POST', "/api/v1/shop/whatsapp/{$webhook}", [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json',
+            'HTTP_X_FAKE_SIGNATURE' => FakeWhatsAppProvider::sign($body)], $body));
+        $conversation = app(TenantContext::class)->run($tenantId, fn () => Conversation::query()->value('id'));
+        self::ok($test->postJson("/api/v1/ecommerce/conversations/{$conversation}/reply", ['text' => "Welcome {$upper}"], $owner), 201);
+
+        // ECOM-08: a customer signs in on the storefront with a code.
+        $shopperPhone = $key === 'a' ? '0712000501' : '0712000502';
+        $challenge = self::ok($test->postJson("/api/v1/shop/duka-{$key}/auth/code", ['contact' => $shopperPhone], $host), 201)->json('data.challenge_id');
+        $session = self::ok($test->postJson("/api/v1/shop/duka-{$key}/auth/verify", ['challenge_id' => $challenge, 'code' => self::last(CustomerCodeNotification::class)->code], $host))->json('data.token');
+
+        // The Owner rides (ECOM-26); three cash on delivery orders.
+        $rider = self::ok($test->postJson('/api/v1/ecommerce/riders', ['company_id' => $company, 'user_id' => $ownerId, 'name' => "Rider {$upper}"], $owner), 201)->json('data.id');
+        $cart = ['lines' => [['product_id' => $product, 'qty' => '1']], 'fulfilment' => 'delivery', 'zone_id' => $zone];
+        $total = self::ok($test->postJson("/api/v1/shop/duka-{$key}/quote", $cart, $host))->json('data.totals.total_minor');
+        $order = function (int $n) use ($test, $host, $cart, $total, $key, $upper, $shopperPhone, $session, $owner, $rider, $tenantId) {
+            $placed = self::ok($test->postJson("/api/v1/shop/duka-{$key}/orders", [...$cart, 'payment' => 'cod', 'expected_total_minor' => $total,
+                'contact' => ['name' => "Shopper {$upper}", 'phone' => $shopperPhone, 'email' => "shopper-{$key}@example.com"], 'address' => ['line' => "Street {$upper} {$n}"]],
+                [...$host, 'Authorization' => "Bearer {$session}", 'Idempotency-Key' => "fixture-order-{$key}-{$n}-0000"]), 201)->json('data.number');
+            $id = app(TenantContext::class)->run($tenantId, fn () => Order::query()->where('number', $placed)->value('id'));
+            self::ok($test->postJson("/api/v1/ecommerce/orders/{$id}/accept", [], $owner));
+            $delivery = app(TenantContext::class)->run($tenantId, fn () => Delivery::query()->where('order_id', $id)->value('id'));
+            self::ok($test->postJson("/api/v1/ecommerce/deliveries/{$delivery}/assign", ['rider_id' => $rider], $owner));
+
+            return [$id, $delivery];
+        };
+        $deliver = function (string $id, string $delivery) use ($test, $owner) {
+            self::ok($test->postJson('/api/v1/ecommerce/rider/updates', ['updates' => [['id' => (string) Str::uuid7(), 'delivery_id' => $delivery, 'kind' => 'status', 'status' => 'picked_up',
+                'occurred_at' => now()->toIso8601String()]]], $owner));
+            self::ok($test->postJson("/api/v1/ecommerce/orders/{$id}/deliver", [], $owner));
+        };
+        [$first, $firstDelivery] = $order(1);
+        $deliver($first, $firstDelivery);
+        self::ok($test->postJson('/api/v1/ecommerce/cashups', ['rider_id' => $rider, 'currency' => 'KES', 'counted_minor' => $total], $owner), 201);
+        [$second, $secondDelivery] = $order(2);
+        $deliver($second, $secondDelivery);
+        [$open, $openDelivery] = $order(3);
+        config(['branding.base_domain' => $baseDomain]);
+
+        return [
+            'ids' => [
+                'ecom_store' => $store,
+                'ecom_product' => $product,
+                'ecom_zone' => $zone,
+                'ecom_order' => $open,
+                'ecom_delivery' => $openDelivery,
+                'ecom_rider' => $rider,
+                'ecom_conversation' => $conversation,
+            ],
+            'contacts' => [$webhook, $session, "+{$chatPhone}", '+254'.substr($shopperPhone, 1), "shopper-{$key}@example.com"],
         ];
     }
 
