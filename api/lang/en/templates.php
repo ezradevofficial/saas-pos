@@ -103,6 +103,15 @@ return [
                 'serial_number' => 'Serial number',
                 'category' => 'Category',
                 'location' => 'Location',
+                // PAY-19: the payslip's fields (PayslipSource).
+                'employee_number' => 'Employee number',
+                'pay_date' => 'Pay date',
+                'run' => 'Payroll run',
+                'gross' => 'Gross pay',
+                'net' => 'Net pay',
+                'employer_contributions' => 'Employer contributions',
+                'taxable_pay' => 'Taxable pay',
+                'rates' => 'Statutory rates',
             ],
             'customer' => [
                 'name' => 'Customer',

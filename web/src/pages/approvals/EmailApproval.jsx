@@ -7,6 +7,8 @@ import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
 import { Alert, Button, Money } from '@/components/ds'
+import { formatDatesIn } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 import { AuthPage } from '@/pages/auth/AuthPage'
 import { TextAreaField } from './TextAreaField'
 
@@ -24,6 +26,7 @@ function signInPath(approvalId, signedIn) {
  */
 export default function EmailApproval() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const { token } = useParams()
   const navigate = useNavigate()
   const { token: sessionToken } = useAuth()
@@ -132,7 +135,7 @@ export default function EmailApproval() {
             {approval.document_type_label}
             {approval.document_number ? ` · ${approval.document_number}` : ''}
           </span>
-          <span className="text-h3 text-ink">{approval.document_title || approval.document_number}</span>
+          <span className="text-h3 text-ink">{formatDatesIn(approval.document_title, locale) || approval.document_number}</span>
           {approval.requester || approval.step ? (
             <span className="text-caption text-ink-muted">
               {[approval.requester ? t('approvals.email.requestedBy', { name: approval.requester }) : null, approval.step].filter(Boolean).join(' · ')}

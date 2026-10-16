@@ -2,6 +2,7 @@
 
 namespace Modules\HR\Contracts;
 
+use DateTimeInterface;
 use Modules\HR\Models\LeaveRequest;
 use Modules\HR\Models\LeaveType;
 
@@ -17,7 +18,7 @@ final class LeaveRecords
      * @return list<array{request_id: string, employee_id: string, company_id: string, status: string, dates: list<array{date: string, fraction: string}>}>
      *                                                                                                                                                      unpaid requests that were approved (`approved`) or cancelled after approval (`cancelled`)
      */
-    public function unpaidOfCompany(string $companyId): array
+    public function unpaidOfCompany(string $companyId, ?DateTimeInterface $since = null): array
     {
         $unpaid = LeaveType::query()->where('company_id', $companyId)->where('paid', false)->pluck('id')->all();
 
@@ -26,6 +27,7 @@ final class LeaveRecords
         }
 
         return LeaveRequest::query()->where('company_id', $companyId)->whereIn('leave_type_id', $unpaid)
+            ->when($since !== null, fn ($q) => $q->where('updated_at', '>=', $since))
             ->where(fn ($q) => $q->where('status', LeaveRequest::APPROVED)->orWhere(fn ($c) => $c->where('status', LeaveRequest::CANCELLED)->whereNotNull('decided_at')))
             ->orderBy('start_date')->get()
             ->map(fn (LeaveRequest $r) => [
@@ -34,6 +36,7 @@ final class LeaveRecords
                 'company_id' => $r->company_id,
                 'status' => $r->status === LeaveRequest::APPROVED ? 'approved' : 'cancelled',
                 'dates' => array_values((array) $r->dates),
+                'updated_at' => $r->updated_at?->toIso8601String(),
             ])->all();
     }
 }

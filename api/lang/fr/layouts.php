@@ -3,6 +3,8 @@
 // LAY-01 : sources de données des tableaux de bord, telles que l’éditeur les liste.
 return [
     'sources' => [
+        'crm_pipeline_value' => 'Valeur du pipeline',
+        'crm_targets' => 'Mes objectifs de vente',
         'approvals_waiting' => 'Approbations qui m’attendent',
         'approvals_mine' => 'Mes approbations',
         'workflows_overdue' => 'Documents en retard dans les circuits',

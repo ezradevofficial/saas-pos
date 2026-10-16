@@ -118,14 +118,15 @@ class ReviewAccessTest extends TestCase
 
     public function test_record_history_hides_field_rules_fields_and_disciplinary_cases_from_others(): void
     {
-        $employee = $this->employee(['personal_phone' => '+254711000999']);
+        // Decision 27: personal contact details never reach the audit log, so a work field shows the field rule here.
+        $employee = $this->employee(['work_phone' => '+254711000999']);
         $case = $this->postJson('/api/v1/hr/disciplinary-cases', ['employee_id' => $employee->id, 'category' => 'final_warning', 'incident_date' => '2026-10-01', 'description' => 'Late'], $this->headersFor($this->hrOfficer))
             ->assertCreated()->json('data.id');
 
         $this->assertNotEmpty($this->getJson("/api/v1/history/hr_disciplinary_case/{$case}", $this->headersFor($this->hrOfficer))->assertOk()->json('data'));
         $this->getJson("/api/v1/history/hr_disciplinary_case/{$case}", $this->headersFor($this->managerA))->assertNotFound();
 
-        $this->inTenant(fn () => FieldRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'resource' => 'hr_employee', 'field' => 'personal_phone', 'mode' => 'hidden']));
+        $this->inTenant(fn () => FieldRule::create(['role_id' => $this->roles->get('branch_manager')->id, 'resource' => 'hr_employee', 'field' => 'work_phone', 'mode' => 'hidden']));
         $history = json_encode($this->getJson("/api/v1/history/hr_employee/{$employee->id}", $this->headersFor($this->managerA))->assertOk()->json('data'));
         $this->assertStringNotContainsString('254711000999', $history);
         $this->assertStringContainsString('254711000999', json_encode($this->getJson("/api/v1/history/hr_employee/{$employee->id}", $this->headersFor($this->hrOfficer))->json('data')));

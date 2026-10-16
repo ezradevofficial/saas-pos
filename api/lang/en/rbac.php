@@ -15,6 +15,7 @@ return [
     // RBAC-01: permission catalogue labels (GET permissions).
     'catalogue' => [
         'modules' => [
+            'crm' => 'CRM and sales',
             'core' => 'Core',
             'pos' => 'Point of sale',
             'loyalty' => 'Loyalty, promotions and credit',
@@ -23,6 +24,15 @@ return [
             'payroll' => 'Payroll',
         ],
         'resources' => [
+            'crm' => [
+                'lead' => 'Leads',
+                'opportunity' => 'Opportunities',
+                'quote' => 'Quotes',
+                'activity' => 'Activities',
+                'target' => 'Sales targets',
+                'settings' => 'Sales settings',
+                'scope' => 'Records of others',
+            ],
             'core' => [
                 'company' => 'Companies',
                 'branch' => 'Branches',
@@ -116,6 +126,12 @@ return [
             ],
         ],
         'actions' => [
+            'convert' => 'Convert',
+            'discount' => 'Give discounts',
+            'price' => 'Change prices',
+            'send' => 'Send',
+            'team' => 'Their teams',
+            'branch' => 'Their branch',
             'view' => 'View',
             'create' => 'Create',
             'edit' => 'Edit',
@@ -164,6 +180,7 @@ return [
         'owner' => 'Owner',
         'admin' => 'Admin',
         'branch_manager' => 'Branch Manager',
+        'sales_rep' => 'Sales Rep',
         'cashier' => 'Cashier',
         'waiter' => 'Waiter',
         'storekeeper' => 'Storekeeper',

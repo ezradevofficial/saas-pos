@@ -84,8 +84,9 @@ describe('Payroll screens', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('payroll/runs/r-1/calculate', {}))
     const alert = await screen.findByRole('alert')
     expect(within(alert).getByText('Statutory values are missing')).toBeInTheDocument()
-    expect(within(alert).getByText(message)).toBeInTheDocument()
-    expect(within(alert).getByText('shif: employee_min_minor')).toBeInTheDocument()
+    // The missing values in words, never the pack's codes.
+    expect(within(alert).getByText('SHIF: minimum')).toBeInTheDocument()
+    expect(within(alert).queryByText(/employee_min_minor/)).not.toBeInTheDocument()
     // Without the post permission and before approval there is nothing to post.
     expect(screen.queryByRole('button', { name: 'Post run' })).not.toBeInTheDocument()
   })
@@ -114,7 +115,7 @@ describe('Payroll screens', () => {
       { id: 'l-1', employee: GRACE, department: null, pay_currency: 'KES', errors: [], warnings: [], gross: money('6000000'), statutory: money('900000'), deductions: money('0'), loans: money('300000'), net: money('4800000'), employer: money('240000'), variance: { status: 'changed', previous_gross: money('5500000'), previous_net: money('4500000'), gross_diff: money('500000'), net_diff: money('300000'), gross_pct: '9.09', net_pct: '6.67' }, earnings: [], deduction_lines: [], statutory_lines: [], loan_lines: [], fx: [] },
       { id: 'l-2', employee: JOSEPH, department: null, pay_currency: 'KES', errors: [{ code: 'rate_missing', message: 'An exchange rate for the pay date is missing. Add it in exchange rates.' }], warnings: [], gross: money('4000000'), statutory: money('600000'), deductions: money('200000'), loans: money('0'), net: money('3200000'), employer: money('160000'), variance: { status: 'new' }, earnings: [], deduction_lines: [], statutory_lines: [], loan_lines: [], fx: [] },
     ]
-    setup([['payroll/runs/r-1', { data: run }], [/^payroll\/runs\/r-1\/lines/, page(lines)], [/^document-workflows\//, apiError(404, 'not_found', 'Not found.')]], [PERM.runView, PERM.runPrepare])
+    setup([['payroll/runs/r-1', { data: run }], [/^payroll\/runs\/r-1\/lines/, page(lines)], [/^document-workflows\//, apiError(404, 'not_found', 'Not found.')]], [PERM.runView, PERM.runPrepare, PERM.payView])
     renderApp('/payroll/runs/r-1')
 
     const totalsTable = await screen.findByRole('table', { name: 'Totals by currency' })
@@ -141,6 +142,53 @@ describe('Payroll screens', () => {
     fireEvent.click(within(linesTable).getByText('Joseph Mwangi'))
     const dialog = await screen.findByRole('dialog', { name: 'EMP-00002 · Joseph Mwangi' })
     expect(within(dialog).getByText('An exchange rate for the pay date is missing. Add it in exchange rates.')).toBeInTheDocument()
+  })
+
+  it('shows an approver department totals, the variance summary and what to review, not the lines (payroll.md decisions 29, 33, 36, 40)', async () => {
+    const totals = {
+      currencies: [{ currency: 'KES', employees: 4, gross: money('20000000'), statutory: money('0'), deductions: money('0'), loans: money('0'), net: money('16000000'), employer: money('0'), previous: null }],
+      base: null,
+      previous_run_id: 'r-0',
+      gone: [],
+      departments: [
+        { department: { id: 'd-1', name: 'Sales' }, name: 'Sales', currency: 'KES', employees: 3, gross: money('15000000'), net: money('12000000'), employer: money('0') },
+        { department: null, name: null, currency: 'KES', employees: 1, gross: money('5000000'), net: money('4000000'), employer: money('0') },
+      ],
+      variance: { new: 1, gone: 0, changed: 2, changed_over_10_pct: 1 },
+    }
+    const review = {
+      attendance_open: [{ start_date: '2026-10-01', end_date: '2026-10-31' }],
+      late_changes: [{ number: 'EMP-00001', name: 'Grace Wanjiru', run_number: 'PR-2026-00001' }],
+      no_pay_group: [{ number: 'EMP-00007', name: 'Baraka Kip', hire_date: '2026-10-02' }],
+    }
+    const run = { ...RUN, status: 'pending', employees: 4, totals, review }
+    setup([['payroll/runs/r-1', { data: run }], [/^document-workflows\//, apiError(404, 'not_found', 'Not found.')]], [PERM.runView, PERM.runApprove])
+    renderApp('/payroll/runs/r-1')
+
+    const departments = await screen.findByRole('table', { name: 'Totals by department' })
+    expect(within(departments).getByText('Sales')).toBeInTheDocument()
+    expect(within(departments).getByText('Company level')).toBeInTheDocument()
+    expect(screen.getByText('Against the last posted run: 1 new, 0 gone, 2 with a different net pay (1 by more than 10%).')).toBeInTheDocument()
+    expect(screen.getByText('An attendance period overlapping this run is still open. Its time is paid by a later run, as arrears, once it closes.')).toBeInTheDocument()
+    expect(screen.getByText('HR changed leave or employment dates of 1 employee after run PR-2026-00001 was posted. Check their pay and make a correction if it was wrong.')).toBeInTheDocument()
+    expect(screen.getByText('EMP-00007 · Baraka Kip')).toBeInTheDocument()
+    expect(screen.getByText('Each employee’s pay is shown only to people who can view pay. Judge this run by its totals above.')).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Lines' })).not.toBeInTheDocument()
+    expect(api.get.mock.calls.some(([url]) => String(url).startsWith('payroll/runs/r-1/lines'))).toBe(false)
+  })
+
+  it('closes the correction dialog once the correction run opens (PAY-18)', async () => {
+    const posted = { ...RUN, status: 'posted', totals: { currencies: [], base: null, previous_run_id: null, gone: [] } }
+    const correction = { ...RUN, id: 'r-2', number: 'PR-2026-00004', kind: 'correction', corrects_run_id: 'r-1', correction_mode: 'reversal' }
+    setup([['payroll/runs/r-1', { data: posted }], ['payroll/runs/r-2', { data: correction }]], [PERM.runView, PERM.runPrepare])
+    api.post.mockResolvedValue({ data: correction })
+    renderApp('/payroll/runs/r-1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Correct run' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Correct run PR-2026-00003' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create correction run' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'PR-2026-00004' })).toBeInTheDocument()
+    expect(api.post).toHaveBeenCalledWith('payroll/runs/r-1/corrections', expect.any(Object))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('lists the statutory values the pack lacks and says runs are refused (PAY-08)', async () => {

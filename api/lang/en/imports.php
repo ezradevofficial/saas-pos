@@ -4,6 +4,7 @@
 return [
     'list_title' => 'Imports',
     'importers' => [
+        'crm_leads' => 'Leads',
         'employees' => 'Employees',
         'items' => 'Items',
         'customers' => 'Customers',
@@ -42,6 +43,14 @@ return [
         'user' => 'Uploaded by',
     ],
     'columns' => [
+        'organisation' => 'Organisation',
+        'job_title' => 'Job title',
+        'email' => 'Email',
+        'phone' => 'Phone',
+        'source' => 'Source',
+        'owner_email' => 'Owner email',
+        'estimated_value' => 'Estimated value',
+        'notes' => 'Notes',
         'number' => 'Employee number',
         'first_name' => 'First name',
         'middle_name' => 'Middle name',
@@ -214,6 +223,8 @@ return [
         'not_open' => 'This import has already started. Upload the file again to change it.',
     ],
     'usage' => [
+        'crm_opportunity' => 'Used in an opportunity',
+        'crm_quote' => 'Used in a quote',
         'hr_record' => 'Has HR records',
         'sale' => 'Used in a sale',
         'price' => 'Has a price',

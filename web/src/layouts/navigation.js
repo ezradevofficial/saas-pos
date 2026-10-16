@@ -12,6 +12,7 @@ import { mergeGrouped } from '@/lib/catalogueMerge'
  * Workspace (approvals), Automation (workflows, automation rules) and Master data; later modules add their groups here.
  * Point of sale (POS module): dashboard, sales, shifts and held records.
  * Inventory (Inventory module): stock, movements, transfers, counts, adjustments, reorder levels, valuation, labels and settings.
+ * Sales (CRM module): leads, opportunities, quotes, calendar, targets and settings.
  * Procurement (Procurement module): requisitions, RFQs, tenders, POs, goods received, supplier invoices, landed costs, supplier performance and settings.
  * Payroll (Payroll module): runs, employees' pay setup, loans, payslips, statutory returns and settings; My payslips in self-service.
  */
@@ -141,6 +142,26 @@ export const NAV_GROUPS = [
       { to: '/loyalty/ageing', icon: 'chart', label: (t) => t('nav.loyaltyAgeing'), permission: 'loyalty.credit.view', module: 'loyalty' },
       { to: '/loyalty/review', icon: 'alert', label: (t) => t('nav.loyaltyReview'), permission: 'loyalty.sale.view', module: 'loyalty' },
       { to: '/loyalty/programme', icon: 'loyalty', label: (t) => t('nav.loyaltyProgramme'), permission: ['loyalty.programme.view', 'loyalty.programme.edit'], module: 'loyalty' },
+    ],
+  },
+  {
+    // CRM and sales (docs/modules/crm.md, Screens): only while the module is active (RBAC-08).
+    id: 'crm',
+    label: (t) => t('nav.groups.crm'),
+    items: [
+      { to: '/crm/leads', icon: 'leads', label: (t) => t('nav.crmLeads'), permission: 'crm.lead.view', module: 'crm' },
+      { to: '/crm/opportunities', icon: 'opportunities', label: (t) => t('nav.crmOpportunities'), permission: 'crm.opportunity.view', module: 'crm' },
+      { to: '/crm/quotes', icon: 'quotes', label: (t) => t('nav.crmQuotes'), permission: 'crm.quote.view', module: 'crm' },
+      { to: '/crm/calendar', icon: 'calendar', label: (t) => t('nav.crmCalendar'), permission: 'crm.activity.view', module: 'crm' },
+      { to: '/crm/targets', icon: 'targets', label: (t) => t('nav.crmTargets'), permission: ['crm.target.view', 'crm.target.manage'], module: 'crm' },
+      {
+        to: '/crm/settings',
+        needsCompany: true,
+        icon: 'settings',
+        label: (t) => t('nav.crmSettings'),
+        permission: ['crm.lead.view', 'crm.opportunity.view', 'crm.quote.view', 'crm.activity.view', 'crm.settings.manage'],
+        module: 'crm',
+      },
     ],
   },
   {

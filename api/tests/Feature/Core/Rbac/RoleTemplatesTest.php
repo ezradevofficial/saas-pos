@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
+use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Permission;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
@@ -27,7 +28,7 @@ class RoleTemplatesTest extends TestCase
     use BuildsRbac, RefreshTenantDatabase;
 
     private const TEMPLATE_KEYS = [
-        'owner', 'admin', 'branch_manager', 'cashier', 'waiter', 'storekeeper', 'accountant',
+        'owner', 'admin', 'branch_manager', 'sales_rep', 'cashier', 'waiter', 'storekeeper', 'accountant',
         'hr_officer', 'payroll_officer', 'procurement_officer', 'approver', 'employee_self_service',
         'read_only_auditor',
     ];
@@ -113,17 +114,18 @@ class RoleTemplatesTest extends TestCase
         // Procurement (docs/modules/procurement.md): 32 procurement.* permissions (procurement.value.view, decision 27).
         // Stores (docs/modules/stores.md): 14 stores.* permissions (stores.stock.approve, decision 12).
         // HR (docs/modules/hr.md): 36 hr.* permissions.
+        // CRM (docs/modules/crm.md): 27 crm.* permissions (crm.scope.team|branch among them, CRM-08; crm.opportunity.assign, CRM-10).
+        // Payroll (docs/modules/payroll.md): 15 payroll.* permissions (payroll.pay.view, decision 36).
         // Fixed assets (docs/modules/fixed-assets.md): 17 fixed_assets.* permissions.
-        // Payroll (docs/modules/payroll.md): 14 payroll.* permissions.
-        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 17 + 14, count($names));
+        $this->assertSame(113 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27 + 15 + 17, count($names));
     }
 
-    public function test_sign_up_provisions_thirteen_system_roles_and_an_owner_assignment(): void
+    public function test_sign_up_provisions_fourteen_system_roles_and_an_owner_assignment(): void
     {
         $tenantId = $this->enter($this->signUp()->json('challenge_id'));
 
         $roles = Role::orderBy('template_key')->get();
-        $this->assertCount(13, $roles);
+        $this->assertCount(14, $roles);
         $this->assertEqualsCanonicalizing(self::TEMPLATE_KEYS, $roles->pluck('template_key')->all());
         $this->assertTrue($roles->every(fn (Role $r) => $r->is_system && $r->tenant_id === $tenantId));
 
@@ -143,8 +145,9 @@ class RoleTemplatesTest extends TestCase
         // Procurement: the company's tolerances and the 9 views, procurement.value.view among them (PRC-01, decision 27).
         // Stores: the views, reports and values (stores.*.view, 6), STR-10, STR-12.
         // HR: hr.*.view without the five sensitive groups (9), HR-09.
+        // CRM: the five views, the settings and the branch scope (7), CRM-08.
         // Fixed assets: the 6 views, settings, categories and labels (9).
-        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 10 + 6 + 10 + 6 + 9 + 9, $admin->permissions()->count());
+        $this->assertSame(Permission::where('module', 'core')->count() - 2 + 4 + 10 + 6 + 10 + 6 + 9 + 7 + 9, $admin->permissions()->count());
         $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));
         $this->assertFalse($admin->hasPermissionTo('core.onboarding.modules'));
         $this->assertTrue($owner->hasPermissionTo('core.onboarding.modules'));
@@ -170,8 +173,26 @@ class RoleTemplatesTest extends TestCase
             $assignment->user_id, $assignment->role_id, $assignment->scope_type, $assignment->scope_id,
         ]);
 
-        $this->assertSame(13, AuditEntry::where('action', 'rbac.role.create')->count());
+        $this->assertSame(14, AuditEntry::where('action', 'rbac.role.create')->count());
         $this->assertSame(1, AuditEntry::where('action', 'rbac.assignment.create')->count());
+    }
+
+    public function test_the_sales_rep_template_works_its_own_records_with_a_zero_discount_limit(): void
+    {
+        // Owner decision B (docs/modules/crm.md): own leads, opportunities, quotes and activities; no team or
+        // branch scope, no assigning; quote discounts within a limit rule the tenant edits, 0 % by default.
+        $this->enter($this->signUp()->json('challenge_id'));
+        $rep = Role::where('template_key', 'sales_rep')->sole();
+        $crm = $rep->permissions()->where('module', 'crm')->orderBy('name')->pluck('name')->all();
+
+        $this->assertSame('Sales Rep', $rep->name);
+        $this->assertContains('crm.quote.discount', $crm);
+        $this->assertContains('crm.opportunity.create', $crm);
+        foreach (['crm.scope.team', 'crm.scope.branch', 'crm.lead.assign', 'crm.opportunity.assign', 'crm.quote.approve', 'crm.quote.price', 'crm.target.manage', 'crm.settings.manage'] as $name) {
+            $this->assertNotContains($name, $crm, $name);
+        }
+        $this->assertSame([['max_discount_percent', 0.0]], LimitRule::where('role_id', $rep->id)->get()->map(fn (LimitRule $rule) => [$rule->key, (float) $rule->value])->all());
+        $this->assertSame(0, LimitRule::where('role_id', '!=', $rep->id)->count(), 'other templates seed no limits');
     }
 
     public function test_templates_grant_party_permissions_by_job(): void
@@ -289,6 +310,20 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core.dimension.view', 'core.payment_method.view'], $granted('read_only_auditor'));
         $this->assertSame([], $granted('storekeeper'));
+    }
+
+    public function test_hr_and_payroll_officers_read_the_tenant_currencies(): void
+    {
+        // CUR-01, HR-04, HR-07, PAY-01: contract pay, pay accounts, pay
+        // currency, pay items and loans are entered in one of the tenant's
+        // currencies, so both officers read the list (never edit it).
+        $this->enter($this->signUp()->json('challenge_id'));
+        $granted = fn (string $key) => Role::where('template_key', $key)->sole()->permissions()
+            ->where('name', 'like', 'core.currency.%')->pluck('name')->sort()->values()->all();
+
+        foreach (['hr_officer', 'payroll_officer'] as $key) {
+            $this->assertSame(['core.currency.view'], $granted($key), $key);
+        }
     }
 
     public function test_templates_grant_workflow_permissions_to_owner_and_admin(): void

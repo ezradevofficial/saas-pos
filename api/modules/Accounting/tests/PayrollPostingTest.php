@@ -13,6 +13,7 @@ use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\Journal;
 use Modules\Accounting\Models\JournalLine;
 use Modules\Accounting\Models\PostingException;
+use Modules\Accounting\Models\PostingRule;
 use Modules\Payroll\Tests\Concerns\BuildsPayroll;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -62,26 +63,43 @@ class PayrollPostingTest extends TestCase
     /** @return list<Journal> */
     private function journals(): array
     {
-        return $this->inTenant(fn () => Journal::query()->where('source_type', 'payroll.run')->where('status', 'posted')->orderBy('created_at')->get()->all());
+        return $this->inTenant(fn () => Journal::query()->where('source_type', 'payroll.run')->where('status', 'posted')
+            // The test clock is frozen, so created_at ties; the journal number (NUM-01, in posting order) breaks the tie.
+            ->orderBy('created_at')->orderBy('number')->get()->all());
     }
 
     public function test_a_posted_run_posts_balanced_journals_per_department(): void
     {
-        $this->payrollEmployee('5000000');
+        foreach (['Amina', 'Baraka', 'Chao'] as $name) {
+            $this->payrollEmployee('5000000', ['first_name' => $name]);
+        }
+
         $this->payrollEmployee('3000000', ['first_name' => 'Juma', 'department_id' => $this->kitchen->id]);
         $id = $this->postedRun();
 
         $journals = $this->journals();
         $this->assertCount(2, $journals);
-        $sales = collect($journals)->first(fn (Journal $j) => $this->inTenant(fn () => JournalLine::query()->where('journal_id', $j->id)->value('department_id')) === $this->sales->id);
+        $department = fn (Journal $j) => $this->inTenant(fn () => JournalLine::query()->where('journal_id', $j->id)->whereNotNull('department_id')->value('department_id'));
+        $sales = collect($journals)->first(fn (Journal $j) => $department($j) === $this->sales->id);
 
         $this->assertSame([
-            '2220' => [0, 940000],
-            '2230' => [0, 405000],
-            '2240' => [0, 3810000],
-            '6100' => [5000000, 0],
-            '6110' => [155000, 0],
+            '2220' => [0, 2820000],
+            '2230' => [0, 1215000],
+            '2240' => [0, 11430000],
+            '6100' => [15000000, 0],
+            '6110' => [465000, 0],
         ], $this->linesOf($sales));
+        // ACC-33: each line names its component (the pack's label, or the run's own words).
+        $descriptions = $this->inTenant(fn () => JournalLine::query()->where('journal_id', $sales->id)->get()
+            ->map(fn (JournalLine $line) => Account::query()->whereKey($line->account_id)->value('code').' '.($line->debit_minor > 0 ? 'Dr' : 'Cr').' '.$line->description)->sort()->values()->all());
+        $this->assertSame([
+            '2220 Cr PAYE', '2230 Cr Affordable Housing Levy', '2230 Cr Affordable Housing Levy employer share', '2230 Cr NITA levy employer share',
+            '2230 Cr NSSF', '2230 Cr NSSF employer share', '2230 Cr SHIF', '2240 Cr Net pay payable', '6100 Dr Gross pay',
+            '6110 Dr Affordable Housing Levy employer share', '6110 Dr NITA levy employer share', '6110 Dr NSSF employer share',
+        ], $descriptions);
+
+        // payroll.md decision 41: Kitchen pays one employee, so its journal is at company level (no department).
+        $this->assertNotNull(collect($journals)->first(fn (Journal $j) => $department($j) === null));
 
         foreach ($journals as $journal) {
             $lines = $this->linesOf($journal);
@@ -127,5 +145,21 @@ class PayrollPostingTest extends TestCase
 
         $this->assertSame([], $this->journals());
         $this->assertSame(0, $this->inTenant(fn () => PostingException::query()->count()));
+    }
+
+    public function test_posting_exceptions_of_a_run_name_their_department(): void
+    {
+        // ACC-33: one source per department; with no rule, each fails on its own and the list says which department.
+        $this->inTenant(fn () => PostingRule::query()->where('event_type', 'payroll.run')->update(['archived_at' => now()]));
+        // Three employees in each department (payroll.md decision 41: smaller departments post at company level).
+        foreach (['Amina', 'Baraka', 'Chao'] as $name) {
+            $this->payrollEmployee('5000000', ['first_name' => $name]);
+            $this->payrollEmployee('3000000', ['first_name' => "{$name} K", 'department_id' => $this->kitchen->id]);
+        }
+
+        $this->postedRun();
+
+        $rows = $this->getJson("/api/v1/companies/{$this->acme->id}/accounting/posting-exceptions", $this->headersFor($this->owner))->assertOk()->json('data');
+        $this->assertSame(['Kitchen', 'Sales'], collect($rows)->pluck('department.name')->sort()->values()->all());
     }
 }

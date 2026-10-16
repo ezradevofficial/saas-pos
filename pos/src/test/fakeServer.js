@@ -23,6 +23,8 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
     stored: new Map(),
     reject: new Map(),
     uploadOverride: null,
+    // Answers HR's till uploads in place of the defaults (path, body) => response | null.
+    hrOverride: null,
     requests: [],
     pinReports: [],
     // BR-02, LAY-05: images by path (data URIs), for GET sync/brand-assets and sync/media.
@@ -167,6 +169,10 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
       // ({ data: [...] }, always 200); a punch already held is stored again.
       if (method === 'POST' && path === 'hr/till/punches') {
         if (state.hrInactive) return { status: 403, body: { code: 'module_inactive', message: 'Inactive' } };
+        if (state.hrOverride) {
+          const answer = state.hrOverride(path, body);
+          if (answer) return answer;
+        }
         const data = body.punches.map((punch) => {
           if (state.stored.has(punch.id)) {
             const held = state.stored.get(punch.id);
@@ -183,6 +189,10 @@ export function fakeServer({ entities = {}, now = () => Date.now() } = {}) {
       // HR-23: wrong clock-in PINs counted on a till; answered in order, by employee.
       if (method === 'POST' && path === 'hr/till/clock-attempts') {
         if (state.hrInactive) return { status: 403, body: { code: 'module_inactive', message: 'Inactive' } };
+        if (state.hrOverride) {
+          const answer = state.hrOverride(path, body);
+          if (answer) return answer;
+        }
         state.clockReports = [...(state.clockReports ?? []), ...body.reports];
         return { status: 200, body: { data: body.reports.map((report) => ({ employee_id: report.employee_id, recorded: true })) } };
       }

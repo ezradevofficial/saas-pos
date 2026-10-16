@@ -167,8 +167,10 @@ class SensitiveDataTest extends TestCase
             ->assertOk()->assertJsonPath('data.personal_phone', '+254722333444');
         $this->patchJson('/api/v1/hr/me', ['first_name' => 'Changed'], $this->headersFor($user))->assertOk()->assertJsonPath('data.first_name', 'Amina');
 
-        // Someone not linked to an employee has no self-service.
-        $this->getJson('/api/v1/hr/me', $this->headersFor($this->managerA))->assertNotFound()->assertJsonPath('code', 'not_an_employee');
+        // Someone not linked to an employee has no self-service: GET hr/me says so with 204 (decision 30), the rest is not found.
+        $this->getJson('/api/v1/hr/me', $this->headersFor($this->managerA))->assertNoContent();
+        $this->getJson('/api/v1/hr/me/leave', $this->headersFor($this->managerA))->assertNotFound()->assertJsonPath('code', 'not_an_employee');
+        $this->patchJson('/api/v1/hr/me', ['personal_phone' => '+254722333444'], $this->headersFor($this->managerA))->assertNotFound()->assertJsonPath('code', 'not_an_employee');
     }
 
     private function sensitiveViews(): int

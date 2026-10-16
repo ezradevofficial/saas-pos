@@ -23,6 +23,9 @@ use InvalidArgumentException;
  * (`{field: {currency, amount_minor, base_minor, fx?}}`): the line posts
  * that amount in that currency with its base amount; `amounts` keeps the
  * field's value in the source currency (what the source's total counts).
+ *
+ * Stage 7C: `labels` names a field's lines (`{field: "PAYE"}`); a line
+ * without one is described by the source's reference.
  */
 final class SourceDocument
 {
@@ -31,6 +34,7 @@ final class SourceDocument
     /**
      * @param  array<string, string|int>  $amounts  field => signed minor units
      * @param  array<string, ?string>  $dimensions
+     * @param  array<string, string>  $labels  field => line description
      */
     public function __construct(
         public readonly string $companyId,
@@ -47,6 +51,7 @@ final class SourceDocument
         public readonly ?string $rule = null,
         public readonly bool $reverse = false,
         public readonly array $foreign = [],
+        public readonly array $labels = [],
     ) {
         if (preg_match('/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*\z/', $sourceType) !== 1 || strlen($sourceType) > 60) {
             throw new InvalidArgumentException("Bad source type [{$sourceType}].");
@@ -101,6 +106,7 @@ final class SourceDocument
             'rule' => $this->rule,
             'reverse' => $this->reverse,
             'foreign' => $this->foreign,
+            'labels' => $this->labels,
         ];
     }
 
@@ -124,6 +130,7 @@ final class SourceDocument
             rule: $data['rule'] ?? null,
             reverse: (bool) ($data['reverse'] ?? false),
             foreign: (array) ($data['foreign'] ?? []),
+            labels: (array) ($data['labels'] ?? []),
         );
     }
 }

@@ -40,6 +40,50 @@ abstract class SensitiveReads
         return $this->read($employee);
     }
 
+    /**
+     * Stage 7C closing review (payroll.md decision 38): many employees for
+     * $actor in one read. Those whose group $actor sees in full at their
+     * place are read and audited in one entry naming them; the others are
+     * returned as refused (left out, never a 403 for the whole batch).
+     *
+     * @param  list<string>  $employeeIds
+     * @return array{read: array<string, array>, refused: list<string>}
+     */
+    public function manyForUser(array $employeeIds, User $actor): array
+    {
+        $seen = [];
+        $refused = [];
+
+        foreach (Employee::query()->whereIn('id', array_values(array_unique($employeeIds)))->orderBy('number')->get() as $employee) {
+            if ($this->sensitive->sees($actor, $employee, $this->group())) {
+                $seen[$employee->id] = $employee;
+            } else {
+                $refused[] = $employee->id;
+            }
+        }
+
+        if ($seen !== []) {
+            $this->auditor->record('hr.employee.sensitive_read', null, null, ['groups' => [$this->group()], 'context' => 'user', 'employees' => array_keys($seen)]);
+        }
+
+        return ['read' => $this->readMany(array_values($seen)), 'refused' => $refused];
+    }
+
+    /**
+     * @param  list<Employee>  $employees
+     * @return array<string, array> by employee id
+     */
+    protected function readMany(array $employees): array
+    {
+        $read = [];
+
+        foreach ($employees as $employee) {
+            $read[$employee->id] = $this->read($employee);
+        }
+
+        return $read;
+    }
+
     /** Inside payroll run $runId (the system acting for an approved run), audited with the run. */
     public function forPayrollRun(string $employeeId, string $runId): array
     {

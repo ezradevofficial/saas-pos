@@ -1,4 +1,4 @@
-import { formatCalendarDate, formatDate, formatDateTime, formatLongDate, formatTime, localDateTimeIn, partOfDay, todayIn, zonedToUtc } from './dates'
+import { formatCalendarDate, formatDate, formatDatesIn, formatDateTime, formatLongDate, formatTime, localDateTimeIn, partOfDay, todayIn, zonedToUtc } from './dates'
 
 describe('dates', () => {
   it('writes day, short month and year with 24-hour times', () => {
@@ -32,6 +32,14 @@ describe('company time zones', () => {
 
   it('reads calendar dates without shifting them', () => {
     expect(formatCalendarDate('2026-10-07', 'en')).toBe('7 Oct 2026')
+  })
+
+  it('formats the ISO dates inside a title and keeps the rest', () => {
+    expect(formatDatesIn('Monthly staff 2026-10-01 – 2026-10-31', 'en')).toBe('Monthly staff 1 Oct 2026 – 31 Oct 2026')
+    expect(formatDatesIn('Mensuel 2026-10-01 – 2026-10-31', 'fr')).toMatch(/^Mensuel 1 oct\.? 2026 – 31 oct\.? 2026$/)
+    expect(formatDatesIn('Cooking oil restock, 40 cartons', 'en')).toBe('Cooking oil restock, 40 cartons')
+    expect(formatDatesIn('Stamp 2026-10-07T08:00:00Z', 'en')).toBe('Stamp 2026-10-07T08:00:00Z')
+    expect(formatDatesIn(null, 'en')).toBe(null)
   })
 
   it('converts wall-clock time in a zone to UTC and back', () => {

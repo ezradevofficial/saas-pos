@@ -22,7 +22,10 @@ const RULES = {
 }
 const EXCEPTIONS = { data: [{
   id: 'e-1', source_type: 'loyalty.gift_card_sold', source_id: 'g-1', error_code: 'posting_rule_missing', error_message: 'There is no posting rule for loyalty.gift_card_sold.',
-  attempts: 1, status: 'open', journal_id: null, date: '2026-10-14T08:00:00+00:00', reference: 'MPESA-1', link: { kind: 'loyalty.gift_card', id: 'card-1' },
+  attempts: 1, status: 'open', journal_id: null, date: '2026-10-14T08:00:00+00:00', reference: 'MPESA-1', link: { kind: 'loyalty.gift_card', id: 'card-1' }, department: null,
+}, {
+  id: 'e-2', source_type: 'payroll.run', source_id: 'p-1', error_code: 'posting_rule_missing', error_message: 'There is no posting rule for payroll.run.',
+  attempts: 1, status: 'open', journal_id: null, date: '2026-10-31T12:00:00+00:00', reference: 'PR-2026-00003', link: { kind: 'payroll.run', id: 'run-1' }, department: { id: 'd-1', name: 'Kitchen' },
 }] }
 
 function setup(permissions = ['core.company.view', 'accounting.posting_rule.view', 'accounting.posting_rule.manage', 'accounting.account.view']) {
@@ -59,7 +62,9 @@ describe('Posting rules and exceptions (ACC-24)', () => {
     await within(waiting).findByText('MPESA-1')
     expect(within(waiting).getByRole('link', { name: 'Gift card sold' })).toHaveAttribute('href', '/loyalty/gift-cards/card-1')
     expect(within(waiting).getByText('MPESA-1')).toBeInTheDocument()
-    fireEvent.click(within(waiting).getByRole('button', { name: 'Retry' }))
+    // ACC-33: a payroll run fails per department; the row names it.
+    expect(within(waiting).getByText('PR-2026-00003 · Kitchen')).toBeInTheDocument()
+    fireEvent.click(within(waiting).getAllByRole('button', { name: 'Retry' })[0])
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('accounting/posting-exceptions/e-1/retry'))
     expect(await screen.findByText('Posted.')).toBeInTheDocument()
 
@@ -84,6 +89,7 @@ describe('Posting rules and exceptions (ACC-24)', () => {
     expect(moduleLink({ kind: 'inventory.movements', id: 'm-1', source_type: 'pos.sale' })).toBe('/inventory/movements?source=m-1')
     expect(moduleLink({ kind: 'loyalty.credit_account', id: 'a-1' })).toBe('/loyalty/credit/a-1')
     expect(moduleLink({ kind: 'loyalty.customer', id: 'p-1' })).toBe('/contacts/customers/p-1?tab=loyalty')
+    expect(moduleLink({ kind: 'payroll.run', id: 'r-1' })).toBe('/payroll/runs/r-1')
     expect(sourceLink({ type: 'pos.refund', id: 'r-1', link: { kind: 'pos.sale', id: 's-1' } })).toBe('/pos/sales/s-1')
     expect(sourceLink({ type: 'accounting.document', id: 'd-1', link: null })).toBe('/accounting/documents/d-1')
   })
