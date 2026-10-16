@@ -8,6 +8,8 @@ use App\Core\DocumentTemplates\DataSources;
 use App\Core\Imports\ImportRegistry;
 use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Layouts\ListViewCatalogue;
+use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Items\ItemTypeGuards;
 use App\Core\MasterData\RecordUsage;
 use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberTypes;
@@ -34,7 +36,9 @@ use Modules\FixedAssets\Listeners\CancelDraftsOfReceipt;
 use Modules\FixedAssets\Listeners\CapitaliseFromProcurement;
 use Modules\FixedAssets\Listeners\SettleFixedAssetDocument;
 use Modules\FixedAssets\Maintenance\Reminders;
+use Modules\FixedAssets\Models\ItemCategory;
 use Modules\FixedAssets\Postings\Postings;
+use Modules\FixedAssets\Support\FaError;
 use Modules\FixedAssets\Support\Numbers;
 use Modules\FixedAssets\TaxBook\TaxClasses;
 use Modules\Procurement\Events\GoodsReceiptCancelled;
@@ -119,6 +123,14 @@ class FixedAssetsServiceProvider extends ServiceProvider
                 Event::listen($event, CapitaliseFromProcurement::class);
             }
         }
+
+        // FA-21: an item flagged as an asset stays non-stock while the module is active (unflag it first).
+        $this->app->make(ItemTypeGuards::class)->register(function (Item $item, string $type) {
+            if ($type === 'stock' && $this->app->make(ModuleRegistry::class)->isActive(self::MODULE)
+                && ItemCategory::query()->where('item_id', $item->id)->whereNull('archived_at')->exists()) {
+                throw FaError::make('item_is_asset', field: 'type');
+            }
+        });
 
         if (class_exists(GoodsReceiptCancelled::class)) {
             Event::listen(GoodsReceiptCancelled::class, CancelDraftsOfReceipt::class);

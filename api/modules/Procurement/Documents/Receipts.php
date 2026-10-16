@@ -284,6 +284,8 @@ class Receipts
                 'landed_minor' => (string) $landed,
                 'serials' => array_values($line->serials ?? []),
                 'location_id' => $receipt->location_id,
+                // FA-21: how the line was booked (as the invoice's lines say), so stock never becomes an asset too.
+                'kind' => $stock ? 'stock' : 'expense',
             ];
         }
 

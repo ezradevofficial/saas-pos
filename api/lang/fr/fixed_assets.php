@@ -54,6 +54,7 @@ return [
         'too_many_labels' => 'Au plus :max étiquettes peuvent être imprimées à la fois. Imprimez-en moins.',
         'item_other_company' => 'Cet article appartient à une autre société. Choisissez un article partagé ou un article de cette société.',
         'item_is_stock' => 'Les articles stockés restent dans le registre des stocks. Désignez un article non stocké ou un service comme immobilisation.',
+        'item_is_asset' => 'Cet article est marqué comme immobilisation dans Immobilisations. Retirez ce marquage, puis faites-en un article stocké.',
         'item_flagged' => 'Cet article est déjà désigné comme immobilisation dans cette société.',
         'convention_locked' => 'Des amortissements sont déjà comptabilisés avec la convention actuelle, elle ne peut donc pas changer.',
     ],

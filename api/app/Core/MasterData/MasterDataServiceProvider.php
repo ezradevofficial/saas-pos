@@ -18,6 +18,7 @@ use App\Core\MasterData\Items\ItemCategorySharedRecords;
 use App\Core\MasterData\Items\ItemCodesGuard;
 use App\Core\MasterData\Items\ItemPolicy;
 use App\Core\MasterData\Items\ItemSharedRecords;
+use App\Core\MasterData\Items\ItemTypeGuards;
 use App\Core\MasterData\Items\Listeners\SeedDefaultUoms;
 use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\Items\UomPolicy;
@@ -62,6 +63,8 @@ class MasterDataServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(MasterDataSharing::class);
+        // MD-02, FA-21: modules refuse item type changes that would break them.
+        $this->app->singleton(ItemTypeGuards::class);
         $this->app->singleton(HistoryTypes::class);
         $this->app->singleton(DuplicateFinder::class);
         $this->app->singleton(PaymentProviders::class);

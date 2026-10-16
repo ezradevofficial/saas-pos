@@ -53,6 +53,7 @@ return [
         'too_many_labels' => 'At most :max labels can be printed at once. Print fewer.',
         'item_other_company' => 'This item belongs to another company. Choose a shared item or one of this company’s.',
         'item_is_stock' => 'Stock items stay in the stock ledger. Flag a non-stock or service item as an asset.',
+        'item_is_asset' => 'This item is flagged as an asset in Fixed assets. Remove the flag there, then make it a stock item.',
         'item_flagged' => 'This item is already flagged as an asset in this company.',
         'convention_locked' => 'Depreciation is already posted with the current convention, so it cannot change.',
     ],
