@@ -37,6 +37,8 @@ return [
             'stores.*.view',
             // HR-09: reads HR's records, never its sensitive groups (identity, bank, pay, medical, disciplinary).
             'hr.*.view',
+            // MFG-02, MFG-29: keeps BOMs and recipes and a company's production rates; reads orders, reports and costs.
+            'manufacturing.*.view', 'manufacturing.bom.manage', 'manufacturing.settings.edit',
             // Fixed assets (docs/modules/fixed-assets.md): reads it all, sets categories and a company's convention, prints labels.
             'fixed_assets.*.view', 'fixed_assets.settings.edit', 'fixed_assets.category.manage', 'fixed_assets.label.print',
             // CRM (docs/modules/crm.md): reads every CRM record at the branches it reaches and sets the module up.
@@ -79,6 +81,11 @@ return [
             // rosters and swaps, attendance, checklists and appraisals at their branch.
             'hr.employee.view', 'hr.position.view', 'hr.contract.view', 'hr.leave.view', 'hr.leave.request', 'hr.leave.approve',
             'hr.roster.*', 'hr.swap.approve', 'hr.attendance.view', 'hr.attendance.manage', 'hr.checklist.view', 'hr.appraisal.*',
+            // Manufacturing (docs/modules/manufacturing.md, review fix 3, least privilege): production orders,
+            // materials, reports and costs at their branch; BOMs read and exploded only (keeping BOMs and the
+            // company's rates is company-level: Admin, Owner).
+            'manufacturing.bom.view', 'manufacturing.order.*', 'manufacturing.material.*', 'manufacturing.production.*',
+            'manufacturing.report.view', 'manufacturing.cost.view',
             // Fixed assets (docs/modules/fixed-assets.md): the branch's assets, transfers (the default approver, FA-14),
             // disposal requests, maintenance, labels, reports and values.
             'fixed_assets.asset.*', 'fixed_assets.transfer.*', 'fixed_assets.disposal.request', 'fixed_assets.maintenance.*',
@@ -149,6 +156,8 @@ return [
             'procurement.receipt.*', 'procurement.po.view', 'procurement.requisition.view', 'procurement.requisition.create',
             // STR-02 to STR-12: requisitions, issues, returns, the store ledger and consumption.
             'stores.*',
+            // MFG-12: issues materials to production orders and takes back what is unused; quantities only (RBAC-05).
+            'manufacturing.bom.view', 'manufacturing.order.view', 'manufacturing.material.*',
         ],
         // INV-08 to INV-10, INV-12: storekeepers request; managers and approvers decide.
         // Costs belong to Accountants and Admins: storekeepers see quantities only (RBAC-05).
@@ -183,6 +192,8 @@ return [
             'inventory.*.view',
             // STR-12: Stores' documents, ledger, consumption and values.
             'stores.*.view',
+            // MFG-16, MFG-18, MFG-19: production orders, their costs and the consumption and variance reports.
+            'manufacturing.*.view',
             // Fixed assets (docs/modules/fixed-assets.md): the register, categories, runs, revaluations, disposals and the tax book.
             'fixed_assets.*',
         ],
@@ -260,6 +271,8 @@ return [
             'stores.requisition.view',
             // HR-14, HR-19: the leave and shift swaps they approve.
             'hr.leave.view', 'hr.roster.view',
+            // MFG-11: the production orders whose release they approve.
+            'manufacturing.order.view',
             // FA-14, FA-17: the assets whose transfers and disposals they approve, with their values (RBAC-05).
             'fixed_assets.asset.view', 'fixed_assets.value.view',
             // PAY-16: the payroll runs they approve, by their totals, department totals and variances

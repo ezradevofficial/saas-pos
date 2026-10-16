@@ -18,6 +18,9 @@ const SOURCE_PATHS = {
   'pos.sale': (id) => `/pos/sales/${id}`,
   'stores.issue': (id) => `/stores/issues/${id}`,
   'stores.return': (id) => `/stores/returns/${id}`,
+  // MFG-15: a sale's recipe consumption (or its return) opens the backflush report.
+  'manufacturing.backflush': () => '/manufacturing/backflushes',
+  'manufacturing.backflush_return': () => '/manufacturing/backflushes',
 }
 
 /**

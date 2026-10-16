@@ -53,6 +53,7 @@ use Modules\Accounting\Posting\SourceDocument;
 use Modules\HR\Events\AttendancePeriodClosed;
 use Modules\HR\Events\LeaveApproved;
 use Modules\HR\Models\Employee;
+use Modules\Manufacturing\Models\Backflush;
 use Modules\Payroll\Models\PayrollEmployee;
 use Modules\Payroll\Models\Payslip;
 use Modules\Payroll\Statutory\PayrollPack;
@@ -565,6 +566,13 @@ final class TwoTenants
         // manager (the department head is its requester), partly issued and
         // partly returned through Inventory.
         $stores = self::stores($test, $owner, ['Authorization' => 'Bearer '.$accepted->json('token'), 'Accept' => 'application/json'], $tenantId, $inventory['inventory_location'], $item, $dimensions);
+        // Manufacturing (docs/modules/manufacturing.md): the module switched on; the
+        // company's rates; a production BOM (published, with a draft open) of a product
+        // from the item with a by-product; a recipe of a menu item; an order released,
+        // its item issued, partly returned and partly reported (costed through
+        // Inventory); a POS sale of the menu item backflushed.
+        $manufacturing = self::manufacturing($test, $owner, $tenantId, $ownerId, $company, $location, $item, $uoms['EA'], $deviceToken, $pos,
+            $priceList, $paymentMethod, $taxCode, $taxCategory, $upper);
         // HR (docs/modules/hr.md): the module switched on; a position, a default
         // onboarding template, an employee linked to the Owner (self-service)
         // and a peer reporting to them, with identifiers, a pay account, a
@@ -668,6 +676,7 @@ final class TwoTenants
                 ...$inventory,
                 ...$procurement,
                 ...$stores,
+                ...$manufacturing,
                 ...$hr,
                 ...$fixedAssets,
                 ...$crm,
@@ -1109,6 +1118,68 @@ final class TwoTenants
             'stores_issue' => $issue['id'],
             'stores_issue_line' => $issue['lines'][0]['id'],
             'stores_return' => $return,
+        ];
+    }
+
+    /**
+     * The Manufacturing fixture of one tenant, made through its API as the
+     * Owner (and the till for the sale): every mfg_* table has rows.
+     *
+     * @param  array<string, string>  $pos
+     * @return array<string, string>
+     */
+    private static function manufacturing(TestCase $test, array $owner, string $tenantId, string $ownerId, string $company, string $location, string $item, string $each,
+        string $deviceToken, array $pos, string $priceList, string $paymentMethod, string $taxCode, string $taxCategory, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('manufacturing'));
+        $owner = [...$owner, 'Accept' => 'application/json'];
+
+        self::ok($test->putJson("/api/v1/manufacturing/companies/{$company}/settings", ['labour_rate_minor' => '60000', 'overhead_rate_minor' => '30000', 'release_approval' => false], $owner));
+        $newItem = fn (string $code, string $type, array $extra = []) => self::ok($test->postJson('/api/v1/items', [
+            'code' => "{$code}-{$upper}", 'name' => "{$code} {$upper}", 'type' => $type, 'base_uom_id' => $each, ...$extra,
+        ], $owner), 201)->json('data.id');
+        $product = $newItem('MFG-PRODUCT', 'stock');
+        $byProduct = $newItem('MFG-BYPRODUCT', 'stock');
+        $menu = $newItem('MFG-MENU', 'kit', ['tax_category_id' => $taxCategory]);
+
+        $bom = self::ok($test->postJson('/api/v1/manufacturing/boms', ['company_id' => $company, 'item_id' => $product, 'kind' => 'production', 'version' => [
+            'output_qty' => '1', 'labour_minutes' => 30, 'lines' => [
+                ['item_id' => $item, 'qty' => '1', 'wastage_percent' => '5'],
+                ['kind' => 'by_product', 'item_id' => $byProduct, 'qty' => '1', 'cost_share_percent' => '10'],
+            ],
+        ]], $owner), 201)->json('data');
+        $published = self::ok($test->postJson("/api/v1/manufacturing/bom-versions/{$bom['draft_id']}/publish", ['effective_from' => now()->subHours(2)->toIso8601String()], $owner))->json('data.id');
+        $draft = self::ok($test->postJson("/api/v1/manufacturing/boms/{$bom['id']}/versions", [], $owner), 201)->json('data.id');
+        $recipe = self::ok($test->postJson('/api/v1/manufacturing/boms', ['company_id' => $company, 'item_id' => $menu, 'kind' => 'recipe', 'version' => [
+            'output_qty' => '1', 'lines' => [['item_id' => $item, 'qty' => '1']],
+        ]], $owner), 201)->json('data.draft_id');
+        self::ok($test->postJson("/api/v1/manufacturing/bom-versions/{$recipe}/publish", ['effective_from' => now()->subHours(2)->toIso8601String()], $owner));
+
+        $order = self::ok($test->postJson('/api/v1/manufacturing/orders', ['location_id' => $location, 'item_id' => $product, 'qty' => '4'], $owner), 201)->json('data');
+        self::ok($test->postJson("/api/v1/manufacturing/orders/{$order['id']}/release", [], $owner));
+        $issued = self::ok($test->postJson("/api/v1/manufacturing/orders/{$order['id']}/issues", ['lines' => [['material_id' => $order['materials'][0]['id'], 'qty' => '3']]], $owner), 201)->json('data');
+        $issue = $issued['issues'][0];
+        self::ok($test->postJson("/api/v1/manufacturing/orders/{$order['id']}/returns", ['issue_id' => $issue['id'], 'reason' => 'unused', 'lines' => [['issue_line_id' => $issue['lines'][0]['id'], 'qty' => '1']]], $owner), 201);
+        $output = collect($issued['outputs'])->firstWhere('kind', 'by_product')['id'];
+        self::ok($test->postJson("/api/v1/manufacturing/orders/{$order['id']}/reports", ['qty_good' => '1', 'by_products' => [['output_id' => $output, 'qty' => '1']]], $owner), 201);
+
+        $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
+        $sale = self::posSale(fn () => (string) Str::uuid7(), $pos['pos_shift'], $ownerId, 8, str_replace('{000001}', '000008', $pos['pos_receipt_pattern']), $menu, $each, $priceList, $paymentMethod, $taxCode);
+        self::ok($test->postJson('/api/v1/pos/sales', ['sales' => [$sale]], $device))->assertJsonPath('results.0.status', 'stored');
+        $backflush = app(TenantContext::class)->run($tenantId, fn () => Backflush::query()->where('source_id', $sale['id'])->value('id'));
+        Assert::assertNotNull($backflush, 'TwoTenants: the menu item sale was not backflushed');
+
+        return [
+            'mfg_bom' => $bom['id'],
+            'mfg_bom_version' => $draft,
+            'mfg_bom_version_published' => $published,
+            'mfg_product' => $product,
+            'mfg_order' => $order['id'],
+            'mfg_material' => $order['materials'][0]['id'],
+            'mfg_output' => $output,
+            'mfg_issue' => $issue['id'],
+            'mfg_issue_line' => $issue['lines'][0]['id'],
+            'mfg_backflush' => $backflush,
         ];
     }
 

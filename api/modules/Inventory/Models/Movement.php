@@ -85,10 +85,25 @@ class Movement extends Model implements HasScope
     /** STR-08: goods returned to a store, at the cost their issue went out at. */
     public const STORE_RETURN = 'store_return';
 
+    /** MFG-12: materials issued to a production order (Manufacturing). */
+    public const PRODUCTION_ISSUE = 'production_issue';
+
+    /** MFG-12: unused materials back from a production order, at the cost their issue went out at. */
+    public const PRODUCTION_RETURN = 'production_return';
+
+    /** MFG-13, MFG-16: a production order's good output and by-products, at their cost. */
+    public const PRODUCTION_RECEIPT = 'production_receipt';
+
+    /** MFG-07: a POS sale's ingredients, consumed through its menu items' recipes. */
+    public const RECIPE_CONSUMPTION = 'recipe_consumption';
+
+    /** MFG-08: ingredients back on a void or refund, at the cost they left at. */
+    public const RECIPE_RETURN = 'recipe_return';
+
     public const KINDS = [
         self::OPENING, self::OPENING_REVERSAL, self::RECEIPT, self::ADJUSTMENT_IN, self::ADJUSTMENT_OUT, self::COUNT_GAIN, self::COUNT_LOSS,
         self::TRANSFER_OUT, self::TRANSFER_IN, self::TRANSFER_LOSS, self::SALE, self::SALE_RETURN, self::SALE_VOID, self::STORE_ISSUE, self::STORE_RETURN,
-        self::COST_ADJUSTMENT,
+        self::COST_ADJUSTMENT, self::PRODUCTION_ISSUE, self::PRODUCTION_RETURN, self::PRODUCTION_RECEIPT, self::RECIPE_CONSUMPTION, self::RECIPE_RETURN,
     ];
 
     /** Moves between locations of one company: the company's cost does not change. */
