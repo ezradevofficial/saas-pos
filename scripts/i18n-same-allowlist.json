@@ -92,5 +92,6 @@
   "M{{number}}",
   "Dates",
   "Stock",
-  "Version"
+  "Version",
+  "Note"
 ]
