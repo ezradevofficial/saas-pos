@@ -37,6 +37,8 @@ return [
             'stores.*.view',
             // HR-09: reads HR's records, never its sensitive groups (identity, bank, pay, medical, disciplinary).
             'hr.*.view',
+            // Fixed assets (docs/modules/fixed-assets.md): reads it all, sets categories and a company's convention, prints labels.
+            'fixed_assets.*.view', 'fixed_assets.settings.edit', 'fixed_assets.category.manage', 'fixed_assets.label.print',
             // CRM (docs/modules/crm.md): reads every CRM record at the branches it reaches and sets the module up.
             'crm.*.view', 'crm.settings.manage', 'crm.scope.branch'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
@@ -77,6 +79,10 @@ return [
             // rosters and swaps, attendance, checklists and appraisals at their branch.
             'hr.employee.view', 'hr.position.view', 'hr.contract.view', 'hr.leave.view', 'hr.leave.request', 'hr.leave.approve',
             'hr.roster.*', 'hr.swap.approve', 'hr.attendance.view', 'hr.attendance.manage', 'hr.checklist.view', 'hr.appraisal.*',
+            // Fixed assets (docs/modules/fixed-assets.md): the branch's assets, transfers (the default approver, FA-14),
+            // disposal requests, maintenance, labels, reports and values.
+            'fixed_assets.asset.*', 'fixed_assets.transfer.*', 'fixed_assets.disposal.request', 'fixed_assets.maintenance.*',
+            'fixed_assets.label.print', 'fixed_assets.report.view', 'fixed_assets.value.view',
             // CRM (docs/modules/crm.md): the branch's leads, opportunities, quotes (the default quote approver, CRM-21),
             // activities and targets, with the branch scope (CRM-08); the module's settings are the Admin's.
             'crm.*',
@@ -177,7 +183,11 @@ return [
             'inventory.*.view',
             // STR-12: Stores' documents, ledger, consumption and values.
             'stores.*.view',
+            // Fixed assets (docs/modules/fixed-assets.md): the register, categories, runs, revaluations, disposals and the tax book.
+            'fixed_assets.*',
         ],
+        // FA-14, FA-17: transfers and disposals are approved by others.
+        'except' => ['fixed_assets.transfer.approve', 'fixed_assets.disposal.approve'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -250,6 +260,8 @@ return [
             'stores.requisition.view',
             // HR-14, HR-19: the leave and shift swaps they approve.
             'hr.leave.view', 'hr.roster.view',
+            // FA-14, FA-17: the assets whose transfers and disposals they approve, with their values (RBAC-05).
+            'fixed_assets.asset.view', 'fixed_assets.value.view',
             // PAY-16: the payroll runs they approve, by their totals, department totals and variances
             // (payroll.md decision 36: per-employee lines need payroll.pay.view; field rules may hide the totals, PAY-23).
             'payroll.run.view',

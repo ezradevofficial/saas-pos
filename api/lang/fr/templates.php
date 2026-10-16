@@ -19,6 +19,7 @@ return [
         'party_statement' => 'Relevé client',
         'letter' => 'Lettre',
         'inventory_label' => 'Étiquette code-barres',
+        'fixed_assets_label' => 'Étiquette d’immobilisation',
         'accounting_invoice' => 'Facture',
         'accounting_credit_note' => 'Avoir',
         'accounting_statement' => 'Relevé de compte',
@@ -97,6 +98,11 @@ return [
                 'issued_by' => 'Sorti par',
                 'received_by' => 'Reçu par',
                 'total_value' => 'Valeur totale',
+                'asset_name' => 'Immobilisation',
+                'tag' => 'Numéro d’inventaire',
+                'serial_number' => 'Numéro de série',
+                'category' => 'Catégorie',
+                'location' => 'Emplacement',
                 // PAY-19: the payslip's fields (PayslipSource).
                 'employee_number' => 'Matricule',
                 'pay_date' => 'Date de paie',
@@ -143,6 +149,7 @@ return [
             'party_statement' => 'Relevé',
             'letter' => 'Référence',
             'inventory_label' => 'Étiquette',
+            'fixed_assets_label' => 'Immobilisation',
         ],
         'columns' => [
             'item_name' => 'Article',

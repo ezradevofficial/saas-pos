@@ -302,6 +302,9 @@ class Invoices
             $grni += (int) $line->base_grni_minor;
             $variance += $stock ? $stockNet - (int) $line->base_grni_minor : 0;
             $documentLines[] = [
+                // Fixed assets (FA-21): which invoice and PO line it is, so a draft asset is made once.
+                'line_id' => $line->id,
+                'order_line_id' => $line->order_line_id,
                 'description' => $orderLine->description,
                 'item_id' => $orderLine->item_id,
                 'qty' => Receipts::decimal((string) $line->qty),
@@ -339,6 +342,8 @@ class Invoices
                 'party_id' => $invoice->party_id, 'company_id' => $invoice->company_id, 'branch_id' => $invoice->branch_id,
                 'invoice_date' => $invoice->invoice_date->toDateString(), 'due_date' => $invoice->due_date?->toDateString(),
                 'currency' => $invoice->currency, 'tax_inclusive' => (bool) $invoice->tax_inclusive, 'lines' => $documentLines,
+                // Fixed assets (FA-21): the PO's delivery location, where draft assets of the invoice sit.
+                'location_id' => Order::query()->whereKey($invoice->order_id)->value('location_id'),
                 'totals' => ['net' => (string) $invoice->subtotal_minor, 'tax' => (string) $invoice->tax_minor, 'total' => (string) $invoice->total_minor],
                 'base_totals' => ['net' => (string) $baseNet, 'tax' => (string) $baseTax, 'total' => (string) ($baseNet + $baseTax)],
             ],

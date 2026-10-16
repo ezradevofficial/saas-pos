@@ -102,6 +102,7 @@ and values only):
 | --- | --- | --- |
 | `PurchaseOrderApproved` | A PO's flow approved it | tenant, PO id, company, branch, supplier, currency, total, base total |
 | `GoodsReceiptPosted` | A GRN posted | the Accounting payload `procurement.goods_receipt` below |
+| `GoodsReceiptCancelled` | A draft GRN cancelled | `{tenant_id, receipt_id, company_id, order_id, reference}`; not an Accounting source (Fixed assets archives drafts made from the receipt, FA-21) |
 | `SupplierInvoiceApproved` | An invoice approved | the Accounting payload `procurement.supplier_invoice` below |
 | `LandedCostAllocated` | A landed cost posted | the payload `procurement.landed_cost` below |
 | `TenderOpened`, `TenderAwarded` | Opening, award | tender id, company, bids count; awarded bid and party |
@@ -420,6 +421,10 @@ en/fr.
     PO cannot be printed without it. Granted to Owner, Admin, Branch
     Manager, Procurement Officer, Accountant, Approver and the Read-only
     Auditor (their view grants); not to the Storekeeper.
+
+### Stage 7D (Fixed assets)
+
+28. **Payloads for Fixed assets (additive).** `GoodsReceiptPosted` also carries `lines` (the accepted lines: line and PO line ids, item, description, quantity, base value, landed cost, serials, location) and `SupplierInvoiceApproved`'s document carries each line's `line_id` and `order_line_id` and the PO's delivery `location_id`, so Fixed assets turns items flagged as assets into draft assets (fixed-assets.md FA-21). Nothing in Procurement reads Fixed assets.
 
 ## Open questions
 

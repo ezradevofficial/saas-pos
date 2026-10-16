@@ -12,6 +12,7 @@ use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
 use Modules\Inventory\Contracts\GoodsReceived;
+use Modules\Procurement\Events\GoodsReceiptCancelled;
 use Modules\Procurement\Events\GoodsReceiptPosted;
 use Modules\Procurement\Models\LandedCostAllocation;
 use Modules\Procurement\Models\Order;
@@ -263,6 +264,7 @@ class Receipts
             ->whereIn('landed_cost_id', fn ($q) => $q->select('id')->from('procurement_landed_costs')->where('status', 'posted'))
             ->get()->groupBy('receipt_line_id')->map(fn ($allocations) => (int) $allocations->sum('base_amount_minor'));
         $amounts = ['stock_value' => 0, 'expense' => 0, 'grni' => 0, 'landed_cost' => 0, 'untracked_landed' => 0];
+        $eventLines = [];
 
         foreach ($lines as $line) {
             $stock = $line->item_id !== null && $items->get($line->item_id)?->type === 'stock';
@@ -271,6 +273,18 @@ class Receipts
             $amounts['grni'] += (int) $line->base_value_minor;
             $amounts['landed_cost'] += $landed;
             $amounts['untracked_landed'] += $line->stock_tracked ? 0 : $landed;
+            // Fixed assets (FA-21): the accepted lines, so items flagged as assets become draft assets.
+            $eventLines[] = [
+                'line_id' => $line->id,
+                'order_line_id' => $line->order_line_id,
+                'item_id' => $line->item_id,
+                'description' => $orderLines->get($line->order_line_id)?->description,
+                'qty' => self::decimal((string) $line->accepted_qty),
+                'base_value_minor' => (string) (int) $line->base_value_minor,
+                'landed_minor' => (string) $landed,
+                'serials' => array_values($line->serials ?? []),
+                'location_id' => $receipt->location_id,
+            ];
         }
 
         $dimensions = ['branch_id' => $receipt->branch_id, 'party_id' => $receipt->party_id];
@@ -281,7 +295,7 @@ class Receipts
         }
 
         return new GoodsReceiptPosted((string) $receipt->tenant_id, $receipt->id, $receipt->company_id, $receipt->received_at->toIso8601String(), (string) $receipt->base_currency,
-            array_map(fn (int $amount) => (string) $amount, $amounts), $receipt->fx->jsonSerialize(), $dimensions, (string) $receipt->number, $receipt->order_id);
+            array_map(fn (int $amount) => (string) $amount, $amounts), $receipt->fx->jsonSerialize(), $dimensions, (string) $receipt->number, $receipt->order_id, $eventLines);
     }
 
     public function cancel(Receipt $receipt, User $by, string $reason): Receipt
@@ -299,6 +313,8 @@ class Receipts
             }
 
             $receipt->fill(['status' => Receipt::CANCELLED, 'cancelled_by' => $by->id, 'cancelled_at' => CarbonImmutable::now(), 'cancel_reason' => $reason])->save();
+            // PRC-14: for whatever another module made from this receipt (Fixed assets, FA-21); after the commit.
+            event(new GoodsReceiptCancelled((string) $receipt->tenant_id, (string) $receipt->id, (string) $receipt->company_id, (string) $receipt->order_id, $receipt->number));
 
             return $receipt->refresh();
         });

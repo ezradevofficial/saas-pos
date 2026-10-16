@@ -63,7 +63,9 @@ class PayrollPostingTest extends TestCase
     /** @return list<Journal> */
     private function journals(): array
     {
-        return $this->inTenant(fn () => Journal::query()->where('source_type', 'payroll.run')->where('status', 'posted')->orderBy('created_at')->get()->all());
+        return $this->inTenant(fn () => Journal::query()->where('source_type', 'payroll.run')->where('status', 'posted')
+            // The test clock is frozen, so created_at ties; the journal number (NUM-01, in posting order) breaks the tie.
+            ->orderBy('created_at')->orderBy('number')->get()->all());
     }
 
     public function test_a_posted_run_posts_balanced_journals_per_department(): void

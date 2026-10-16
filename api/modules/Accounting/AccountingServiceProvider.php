@@ -38,6 +38,12 @@ use Modules\Accounting\Listeners\QueueFiscalDocument;
 use Modules\Accounting\Listeners\SettleJournal;
 use Modules\Accounting\Payments\Payments;
 use Modules\CRM\Events\QuoteConverted;
+use Modules\FixedAssets\Events\AssetCapitalised;
+use Modules\FixedAssets\Events\AssetDisposed;
+use Modules\FixedAssets\Events\AssetImpaired;
+use Modules\FixedAssets\Events\AssetRevalued;
+use Modules\FixedAssets\Events\DepreciationPosted;
+use Modules\FixedAssets\Events\DepreciationReversed;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\CreditAdjusted;
 use Modules\Loyalty\Events\CreditCharged;
@@ -97,6 +103,8 @@ class AccountingServiceProvider extends ServiceProvider
         SupplierInvoiceApproved::class,
         // Stage 7B closing review: landed cost bills and the landed cost of lines no stock journal carries.
         LandedCostAllocated::class, GoodsReceiptPosted::class,
+        // ACC-34: Fixed assets (docs/modules/fixed-assets.md FA-22).
+        AssetCapitalised::class, DepreciationPosted::class, DepreciationReversed::class, AssetRevalued::class, AssetImpaired::class, AssetDisposed::class,
         // PAY-22: posted payroll runs (journals per department and pay currency).
         PayrollPosted::class,
     ];

@@ -603,6 +603,11 @@
           "issued_by": "Issued by",
           "received_by": "Received by",
           "total_value": "Total value",
+          "asset_name": "Asset",
+          "tag": "Tag",
+          "serial_number": "Serial number",
+          "category": "Category",
+          "location": "Location",
           "employee_number": "Employee number",
           "pay_date": "Pay date",
           "run": "Payroll run",
@@ -647,7 +652,8 @@
         "payroll_payslip": "Payslip",
         "party_statement": "Statement",
         "letter": "Reference",
-        "inventory_label": "Label"
+        "inventory_label": "Label",
+        "fixed_assets_label": "Asset"
       },
       "columns": {
         "item_name": "Item",

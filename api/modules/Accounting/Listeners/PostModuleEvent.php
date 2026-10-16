@@ -89,6 +89,7 @@ class PostModuleEvent implements ShouldQueue
             $event instanceof StoreConsumptionValued => 'stores',
             str_starts_with($event::class, 'Modules\\Payroll\\') => 'payroll',
             str_starts_with($event::class, 'Modules\\Procurement\\') => 'procurement',
+            str_starts_with($event::class, 'Modules\\FixedAssets\\') => 'fixed_assets',
             default => null,
         };
     }
