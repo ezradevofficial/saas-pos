@@ -2,10 +2,12 @@
 
 namespace Modules\CRM\Tests;
 
+use App\Core\MasterData\RecordUsage;
 use App\Core\Notifications\Mail\NotificationMail;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Tenancy\Models\Branch;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Modules\CRM\Models\Activity;
 use Modules\CRM\Models\Team;
@@ -113,5 +115,20 @@ class ActivitiesAndTargetsTest extends TestCase
         $other = $this->inTenant(fn () => Branch::query()->create(['company_id' => $this->company('Beta')->id, 'name' => 'Beta', 'code' => 'BT']));
         $this->api('POST', 'crm/targets', ['company_id' => $this->acme->id, 'subject_type' => 'branch', 'subject_id' => $other->id, 'metric' => 'won_value',
             'period_start' => '2026-10-01', 'period_end' => '2026-10-31', 'amount_minor' => '1'])->assertUnprocessable()->assertJsonPath('code', 'subject_unknown');
+    }
+
+    public function test_a_customer_linked_to_a_lead_or_an_activity_keeps_its_import_from_being_undone(): void
+    {
+        // IMP-02 (stage 7D closing review item 8).
+        $usage = fn () => $this->inTenant(fn () => app(RecordUsage::class)->used('party', [$this->customer->id]));
+        $this->assertSame([], $usage());
+
+        $this->api('POST', 'crm/activities', ['kind' => 'call', 'subject' => 'Call', 'starts_at' => '2026-10-15T12:00:00Z', 'party_id' => $this->customer->id, 'branch_id' => $this->branchA->id], $this->repA)->assertCreated();
+        $this->assertSame([$this->customer->id => 'crm_activity'], $usage());
+
+        $this->inTenant(fn () => Activity::query()->get()->each->delete());
+        $lead = $this->api('POST', 'crm/leads', ['branch_id' => $this->branchA->id, 'name' => 'Lead', 'channel' => 'manual'], $this->repA)->assertCreated()->json('data.id');
+        $this->inTenant(fn () => DB::table('crm_leads')->where('id', $lead)->update(['party_id' => $this->customer->id]));
+        $this->assertSame([$this->customer->id => 'crm_lead'], $usage());
     }
 }

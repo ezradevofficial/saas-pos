@@ -246,8 +246,13 @@ return [
     'usage' => [
         'fixed_assets_asset' => 'Utilisé dans une immobilisation',
         'fixed_assets_item' => 'Marqué comme article d’immobilisation',
+        'fixed_assets_disposal' => 'L’acheteur d’une cession d’immobilisation',
+        'fixed_assets_work_order' => 'Le prestataire d’un ordre de travail sur immobilisation',
+        'fixed_assets_posting' => 'Nommé sur une écriture d’immobilisation',
         'crm_opportunity' => 'Utilisé dans une opportunité',
         'crm_quote' => 'Utilisé dans un devis',
+        'crm_lead' => 'Lié à un prospect',
+        'crm_activity' => 'Lié à une activité',
         'hr_record' => 'A des données RH',
         'sale' => 'Utilisé dans une vente',
         'price' => 'A un prix',

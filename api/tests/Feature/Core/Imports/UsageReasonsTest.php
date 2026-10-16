@@ -18,6 +18,10 @@ class UsageReasonsTest extends TestCase
 
         $this->assertContains('loyalty_account', $reasons);
         $this->assertContains('accounting_payment', $reasons);
+        // Stage 7D closing review item 8: CRM's leads and activities, Fixed assets' disposals, work orders and postings.
+        foreach (['crm_lead', 'crm_activity', 'fixed_assets_disposal', 'fixed_assets_work_order', 'fixed_assets_posting'] as $reason) {
+            $this->assertContains($reason, $reasons);
+        }
 
         foreach ($reasons as $reason) {
             foreach (['en', 'fr'] as $locale) {

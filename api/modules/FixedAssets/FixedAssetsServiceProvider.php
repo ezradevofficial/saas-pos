@@ -175,6 +175,9 @@ class FixedAssetsServiceProvider extends ServiceProvider
         $usage = $this->app->make(RecordUsage::class);
         $usage->register('item', 'fixed_assets_item', fn (array $ids) => DB::table('fa_item_categories')->whereIn('item_id', $ids)->distinct()->pluck('item_id')->all());
         $usage->register('party', 'fixed_assets_asset', fn (array $ids) => DB::table('fa_assets')->whereIn('supplier_id', $ids)->distinct()->pluck('supplier_id')->all());
+        $usage->register('party', 'fixed_assets_disposal', fn (array $ids) => DB::table('fa_disposals')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
+        $usage->register('party', 'fixed_assets_work_order', fn (array $ids) => DB::table('fa_work_orders')->whereIn('vendor_id', $ids)->distinct()->pluck('vendor_id')->all());
+        $usage->register('party', 'fixed_assets_posting', fn (array $ids) => DB::table('fa_postings')->whereIn('party_id', $ids)->distinct()->pluck('party_id')->all());
 
         // CUR-01: once an amount is stored in a currency, its decimals are locked.
         $this->app->make(CurrencyUsage::class)->register(fn (string $code) => DB::table('fa_assets')->where('currency', $code)->exists()

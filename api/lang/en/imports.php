@@ -246,8 +246,13 @@ return [
     'usage' => [
         'fixed_assets_asset' => 'Used in a fixed asset',
         'fixed_assets_item' => 'Flagged as a fixed asset item',
+        'fixed_assets_disposal' => 'The buyer of a fixed asset disposal',
+        'fixed_assets_work_order' => 'The vendor of an asset work order',
+        'fixed_assets_posting' => 'Named on a fixed asset posting',
         'crm_opportunity' => 'Used in an opportunity',
         'crm_quote' => 'Used in a quote',
+        'crm_lead' => 'Linked to a lead',
+        'crm_activity' => 'Linked to an activity',
         'hr_record' => 'Has HR records',
         'sale' => 'Used in a sale',
         'price' => 'Has a price',
