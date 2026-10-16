@@ -62,8 +62,9 @@ abstract class ListRequest extends FormRequest
             }
         }
 
+        // Through the asset: schedules, work orders and readings carry no company of their own.
         if ($this->filled('company')) {
-            $query->where($query->qualifyColumn('company_id'), $this->validated('company'));
+            $assetQuery(fn ($q) => $q->where('company_id', $this->validated('company')));
         }
 
         if ($this->filled('asset')) {

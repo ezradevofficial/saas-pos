@@ -192,6 +192,16 @@ class ReviewFixesTest extends TestCase
         $this->assertSame([true, '0'], [$disposed['disposed'], $disposed['allowance']['amount_minor']]);
     }
 
+    public function test_schedules_and_work_orders_filter_by_company_through_their_asset(): void
+    {
+        // Found by the isolation suite: these tables carry no company_id of their own.
+        $asset = $this->active();
+        $this->api('POST', "assets/{$asset['id']}/schedules", ['name' => 'Service', 'basis' => 'time', 'interval_days' => 90])->assertCreated();
+
+        $this->assertCount(1, $this->api('GET', "schedules?company={$this->acme->id}")->assertOk()->json('data'));
+        $this->api('GET', "work-orders?company={$this->acme->id}")->assertOk();
+    }
+
     public function test_labels_need_the_print_permission_at_each_assets_place(): void
     {
         $asset = $this->active();

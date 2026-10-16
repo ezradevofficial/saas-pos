@@ -370,6 +370,7 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/stores/stock-entries' => ['inventory_active', 'STR-07, STR-08: the fixture has Inventory active, which holds the stores\' stock, so own-ledger entries are refused after validation'],
         'POST api/v1/fixed-assets/assets/{fa_asset}/transfers' => ['transfer_pending', 'FA-14: the fixture\'s asset already has a transfer waiting for approval, so another is refused after validation'],
         'POST api/v1/fixed-assets/assets/{fa_asset}/disposals' => ['transfer_pending', 'FA-17: the fixture\'s asset has a transfer waiting for approval, so a disposal is refused after validation'],
+        'POST api/v1/fixed-assets/runs' => ['disposals_open', 'FA-12: the fixture\'s disposal dated in February is still open, so February\'s run is refused after validation'],
     ];
 
     /**
