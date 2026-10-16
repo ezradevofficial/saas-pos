@@ -253,6 +253,7 @@ return [
         'crm_quote' => 'Used in a quote',
         'crm_lead' => 'Linked to a lead',
         'crm_activity' => 'Linked to an activity',
+        'ecommerce_product' => 'Sold online as a product',
         'hr_record' => 'Has HR records',
         'sale' => 'Used in a sale',
         'price' => 'Has a price',

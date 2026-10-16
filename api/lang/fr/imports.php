@@ -253,6 +253,7 @@ return [
         'crm_quote' => 'Utilisé dans un devis',
         'crm_lead' => 'Lié à un prospect',
         'crm_activity' => 'Lié à une activité',
+        'ecommerce_product' => 'Vendu en ligne comme produit',
         'hr_record' => 'A des données RH',
         'sale' => 'Utilisé dans une vente',
         'price' => 'A un prix',
