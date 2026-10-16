@@ -2,6 +2,7 @@
 
 namespace App\Core\Webhooks\Delivery;
 
+use App\Core\Audit\Auditor;
 use App\Core\Automation\Webhooks\WebhookRefused;
 use App\Core\Automation\Webhooks\WebhookSender;
 use App\Core\Automation\Webhooks\WebhookUnreachable;
@@ -52,6 +53,7 @@ class WebhookDeliverer
         private readonly WebhookSubscriptions $subscriptions,
         private readonly Notifier $notifier,
         private readonly TenantContext $tenants,
+        private readonly Auditor $auditor,
     ) {}
 
     public function deliver(string $deliveryId): void
@@ -178,6 +180,8 @@ class WebhookDeliverer
             return;
         }
 
+        // AUD-01: switched off by the platform, recorded with the reason.
+        $this->auditor->record('core.webhook.disable', $subscription, ['active' => true], ['active' => false, 'reason' => WebhookSubscription::FAILING, 'failures' => $subscription->consecutive_failures]);
         $this->subscriptions->flush();
         $this->notifier->send(new NotificationEvent(
             self::DISABLED_EVENT,

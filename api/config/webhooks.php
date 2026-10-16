@@ -33,6 +33,9 @@ return [
     // this long past its due time, is queued again (a worker died).
     'stuck_minutes' => 15,
 
+    // Test events and replays per user and minute (each calls out to an endpoint).
+    'sends_per_minute' => 20,
+
     // Subscriptions per tenant (archived ones not counted).
     'max_subscriptions' => 25,
 

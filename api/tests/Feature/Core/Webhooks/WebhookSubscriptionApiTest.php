@@ -311,6 +311,18 @@ class WebhookSubscriptionApiTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_test_events_are_rate_limited_per_user(): void
+    {
+        Http::fake(['*' => Http::response('ok', 200)]);
+        config(['webhooks.sends_per_minute' => 2]);
+        $created = $this->subscribe();
+
+        $this->postJson("/api/v1/webhooks/{$created['id']}/test", [], $this->headersFor())->assertStatus(202);
+        $this->postJson("/api/v1/webhooks/{$created['id']}/test", [], $this->headersFor())->assertStatus(202);
+        $this->postJson("/api/v1/webhooks/{$created['id']}/test", [], $this->headersFor())->assertStatus(429);
+        Http::assertSentCount(2);
+    }
+
     public function test_the_number_of_subscriptions_is_limited(): void
     {
         config(['webhooks.max_subscriptions' => 2]);

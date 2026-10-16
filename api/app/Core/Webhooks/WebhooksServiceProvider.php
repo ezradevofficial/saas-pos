@@ -15,8 +15,11 @@ use App\Core\Webhooks\Principals\WebhookPrincipal;
 use App\Core\Webhooks\Principals\WebhookPrincipals;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowStageEntered;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -28,6 +31,9 @@ use Illuminate\Support\ServiceProvider;
  */
 class WebhooksServiceProvider extends ServiceProvider
 {
+    /** Test events and replays call out to an endpoint: a few a minute per user. */
+    public const SEND_LIMITER = 'webhook-send';
+
     public function register(): void
     {
         $this->app->singleton(WebhookCatalogue::class);
@@ -37,6 +43,9 @@ class WebhooksServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        RateLimiter::for(self::SEND_LIMITER, fn (Request $request) => Limit::perMinute((int) config('webhooks.sends_per_minute', 20))
+            ->by('user|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
         $catalogue = $this->app->make(WebhookCatalogue::class);
 
         // The "send test event" action's type: sent to one subscription on request, never subscribed to.

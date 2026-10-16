@@ -121,6 +121,7 @@ use App\Core\Webhooks\Http\Controllers\WebhookController;
 use App\Core\Webhooks\Http\Controllers\WebhookDeliveryController;
 use App\Core\Webhooks\Models\WebhookDelivery;
 use App\Core\Webhooks\Models\WebhookSubscription;
+use App\Core\Webhooks\WebhooksServiceProvider;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Http\Controllers\BusinessHoursController;
 use App\Core\Workflow\Http\Controllers\DocumentTypeController;
@@ -631,11 +632,11 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('webhooks/{webhook}', [WebhookController::class, 'show']);
     Route::patch('webhooks/{webhook}', [WebhookController::class, 'update']);
     Route::post('webhooks/{webhook}/rotate-secret', [WebhookController::class, 'rotate']);
-    Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test']);
+    Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test'])->middleware('throttle:'.WebhooksServiceProvider::SEND_LIMITER);
     Route::post('webhooks/{webhook}/archive', [WebhookController::class, 'archive']);
     Route::get('webhook-deliveries', [WebhookDeliveryController::class, 'index']);
     Route::get('webhook-deliveries/{webhook_delivery}', [WebhookDeliveryController::class, 'show']);
-    Route::post('webhook-deliveries/{webhook_delivery}/replay', [WebhookDeliveryController::class, 'replay']);
+    Route::post('webhook-deliveries/{webhook_delivery}/replay', [WebhookDeliveryController::class, 'replay'])->middleware('throttle:'.WebhooksServiceProvider::SEND_LIMITER);
 
     // LIM-01, LIM-02: the plan's usage, overages and extra cost (Owners only).
     Route::get('usage', UsageController::class);

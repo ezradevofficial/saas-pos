@@ -159,9 +159,8 @@ export function DeliveryLog({ webhookId = null, retentionDays }) {
 
   return (
     <section aria-label={t('webhooks.deliveries.title')} className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Select
-          className="w-full sm:w-56"
           label={t('webhooks.deliveries.filters.status')}
           value={status}
           onChange={(event) => {
@@ -171,7 +170,6 @@ export function DeliveryLog({ webhookId = null, retentionDays }) {
           options={[{ value: '', label: t('webhooks.deliveries.filters.allStatuses') }, ...DELIVERY_STATUSES.map((value) => ({ value, label: t(`webhooks.deliveries.statuses.${value}`) }))]}
         />
         <Select
-          className="w-full sm:w-72"
           label={t('webhooks.deliveries.filters.type')}
           value={type}
           onChange={(event) => {

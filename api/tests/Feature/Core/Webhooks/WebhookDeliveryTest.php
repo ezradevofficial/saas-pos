@@ -319,6 +319,7 @@ class WebhookDeliveryTest extends TestCase
         $this->assertSame([false, WebhookSubscription::FAILING, 2], [$subscription->active, $subscription->disabled_reason, $subscription->consecutive_failures]);
         $notified = $this->inTenant(fn () => InAppNotification::query()->where('event_type', WebhookDeliverer::DISABLED_EVENT)->pluck('user_id')->all());
         $this->assertEqualsCanonicalizing([$this->owner->id, $admin->id], $notified);
+        $this->inTenant(fn () => $this->assertSame(1, AuditEntry::query()->where('action', 'core.webhook.disable')->count()));
 
         // Switched off: nothing more is queued or sent.
         $this->happen(['thingId' => 'five']);
