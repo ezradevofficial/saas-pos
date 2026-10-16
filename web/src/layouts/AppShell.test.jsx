@@ -187,6 +187,19 @@ describe('app shell navigation', () => {
     expect(api.get).not.toHaveBeenCalledWith('companies?per_page=200')
   })
 
+  it('offers a branch Sales Rep their company although they view companies at branch scope (RBAC-04)', async () => {
+    mockApi(api, {
+      companies: [COMPANIES[0]],
+      modules: ['core', 'crm'],
+      permissions: [{ name: 'core.company.view', scopes: [{ type: 'branch', id: 'b-1' }] }],
+    })
+    renderApp('/')
+    const trigger = await within((await mainNav()).parentElement).findByRole('combobox', { name: 'Company' })
+    await waitFor(() => expect(trigger).toHaveTextContent('Amani Retail'))
+    expect(api.get).toHaveBeenCalledWith('me/companies')
+    expect(api.get).not.toHaveBeenCalledWith('companies?per_page=200')
+  })
+
   it('changes the language from the account menu and saves it to the profile', async () => {
     mockApi(api)
     api.patch.mockResolvedValue({ data: { ...OWNER, locale: 'fr' } })
