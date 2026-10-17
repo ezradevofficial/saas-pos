@@ -125,6 +125,10 @@ class PlatformDealsTest extends TestCase
             ->assertJsonPath('data.status', 'ended')->assertJsonPath('data.effective_to', '2026-12-31');
         $this->postJson("/api/v1/platform/tenants/{$tenant}/deals/{$second}/approve", [], $finance)->assertOk();
 
+        // Review M7: an ended deal still in force until its last day blocks an overlapping one.
+        $third = $this->draft(['effective_from' => '2026-12-15', 'effective_to' => '2026-12-20', 'lines' => [['type' => 'bundle', 'key' => 'starter', 'amount' => 270000]]]);
+        $this->postJson("/api/v1/platform/tenants/{$tenant}/deals/{$third}/approve", [], $finance)->assertStatus(422)->assertJsonPath('code', 'deal_overlaps');
+
         // Terms never change, for any role (trigger).
         $this->expectException(QueryException::class);
         $this->inTenant(fn () => BillingDeal::query()->whereKey($second)->toBase()->update(['lines' => json_encode([['type' => 'bundle', 'key' => 'starter', 'amount' => 1]])]));

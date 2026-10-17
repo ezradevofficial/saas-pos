@@ -86,6 +86,15 @@ class SupportAccess
         'loyalty.gift_card.*',
     ];
 
+    /**
+     * Review M6: field-rule fields hidden from a session whose grant leaves
+     * sensitive data out (HR's personal and sensitive groups, resource
+     * `hr_employee`; docs/modules/hr.md HR-09, HR-11).
+     */
+    public const SENSITIVE_FIELDS = [
+        'hr_employee' => ['identifiers', 'date_of_birth', 'pay_accounts', 'pay', 'medical_notes', 'disciplinary', 'personal_email', 'personal_phone', 'address', 'emergency_contacts'],
+    ];
+
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly AuditContext $audit,

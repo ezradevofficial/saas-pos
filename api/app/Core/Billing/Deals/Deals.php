@@ -127,7 +127,7 @@ class Deals
             DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['billing_deals:'.$this->tenants->require()]);
             $from = $deal->effective_from->toDateString();
             $to = $deal->effective_to?->toDateString() ?? '9999-12-31';
-            $overlap = BillingDeal::query()->where('status', BillingDeal::APPROVED)->where('id', '<>', $deal->id)
+            $overlap = BillingDeal::query()->whereIn('status', [BillingDeal::APPROVED, BillingDeal::ENDED])->where('id', '<>', $deal->id)
                 ->where('effective_from', '<=', $to)
                 ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $from))
                 ->exists();

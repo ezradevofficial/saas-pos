@@ -14,6 +14,8 @@ use App\Core\Platform\PlatformDatabase;
 use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Platform\SupportAccess\SupportAccess;
 use App\Core\Platform\SupportAccess\SupportNotices;
+use App\Core\Rbac\FieldRules;
+use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Device;
@@ -324,5 +326,23 @@ class SupportAccessTest extends TestCase
         $this->assertSame('staff_changed', $this->inTenant(fn () => SupportAccessGrant::query()->findOrFail($grant)->end_reason));
         $this->app['auth']->forgetGuards();
         $this->getJson('/api/v1/parties', $session)->assertUnauthorized();
+    }
+
+    /** Review M6: a session gets the most restrictive field rules, and HR's personal data stays hidden unless granted. */
+    public function test_a_session_gets_the_most_restrictive_field_rules(): void
+    {
+        $this->inTenant(fn () => FieldRule::query()->create(['role_id' => $this->roles->get('cashier')->id, 'resource' => 'party', 'field' => 'tax_id', 'mode' => FieldRule::HIDDEN]));
+        $party = $this->postJson('/api/v1/parties', ['kind' => 'organisation', 'roles' => ['customer'], 'name' => 'Taxed Co', 'tax_id' => 'P051234567X'], $this->headersFor())->assertCreated()->json('data.id');
+        $grant = $this->ask();
+        $this->approve($grant);
+        [$session] = $this->enter($grant);
+
+        $this->getJson("/api/v1/parties/{$party}", $this->headersFor())->assertOk()->assertJsonPath('data.tax_id', 'P051234567X');
+        $this->assertArrayNotHasKey('tax_id', $this->getJson("/api/v1/parties/{$party}", $session)->assertOk()->json('data'));
+
+        $principal = $this->inTenant(fn () => User::query()->where('support_grant_id', $grant)->sole());
+        $hidden = $this->inTenant(fn () => app(FieldRules::class)->for($principal, 'hr_employee')['hidden']);
+        $this->assertContains('personal_email', $hidden);
+        $this->assertContains('pay', $hidden);
     }
 }
