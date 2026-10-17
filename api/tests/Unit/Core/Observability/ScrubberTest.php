@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Core\Observability;
 
+use App\Core\Observability\Logging\ScrubLogs;
 use App\Core\Observability\Logging\ScrubProcessor;
 use App\Core\Observability\Scrubber;
 use App\Core\Observability\SentryEvents;
@@ -131,7 +132,7 @@ class ScrubberTest extends TestCase
             if (! isset($channel['driver']) || $channel['driver'] === 'stack' || $name === 'null' || str_starts_with((string) $name, 'sentry')) {
                 continue;
             }
-            $this->assertContains(\App\Core\Observability\Logging\ScrubLogs::class, $channel['tap'] ?? [], "Log channel {$name} has no ScrubLogs tap.");
+            $this->assertContains(ScrubLogs::class, $channel['tap'] ?? [], "Log channel {$name} has no ScrubLogs tap.");
         }
     }
 }

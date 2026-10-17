@@ -76,7 +76,7 @@ class RequestIdTest extends TestCase
         $this->get('/_test/request-id-job', ['X-Request-Id' => 'req-propagate-0001'])->assertNoContent();
 
         $payload = json_decode((string) DB::table('jobs')->where('queue', 'request-id-test')->value('payload'), true);
-        $this->assertSame('req-propagate-0001', $payload['illuminate:log:context']['data'][RequestId::CONTEXT_KEY] ?? null, json_encode($payload));
+        $this->assertSame('req-propagate-0001', unserialize($payload['illuminate:log:context']['data'][RequestId::CONTEXT_KEY] ?? 'N;'), json_encode($payload));
 
         // A worker (another process in production) starts without the request's Context.
         Context::flush();
