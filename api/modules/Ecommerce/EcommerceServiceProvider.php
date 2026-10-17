@@ -13,6 +13,7 @@ use App\Core\Numbering\NumberFormat;
 use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ use Modules\Ecommerce\Listeners\OrderIntegrations;
 use Modules\Ecommerce\Listeners\SettleOrderPayment;
 use Modules\Ecommerce\Notifications\OrderNotices;
 use Modules\Ecommerce\Orders\Placement;
+use Modules\Ecommerce\Webhooks\EcommerceWebhookEvents;
 use Modules\Ecommerce\WhatsApp\WhatsAppProviders;
 
 /**
@@ -85,6 +87,9 @@ class EcommerceServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // HOOK-01: the module's public webhook events (sent only while it is active).
+        EcommerceWebhookEvents::register($this->app->make(WebhookCatalogue::class));
+
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 
