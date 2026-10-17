@@ -15,7 +15,8 @@
     ["https://shop.example/cb?token=s3cr3t&ok=1", "https://shop.example/cb?token=[redacted]&ok=1"],
     ["Sale 0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b posted for KES 12,450.00", "Sale 0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b posted for KES 12,450.00"],
     ["Receipt R-000123 on 2026-10-17 at 14:05", "Receipt R-000123 on 2026-10-17 at 14:05"],
-    ["SQLSTATE[23505]: Unique violation", "SQLSTATE[23505]: Unique violation"]
+    ["SQLSTATE[23505]: Unique violation", "SQLSTATE[23505]: Unique violation"],
+    ["Request 0199f5a2-1111-7222-8333-444455556666 done", "Request 0199f5a2-1111-7222-8333-444455556666 done"]
   ],
   "objects": [
     [

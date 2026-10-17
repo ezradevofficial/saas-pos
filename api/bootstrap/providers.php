@@ -19,6 +19,7 @@ use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
 use App\Core\Notifications\NotificationsServiceProvider;
+use App\Core\Observability\ObservabilityServiceProvider;
 use App\Core\Numbering\NumberingServiceProvider;
 use App\Core\Onboarding\OnboardingServiceProvider;
 use App\Core\Payments\PaymentsServiceProvider;
@@ -45,6 +46,7 @@ use Modules\Stores\StoresServiceProvider;
 return [
     AppServiceProvider::class,
     CoreServiceProvider::class,
+    ObservabilityServiceProvider::class,
     IdentityServiceProvider::class,
     CurrencyServiceProvider::class,
     NumberingServiceProvider::class,

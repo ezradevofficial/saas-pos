@@ -47,7 +47,7 @@
     },
     {
       "name": "card_number",
-      "pattern": "\\b(?:\\d[ -]?){12,18}\\d\\b",
+      "pattern": "(?<![\\w-])(?:\\d[ -]?){12,18}\\d(?![\\w-])",
       "flags": "",
       "replace": "[number]"
     },

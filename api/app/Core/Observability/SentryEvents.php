@@ -64,9 +64,11 @@ final class SentryEvents
 
         $event->setRequest((array) Scrubber::scrub($event->getRequest()));
         $event->setExtra((array) Scrubber::scrub($event->getExtra()));
-        $event->setTags(array_map(
-            fn ($value) => is_string($value) ? Scrubber::scrubString($value) : $value,
-            array_filter((array) Scrubber::scrub($event->getTags()), fn ($value, $key) => ! Scrubber::isSensitiveKey((string) $key), ARRAY_FILTER_USE_BOTH),
+        // Tags are searchable in Sentry: a sensitive one is dropped, not masked.
+        $event->setTags(array_filter(
+            (array) Scrubber::scrub($event->getTags()),
+            fn ($value, $key) => ! Scrubber::isSensitiveKey((string) $key),
+            ARRAY_FILTER_USE_BOTH,
         ));
 
         foreach ($event->getContexts() as $name => $data) {
