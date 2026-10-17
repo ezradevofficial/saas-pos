@@ -5,11 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/bundle-budget.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest"
   },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Edge versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 iOS versions"
+  ],
   "dependencies": {
     "@app/tokens": "^0.0.0",
     "@dnd-kit/core": "^6.3.1",

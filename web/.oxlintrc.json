@@ -21,7 +21,8 @@
   "overrides": [
     {
       "files": [
-        "src/components/ui/**"
+        "src/components/ui/**",
+        "src/routes.jsx"
       ],
       "rules": {
         "react/only-export-components": "off"

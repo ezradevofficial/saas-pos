@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { createQueryClient } from './api/queryClient'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
@@ -63,7 +63,9 @@ export default function App() {
   const [router] = useState(() => createBrowserRouter(routes))
   return (
     <AppProviders queryClient={queryClient}>
-      <RouterProvider router={router} />
+      <Suspense fallback={null}>
+        <RouterProvider router={router} />
+      </Suspense>
     </AppProviders>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Outlet } from 'react-router'
+import { PageOutlet } from '@/layouts/PageOutlet'
 import { LanguageSwitch } from '@/layouts/AuthLayout'
 import { LogoMark, PoweredBy } from '@/layouts/Sidebar'
 import { usePageTitle } from '@/lib/usePageTitle'
@@ -38,7 +38,7 @@ export function PortalLayout() {
       </header>
       <main className="flex flex-1 justify-center px-4 py-6 md:py-10">
         <div className="flex w-full max-w-3xl flex-col gap-6">
-          <Outlet />
+          <PageOutlet />
         </div>
       </main>
       <footer className="px-4 py-4 text-center md:px-10">

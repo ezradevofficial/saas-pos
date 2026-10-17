@@ -70,210 +70,273 @@ import {
   WORKFLOW_VIEW,
 } from './layouts/navigation'
 import { IMPORT_PERMISSION } from './pages/settings/imports/importData'
-import AutomationRules from './pages/automation/AutomationRules'
-import RuleEditor from './pages/automation/RuleEditor'
-import AutomationRuns from './pages/automation/RunLog'
-import Approvals from './pages/approvals/Approvals'
-import EmailApproval from './pages/approvals/EmailApproval'
-import AcceptInvitation from './pages/auth/AcceptInvitation'
+import { OnboardingLayout } from './pages/onboarding/OnboardingLayout'
+import { PAYROLL_EMPLOYEE_VIEW, PAYROLL_LOAN_VIEW, PAYROLL_PAYSLIP_VIEW, PAYROLL_RETURN_VIEW, PAYROLL_RUN_VIEW, PAYROLL_SETTINGS_VIEW } from './layouts/navigation'
+import { PortalLayout } from './pages/procurement/portal/PortalLayout'
+import { CREDIT_VIEW, GIFT_CARD_VIEW, PROGRAMME_VIEW, PROMOTION_VIEW, SALE_VIEW } from './pages/loyalty/loyaltyData'
+import './pages/loyalty/register'
+import { ACTIVITY_VIEW as CRM_ACTIVITY_VIEW, LEAD_VIEW as CRM_LEAD_VIEW, OPPORTUNITY_VIEW as CRM_OPPORTUNITY_VIEW, QUOTE_VIEW as CRM_QUOTE_VIEW, SETTINGS_VIEW as CRM_SETTINGS_VIEW, TARGET_VIEW as CRM_TARGET_VIEW } from './pages/crm/crmData'
+import './pages/crm/register'
+import { CASHUP_VIEW as ECOM_CASHUP_VIEW, DELIVERY_VIEW as ECOM_DELIVERY_VIEW, ORDER_VIEW as ECOM_ORDER_VIEW, REPORT_VIEW as ECOM_REPORT_VIEW, RIDERS_VIEW as ECOM_RIDERS_VIEW, SETTINGS_VIEW as ECOM_SETTINGS_VIEW, WHATSAPP_VIEW as ECOM_WHATSAPP_VIEW } from './pages/ecommerce/ecommerceData'
+import { ShopLayout } from './shop/ShopLayout'
+import { ACCOUNT_VIEW, BANK_VIEW, BUDGET_VIEW, INVOICE_VIEW, JOURNAL_VIEW, PAYMENT_VIEW as ACCOUNTING_PAYMENT_VIEW, PERIOD_VIEW, REPORT_VIEW } from './pages/accounting/accountingData'
+import { platformRoutes } from './platform/routes'
+// The sign-in flow is the first screen: kept in the entry chunk.
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import SignIn from './pages/auth/SignIn'
 import SignUp from './pages/auth/SignUp'
 import TwoFactor from './pages/auth/TwoFactor'
-import TwoFactorEnrol from './pages/auth/TwoFactorEnrol'
 import Verify from './pages/auth/Verify'
-import Categories from './pages/catalogue/Categories'
-import ItemDetail from './pages/catalogue/ItemDetail'
-import NewItem from './pages/catalogue/ItemForm'
-import Items from './pages/catalogue/Items'
-import Units from './pages/catalogue/Units'
-import CreditLimitChanges from './pages/contacts/CreditLimitChanges'
-import Parties from './pages/contacts/Parties'
-import PartyDetail from './pages/contacts/PartyDetail'
-import NewParty from './pages/contacts/PartyForm'
-import FormRecordPage from './pages/forms/FormRecordPage'
-import FormRecords from './pages/forms/FormRecords'
-import FormTypes from './pages/forms/FormTypes'
-import Home from './pages/Home'
-import BusinessType from './pages/onboarding/BusinessType'
-import ModulePicker from './pages/onboarding/ModulePicker'
-import { OnboardingLayout } from './pages/onboarding/OnboardingLayout'
-import { SetupOverview, SetupStep } from './pages/onboarding/Setup'
 import Welcome from './pages/onboarding/Welcome'
-import Inbox from './pages/notifications/Inbox'
-import AdjustmentDetail from './pages/inventory/AdjustmentDetail'
-import AdjustmentForm from './pages/inventory/AdjustmentForm'
-import Adjustments from './pages/inventory/Adjustments'
-import CountDetail from './pages/inventory/CountDetail'
-import CountForm from './pages/inventory/CountForm'
-import Counts from './pages/inventory/Counts'
-import InventorySettings from './pages/inventory/InventorySettings'
-import ItemStock from './pages/inventory/ItemStock'
-import Labels from './pages/inventory/Labels'
-import Movements from './pages/inventory/Movements'
-import ReorderRules from './pages/inventory/ReorderRules'
-import StockOnHand from './pages/inventory/StockOnHand'
-import TransferDetail from './pages/inventory/TransferDetail'
-import TransferForm from './pages/inventory/TransferForm'
-import Transfers from './pages/inventory/Transfers'
-import Valuation from './pages/inventory/Valuation'
-import BomDetail from './pages/manufacturing/BomDetail'
-import BomForm from './pages/manufacturing/BomForm'
-import Boms from './pages/manufacturing/Boms'
-import BomVersion from './pages/manufacturing/BomVersion'
-import Backflushes from './pages/manufacturing/Backflushes'
-import MfgConsumption from './pages/manufacturing/Consumption'
-import ManufacturingSettings from './pages/manufacturing/ManufacturingSettings'
-import MfgOrderDetail from './pages/manufacturing/OrderDetail'
-import MfgOrderForm from './pages/manufacturing/OrderForm'
-import MfgOrders from './pages/manufacturing/Orders'
-import RecipeCosting from './pages/manufacturing/RecipeCosting'
-import MfgYield from './pages/manufacturing/Yield'
-import FaAssetDetail from './pages/fixedAssets/AssetDetail'
-import FaAssetForm from './pages/fixedAssets/AssetForm'
-import FaAssets from './pages/fixedAssets/Assets'
-import FaCategories from './pages/fixedAssets/Categories'
-import FaLabels from './pages/fixedAssets/Labels'
-import FaMaintenance from './pages/fixedAssets/Maintenance'
-import { DisposalDetail as FaDisposalDetail, Disposals as FaDisposals, Revaluations as FaRevaluations, TransferDetail as FaTransferDetail, Transfers as FaTransfers } from './pages/fixedAssets/Movements'
-import FaReports from './pages/fixedAssets/Reports'
-import FaRuns, { RunDetail as FaRunDetail } from './pages/fixedAssets/Runs'
-import FaSettings from './pages/fixedAssets/Settings'
-import Consumption from './pages/stores/Consumption'
-import IssueDetail from './pages/stores/IssueDetail'
-import Issues from './pages/stores/Issues'
-import StoresRequisitionDetail from './pages/stores/RequisitionDetail'
-import StoresRequisitionForm from './pages/stores/RequisitionForm'
-import StoresRequisitions from './pages/stores/Requisitions'
-import ReturnDetail from './pages/stores/ReturnDetail'
-import Returns from './pages/stores/Returns'
-import StoreLedger from './pages/stores/StoreLedger'
-import StoreStock from './pages/stores/StoreStock'
-import Timesheets, { Devices as HrDevices, Periods as HrPeriods, Punches as HrPunches, TimeRules as HrTimeRules } from './pages/hr/Attendance'
-import EmployeeProfile from './pages/hr/EmployeeProfile'
-import Employees, { EmployeeForm } from './pages/hr/Employees'
-import { SectionIndex } from './pages/hr/HrParts'
-import LeaveRequests, { LeaveBalances, LeaveCalendar, LeaveTypes } from './pages/hr/Leave'
-import { MyAppraisals, MyAttendance, MyLeave, MyProfile, MyRoster, MySwaps } from './pages/hr/MyHr'
-import Positions from './pages/hr/Positions'
-import PayEmployees, { PayEmployeeDetail } from './pages/payroll/Employees'
-import Loans, { LoanDetail } from './pages/payroll/Loans'
-import { PAYROLL_EMPLOYEE_VIEW, PAYROLL_LOAN_VIEW, PAYROLL_PAYSLIP_VIEW, PAYROLL_RETURN_VIEW, PAYROLL_RUN_VIEW, PAYROLL_SETTINGS_VIEW } from './layouts/navigation'
-import Payslips, { MyPayslipDetail, MyPayslips, PayslipDetail } from './pages/payroll/Payslips'
-import PayrollReturns from './pages/payroll/Returns'
-import PayrollRuns, { RunDetail as PayrollRunDetail } from './pages/payroll/Runs'
-import PayrollSettings from './pages/payroll/Settings'
-import { AppraisalReview, Appraisals as HrAppraisals, CaseDetail, DisciplinaryCases, Onboarding } from './pages/hr/Records'
-import RosterWeek, { RosterDetail, RosterList, RosterSetup, Swaps as HrSwaps } from './pages/hr/Rosters'
-import NotFound from './pages/NotFound'
-import InvoiceDetail from './pages/procurement/InvoiceDetail'
-import InvoiceForm from './pages/procurement/InvoiceForm'
-import LandedCostDetail from './pages/procurement/LandedCostDetail'
-import LandedCostForm from './pages/procurement/LandedCostForm'
-import OrderDetail from './pages/procurement/OrderDetail'
-import OrderForm from './pages/procurement/OrderForm'
-import { Invoices as ProcurementInvoices, LandedCosts, Orders, Receipts, Requisitions, Rfqs, Tenders } from './pages/procurement/ProcurementLists'
-import ProcurementSettings from './pages/procurement/ProcurementSettings'
-import ReceiptDetail from './pages/procurement/ReceiptDetail'
-import ReceiptForm from './pages/procurement/ReceiptForm'
-import RequisitionDetail from './pages/procurement/RequisitionDetail'
-import RequisitionForm from './pages/procurement/RequisitionForm'
-import RfqDetail from './pages/procurement/RfqDetail'
-import RfqForm from './pages/procurement/RfqForm'
-import SupplierPerformance from './pages/procurement/SupplierPerformance'
-import TenderDetail from './pages/procurement/TenderDetail'
-import TenderForm from './pages/procurement/TenderForm'
-import { PortalLayout } from './pages/procurement/portal/PortalLayout'
-import { PortalNotice, PortalSignIn, PortalTender } from './pages/procurement/portal/PortalPages'
-import Ageing from './pages/loyalty/Ageing'
-import CreditAccountDetail from './pages/loyalty/CreditAccountDetail'
-import CreditAccounts from './pages/loyalty/CreditAccounts'
-import GiftCardDetail from './pages/loyalty/GiftCardDetail'
-import GiftCards from './pages/loyalty/GiftCards'
-import FlaggedSales from './pages/loyalty/FlaggedSales'
-import { CREDIT_VIEW, GIFT_CARD_VIEW, PROGRAMME_VIEW, PROMOTION_VIEW, SALE_VIEW } from './pages/loyalty/loyaltyData'
-import LoyaltyProgramme from './pages/loyalty/Programme'
-import PromotionEditor from './pages/loyalty/PromotionEditor'
-import Promotions from './pages/loyalty/Promotions'
-import './pages/loyalty/register'
-import CrmCalendar from './pages/crm/Calendar'
-import CrmSettings from './pages/crm/CrmSettings'
-import { ACTIVITY_VIEW as CRM_ACTIVITY_VIEW, LEAD_VIEW as CRM_LEAD_VIEW, OPPORTUNITY_VIEW as CRM_OPPORTUNITY_VIEW, QUOTE_VIEW as CRM_QUOTE_VIEW, SETTINGS_VIEW as CRM_SETTINGS_VIEW, TARGET_VIEW as CRM_TARGET_VIEW } from './pages/crm/crmData'
-import Leads, { LeadDetail, LeadForm } from './pages/crm/Leads'
-import Opportunities, { OpportunityDetail, OpportunityForm } from './pages/crm/Opportunities'
-import Quotes, { QuoteDetail, QuoteEditor } from './pages/crm/Quotes'
-import CrmTargets from './pages/crm/Targets'
-import './pages/crm/register'
-import { Cashups as CashupsPage, Deliveries as DeliveriesPage, Riders as RidersPage } from './pages/ecommerce/Delivery'
-import { CASHUP_VIEW as ECOM_CASHUP_VIEW, DELIVERY_VIEW as ECOM_DELIVERY_VIEW, ORDER_VIEW as ECOM_ORDER_VIEW, REPORT_VIEW as ECOM_REPORT_VIEW, RIDERS_VIEW as ECOM_RIDERS_VIEW, SETTINGS_VIEW as ECOM_SETTINGS_VIEW, WHATSAPP_VIEW as ECOM_WHATSAPP_VIEW } from './pages/ecommerce/ecommerceData'
-import EcomInbox from './pages/ecommerce/Inbox'
-import EcomOrders, { OrderDetail as EcomOrderDetail } from './pages/ecommerce/Orders'
-import EcomReports from './pages/ecommerce/Reports'
-import EcomStoreSettings from './pages/ecommerce/StoreSettings'
-import { ShopLayout } from './shop/ShopLayout'
-import { ShopAccount, ShopCart, ShopCheckout, ShopHome, ShopOrder, ShopProduct } from './shop/ShopPages'
-import Held from './pages/pos/Held'
-import SaleDetail from './pages/pos/SaleDetail'
-import Sales from './pages/pos/Sales'
-import SalesDashboard from './pages/pos/SalesDashboard'
-import ShiftDetail from './pages/pos/ShiftDetail'
-import Shifts from './pages/pos/Shifts'
-import { ACCOUNT_VIEW, BANK_VIEW, BUDGET_VIEW, INVOICE_VIEW, JOURNAL_VIEW, PAYMENT_VIEW as ACCOUNTING_PAYMENT_VIEW, PERIOD_VIEW, REPORT_VIEW } from './pages/accounting/accountingData'
-import BankAccounts, { Reconcile } from './pages/accounting/Bank'
-import Budgets, { BudgetDetail } from './pages/accounting/Budgets'
-import ChartOfAccounts from './pages/accounting/ChartOfAccounts'
-import DocumentDetail from './pages/accounting/DocumentDetail'
-import DocumentForm from './pages/accounting/DocumentForm'
-import Documents from './pages/accounting/Documents'
-import JournalDetail from './pages/accounting/JournalDetail'
-import JournalForm from './pages/accounting/JournalForm'
-import Journals from './pages/accounting/Journals'
-import AccountingPayments, { PaymentDetail } from './pages/accounting/Payments'
-import Periods from './pages/accounting/Periods'
-import Reports, { GeneralLedger } from './pages/accounting/Reports'
-import Appearance from './pages/settings/Appearance'
-import Brand from './pages/settings/Brand'
-import PosLayout from './pages/settings/PosLayout'
-import DashboardDesigner from './pages/settings/layouts/DashboardDesigner'
-import FormLayoutDesigner from './pages/settings/layouts/FormLayoutDesigner'
-import NavigationEditor from './pages/settings/layouts/NavigationEditor'
-import Currencies from './pages/settings/Currencies'
-import CustomFields from './pages/settings/CustomFields'
-import DocumentTemplates from './pages/settings/DocumentTemplates'
-import TemplateDesigner from './pages/settings/templates/TemplateDesigner'
-import Dimensions from './pages/settings/Dimensions'
-import DataExport from './pages/settings/DataExport'
-import Subscription from './pages/settings/Subscription'
-import Imports from './pages/settings/Imports'
-import ImportWizard from './pages/settings/imports/ImportWizard'
-import Domains from './pages/settings/Domains'
-import ExchangeRates from './pages/settings/ExchangeRates'
-import Fiscal from './pages/settings/Fiscal'
-import InviteUser from './pages/settings/InviteUser'
-import MasterDataSharing from './pages/settings/MasterDataSharing'
-import MyPosPin from './pages/settings/MyPosPin'
-import NotificationDeliveries from './pages/settings/NotificationDeliveries'
-import NotificationPreferences from './pages/settings/NotificationPreferences'
-import NotificationTemplates from './pages/settings/NotificationTemplates'
-import Numbering from './pages/settings/Numbering'
-import Organisation from './pages/settings/Organisation'
-import PaymentMethods from './pages/settings/PaymentMethods'
-import Payments from './pages/settings/Payments'
-import RoleDetail from './pages/settings/RoleDetail'
-import Roles from './pages/settings/Roles'
-import Security from './pages/settings/Security'
-import Sessions from './pages/settings/Sessions'
-import Taxes from './pages/settings/Taxes'
-import Usage from './pages/settings/Usage'
-import PriceListDetail from './pages/settings/taxes/PriceListDetail'
-import UserDetail from './pages/settings/UserDetail'
-import Users from './pages/settings/Users'
-import DocumentWorkflow from './pages/workflows/DocumentWorkflow'
-import WorkflowBuilder from './pages/workflows/LazyWorkflowBuilder'
-import WorkflowInsights from './pages/workflows/WorkflowInsights'
-import Workflows from './pages/workflows/Workflows'
-import { platformRoutes } from './platform/routes'
+
+// NFR-02: every page is its own chunk, loaded when its route is first opened.
+// The layouts (eager, above) render each page inside a Suspense boundary.
+const PosLayout = lazy(() => import('./pages/settings/PosLayout'))
+const AutomationRules = lazy(() => import('./pages/automation/AutomationRules'))
+const RuleEditor = lazy(() => import('./pages/automation/RuleEditor'))
+const AutomationRuns = lazy(() => import('./pages/automation/RunLog'))
+const Approvals = lazy(() => import('./pages/approvals/Approvals'))
+const EmailApproval = lazy(() => import('./pages/approvals/EmailApproval'))
+const AcceptInvitation = lazy(() => import('./pages/auth/AcceptInvitation'))
+const TwoFactorEnrol = lazy(() => import('./pages/auth/TwoFactorEnrol'))
+const Categories = lazy(() => import('./pages/catalogue/Categories'))
+const ItemDetail = lazy(() => import('./pages/catalogue/ItemDetail'))
+const NewItem = lazy(() => import('./pages/catalogue/ItemForm'))
+const Items = lazy(() => import('./pages/catalogue/Items'))
+const Units = lazy(() => import('./pages/catalogue/Units'))
+const CreditLimitChanges = lazy(() => import('./pages/contacts/CreditLimitChanges'))
+const Parties = lazy(() => import('./pages/contacts/Parties'))
+const PartyDetail = lazy(() => import('./pages/contacts/PartyDetail'))
+const NewParty = lazy(() => import('./pages/contacts/PartyForm'))
+const FormRecordPage = lazy(() => import('./pages/forms/FormRecordPage'))
+const FormRecords = lazy(() => import('./pages/forms/FormRecords'))
+const FormTypes = lazy(() => import('./pages/forms/FormTypes'))
+const Home = lazy(() => import('./pages/Home'))
+const BusinessType = lazy(() => import('./pages/onboarding/BusinessType'))
+const ModulePicker = lazy(() => import('./pages/onboarding/ModulePicker'))
+const SetupOverview = lazy(() => import('./pages/onboarding/Setup').then((m) => ({ default: m.SetupOverview })))
+const SetupStep = lazy(() => import('./pages/onboarding/Setup').then((m) => ({ default: m.SetupStep })))
+const Inbox = lazy(() => import('./pages/notifications/Inbox'))
+const AdjustmentDetail = lazy(() => import('./pages/inventory/AdjustmentDetail'))
+const AdjustmentForm = lazy(() => import('./pages/inventory/AdjustmentForm'))
+const Adjustments = lazy(() => import('./pages/inventory/Adjustments'))
+const CountDetail = lazy(() => import('./pages/inventory/CountDetail'))
+const CountForm = lazy(() => import('./pages/inventory/CountForm'))
+const Counts = lazy(() => import('./pages/inventory/Counts'))
+const InventorySettings = lazy(() => import('./pages/inventory/InventorySettings'))
+const ItemStock = lazy(() => import('./pages/inventory/ItemStock'))
+const Labels = lazy(() => import('./pages/inventory/Labels'))
+const Movements = lazy(() => import('./pages/inventory/Movements'))
+const ReorderRules = lazy(() => import('./pages/inventory/ReorderRules'))
+const StockOnHand = lazy(() => import('./pages/inventory/StockOnHand'))
+const TransferDetail = lazy(() => import('./pages/inventory/TransferDetail'))
+const TransferForm = lazy(() => import('./pages/inventory/TransferForm'))
+const Transfers = lazy(() => import('./pages/inventory/Transfers'))
+const Valuation = lazy(() => import('./pages/inventory/Valuation'))
+const BomDetail = lazy(() => import('./pages/manufacturing/BomDetail'))
+const BomForm = lazy(() => import('./pages/manufacturing/BomForm'))
+const Boms = lazy(() => import('./pages/manufacturing/Boms'))
+const BomVersion = lazy(() => import('./pages/manufacturing/BomVersion'))
+const Backflushes = lazy(() => import('./pages/manufacturing/Backflushes'))
+const MfgConsumption = lazy(() => import('./pages/manufacturing/Consumption'))
+const ManufacturingSettings = lazy(() => import('./pages/manufacturing/ManufacturingSettings'))
+const MfgOrderDetail = lazy(() => import('./pages/manufacturing/OrderDetail'))
+const MfgOrderForm = lazy(() => import('./pages/manufacturing/OrderForm'))
+const MfgOrders = lazy(() => import('./pages/manufacturing/Orders'))
+const RecipeCosting = lazy(() => import('./pages/manufacturing/RecipeCosting'))
+const MfgYield = lazy(() => import('./pages/manufacturing/Yield'))
+const FaAssetDetail = lazy(() => import('./pages/fixedAssets/AssetDetail'))
+const FaAssetForm = lazy(() => import('./pages/fixedAssets/AssetForm'))
+const FaAssets = lazy(() => import('./pages/fixedAssets/Assets'))
+const FaCategories = lazy(() => import('./pages/fixedAssets/Categories'))
+const FaLabels = lazy(() => import('./pages/fixedAssets/Labels'))
+const FaMaintenance = lazy(() => import('./pages/fixedAssets/Maintenance'))
+const FaDisposalDetail = lazy(() => import('./pages/fixedAssets/Movements').then((m) => ({ default: m.DisposalDetail })))
+const FaDisposals = lazy(() => import('./pages/fixedAssets/Movements').then((m) => ({ default: m.Disposals })))
+const FaRevaluations = lazy(() => import('./pages/fixedAssets/Movements').then((m) => ({ default: m.Revaluations })))
+const FaTransferDetail = lazy(() => import('./pages/fixedAssets/Movements').then((m) => ({ default: m.TransferDetail })))
+const FaTransfers = lazy(() => import('./pages/fixedAssets/Movements').then((m) => ({ default: m.Transfers })))
+const FaReports = lazy(() => import('./pages/fixedAssets/Reports'))
+const FaRuns = lazy(() => import('./pages/fixedAssets/Runs'))
+const FaRunDetail = lazy(() => import('./pages/fixedAssets/Runs').then((m) => ({ default: m.RunDetail })))
+const FaSettings = lazy(() => import('./pages/fixedAssets/Settings'))
+const Consumption = lazy(() => import('./pages/stores/Consumption'))
+const IssueDetail = lazy(() => import('./pages/stores/IssueDetail'))
+const Issues = lazy(() => import('./pages/stores/Issues'))
+const StoresRequisitionDetail = lazy(() => import('./pages/stores/RequisitionDetail'))
+const StoresRequisitionForm = lazy(() => import('./pages/stores/RequisitionForm'))
+const StoresRequisitions = lazy(() => import('./pages/stores/Requisitions'))
+const ReturnDetail = lazy(() => import('./pages/stores/ReturnDetail'))
+const Returns = lazy(() => import('./pages/stores/Returns'))
+const StoreLedger = lazy(() => import('./pages/stores/StoreLedger'))
+const StoreStock = lazy(() => import('./pages/stores/StoreStock'))
+const Timesheets = lazy(() => import('./pages/hr/Attendance'))
+const HrDevices = lazy(() => import('./pages/hr/Attendance').then((m) => ({ default: m.Devices })))
+const HrPeriods = lazy(() => import('./pages/hr/Attendance').then((m) => ({ default: m.Periods })))
+const HrPunches = lazy(() => import('./pages/hr/Attendance').then((m) => ({ default: m.Punches })))
+const HrTimeRules = lazy(() => import('./pages/hr/Attendance').then((m) => ({ default: m.TimeRules })))
+const EmployeeProfile = lazy(() => import('./pages/hr/EmployeeProfile'))
+const Employees = lazy(() => import('./pages/hr/Employees'))
+const EmployeeForm = lazy(() => import('./pages/hr/Employees').then((m) => ({ default: m.EmployeeForm })))
+const SectionIndex = lazy(() => import('./pages/hr/HrParts').then((m) => ({ default: m.SectionIndex })))
+const LeaveRequests = lazy(() => import('./pages/hr/Leave'))
+const LeaveBalances = lazy(() => import('./pages/hr/Leave').then((m) => ({ default: m.LeaveBalances })))
+const LeaveCalendar = lazy(() => import('./pages/hr/Leave').then((m) => ({ default: m.LeaveCalendar })))
+const LeaveTypes = lazy(() => import('./pages/hr/Leave').then((m) => ({ default: m.LeaveTypes })))
+const MyAppraisals = lazy(() => import('./pages/hr/MyHr').then((m) => ({ default: m.MyAppraisals })))
+const MyAttendance = lazy(() => import('./pages/hr/MyHr').then((m) => ({ default: m.MyAttendance })))
+const MyLeave = lazy(() => import('./pages/hr/MyHr').then((m) => ({ default: m.MyLeave })))
+const MyProfile = lazy(() => import('./pages/hr/MyHr').then((m) => ({ default: m.MyProfile })))
+const MyRoster = lazy(() => import('./pages/hr/MyHr').then((m) => ({ default: m.MyRoster })))
+const MySwaps = lazy(() => import('./pages/hr/MyHr').then((m) => ({ default: m.MySwaps })))
+const Positions = lazy(() => import('./pages/hr/Positions'))
+const PayEmployees = lazy(() => import('./pages/payroll/Employees'))
+const PayEmployeeDetail = lazy(() => import('./pages/payroll/Employees').then((m) => ({ default: m.PayEmployeeDetail })))
+const Loans = lazy(() => import('./pages/payroll/Loans'))
+const LoanDetail = lazy(() => import('./pages/payroll/Loans').then((m) => ({ default: m.LoanDetail })))
+const Payslips = lazy(() => import('./pages/payroll/Payslips'))
+const MyPayslipDetail = lazy(() => import('./pages/payroll/Payslips').then((m) => ({ default: m.MyPayslipDetail })))
+const MyPayslips = lazy(() => import('./pages/payroll/Payslips').then((m) => ({ default: m.MyPayslips })))
+const PayslipDetail = lazy(() => import('./pages/payroll/Payslips').then((m) => ({ default: m.PayslipDetail })))
+const PayrollReturns = lazy(() => import('./pages/payroll/Returns'))
+const PayrollRuns = lazy(() => import('./pages/payroll/Runs'))
+const PayrollRunDetail = lazy(() => import('./pages/payroll/Runs').then((m) => ({ default: m.RunDetail })))
+const PayrollSettings = lazy(() => import('./pages/payroll/Settings'))
+const AppraisalReview = lazy(() => import('./pages/hr/Records').then((m) => ({ default: m.AppraisalReview })))
+const HrAppraisals = lazy(() => import('./pages/hr/Records').then((m) => ({ default: m.Appraisals })))
+const CaseDetail = lazy(() => import('./pages/hr/Records').then((m) => ({ default: m.CaseDetail })))
+const DisciplinaryCases = lazy(() => import('./pages/hr/Records').then((m) => ({ default: m.DisciplinaryCases })))
+const Onboarding = lazy(() => import('./pages/hr/Records').then((m) => ({ default: m.Onboarding })))
+const RosterWeek = lazy(() => import('./pages/hr/Rosters'))
+const RosterDetail = lazy(() => import('./pages/hr/Rosters').then((m) => ({ default: m.RosterDetail })))
+const RosterList = lazy(() => import('./pages/hr/Rosters').then((m) => ({ default: m.RosterList })))
+const RosterSetup = lazy(() => import('./pages/hr/Rosters').then((m) => ({ default: m.RosterSetup })))
+const HrSwaps = lazy(() => import('./pages/hr/Rosters').then((m) => ({ default: m.Swaps })))
+const NotFound = lazy(() => import('./pages/NotFound'))
+const InvoiceDetail = lazy(() => import('./pages/procurement/InvoiceDetail'))
+const InvoiceForm = lazy(() => import('./pages/procurement/InvoiceForm'))
+const LandedCostDetail = lazy(() => import('./pages/procurement/LandedCostDetail'))
+const LandedCostForm = lazy(() => import('./pages/procurement/LandedCostForm'))
+const OrderDetail = lazy(() => import('./pages/procurement/OrderDetail'))
+const OrderForm = lazy(() => import('./pages/procurement/OrderForm'))
+const ProcurementInvoices = lazy(() => import('./pages/procurement/ProcurementLists').then((m) => ({ default: m.Invoices })))
+const LandedCosts = lazy(() => import('./pages/procurement/ProcurementLists').then((m) => ({ default: m.LandedCosts })))
+const Orders = lazy(() => import('./pages/procurement/ProcurementLists').then((m) => ({ default: m.Orders })))
+const Receipts = lazy(() => import('./pages/procurement/ProcurementLists').then((m) => ({ default: m.Receipts })))
+const Requisitions = lazy(() => import('./pages/procurement/ProcurementLists').then((m) => ({ default: m.Requisitions })))
+const Rfqs = lazy(() => import('./pages/procurement/ProcurementLists').then((m) => ({ default: m.Rfqs })))
+const Tenders = lazy(() => import('./pages/procurement/ProcurementLists').then((m) => ({ default: m.Tenders })))
+const ProcurementSettings = lazy(() => import('./pages/procurement/ProcurementSettings'))
+const ReceiptDetail = lazy(() => import('./pages/procurement/ReceiptDetail'))
+const ReceiptForm = lazy(() => import('./pages/procurement/ReceiptForm'))
+const RequisitionDetail = lazy(() => import('./pages/procurement/RequisitionDetail'))
+const RequisitionForm = lazy(() => import('./pages/procurement/RequisitionForm'))
+const RfqDetail = lazy(() => import('./pages/procurement/RfqDetail'))
+const RfqForm = lazy(() => import('./pages/procurement/RfqForm'))
+const SupplierPerformance = lazy(() => import('./pages/procurement/SupplierPerformance'))
+const TenderDetail = lazy(() => import('./pages/procurement/TenderDetail'))
+const TenderForm = lazy(() => import('./pages/procurement/TenderForm'))
+const PortalNotice = lazy(() => import('./pages/procurement/portal/PortalPages').then((m) => ({ default: m.PortalNotice })))
+const PortalSignIn = lazy(() => import('./pages/procurement/portal/PortalPages').then((m) => ({ default: m.PortalSignIn })))
+const PortalTender = lazy(() => import('./pages/procurement/portal/PortalPages').then((m) => ({ default: m.PortalTender })))
+const Ageing = lazy(() => import('./pages/loyalty/Ageing'))
+const CreditAccountDetail = lazy(() => import('./pages/loyalty/CreditAccountDetail'))
+const CreditAccounts = lazy(() => import('./pages/loyalty/CreditAccounts'))
+const GiftCardDetail = lazy(() => import('./pages/loyalty/GiftCardDetail'))
+const GiftCards = lazy(() => import('./pages/loyalty/GiftCards'))
+const FlaggedSales = lazy(() => import('./pages/loyalty/FlaggedSales'))
+const LoyaltyProgramme = lazy(() => import('./pages/loyalty/Programme'))
+const PromotionEditor = lazy(() => import('./pages/loyalty/PromotionEditor'))
+const Promotions = lazy(() => import('./pages/loyalty/Promotions'))
+const CrmCalendar = lazy(() => import('./pages/crm/Calendar'))
+const CrmSettings = lazy(() => import('./pages/crm/CrmSettings'))
+const Leads = lazy(() => import('./pages/crm/Leads'))
+const LeadDetail = lazy(() => import('./pages/crm/Leads').then((m) => ({ default: m.LeadDetail })))
+const LeadForm = lazy(() => import('./pages/crm/Leads').then((m) => ({ default: m.LeadForm })))
+const Opportunities = lazy(() => import('./pages/crm/Opportunities'))
+const OpportunityDetail = lazy(() => import('./pages/crm/Opportunities').then((m) => ({ default: m.OpportunityDetail })))
+const OpportunityForm = lazy(() => import('./pages/crm/Opportunities').then((m) => ({ default: m.OpportunityForm })))
+const Quotes = lazy(() => import('./pages/crm/Quotes'))
+const QuoteDetail = lazy(() => import('./pages/crm/Quotes').then((m) => ({ default: m.QuoteDetail })))
+const QuoteEditor = lazy(() => import('./pages/crm/Quotes').then((m) => ({ default: m.QuoteEditor })))
+const CrmTargets = lazy(() => import('./pages/crm/Targets'))
+const CashupsPage = lazy(() => import('./pages/ecommerce/Delivery').then((m) => ({ default: m.Cashups })))
+const DeliveriesPage = lazy(() => import('./pages/ecommerce/Delivery').then((m) => ({ default: m.Deliveries })))
+const RidersPage = lazy(() => import('./pages/ecommerce/Delivery').then((m) => ({ default: m.Riders })))
+const EcomInbox = lazy(() => import('./pages/ecommerce/Inbox'))
+const EcomOrders = lazy(() => import('./pages/ecommerce/Orders'))
+const EcomOrderDetail = lazy(() => import('./pages/ecommerce/Orders').then((m) => ({ default: m.OrderDetail })))
+const EcomReports = lazy(() => import('./pages/ecommerce/Reports'))
+const EcomStoreSettings = lazy(() => import('./pages/ecommerce/StoreSettings'))
+const ShopAccount = lazy(() => import('./shop/ShopPages').then((m) => ({ default: m.ShopAccount })))
+const ShopCart = lazy(() => import('./shop/ShopPages').then((m) => ({ default: m.ShopCart })))
+const ShopCheckout = lazy(() => import('./shop/ShopPages').then((m) => ({ default: m.ShopCheckout })))
+const ShopHome = lazy(() => import('./shop/ShopPages').then((m) => ({ default: m.ShopHome })))
+const ShopOrder = lazy(() => import('./shop/ShopPages').then((m) => ({ default: m.ShopOrder })))
+const ShopProduct = lazy(() => import('./shop/ShopPages').then((m) => ({ default: m.ShopProduct })))
+const Held = lazy(() => import('./pages/pos/Held'))
+const SaleDetail = lazy(() => import('./pages/pos/SaleDetail'))
+const Sales = lazy(() => import('./pages/pos/Sales'))
+const SalesDashboard = lazy(() => import('./pages/pos/SalesDashboard'))
+const ShiftDetail = lazy(() => import('./pages/pos/ShiftDetail'))
+const Shifts = lazy(() => import('./pages/pos/Shifts'))
+const BankAccounts = lazy(() => import('./pages/accounting/Bank'))
+const Reconcile = lazy(() => import('./pages/accounting/Bank').then((m) => ({ default: m.Reconcile })))
+const Budgets = lazy(() => import('./pages/accounting/Budgets'))
+const BudgetDetail = lazy(() => import('./pages/accounting/Budgets').then((m) => ({ default: m.BudgetDetail })))
+const ChartOfAccounts = lazy(() => import('./pages/accounting/ChartOfAccounts'))
+const DocumentDetail = lazy(() => import('./pages/accounting/DocumentDetail'))
+const DocumentForm = lazy(() => import('./pages/accounting/DocumentForm'))
+const Documents = lazy(() => import('./pages/accounting/Documents'))
+const JournalDetail = lazy(() => import('./pages/accounting/JournalDetail'))
+const JournalForm = lazy(() => import('./pages/accounting/JournalForm'))
+const Journals = lazy(() => import('./pages/accounting/Journals'))
+const AccountingPayments = lazy(() => import('./pages/accounting/Payments'))
+const PaymentDetail = lazy(() => import('./pages/accounting/Payments').then((m) => ({ default: m.PaymentDetail })))
+const Periods = lazy(() => import('./pages/accounting/Periods'))
+const Reports = lazy(() => import('./pages/accounting/Reports'))
+const GeneralLedger = lazy(() => import('./pages/accounting/Reports').then((m) => ({ default: m.GeneralLedger })))
+const Appearance = lazy(() => import('./pages/settings/Appearance'))
+const Brand = lazy(() => import('./pages/settings/Brand'))
+const DashboardDesigner = lazy(() => import('./pages/settings/layouts/DashboardDesigner'))
+const FormLayoutDesigner = lazy(() => import('./pages/settings/layouts/FormLayoutDesigner'))
+const NavigationEditor = lazy(() => import('./pages/settings/layouts/NavigationEditor'))
+const Currencies = lazy(() => import('./pages/settings/Currencies'))
+const CustomFields = lazy(() => import('./pages/settings/CustomFields'))
+const DocumentTemplates = lazy(() => import('./pages/settings/DocumentTemplates'))
+const TemplateDesigner = lazy(() => import('./pages/settings/templates/TemplateDesigner'))
+const Dimensions = lazy(() => import('./pages/settings/Dimensions'))
+const DataExport = lazy(() => import('./pages/settings/DataExport'))
+const Subscription = lazy(() => import('./pages/settings/Subscription'))
+const Imports = lazy(() => import('./pages/settings/Imports'))
+const ImportWizard = lazy(() => import('./pages/settings/imports/ImportWizard'))
+const Domains = lazy(() => import('./pages/settings/Domains'))
+const ExchangeRates = lazy(() => import('./pages/settings/ExchangeRates'))
+const Fiscal = lazy(() => import('./pages/settings/Fiscal'))
+const InviteUser = lazy(() => import('./pages/settings/InviteUser'))
+const MasterDataSharing = lazy(() => import('./pages/settings/MasterDataSharing'))
+const MyPosPin = lazy(() => import('./pages/settings/MyPosPin'))
+const NotificationDeliveries = lazy(() => import('./pages/settings/NotificationDeliveries'))
+const NotificationPreferences = lazy(() => import('./pages/settings/NotificationPreferences'))
+const NotificationTemplates = lazy(() => import('./pages/settings/NotificationTemplates'))
+const Numbering = lazy(() => import('./pages/settings/Numbering'))
+const Organisation = lazy(() => import('./pages/settings/Organisation'))
+const PaymentMethods = lazy(() => import('./pages/settings/PaymentMethods'))
+const Payments = lazy(() => import('./pages/settings/Payments'))
+const RoleDetail = lazy(() => import('./pages/settings/RoleDetail'))
+const Roles = lazy(() => import('./pages/settings/Roles'))
+const Security = lazy(() => import('./pages/settings/Security'))
+const Sessions = lazy(() => import('./pages/settings/Sessions'))
+const Taxes = lazy(() => import('./pages/settings/Taxes'))
+const Usage = lazy(() => import('./pages/settings/Usage'))
+const PriceListDetail = lazy(() => import('./pages/settings/taxes/PriceListDetail'))
+const UserDetail = lazy(() => import('./pages/settings/UserDetail'))
+const Users = lazy(() => import('./pages/settings/Users'))
+const DocumentWorkflow = lazy(() => import('./pages/workflows/DocumentWorkflow'))
+const WorkflowBuilder = lazy(() => import('./pages/workflows/LazyWorkflowBuilder'))
+const WorkflowInsights = lazy(() => import('./pages/workflows/WorkflowInsights'))
+const Workflows = lazy(() => import('./pages/workflows/Workflows'))
 
 // Development only: every design-system component in its states.
 const ComponentGallery = import.meta.env.DEV ? lazy(() => import('./dev/ComponentGallery.jsx')) : null

@@ -2,6 +2,7 @@
 // client's `api` object with vi.mock (see mockApi) and keep the real token
 // storage, so `signedIn()` simply stores a token.
 import { QueryClient } from '@tanstack/react-query'
+import { Suspense } from 'react'
 import { render } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { AppProviders } from '@/App'
@@ -71,7 +72,9 @@ export function renderApp(path = '/') {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   const utils = render(
     <AppProviders queryClient={queryClient}>
-      <RouterProvider router={router} />
+      <Suspense fallback={null}>
+        <RouterProvider router={router} />
+      </Suspense>
     </AppProviders>,
   )
   return { ...utils, router, queryClient }

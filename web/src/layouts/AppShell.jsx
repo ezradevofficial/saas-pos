@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Outlet, useMatches } from 'react-router'
+import { useMatches } from 'react-router'
+import { PageOutlet } from './PageOutlet'
 import { Button, Icon } from '@/components/ds'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
@@ -70,7 +71,7 @@ export function AppShell() {
           <div className={cn('mx-auto flex flex-col gap-6', !wide && 'max-w-content')}>
             {/* LIM-02, LIM-03: Owners only, while above the plan. */}
             <UsageBanner />
-            <Outlet />
+            <PageOutlet />
           </div>
         </main>
       </div>
