@@ -2,9 +2,9 @@
 
 namespace App\Core\CountryPacks;
 
+use App\Core\CountryPacks\Jobs\PropagatePackToTenant;
 use App\Core\CountryPacks\Models\CountryPackRelease;
 use App\Core\Http\ApiException;
-use App\Core\MasterData\Taxes\PropagateCountryPack;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformAuditor;
 use App\Core\Platform\PlatformDatabase;
@@ -14,6 +14,7 @@ use App\Core\Workflow\Calendar\HolidayFile;
 use App\Core\Workflow\Calendar\PublicHoliday;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * ADM-04 (ADR 022): country pack releases from the console.
@@ -40,7 +41,6 @@ class PackReleases
         private readonly PackDocuments $documents,
         private readonly PlatformAuditor $audit,
         private readonly CountryPacks $packs,
-        private readonly PropagateCountryPack $propagate,
         private readonly DueTenants $due,
     ) {}
 
@@ -186,8 +186,19 @@ class PackReleases
     {
         if ($release->kind === 'tax') {
             [$pack] = $this->packs->publish(PackFile::fromArray($release->content), PlatformDatabase::CONNECTION);
-            $result = $this->propagate->runFor($pack, $this->due->active());
-            Log::info('country pack release applied', ['release' => $release->id, 'pack_version' => $pack->version, ...array_diff_key($result, ['conflicts' => true]), 'conflicts' => count($result['conflicts'])]);
+            // Review H3, M4: every tenant that is not closed (suspended ones too, so a reactivated
+            // tenant is current), one queued job each: a failure stays with its tenant and is retried.
+            $tenants = $this->due->forPackUpdates();
+
+            foreach ($tenants as $tenantId) {
+                try {
+                    PropagatePackToTenant::dispatch($pack->id, $tenantId);
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            }
+
+            Log::info('country pack release applied', ['release' => $release->id, 'pack_version' => $pack->version, 'tenants' => count($tenants)]);
         } elseif ($release->kind === 'holidays') {
             $file = HolidayFile::fromArray($release->content);
 

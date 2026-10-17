@@ -2,15 +2,18 @@
 
 namespace Tests\Feature\Core\Platform;
 
+use App\Core\CountryPacks\Jobs\PropagatePackToTenant;
 use App\Core\CountryPacks\Models\CountryPack;
 use App\Core\CountryPacks\Models\CountryPackRelease;
 use App\Core\CountryPacks\PackDocuments;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformDatabase;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Workflow\Calendar\PublicHoliday;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Bus;
 use Modules\HR\Support\HrPack;
 use Modules\Payroll\Statutory\PayrollPack;
 use Modules\Payroll\Tests\Concerns\BuildsPayroll;
@@ -161,6 +164,8 @@ class PackReleasesTest extends TestCase
         $this->setUpOrganisation();
         // A company made through the API gets the KE pack's codes (rate needed).
         $company = $this->postJson('/api/v1/companies', ['name' => 'Acme Coast', 'country' => 'KE'], $this->headersFor())->assertCreated()->json('data.id');
+        // Review H3: a suspended tenant gets the release too (it is current when reactivated).
+        $this->inTenant(fn () => Tenant::query()->whereKey($this->owner->tenant_id)->update(['status' => 'suspended']));
         $tax = self::file('KE', 'tax');
         // A fictional figure for the test only, never a real rate.
         $tax['tax_codes'][0] = [...$tax['tax_codes'][0], 'rate' => '11', 'needs_confirmation' => false];
@@ -192,5 +197,33 @@ class PackReleasesTest extends TestCase
         $holidays = [...self::file('KE', 'holidays'), 'holidays' => [['key' => 'new_year', 'month' => 1, 'day' => 1]]];
         $this->approveAndPublish($this->load('holidays', $holidays, from: '2026-11-15')['id']);
         $this->assertSame(['new_year'], PublicHoliday::query()->where('country', 'KE')->pluck('key')->all());
+    }
+
+    /** Review M4: one queued job per tenant (suspended ones included), so a failure is isolated and retried. */
+    public function test_a_tax_release_queues_one_propagation_job_per_tenant(): void
+    {
+        $this->setUpOrganisation();
+        $other = $this->otherTenant();
+        $this->asTenant($other['user']->tenant_id, fn () => Tenant::query()->whereKey($other['user']->tenant_id)->update(['status' => 'suspended']));
+        Bus::fake([PropagatePackToTenant::class]);
+        $tax = self::file('KE', 'tax');
+        $tax['tax_codes'][0] = [...$tax['tax_codes'][0], 'rate' => '11', 'needs_confirmation' => false];
+
+        $this->approveAndPublish($this->load('tax', $tax, from: '2026-11-02')['id']);
+
+        Bus::assertDispatched(PropagatePackToTenant::class, fn ($job) => $job->tenantId === $this->owner->tenant_id);
+        Bus::assertDispatched(PropagatePackToTenant::class, fn ($job) => $job->tenantId === $other['user']->tenant_id);
+        $this->assertSame(1, collect(Bus::dispatched(PropagatePackToTenant::class))->filter(fn ($job) => $job->tenantId === $this->owner->tenant_id)->count());
+    }
+
+    /** Review L8: the runtime role reads published releases only. */
+    public function test_the_runtime_role_sees_published_releases_only(): void
+    {
+        $draft = $this->load('hr', self::file('KE', 'hr'));
+        $published = $this->load('hr', self::file('KE', 'hr'));
+        $this->approveAndPublish($published['id']);
+
+        $this->assertSame([$published['id']], CountryPackRelease::on('pgsql')->pluck('id')->all());
+        $this->assertSame(2, CountryPackRelease::query()->whereIn('id', [$draft['id'], $published['id']])->count(), 'the platform role sees them all');
     }
 }

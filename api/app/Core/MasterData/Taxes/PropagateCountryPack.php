@@ -93,6 +93,34 @@ class PropagateCountryPack
     }
 
     /**
+     * One tenant (ADM-04, ADR 022: a queued job per tenant, so one failure
+     * never stops the others and is retried on its own), in its context on
+     * the runtime connection, as the system.
+     *
+     * @return array{updated: int, skipped: int, conflicts: list<string>}
+     */
+    public function forTenant(CountryPack $pack, string $tenantId): array
+    {
+        $this->audit->reset();
+        $periods = PackTaxCode::on(TenantContext::CONNECTION)->where('country_pack_id', $pack->id)->get()
+            ->reject(fn (PackTaxCode $row) => $row->kind === 'exempt')
+            ->groupBy('code');
+
+        if ($periods->isEmpty()) {
+            return ['updated' => 0, 'skipped' => 0, 'conflicts' => []];
+        }
+
+        $previous = DB::getDefaultConnection();
+        DB::setDefaultConnection(TenantContext::CONNECTION);
+
+        try {
+            return $this->tenants->run($tenantId, fn () => DB::transaction(fn () => $this->tenant($pack, $periods)));
+        } finally {
+            DB::setDefaultConnection($previous);
+        }
+    }
+
+    /**
      * @param  Collection<string, Collection<int, PackTaxCode>>  $periods  by pack code
      * @return array{updated: int, skipped: int, conflicts: list<string>}
      */

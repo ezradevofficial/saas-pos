@@ -155,6 +155,12 @@ class DueTenants
         return $this->ids('app_tenants_with_expired_support_grants(?::timestamptz)', [$at->toIso8601String()]);
     }
 
+    /** @return list<string> ADM-04 (review H3): every tenant that is not closed, suspended ones included, for country pack updates. */
+    public function forPackUpdates(): array
+    {
+        return $this->ids('app_tenants_for_pack_updates()');
+    }
+
     /** @return list<string> Every active tenant. */
     public function active(): array
     {

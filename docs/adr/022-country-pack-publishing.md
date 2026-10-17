@@ -49,7 +49,7 @@ So the files are the bootstrap and the fallback, and a published release wins fr
 **Global, platform-written.** The table has no `tenant_id` (ADR 013): packs are the same for every tenant. Grants:
 
 - the platform role `app_platform` has SELECT, INSERT and UPDATE;
-- the runtime role `app` has SELECT;
+- the runtime role `app` has SELECT, and a row-level security policy shows it published releases only;
 - nobody has DELETE.
 
 A trigger refuses every change to a release's content, hash, country, kind, version, effective date, loader or validation. It allows status only forward (`draft` → `approved` → `published`, or `rejected`). Check constraints refuse an approver who loaded the release and a publisher who approved it. `RlsCoverageTest` lists the table with the platform tables. The isolation suite treats it as global reference data.
@@ -81,7 +81,7 @@ Every step is audited in the platform chain (`platform.pack.load|approve|reject|
 - This happens when the release is published, if its date has come. Otherwise `country-packs:apply-releases` does it on the date (daily, 00:10 UTC). `applied_at` makes it happen once.
 - The deploy commands read the release in force, so a deploy never reverts a published tax or holiday release to the file.
 
-**No owner credentials on web or worker hosts (ADR 002).** Applying a tax or holidays release writes the pack tables as the platform role. The migration grants it SELECT and INSERT on `country_packs` and `country_pack_tax_codes`, and SELECT, INSERT and DELETE on `public_holidays`. Propagation lists tenants through `app_active_tenant_ids()` and enters each one under row-level security (`PropagateCountryPack::runFor`), never through the owner connection. The owner path (`country-packs:publish` at deploy) is unchanged.
+**No owner credentials on web or worker hosts (ADR 002).** Applying a tax or holidays release writes the pack tables as the platform role. The migration grants it SELECT and INSERT on `country_packs` and `country_pack_tax_codes`, and SELECT, INSERT and DELETE on `public_holidays`. Propagation lists every tenant that is not closed through `app_tenants_for_pack_updates()` (suspended tenants too, so they are current when reactivated) and queues one `PropagatePackToTenant` job per tenant. Each job enters its tenant under row-level security (`PropagateCountryPack::forTenant`) and is retried on its own with back-off, so one tenant's failure never stops the others. Nothing goes through the owner connection. The owner path (`country-packs:publish` at deploy) is unchanged.
 
 **The owner's confirmed values take this path in production.** A compliance or engineering staff member:
 
@@ -97,4 +97,4 @@ A second person checks the diff and approves, and a compliance lead or the owner
 - The shipped files stay the reference for new environments and tests. Production values live in releases until someone copies them back into the files.
 - A release is a whole document, not a patch. A mistake is corrected by loading the next version; nothing is edited in place.
 - Pack labels stay translation files (ADR 007). A release that adds a tax code or leave type needs its label in `lang/{en,fr}` to show a name rather than the code.
-- Publishing a tax release propagates to every active tenant within the request (or the daily command). This is fine at today's scale. A queued fan-out per tenant is the follow-up when tenant counts grow.
+- Publishing a tax release answers once the per-tenant jobs are queued. Tenants receive the rates as the queue works through them.
