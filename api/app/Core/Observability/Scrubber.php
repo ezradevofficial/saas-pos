@@ -126,6 +126,18 @@ final class Scrubber
             return self::rules()['replacement'];
         }
 
+        // An exception's message can carry SQL bindings or a provider's reply.
+        if ($value instanceof \Throwable) {
+            return [
+                'class' => $value::class,
+                'message' => self::scrubString($value->getMessage()),
+                'code' => $value->getCode(),
+                'file' => $value->getFile().':'.$value->getLine(),
+                'trace' => self::scrubString($value->getTraceAsString()),
+                'previous' => $value->getPrevious() === null ? null : self::scrub($value->getPrevious(), null, $depth + 1),
+            ];
+        }
+
         if ($value instanceof \JsonSerializable) {
             $value = $value->jsonSerialize();
         } elseif ($value instanceof \Stringable && ! is_iterable($value)) {
