@@ -12022,7 +12022,8 @@
       "save": "Enregistrer les modifications",
       "noEvents": "Choisissez au moins un événement.",
       "pickCompany": "Choisissez la société.",
-      "pickBranch": "Choisissez l’agence."
+      "pickBranch": "Choisissez l’agence.",
+      "locked": "Ce webhook envoie au nom de {{name}}. Seul cet utilisateur peut modifier son URL, ses événements ou son filtre ; vous pouvez modifier sa description ou l’activer et le désactiver."
     },
     "secret": {
       "title": "Secret de signature",
@@ -12058,7 +12059,10 @@
       "filter": "Envoie les événements de",
       "sendsAs": "Envoie au nom de",
       "notFound": "Ce webhook n’existe pas ou a été archivé.",
-      "settings": "Réglages"
+      "settings": "Réglages",
+      "takeOver": "Reprendre",
+      "takeOverTitle": "Reprendre ce webhook ?",
+      "takeOverBody": "Il envoie actuellement au nom de {{name}}. Une fois repris, il envoie en votre nom, avec ce que vous voyez, et vous seul pouvez modifier son URL, ses événements ou son filtre."
     },
     "deliveries": {
       "title": "Journal des livraisons",

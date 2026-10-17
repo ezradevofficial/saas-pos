@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Card, Dialog, StatusBadge } from '@/components/ds'
+import { usePermissions } from '@/auth/usePermissions'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatWhen } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
@@ -65,6 +66,8 @@ export default function WebhookDetail() {
   const [editing, setEditing] = useState(false)
   const [rotating, setRotating] = useState(false)
   const [archiving, setArchiving] = useState(false)
+  const [takingOver, setTakingOver] = useState(false)
+  const { isOwner } = usePermissions()
   const [secret, setSecret] = useState(null)
   const query = useQuery({ queryKey: [...WEBHOOKS_KEY, webhookId], queryFn: () => api.get(`webhooks/${webhookId}`) })
   const catalogue = useQuery({ queryKey: CATALOGUE_KEY, queryFn: () => api.get('webhooks/catalogue') })
@@ -87,6 +90,13 @@ export default function WebhookDetail() {
     onSuccess: async (response) => {
       setSecret(response.data.secret)
       setRotating(false)
+      await refresh()
+    },
+  })
+  const takeOver = useMutation({
+    mutationFn: () => api.post(`webhooks/${webhookId}/take-over`),
+    onSuccess: async () => {
+      setTakingOver(false)
       await refresh()
     },
   })
@@ -166,7 +176,16 @@ export default function WebhookDetail() {
             <Fact label={t('webhooks.deliveries.columns.status')}>
               <StatusBadge tone={state.tone}>{t(`webhooks.status.${state.key}`)}</StatusBadge>
             </Fact>
-            <Fact label={t('webhooks.detail.sendsAs')}>{webhook.principal.name}</Fact>
+            <Fact label={t('webhooks.detail.sendsAs')}>
+              <span className="flex flex-col gap-1">
+                <span>{webhook.principal.name}</span>
+                {!webhook.principal.is_me && isOwner ? (
+                  <Button className="mt-1 self-start" onClick={() => setTakingOver(true)}>
+                    {t('webhooks.detail.takeOver')}
+                  </Button>
+                ) : null}
+              </span>
+            </Fact>
             <Fact label={t('webhooks.detail.filter')}>{filter}</Fact>
             <Fact label={t('webhooks.secret.title')}>
               <span className="flex flex-col gap-1">
@@ -206,6 +225,17 @@ export default function WebhookDetail() {
         error={rotate.error ? errorMessage(rotate.error) : null}
         onConfirm={() => rotate.mutate()}
         onClose={() => setRotating(false)}
+      />
+      <Confirm
+        open={takingOver}
+        variant="secondary"
+        title={t('webhooks.detail.takeOverTitle')}
+        body={t('webhooks.detail.takeOverBody', { name: webhook.principal.name })}
+        action={t('webhooks.detail.takeOver')}
+        loading={takeOver.isPending}
+        error={takeOver.error ? errorMessage(takeOver.error) : null}
+        onConfirm={() => takeOver.mutate()}
+        onClose={() => setTakingOver(false)}
       />
       <Confirm
         open={archiving}

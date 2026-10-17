@@ -12022,7 +12022,8 @@
       "save": "Save changes",
       "noEvents": "Choose at least one event.",
       "pickCompany": "Choose the company.",
-      "pickBranch": "Choose the branch."
+      "pickBranch": "Choose the branch.",
+      "locked": "This webhook sends as {{name}}. Only they can change its URL, events or filter; you can change its description or switch it on or off."
     },
     "secret": {
       "title": "Signing secret",
@@ -12058,7 +12059,10 @@
       "filter": "Sends events of",
       "sendsAs": "Sends as",
       "notFound": "This webhook doesn’t exist or was archived.",
-      "settings": "Settings"
+      "settings": "Settings",
+      "takeOver": "Take over",
+      "takeOverTitle": "Take over this webhook?",
+      "takeOverBody": "It sends as {{name}} now. After taking it over it sends as you, with what you can see, and only you can change its URL, events or filter."
     },
     "deliveries": {
       "title": "Delivery log",

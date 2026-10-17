@@ -33,6 +33,8 @@ export function WebhookFormDialog({ open, webhook, onClose, onCreated }) {
   const [state, setState] = useState(() => initialState(webhook))
   const [localError, setLocalError] = useState(null)
   const editing = Boolean(webhook)
+  // Only the user it sends as changes the URL, events or filter (the API refuses others).
+  const locked = editing && !webhook.principal?.is_me
   const set = (patch) => setState((current) => ({ ...current, ...patch }))
 
   const catalogue = useQuery({ queryKey: CATALOGUE_KEY, queryFn: () => api.get('webhooks/catalogue'), enabled: open })
@@ -47,7 +49,7 @@ export function WebhookFormDialog({ open, webhook, onClose, onCreated }) {
         company_id: state.filter === 'company' ? state.companyId : null,
         branch_id: state.filter === 'branch' ? state.branchId : null,
       }
-      if (!editing || state.url.trim() !== '') body.url = state.url.trim()
+      if (!editing || (!locked && state.url.trim() !== '')) body.url = state.url.trim()
       if (editing) body.active = state.active
       return editing ? api.patch(`webhooks/${webhook.id}`, body) : api.post('webhooks', body)
     },
@@ -95,7 +97,9 @@ export function WebhookFormDialog({ open, webhook, onClose, onCreated }) {
     >
       <form id="webhook-form" noValidate className="flex flex-col gap-5 pt-1" onSubmit={submit}>
         {errors.form || localError ? <Alert tone="danger" title={localError ?? errors.form} /> : null}
+        {locked ? <Alert tone="info" title={t('webhooks.form.locked', { name: webhook.principal?.name ?? '' })} /> : null}
         <TextField
+          disabled={locked}
           label={t('webhooks.fields.url')}
           help={editing ? t('webhooks.fields.urlKeep', { url: webhook.url_display }) : t('webhooks.fields.urlHelp')}
           value={state.url}
@@ -129,6 +133,7 @@ export function WebhookFormDialog({ open, webhook, onClose, onCreated }) {
                     label={eventLabel(t, type.key)}
                     help={type.key}
                     checked={state.events.includes(type.key)}
+                    disabled={locked}
                     onChange={(event) => toggle(type.key, event.target.checked)}
                   />
                 ))}
@@ -139,6 +144,7 @@ export function WebhookFormDialog({ open, webhook, onClose, onCreated }) {
         </fieldset>
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
+            disabled={locked}
             label={t('webhooks.fields.filter')}
             value={state.filter}
             onChange={(event) => set({ filter: event.target.value })}
