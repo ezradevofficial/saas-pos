@@ -10,6 +10,8 @@ HOOK-01. This is the developer guide for webhooks. The developer portal links to
   - the events it receives;
   - optionally one company or one branch, whose events alone it receives.
 - The signing secret (`whsec_…`) is shown once, when the webhook is added or when its secret is rotated. Store it with your endpoint.
+- Only the user a webhook sends as can change its URL, events or filter. Others can rename it or switch it on or off, and an Owner can take it over.
+- URLs are shown as their host only (`https://hooks.example.com/…/••••`), as a path may carry a token.
 - A webhook sends as the user who added it. It receives only events for records that user may see, without the fields that user's field rules hide.
   - An API key will also be able to own a webhook, once the public API is available.
 - Events are offered only for the modules the organisation uses.
@@ -32,6 +34,7 @@ Each event is an HTTPS `POST` with a JSON body:
 - Amounts are minor-unit digit strings with their currency (KES and USD have 2 decimals, CDF has 0).
 - Quantities are decimal strings.
 - Times are ISO 8601 in UTC.
+- `occurred_at` is when the event happened: a sale's time of sale, a refund's time, an invoice's posting time. Events without a time of their own use the moment they were raised.
 
 ## Checking the signature
 

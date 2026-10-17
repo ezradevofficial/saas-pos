@@ -16,13 +16,13 @@ const CATALOGUE = {
 }
 const HOOK = {
   id: 'w-1',
-  url_display: 'https://hooks.example.com/in',
+  url_display: 'https://hooks.example.com/…/••••',
   description: 'Warehouse system',
   events: ['sale.completed.v1'],
   active: true,
   company_id: null,
   branch_id: null,
-  principal: { type: 'user', id: 'u-1', name: 'Amina', active: true },
+  principal: { type: 'user', id: 'u-1', name: 'Amina', active: true, is_me: true },
   consecutive_failures: 0,
   disabled_reason: null,
   disabled_at: null,
@@ -78,7 +78,7 @@ describe('Settings → Webhooks (HOOK-01)', () => {
 
     expect(await screen.findByRole('heading', { name: 'Webhooks' })).toBeInTheDocument()
     const list = await screen.findByRole('list', { name: 'Webhooks' })
-    expect(within(list).getByRole('link', { name: 'Open webhook https://hooks.example.com/in' })).toHaveAttribute('href', '/settings/webhooks/w-1')
+    expect(within(list).getByRole('link', { name: 'Open webhook https://hooks.example.com/…/••••' })).toHaveAttribute('href', '/settings/webhooks/w-1')
     expect(within(list).getByText('On')).toBeInTheDocument()
     expect(within(list).getByText('Switched off after failures')).toBeInTheDocument()
     expect(within(list).getByText(/10 failures in a row/)).toBeInTheDocument()
@@ -161,6 +161,47 @@ describe('Settings → Webhooks (HOOK-01)', () => {
     expect(dialog).toHaveTextContent('keeps signing for 24 hours')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Rotate secret' }))
     expect(await screen.findByTestId('webhook-signing-secret')).toHaveTextContent('whsec_bmV3LXNlY3JldA==')
+  })
+
+  it('limits the edit form to description and on or off for anyone but the user it sends as', async () => {
+    const theirs = { ...HOOK, principal: { ...HOOK.principal, is_me: false } }
+    routes([['webhooks/w-1', { data: theirs }]])
+    api.patch.mockResolvedValue({ data: theirs })
+    renderApp('/settings/webhooks/w-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/This webhook sends as Amina/)).toBeInTheDocument()
+    expect(within(dialog).getByLabelText(/Endpoint URL/)).toBeDisabled()
+    expect(await within(dialog).findByLabelText(/Sale completed/)).toBeDisabled()
+    fireEvent.change(within(dialog).getByLabelText(/Description/), { target: { value: 'Renamed' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalled())
+    expect(api.patch.mock.calls[0][1]).not.toHaveProperty('url')
+  })
+
+  it('lets the Owner take over a webhook sending as someone else', async () => {
+    const theirs = { ...HOOK, principal: { ...HOOK.principal, is_me: false } }
+    routes([
+      ['webhooks/w-1', { data: theirs }],
+      ['me/permissions', { permissions: tenantWide(['core.webhook.manage']), modules: ['core'], owner: true }],
+    ])
+    api.post.mockResolvedValue({ data: { ...HOOK, principal: { type: 'user', id: 'u-9', name: 'Owner', active: true, is_me: true } } })
+    renderApp('/settings/webhooks/w-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Take over' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('It sends as Amina now')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Take over' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('webhooks/w-1/take-over'))
+  })
+
+  it('offers no take-over to a manager who is not an Owner', async () => {
+    routes([['webhooks/w-1', { data: { ...HOOK, principal: { ...HOOK.principal, is_me: false } } }]])
+    renderApp('/settings/webhooks/w-1')
+
+    expect(await screen.findByRole('heading', { name: 'Warehouse system' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Take over' })).not.toBeInTheDocument()
   })
 
   it('is refused to users without the webhook permission', async () => {

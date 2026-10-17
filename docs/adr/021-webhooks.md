@@ -61,6 +61,15 @@ The public API (API-01..05, branch `feat/public-api`) is being built in parallel
   Payload keys mapped to fields the principal's field rules hide (RBAC-05) are removed before the delivery row is written. Hidden values are never stored and never sent. A replay sends the stored body again, filtered through the principal's current rules.
 - **Principal types.** Principals are resolved through `WebhookPrincipals`, a registry of resolvers keyed by type. Core registers `user`: the user who created the subscription, who must stay active. The public API branch registers `api_key` with its own `WebhookPrincipal` implementation (`can()`, `hiddenFields()`, `isActive()`, `actingUser()`). Nothing in webhooks imports the API-key code.
 
+- **Ownership (review finding 1).**
+  - Only the principal changes a subscription's URL, events or filter. Anyone else with `core.webhook.manage` may change its description or switch it on or off; other changes get 403 `webhook_not_owner`.
+  - An Owner may take a subscription over (`POST webhooks/{id}/take-over`). It then sends as the Owner, its events are checked against them first, and the change is audited (`core.webhook.take_over`).
+  - Events are checked against the principal's permissions at the subscription's scope: its branch, its company, or the whole tenant when it has no filter.
+- **Queue payloads (review finding 9).** The fan-out job carries ids, where the event happened and when, never more than the event needs:
+  - read in the job from the module's own tables: `sale.completed`, `sale.voided`, `sale.refunded` (POS), `payroll.approved` (the run's totals), `invoice.posted`, `credit_note.posted` (Accounting), `document.stage_changed`;
+  - carried as raised, because they describe a moment that cannot be read back faithfully or carry nothing a field rule governs: `stock.low` (the quantities at the crossing), `order.*` (the status change), `purchase_order.approved` and `supplier_invoice.approved` (amounts of an approved, unchangeable document).
+- **`occurred_at` (review finding 10).** The event's own time where it has one (a sale's `sold_at`, a void's time, a refund's `refunded_at`, an invoice's posting time), else when it was raised.
+
 ### Subscriptions
 
 - **Table `webhook_subscriptions`** (tenant, RLS):
@@ -76,6 +85,8 @@ The public API (API-01..05, branch `feat/public-api`) is being built in parallel
   - archived time (TEN-06: archived, never deleted).
 - **Permission.** `core.webhook.manage` at tenant scope (Owner and Admin through `core.*`). Every change is audited (`core.webhook.create`, `update`, `rotate_secret`, `archive`, `test`, `replay`), without the URL or the secret.
 - **Secret.** `whsec_` plus 32 random bytes in base64 (the Standard Webhooks format). It is shown once, on create and on rotate. Rotation keeps the previous secret for `webhooks.rotation_overlap_hours` (24 h). During that window each delivery carries two signatures, so receivers can switch without dropping events.
+- **Shown URL (review finding 4).** `url_display` keeps only the scheme, host and port and masks any path or query (`https://hooks.slack.com/…/••••`): the app, notifications, the audit log and the export never show a path token.
+- **Cap (review finding 6).** Subscriptions are counted inside the creating transaction, under a per-tenant advisory lock (`pg_advisory_xact_lock`), so two requests never both pass the cap.
 - **URL rules.** The URL is checked with `WebhookSender::urlProblem` on save:
   - HTTPS only;
   - no credentials in the URL;
@@ -118,6 +129,15 @@ The public API (API-01..05, branch `feat/public-api`) is being built in parallel
   - Its pending retries then fail at their next attempt.
   - The tenant's webhook managers (active users with `core.webhook.manage` at tenant scope) and the user principal are notified through core notifications (`core.webhook.disabled`, in-app and email).
   - Switching it back on resets the count.
+- **Checked again (review findings 2, 3).** Each delivery stores where its event happened (`occurrence`: company, branch, location, document).
+  - At send time the type's module must still be active and the principal must still see the event there. Otherwise the delivery fails as `principal`, uncounted. Fields the principal's rules hide by then are taken out of the body.
+  - Replays go to the subscription's current URL and secret, only while its current principal still sees the event.
+  - The delivery log shows a body only to a reader who may see the event there (the type's own check, also for types checked per document), without the fields the reader's rules hide.
+- **Exactly one row per event (review findings 7, 8).**
+  - A partial unique index on `(subscription_id, event_id) where replay_of is null`, with `insert … on conflict do nothing`, makes a fan-out run twice harmless.
+  - `SendWebhook` is unique per delivery until a worker starts it.
+  - The sweep marks what it queues again (`updated_at`, `next_attempt_at`), so the next sweep leaves it alone.
+- **Indexes (review finding 5).** `created_at`, `replay_of`, `updated_at where status in (pending, sending)` and `next_attempt_at where status = retrying`. `app_tenants_with_webhook_work` is a union of three queries, each served by one of them. Old rows are pruned in batches of 1,000.
 - **Ordering.** Ordering is not guaranteed. Retries, parallel workers and replays can deliver a later event first. Receivers order by `occurred_at` and the resource's own state, and deduplicate by event id.
 - **Replay.** Any delivery can be replayed by a webhook manager. The replay is queued as a new delivery row (`replay_of`) with the same event id and body, to the subscription's current URL and secret. It needs the subscription to be active and the principal to still see the event.
 - **Test event.** `POST webhooks/{id}/test` queues a `webhook.test.v1` delivery with a new event id to that subscription. It does so even if the subscription does not list the type, so a receiver can be checked before going live.
