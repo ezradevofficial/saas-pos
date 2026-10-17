@@ -9,6 +9,7 @@ use App\Core\Webhooks\Jobs\FanOutWebhookEvent;
 use App\Core\Webhooks\WebhookSubscriptions;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * HOOK-01: listens to every catalogued internal event (after commit: they
@@ -29,6 +30,16 @@ class WebhookDispatcher
     ) {}
 
     public function handle(object $event): void
+    {
+        // A webhook must never fail the request that raised the event (a till's upload, NFR-04).
+        try {
+            $this->dispatch($event);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function dispatch(object $event): void
     {
         $tenantId = $event->tenantId ?? null;
 
