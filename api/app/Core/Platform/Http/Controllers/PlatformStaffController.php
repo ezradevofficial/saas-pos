@@ -11,6 +11,7 @@ use App\Core\Platform\PlatformAuditor;
 use App\Core\Platform\PlatformAuth;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Platform\PlatformTokens;
+use App\Core\Platform\SupportAccess\SupportAccess;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -26,6 +27,7 @@ class PlatformStaffController
         private readonly PlatformAuth $auth,
         private readonly PlatformAuditor $audit,
         private readonly PlatformTokens $tokens,
+        private readonly SupportAccess $support,
     ) {}
 
     public function index(ManageStaffRequest $request): JsonResponse
@@ -50,13 +52,16 @@ class PlatformStaffController
     {
         $role = (string) $request->validated('role');
 
-        $user = PlatformDatabase::transaction(function () use ($staff, $role) {
+        $changed = false;
+        $user = PlatformDatabase::transaction(function () use ($staff, $role, &$changed) {
             $user = $this->locked($staff);
             $before = $user->role;
 
             if ($before === $role) {
                 return $user;
             }
+
+            $changed = true;
 
             if ($before === PlatformUser::ROLE_OWNER) {
                 $this->assertOtherOwner($user);
@@ -67,6 +72,11 @@ class PlatformStaffController
 
             return $user;
         });
+
+        // RBAC-13 (review H2): another role ends the staff member's support access everywhere.
+        if ($changed) {
+            $this->support->endForStaff($user);
+        }
 
         return response()->json(['data' => self::present($user)]);
     }
@@ -95,6 +105,9 @@ class PlatformStaffController
 
             return $user;
         });
+
+        // RBAC-13 (review H2): a deactivated staff member's support access ends everywhere.
+        $this->support->endForStaff($user);
 
         return response()->json(['data' => self::present($user)]);
     }

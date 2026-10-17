@@ -34,6 +34,20 @@ class EnforceSupportSession
     /** Routes a support principal never reaches (uri patterns, without the api/v1 prefix). */
     public const REFUSED = ['auth/sessions', 'auth/sessions/*', 'tenant-exports', 'tenant-exports/*', 'support-access', 'support-access/*', 'users/*/sign-out-everywhere'];
 
+    /**
+     * Writes that make a credential, an outbound link or a scheduled action
+     * under a permission the session may otherwise hold (review H1): they
+     * would outlive the grant.
+     */
+    public const REFUSED_WRITES = [
+        'companies/*/accounting/recurring-journals', 'accounting/recurring-journals/*',
+        '*/share', 'devices/*/pairing-code', '*/rotate', '*/whatsapp-token', '*/token',
+        'procurement/tender-bidders/*/resend', 'procurement/rfqs/*/issue', 'procurement/tenders/*/publish',
+    ];
+
+    /** RBAC-13 (review M6): list exports leave the platform; a support session never downloads them. */
+    public const EXPORT_FORMATS = ['csv', 'xlsx', 'pdf'];
+
     /** The principal's own account: readable (the shell needs `me` and its permissions), never changed. */
     public const OWN_ACCOUNT = ['me', 'me/*'];
 
@@ -59,7 +73,11 @@ class EnforceSupportSession
                 throw new ApiException(401, 'support_access_ended', __('platform.support.ended'));
             }
 
-            if (! in_array($key, self::ALWAYS, true) && (Str::is(self::REFUSED, $uri) || (! $request->isMethodSafe() && Str::is(self::OWN_ACCOUNT, $uri)))) {
+            $refused = Str::is(self::REFUSED, $uri)
+                || (! $request->isMethodSafe() && (Str::is(self::OWN_ACCOUNT, $uri) || Str::is(self::REFUSED_WRITES, $uri)))
+                || in_array(strtolower((string) $request->query('format')), self::EXPORT_FORMATS, true);
+
+            if (! in_array($key, self::ALWAYS, true) && $refused) {
                 throw new ApiException(403, 'support_route_refused', __('platform.support.route_refused'));
             }
 

@@ -4,6 +4,7 @@ namespace App\Core\Platform\SupportAccess;
 
 use App\Core\Audit\AuditContext;
 use App\Core\Audit\Auditor;
+use App\Core\Automation\Models\AutomationRule;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Platform\Models\PlatformUser;
@@ -11,11 +12,14 @@ use App\Core\Platform\PlatformAuditor;
 use App\Core\Platform\SupportAccess\Models\PlatformSupportRequest;
 use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Tenancy\DevicePairing;
+use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * RBAC-13, ADM-03: platform staff see a tenant only after the tenant
@@ -49,8 +53,13 @@ class SupportAccess
     /**
      * RBAC-13d (1): never granted to a support session: identity and
      * roles, subscription changes, domains, security settings, the full
-     * data export, audit exports, provider credentials, module changes,
-     * API keys and webhooks, and support access itself.
+     * data export, audit exports, provider credentials, module changes and
+     * support access itself; and everything that makes a credential, an
+     * outbound URL or a scheduled action that could outlive the grant:
+     * device pairing, attendance devices, automation rules (webhooks and
+     * schedules), notification texts and settings, public lead forms, the
+     * store's WhatsApp token, document shares, and supplier portal links.
+     * Every entry must name real catalogue permissions (SupportAccessNeverTest).
      */
     public const NEVER = [
         'core.role.create', 'core.role.edit', 'core.role.archive', 'core.role.assign',
@@ -58,7 +67,11 @@ class SupportAccess
         'core.settings.edit', 'core.domain.manage', 'core.subscription.manage', 'core.onboarding.modules',
         'core.tenant.export', 'core.audit.export', 'core.access_review.export',
         'core.fiscal.configure', 'core.payment_method.configure',
-        'core.api_key.*', 'core.webhook.*', 'core.support_access.*',
+        'core.support_access.*',
+        'core.device.create', 'core.device.pair', 'hr.device.manage',
+        'core.automation.edit', 'core.notification_template.edit', 'core.notification_settings.edit',
+        'crm.settings.manage', 'ecommerce.store.manage', 'pos.sale.share',
+        'procurement.tender.create', 'procurement.rfq.create',
     ];
 
     /**
@@ -365,7 +378,55 @@ class SupportAccess
     /** Whether a support principal's session may act now: its grant is approved and not past its end. */
     public function sessionValid(User $user): bool
     {
-        return (bool) $this->grantOf($user)?->isActive();
+        $grant = $this->grantOf($user);
+
+        if ($grant === null || ! $grant->isActive()) {
+            return false;
+        }
+
+        // Review H2: the staff member must still be active and allowed to hold support access.
+        if (! $user->relationLoaded('supportStaff')) {
+            $user->setRelation('supportStaff', PlatformUser::query()->find($grant->platform_user_id));
+        }
+
+        return (bool) $user->getRelation('supportStaff')?->allows('platform.support.request');
+    }
+
+    /**
+     * Review H2: a staff member deactivated or given another role loses
+     * every support access at once, in every tenant: approved grants end,
+     * pending requests are cancelled. Each tenant is handled in its own
+     * context; a failure in one is reported and the others still end.
+     *
+     * @return int grants ended or cancelled
+     */
+    public function endForStaff(PlatformUser $staff): int
+    {
+        $count = 0;
+
+        foreach (PlatformSupportRequest::query()->where('platform_user_id', $staff->id)->whereIn('status', [SupportAccessGrant::PENDING, SupportAccessGrant::APPROVED])->get() as $request) {
+            try {
+                $grant = $this->tenants->run($request->tenant_ref, fn () => DB::connection(TenantContext::CONNECTION)->transaction(function () use ($request) {
+                    $grant = SupportAccessGrant::query()->whereKey($request->id)->lockForUpdate()->first();
+
+                    return match ($grant?->status) {
+                        SupportAccessGrant::APPROVED => $this->close($grant, SupportAccessGrant::ENDED, 'staff_changed'),
+                        SupportAccessGrant::PENDING => tap($grant)->fill(['status' => SupportAccessGrant::CANCELLED, 'ended_at' => now(), 'end_reason' => 'staff_changed'])->save(),
+                        default => $grant,
+                    };
+                }));
+
+                if ($grant !== null) {
+                    $this->mirror($request->tenant_ref, $grant);
+                    $this->platformAudit->record('platform.support.staff_changed', null, null, ['tenant_id' => $request->tenant_ref, 'grant_id' => $grant->id, 'platform_user_id' => $staff->id, 'status' => $grant->status]);
+                    $count++;
+                }
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $count;
     }
 
     /**
@@ -428,6 +489,7 @@ class SupportAccess
 
             if ($principal !== null) {
                 $principal->tokens()->delete();
+                $this->disarm($principal);
 
                 if ($principal->status !== User::STATUS_DEACTIVATED) {
                     $principal->forceFill(['status' => User::STATUS_DEACTIVATED])->save();
@@ -442,6 +504,28 @@ class SupportAccess
         });
 
         return $grant;
+    }
+
+    /**
+     * Review H1: nothing the session made keeps acting after it ends.
+     * Devices it touched (pairing codes, pairings; found in the tenant's
+     * audit by the principal's entries) are suspended, and automation rules
+     * it created or last changed are switched off. The permissions that make
+     * these are refused to sessions already (NEVER); this is the backstop.
+     */
+    private function disarm(User $principal): void
+    {
+        $deviceIds = DB::connection(TenantContext::CONNECTION)->table('audit_logs')
+            ->where('user_id', $principal->id)->where('auditable_type', (new Device)->getMorphClass())
+            ->distinct()->pluck('auditable_id')->all();
+
+        foreach (Device::query()->whereIn('id', $deviceIds)->whereIn('status', [Device::STATUS_ACTIVE, Device::STATUS_PENDING])->get() as $device) {
+            app(DevicePairing::class)->suspend($device);
+        }
+
+        AutomationRule::query()->where('enabled', true)
+            ->where(fn ($q) => $q->where('created_by', $principal->id)->orWhere('updated_by', $principal->id))
+            ->get()->each(fn (AutomationRule $rule) => $rule->forceFill(['enabled' => false])->save());
     }
 
     /** The support principal of $grant: made once, active while the grant is. */

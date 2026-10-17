@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Core\Platform;
 
+use App\Core\Audit\AuditContext;
 use App\Core\Audit\AuditEntry;
+use App\Core\Automation\Models\AutomationRule;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
@@ -10,9 +12,13 @@ use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformAuditor;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
+use App\Core\Platform\SupportAccess\SupportAccess;
 use App\Core\Platform\SupportAccess\SupportNotices;
+use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\Models\Device;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Str;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\CreatesPlatformStaff;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -244,5 +250,79 @@ class SupportAccessTest extends TestCase
         $this->postJson("/api/v1/platform/tenants/{$this->owner->tenant_id}/support-requests", ['reason' => 'Too long', 'mode' => 'read', 'hours' => 73], $this->agentBearer)->assertStatus(422)->assertJsonValidationErrors(['hours', 'reason']);
         $this->getJson('/api/v1/platform/support/requests', $this->headersFor())->assertUnauthorized();
         $this->assertTrue($this->inTenant(fn () => ! AuditEntry::query()->where('action', 'core.support_access.create')->exists()));
+    }
+
+    /** Review H1: every NEVER entry names real catalogue permissions (a typo would silently match nothing). */
+    public function test_every_never_entry_matches_a_catalogue_permission(): void
+    {
+        $names = app(PermissionRegistry::class)->all()->keys()->all();
+
+        foreach (SupportAccess::NEVER as $pattern) {
+            $this->assertNotEmpty(array_filter($names, fn (string $name) => Str::is($pattern, $name)), "NEVER entry {$pattern} matches no permission");
+        }
+    }
+
+    /** Review H1: nothing that makes a credential, an outbound link, a schedule or an export reaches a session. */
+    public function test_a_write_session_never_makes_credentials_schedules_or_exports(): void
+    {
+        $grant = $this->ask('write', 2);
+        $this->approve($grant, sensitive: true);
+        [$session] = $this->enter($grant);
+        $device = $this->inTenant(fn () => Device::query()->create(['location_id' => $this->locationA->id, 'name' => 'Till 9', 'code' => 'T9', 'status' => Device::STATUS_PENDING]));
+
+        $permissions = array_column($this->getJson('/api/v1/me/permissions', $session)->assertOk()->json('permissions'), 'name');
+        foreach (['core.device.pair', 'core.device.create', 'core.automation.edit', 'core.notification_template.edit', 'pos.sale.share'] as $never) {
+            $this->assertNotContains($never, $permissions, $never);
+        }
+
+        $this->postJson("/api/v1/devices/{$device->id}/pairing-code", [], $session)->assertForbidden();
+        $this->postJson('/api/v1/automation-rules', ['name' => 'Exfiltrate'], $session)->assertForbidden();
+        $this->postJson("/api/v1/companies/{$this->acme->id}/accounting/recurring-journals", [], $session)->assertForbidden()->assertJsonPath('code', 'support_route_refused');
+        $this->getJson('/api/v1/parties?format=csv', $session)->assertForbidden()->assertJsonPath('code', 'support_route_refused');
+        $this->getJson('/api/v1/parties', $session)->assertOk();
+    }
+
+    /** Review H1: ending a session switches off what it touched: devices and automation rules. */
+    public function test_ending_a_session_suspends_its_devices_and_switches_off_its_rules(): void
+    {
+        $grant = $this->ask('write', 2);
+        $this->approve($grant);
+        $this->enter($grant);
+        $principal = $this->inTenant(fn () => User::query()->where('support_grant_id', $grant)->sole());
+        [$device, $rule] = $this->inTenant(fn () => app(AuditContext::class)->actingAs($principal->id, [], function () use ($principal) {
+            $device = Device::query()->create(['location_id' => $this->locationA->id, 'name' => 'Till 9', 'code' => 'T9', 'status' => Device::STATUS_ACTIVE]);
+            $rule = new AutomationRule(['name' => 'Left behind', 'document_type' => 'core.party', 'trigger_type' => 'schedule', 'trigger' => ['every' => 'day'], 'actions' => [], 'enabled' => true]);
+            $rule->forceFill(['created_by' => $principal->id])->save();
+
+            return [$device, $rule];
+        }));
+
+        $this->postJson("/api/v1/support-access/{$grant}/revoke", [], $this->headersFor())->assertOk();
+
+        $this->assertSame(Device::STATUS_SUSPENDED, $this->inTenant(fn () => $device->fresh()->status));
+        $this->assertFalse($this->inTenant(fn () => $rule->fresh()->enabled));
+    }
+
+    /** Review H2: deactivating or re-roling the staff member ends their access in every tenant, at once. */
+    public function test_a_staff_member_deactivated_or_re_roled_loses_support_access_everywhere(): void
+    {
+        $grant = $this->ask();
+        $this->approve($grant);
+        [$session] = $this->enter($grant);
+        $this->getJson('/api/v1/parties', $session)->assertOk();
+
+        // A role without support access, even changed behind the console's back, refuses the session.
+        PlatformUser::query()->whereKey($this->agent->id)->update(['role' => PlatformUser::ROLE_SALES]);
+        $this->app['auth']->forgetGuards();
+        $this->getJson('/api/v1/parties', $session)->assertUnauthorized();
+        PlatformUser::query()->whereKey($this->agent->id)->update(['role' => PlatformUser::ROLE_SUPPORT]);
+
+        $owner = $this->staffBearer($this->staff(PlatformUser::ROLE_OWNER));
+        $this->postJson("/api/v1/platform/staff/{$this->agent->id}/deactivate", [], $owner)->assertOk();
+
+        $this->assertSame(SupportAccessGrant::ENDED, $this->inTenant(fn () => SupportAccessGrant::query()->findOrFail($grant)->status));
+        $this->assertSame('staff_changed', $this->inTenant(fn () => SupportAccessGrant::query()->findOrFail($grant)->end_reason));
+        $this->app['auth']->forgetGuards();
+        $this->getJson('/api/v1/parties', $session)->assertUnauthorized();
     }
 }

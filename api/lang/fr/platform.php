@@ -62,6 +62,7 @@ return [
             'ended_in_session' => 'terminé par notre équipe de support',
             'cancelled' => 'annulé par notre équipe de support',
             'ended' => 'terminé',
+            'staff_changed' => 'le compte du membre de l’équipe a changé',
         ],
         'notifications' => [
             'requested' => [
