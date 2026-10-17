@@ -402,6 +402,30 @@ class SupportAccess
     }
 
     /**
+     * The Sanctum check of a support session's token. A refused token is
+     * logged in both chains (review M8): someone used a session that ended.
+     */
+    public function acceptsToken(User $principal): bool
+    {
+        if ($principal->isActive() && $this->sessionValid($principal)) {
+            return true;
+        }
+
+        rescue(function () use ($principal) {
+            $grant = $this->grantOf($principal);
+
+            if ($grant === null || $this->tenants->id() === null) {
+                return;
+            }
+
+            $this->audit->actingAs($principal->id, ['support_grant_id' => $grant->id], fn () => $this->auditor->record('core.support_session.refused', $grant, null, ['status' => $grant->effectiveStatus(), 'path' => mb_substr('/'.ltrim(request()->path(), '/'), 0, 500)]));
+            $this->platformAudit->record('platform.support.token_refused', null, null, ['tenant_id' => $this->tenants->id(), 'grant_id' => $grant->id, 'platform_user_id' => $grant->platform_user_id]);
+        }, report: true);
+
+        return false;
+    }
+
+    /**
      * Review H2: a staff member deactivated or given another role loses
      * every support access at once, in every tenant: approved grants end,
      * pending requests are cancelled. Each tenant is handled in its own

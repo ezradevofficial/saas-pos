@@ -20,7 +20,10 @@ use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Device;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Mockery;
+use RuntimeException;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\CreatesPlatformStaff;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -344,5 +347,41 @@ class SupportAccessTest extends TestCase
         $hidden = $this->inTenant(fn () => app(FieldRules::class)->for($principal, 'hr_employee')['hidden']);
         $this->assertContains('personal_email', $hidden);
         $this->assertContains('pay', $hidden);
+    }
+
+    /** Review M8: a write is not made when its audit entry cannot be written; reads are served and reported. */
+    public function test_a_write_is_refused_when_the_session_cannot_be_audited(): void
+    {
+        $grant = $this->ask('write', 2);
+        $this->approve($grant);
+        [$session] = $this->enter($grant);
+        $support = Mockery::mock(app(SupportAccess::class));
+        $support->shouldReceive('logRequest')->andThrow(new RuntimeException('audit down'));
+        $this->app->instance(SupportAccess::class, $support);
+
+        $this->postJson('/api/v1/parties', ['kind' => 'organisation', 'roles' => ['customer'], 'name' => 'Unaudited Co'], $session)
+            ->assertStatus(503)->assertJsonPath('code', 'support_audit_unavailable');
+        $this->assertFalse($this->inTenant(fn () => DB::table('parties')->where('name', 'Unaudited Co')->exists()));
+        $this->getJson('/api/v1/parties', $session)->assertOk();
+    }
+
+    /** Review M8: writes log their start and end; a refused token is logged in both chains. */
+    public function test_writes_log_start_and_end_and_refused_tokens_are_logged(): void
+    {
+        $grant = $this->ask('write', 1);
+        $this->approve($grant);
+        [$session] = $this->enter($grant);
+
+        $this->postJson('/api/v1/parties', ['kind' => 'organisation', 'roles' => ['customer']], $session)->assertStatus(422);
+        $statuses = $this->inTenant(fn () => AuditEntry::query()->where('action', 'core.support_session.request')->orderBy('seq')->get()->map(fn ($e) => $e->after['status'])->all());
+        $this->assertSame(['started', 422], $statuses);
+        $this->assertSame(1, $this->getJson('/api/v1/support-access', $this->headersFor())->json('data.0.requests'));
+
+        // Past its end, the token still exists until the sweep: using it is refused and logged.
+        $this->travelTo(CarbonImmutable::now()->addMinutes(61));
+        $this->app['auth']->forgetGuards();
+        $this->getJson('/api/v1/parties', $session)->assertUnauthorized();
+        $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'core.support_session.refused')->exists()));
+        $this->assertTrue(PlatformDatabase::connection()->table('platform_audit_logs')->where('action', 'platform.support.token_refused')->exists());
     }
 }

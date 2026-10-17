@@ -48,6 +48,7 @@ return [
         'not_active' => 'This access isn’t active any more.',
         'entry_code_invalid' => 'This support session link has expired or was already used. Open the session again from the console.',
         'ended' => 'This support session has ended. Ask the tenant for access again if you still need it.',
+        'audit_unavailable' => 'This change can’t be recorded in the audit log right now, so it was not made. Try again in a moment.',
         'route_refused' => 'A support session can’t use this page. The tenant’s own people manage it.',
         'read_only' => 'This support session is read-only, so nothing can be changed. Ask the tenant for write access if you need it.',
         'principal_name' => ':name (support)',

@@ -87,7 +87,8 @@ class SupportAccessController
             array_map(fn (SupportAccessGrant $g) => $g->decided_by, $grants),
             array_map(fn (SupportAccessGrant $g) => $g->revoked_by, $grants),
         ))))->pluck('name', 'id');
-        $counts = AuditEntry::query()->where('action', 'core.support_session.request')
+        // A write is logged when it starts and when it ends (review M8): count each request once.
+        $counts = AuditEntry::query()->where('action', 'core.support_session.request')->whereRaw("(after->>'status') is distinct from 'started'")
             ->whereIn('auditable_id', array_map(fn (SupportAccessGrant $g) => $g->id, $grants))
             ->groupBy('auditable_id')->selectRaw('auditable_id, count(*) as n')->pluck('n', 'auditable_id');
 

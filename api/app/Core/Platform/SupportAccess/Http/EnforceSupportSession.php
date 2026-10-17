@@ -7,9 +7,15 @@ use App\Core\Identity\Models\User;
 use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Platform\SupportAccess\SupportAccess;
 use Closure;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
@@ -65,6 +71,14 @@ class EnforceSupportSession
         $uri = preg_replace('#^api/v1/#', '', ltrim((string) $request->route()?->uri(), '/'));
         $key = strtoupper($request->method()).' '.$uri;
         $status = 500;
+        $entry = fn (int|string $status) => [
+            'method' => strtoupper($request->method()),
+            'route' => $uri === '' ? null : $uri,
+            'path' => mb_substr('/'.ltrim($request->path(), '/'), 0, 500),
+            'status' => $status,
+            'ms' => intdiv(hrtime(true) - $started, 1_000_000),
+        ];
+        $logged = false;
 
         try {
             $grant = $this->support->grantOf($user);
@@ -85,22 +99,49 @@ class EnforceSupportSession
                 throw new ApiException(403, 'support_read_only', __('platform.support.read_only'));
             }
 
+            // Review M8: a write is logged before it runs, fail-closed: no record, no change.
+            if (! $request->isMethodSafe()) {
+                try {
+                    $this->support->logRequest($user, $entry('started'));
+                } catch (Throwable $e) {
+                    report($e);
+                    $logged = true;
+
+                    throw new ApiException(503, 'support_audit_unavailable', __('platform.support.audit_unavailable'));
+                }
+            }
+
             $response = $next($request);
             $status = $response->getStatusCode();
 
             return $response;
         } catch (Throwable $e) {
-            $status = $e instanceof ApiException ? $e->getStatusCode() : (method_exists($e, 'getStatusCode') ? (int) $e->getStatusCode() : 500);
+            $status = self::statusOf($e);
 
             throw $e;
         } finally {
-            rescue(fn () => $this->support->logRequest($user, [
-                'method' => strtoupper($request->method()),
-                'route' => $uri === '' ? null : $uri,
-                'path' => mb_substr('/'.ltrim($request->path(), '/'), 0, 500),
-                'status' => $status,
-                'ms' => intdiv(hrtime(true) - $started, 1_000_000),
-            ]), report: true);
+            if (! $logged) {
+                try {
+                    $this->support->logRequest($user, $entry($status));
+                } catch (Throwable $e) {
+                    // Reads are served; the missing entry is reported and alerted on.
+                    report($e);
+                    Log::critical('support session request not audited', ['grant_id' => $user->support_grant_id, 'route' => $uri, 'status' => $status]);
+                }
+            }
         }
+    }
+
+    /** The HTTP status an exception becomes (review M8: validation 422, authorisation 403). */
+    private static function statusOf(Throwable $e): int
+    {
+        return match (true) {
+            $e instanceof ValidationException => 422,
+            $e instanceof AuthorizationException => 403,
+            $e instanceof AuthenticationException => 401,
+            $e instanceof ModelNotFoundException => 404,
+            $e instanceof HttpExceptionInterface => $e->getStatusCode(),
+            default => 500,
+        };
     }
 }

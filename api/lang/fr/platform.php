@@ -48,6 +48,7 @@ return [
         'not_active' => 'Cet accès n’est plus actif.',
         'entry_code_invalid' => 'Ce lien de session de support a expiré ou a déjà été utilisé. Ouvrez de nouveau la session depuis la console.',
         'ended' => 'Cette session de support est terminée. Demandez de nouveau l’accès au compte si vous en avez encore besoin.',
+        'audit_unavailable' => 'Cette modification ne peut pas être enregistrée dans le journal d’audit pour l’instant : elle n’a pas été faite. Réessayez dans un moment.',
         'route_refused' => 'Une session de support ne peut pas utiliser cette page. Les personnes du compte la gèrent elles-mêmes.',
         'read_only' => 'Cette session de support est en lecture seule : rien ne peut être modifié. Demandez au compte un accès en écriture si nécessaire.',
         'principal_name' => ':name (assistance)',
