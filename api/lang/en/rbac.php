@@ -74,6 +74,7 @@ return [
                 'config' => 'Layouts, themes and templates',
                 'theme' => 'Theme and branding',
                 'domain' => 'Custom domains and email sender',
+                'sso' => 'Single sign-on',
                 'layout' => 'Dashboards, menus and list views',
                 'custom_field' => 'Custom fields',
                 'custom_form' => 'Custom forms',

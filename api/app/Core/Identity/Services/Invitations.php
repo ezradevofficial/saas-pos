@@ -124,10 +124,30 @@ class Invitations
      */
     public function accept(Invitation $invitation, string $name, string $password, string $ip, string $userAgent): array
     {
+        $user = $this->createUser($invitation, $name, $password);
+
+        return ['user' => $user, 'token' => $this->authenticate->issueToken($user, $ip, $userAgent)];
+    }
+
+    /**
+     * AUTH-11, ADR 023: accept an open invitation for an email the tenant's
+     * IdP asserted. As accept(), with every assignment re-checked as the
+     * inviter, but with an unusable random password (the user may set one by
+     * password reset) and no token: single sign-on issues it. Requires the
+     * invitation's tenant context. 410 when it is no longer open, 422
+     * `invitation_stale`.
+     */
+    public function acceptWithSso(Invitation $invitation, string $name): User
+    {
+        return $this->createUser($invitation, $name, Str::password(64));
+    }
+
+    private function createUser(Invitation $invitation, string $name, string $password): User
+    {
         $field = $invitation->email !== null ? 'email' : 'phone';
 
         try {
-            $user = DB::transaction(function () use ($invitation, $name, $password, $field) {
+            return DB::transaction(function () use ($invitation, $name, $password, $field) {
                 $invitation = Invitation::whereKey($invitation->id)->lockForUpdate()->firstOrFail();
                 $this->assertOpen($invitation);
 
@@ -168,8 +188,6 @@ class Invitations
             // Lost a race with a sign-up or another invitation for the login.
             throw ValidationException::withMessages([$field => __('validation.unique', ['attribute' => $field])]);
         }
-
-        return ['user' => $user, 'token' => $this->authenticate->issueToken($user, $ip, $userAgent)];
     }
 
     /**

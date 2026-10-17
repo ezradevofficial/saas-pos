@@ -1,0 +1,44 @@
+<?php
+
+// AUTH-11, ADR 023: enterprise single sign-on.
+return [
+    'attributes' => [
+        'enforce' => 'require single sign-on',
+        'jit_provisioning' => 'create accounts on first sign-in',
+        'jit_role_id' => 'default role',
+        'jit_scope_type' => 'default scope',
+        'jit_scope_id' => 'default scope',
+        'provider' => 'identity provider',
+        'name' => 'name',
+        'client_id' => 'client ID',
+        'client_secret' => 'client secret',
+        'directory_id' => 'directory (tenant) ID',
+        'hosted_domain' => 'Workspace domain',
+        'metadata_xml' => 'metadata XML',
+        'metadata_url' => 'metadata URL',
+        'idp_entity_id' => 'IdP entity ID',
+        'idp_sso_url' => 'IdP sign-in URL',
+        'idp_certificates' => 'signing certificates',
+        'domain' => 'email domain',
+        'email' => 'work email',
+    ],
+
+    'errors' => [
+        'domain_added' => 'This domain is already on your list. Check it there, or remove it first.',
+        'domain_format' => 'Enter a domain such as company.co.ke, without @, http:// or a path.',
+        'platform_domain' => 'This is the platform’s own domain. Add your organisation’s email domain instead.',
+        'jit_owner_role' => 'New accounts cannot get an Owner role. Choose another default role.',
+        'jit_role_required' => 'Choose the default role new accounts get before turning this on.',
+        'enforce_needs_setup' => 'Enable a tested connection and verify an email domain before requiring single sign-on.',
+        'enforce_needs_connection' => 'Single sign-on is required, so keep at least one connection enabled. Turn off the requirement first.',
+        'connection_untested' => 'Test this connection and get a successful sign-in before enabling it.',
+        'metadata_unreachable' => 'The metadata could not be fetched from this address. Check that it is a public https URL, or paste the XML instead.',
+        'metadata_invalid' => 'This is not usable SAML metadata: it needs an entity ID, an https sign-in URL and a signing certificate.',
+        'certificate_invalid' => 'This certificate could not be read. Paste the full certificate, including its BEGIN and END lines.',
+        'not_found' => 'Single sign-on is not set up for this email address. Sign in with your password, or ask your administrator.',
+        'unavailable' => 'Single sign-on could not reach your identity provider. Try again in a few minutes, or ask your administrator.',
+        'ticket_invalid' => 'This sign-in has expired or was already used. Start again with Continue with SSO.',
+        'password_sso_required' => 'Your organisation signs in with single sign-on. Use Continue with SSO instead of your password.',
+        'sign_up_sso_required' => 'Your organisation uses single sign-on. Ask your administrator to invite you instead of creating an account.',
+    ],
+];

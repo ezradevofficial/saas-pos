@@ -1,0 +1,44 @@
+<?php
+
+// AUTH-11, ADR 023 : authentification unique d'entreprise.
+return [
+    'attributes' => [
+        'enforce' => 'exiger l’authentification unique',
+        'jit_provisioning' => 'créer les comptes à la première connexion',
+        'jit_role_id' => 'rôle par défaut',
+        'jit_scope_type' => 'périmètre par défaut',
+        'jit_scope_id' => 'périmètre par défaut',
+        'provider' => 'fournisseur d’identité',
+        'name' => 'nom',
+        'client_id' => 'ID client',
+        'client_secret' => 'secret client',
+        'directory_id' => 'ID de l’annuaire (locataire)',
+        'hosted_domain' => 'domaine Workspace',
+        'metadata_xml' => 'XML des métadonnées',
+        'metadata_url' => 'URL des métadonnées',
+        'idp_entity_id' => 'ID d’entité du fournisseur',
+        'idp_sso_url' => 'URL de connexion du fournisseur',
+        'idp_certificates' => 'certificats de signature',
+        'domain' => 'domaine de messagerie',
+        'email' => 'e-mail professionnel',
+    ],
+
+    'errors' => [
+        'domain_added' => 'Ce domaine est déjà dans votre liste. Vérifiez-le là, ou retirez-le d’abord.',
+        'domain_format' => 'Saisissez un domaine comme entreprise.cd, sans @, http:// ni chemin.',
+        'platform_domain' => 'C’est le domaine de la plateforme. Ajoutez plutôt le domaine de messagerie de votre organisation.',
+        'jit_owner_role' => 'Les nouveaux comptes ne peuvent pas recevoir un rôle de propriétaire. Choisissez un autre rôle par défaut.',
+        'jit_role_required' => 'Choisissez le rôle par défaut des nouveaux comptes avant d’activer cette option.',
+        'enforce_needs_setup' => 'Activez une connexion testée et vérifiez un domaine de messagerie avant d’exiger l’authentification unique.',
+        'enforce_needs_connection' => 'L’authentification unique est exigée : gardez au moins une connexion active. Désactivez d’abord l’exigence.',
+        'connection_untested' => 'Testez cette connexion et réussissez une connexion avant de l’activer.',
+        'metadata_unreachable' => 'Les métadonnées n’ont pas pu être récupérées à cette adresse. Vérifiez qu’il s’agit d’une URL https publique, ou collez le XML.',
+        'metadata_invalid' => 'Ces métadonnées SAML ne sont pas utilisables : il faut un ID d’entité, une URL de connexion https et un certificat de signature.',
+        'certificate_invalid' => 'Ce certificat n’a pas pu être lu. Collez le certificat complet, avec ses lignes BEGIN et END.',
+        'not_found' => 'L’authentification unique n’est pas configurée pour cette adresse e-mail. Connectez-vous avec votre mot de passe, ou demandez à votre administrateur.',
+        'unavailable' => 'L’authentification unique n’a pas pu joindre votre fournisseur d’identité. Réessayez dans quelques minutes, ou demandez à votre administrateur.',
+        'ticket_invalid' => 'Cette connexion a expiré ou a déjà été utilisée. Recommencez avec Continuer avec le SSO.',
+        'password_sso_required' => 'Votre organisation se connecte par authentification unique. Utilisez Continuer avec le SSO au lieu de votre mot de passe.',
+        'sign_up_sso_required' => 'Votre organisation utilise l’authentification unique. Demandez à votre administrateur de vous inviter au lieu de créer un compte.',
+    ],
+];

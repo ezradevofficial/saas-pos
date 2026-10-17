@@ -24,6 +24,7 @@ use App\Core\Onboarding\OnboardingServiceProvider;
 use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Platform\PlatformServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
+use App\Core\Sso\SsoServiceProvider;
 use App\Core\Sync\SyncServiceProvider;
 use App\Core\Workflow\WorkflowServiceProvider;
 use App\Providers\AppServiceProvider;
@@ -56,6 +57,7 @@ return [
     ConfigurationServiceProvider::class,
     DocumentTemplatesServiceProvider::class,
     BrandingServiceProvider::class,
+    SsoServiceProvider::class,
     LayoutsServiceProvider::class,
     NotificationsServiceProvider::class,
     AutomationServiceProvider::class,

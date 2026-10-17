@@ -6,6 +6,7 @@ use App\Core\Identity\Rules\LoginAvailable;
 use App\Core\Identity\Services\PasswordPolicy;
 use App\Core\Identity\Services\SignUp;
 use App\Core\Identity\Support\PhoneNumber;
+use App\Core\Sso\Rules\NotSsoEnforced;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -35,7 +36,8 @@ class SignUpRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'required_without:phone', 'prohibits:phone', 'string', 'email', 'max:255', new LoginAvailable],
+            // AUTH-11: not in a domain whose tenant enforces single sign-on.
+            'email' => ['nullable', 'required_without:phone', 'prohibits:phone', 'string', 'email', 'max:255', new LoginAvailable, new NotSsoEnforced],
             'phone' => ['nullable', 'required_without:email', 'string', 'regex:/^\+[1-9]\d{7,14}$/', new LoginAvailable],
             'password' => PasswordPolicy::rules(null),
             'country' => ['required', 'string', Rule::in(array_keys(SignUp::COUNTRIES))],
