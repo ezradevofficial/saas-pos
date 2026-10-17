@@ -490,7 +490,8 @@
     "ecommerceCashups": "Remises des livreurs",
     "ecommerceRiders": "Livreurs",
     "ecommerceReports": "Rapports en ligne",
-    "ecommerceSettings": "Réglages de la boutique"
+    "ecommerceSettings": "Réglages de la boutique",
+    "sso": "Authentification unique"
   },
   "shell": {
     "account": "Menu du compte",
@@ -592,6 +593,47 @@
       "signedInText": "Cette invitation crée un nouveau compte. Déconnectez-vous d'abord, puis acceptez-la.",
       "stay": "Rester connecté",
       "signOutAndAccept": "Se déconnecter et accepter"
+    },
+    "sso": {
+      "continue": "Continuer avec le SSO",
+      "or": "ou",
+      "emailLabel": "E-mail professionnel",
+      "emailHelp": "Votre adresse e-mail nous indique avec quelle organisation vous vous connectez.",
+      "start": "Continuer vers la connexion",
+      "choose": "Choisissez comment vous connecter",
+      "chooseFor": "Se connecter avec {{name}}",
+      "back": "Utiliser plutôt votre mot de passe",
+      "redirecting": "Redirection vers la page de connexion de votre organisation.",
+      "completing": "Connexion en cours.",
+      "failedTitle": "L’authentification unique n’a pas abouti",
+      "tryAgain": "Recommencer",
+      "requiredTitle": "Votre organisation utilise l’authentification unique",
+      "requiredText": "Connectez-vous avec Continuer avec le SSO au lieu de votre mot de passe.",
+      "ticketInvalid": "Cette connexion a expiré ou a déjà été utilisée. Recommencez.",
+      "notFound": "L’authentification unique n’est pas configurée pour cette adresse e-mail. Connectez-vous avec votre mot de passe, ou demandez à votre administrateur.",
+      "errors": {
+        "state_invalid": "Cette connexion a expiré ou a déjà été utilisée. Recommencez.",
+        "idp_error": "Votre fournisseur d’identité n’a pas terminé la connexion. Réessayez, ou demandez à votre administrateur.",
+        "connection_unavailable": "Ce mode de connexion n’est plus disponible. Demandez à votre administrateur.",
+        "token_exchange_failed": "La connexion n’a pas pu être confirmée auprès de votre fournisseur d’identité. Réessayez dans quelques minutes.",
+        "signature_invalid": "La réponse de connexion n’a pas pu être vérifiée, elle a donc été refusée. Recommencez, et prévenez votre administrateur si cela se répète.",
+        "issuer_mismatch": "La réponse de connexion vient d’un fournisseur d’identité que cette organisation n’utilise pas, elle a donc été refusée. Prévenez votre administrateur.",
+        "audience_mismatch": "La réponse de connexion était destinée à une autre application, elle a donc été refusée. Prévenez votre administrateur.",
+        "nonce_mismatch": "La réponse de connexion ne correspond pas à cette connexion, elle a donc été refusée. Recommencez.",
+        "expired": "La réponse de connexion avait expiré. Recommencez, et vérifiez la date et l’heure de votre appareil si cela se répète.",
+        "token_invalid": "La réponse de connexion n’a pas pu être lue, elle a donc été refusée. Recommencez.",
+        "email_missing": "Votre fournisseur d’identité n’a pas transmis votre adresse e-mail. Demandez à votre administrateur de l’inclure.",
+        "email_unverified": "L’adresse e-mail de votre compte Google n’est pas vérifiée. Vérifiez-la auprès de Google, puis réessayez.",
+        "hosted_domain_mismatch": "Connectez-vous avec le compte Google Workspace de votre organisation, pas un compte personnel.",
+        "saml_invalid": "La réponse de connexion n’a pas pu être vérifiée, elle a donc été refusée. Recommencez, et prévenez votre administrateur si cela se répète.",
+        "in_response_to_mismatch": "La réponse de connexion ne correspond pas à cette connexion, elle a donc été refusée. Recommencez depuis cette page.",
+        "replayed": "Cette réponse de connexion a déjà été utilisée, elle a donc été refusée. Recommencez.",
+        "domain_not_verified": "Le domaine de votre adresse e-mail n’est pas configuré pour l’authentification unique ici. Demandez à votre administrateur.",
+        "no_account": "Aucun compte de cette organisation n’utilise cette adresse. Demandez une invitation à votre administrateur.",
+        "identity_conflict": "Une autre connexion est déjà liée à ce compte. Demandez à votre administrateur.",
+        "deactivated": "Votre compte est désactivé. Demandez à votre administrateur de le réactiver.",
+        "jit_stale": "Les nouveaux comptes ne peuvent pas être créés pour le moment. Demandez à votre administrateur."
+      }
     }
   },
   "home": {
@@ -11971,6 +12013,129 @@
       "signOut": "Se déconnecter",
       "orders": "Vos commandes",
       "noOrders": "Aucune commande pour le moment."
+    }
+  },
+  "sso": {
+    "title": "Authentification unique",
+    "description": "Permettez à votre équipe de se connecter avec Microsoft Entra ID, Google Workspace ou un autre fournisseur d’identité SAML.",
+    "securityCard": {
+      "title": "Authentification unique",
+      "text": "Les connexions à votre fournisseur d’identité, vos domaines de messagerie et qui doit les utiliser.",
+      "open": "Configurer l’authentification unique"
+    },
+    "domains": {
+      "title": "Domaines de messagerie",
+      "text": "Seules les adresses d’un domaine vérifié se connectent avec vos connexions. Prouvez chaque domaine avec un enregistrement DNS.",
+      "label": "Domaine de messagerie",
+      "help": "Par exemple entreprise.cd",
+      "add": "Ajouter le domaine",
+      "empty": "Aucun domaine de messagerie pour l’instant. Ajoutez le domaine des adresses de votre équipe.",
+      "pendingText": "Ajoutez cet enregistrement TXT chez votre fournisseur DNS, puis vérifiez le domaine.",
+      "failedText": "Ce domaine n’a pas pu être vérifié. Contrôlez l’enregistrement, puis vérifiez à nouveau.",
+      "verifiedText": "Vérifié {{when}}.",
+      "check": "Vérifier maintenant",
+      "checkFor": "Vérifier {{domain}} maintenant",
+      "remove": "Retirer",
+      "removeFor": "Retirer {{domain}}",
+      "removeTitle": "Retirer {{domain}} ?",
+      "removeBody": "Les personnes ayant une adresse de ce domaine ne pourront plus se connecter par authentification unique. Leurs comptes restent.",
+      "removeConfirm": "Retirer le domaine",
+      "status": {
+        "pending": "En attente du DNS",
+        "verified": "Vérifié",
+        "failed": "Non vérifié"
+      },
+      "failure": {
+        "record_missing": "L’enregistrement n’a pas encore été trouvé.",
+        "lookup_failed": "La recherche DNS a échoué. Elle sera relancée.",
+        "claimed_elsewhere": "Une autre organisation a vérifié ce domaine en premier.",
+        "record_removed": "L’enregistrement a été supprimé, le domaine ne fonctionne donc plus."
+      },
+      "checkedAt": "Vérifié le {{when}}.",
+      "record": {
+        "type": "Type",
+        "name": "Nom",
+        "value": "Valeur"
+      }
+    },
+    "connections": {
+      "title": "Connexions",
+      "text": "Enregistrez cette application auprès de votre fournisseur d’identité, puis ajoutez la connexion ici et testez-la.",
+      "add": "Ajouter une connexion",
+      "empty": "Aucune connexion pour l’instant.",
+      "provider": {
+        "entra": "Microsoft Entra ID",
+        "google": "Google Workspace",
+        "saml": "SAML 2.0"
+      },
+      "enabled": "Activée",
+      "disabled": "Non activée",
+      "test": "Tester la connexion",
+      "testFor": "Tester {{name}}",
+      "enable": "Activer",
+      "enableFor": "Activer {{name}}",
+      "disable": "Désactiver",
+      "disableFor": "Désactiver {{name}}",
+      "edit": "Modifier",
+      "editFor": "Modifier {{name}}",
+      "remove": "Retirer",
+      "removeFor": "Retirer {{name}}",
+      "removeTitle": "Retirer {{name}} ?",
+      "removeBody": "Les personnes qui se connectent avec cette connexion devront utiliser un autre moyen.",
+      "removeConfirm": "Retirer la connexion",
+      "untested": "Pas encore testée. Testez-la avant de l’activer.",
+      "testOk": "Test réussi {{when}} avec {{email}}.",
+      "testFailed": "Le dernier test a échoué {{when}} : {{reason}}",
+      "testMfa": "Le fournisseur d’identité a confirmé l’authentification multifacteur.",
+      "testNoMfa": "Aucune authentification multifacteur n’a été confirmée : la connexion en deux étapes de l’application s’applique donc encore.",
+      "testAction": {
+        "linked": "Connecte l’utilisateur déjà lié à cette adresse.",
+        "link": "Lie cette adresse à son utilisateur existant à la première connexion.",
+        "invitation": "Accepte l’invitation en attente pour cette adresse.",
+        "provision": "Crée un compte avec le rôle par défaut."
+      },
+      "register": "Valeurs pour votre fournisseur d’identité",
+      "redirectUri": "URI de redirection",
+      "entityId": "Identifiant (ID d’entité)",
+      "acsUrl": "URL de réponse (ACS)"
+    },
+    "form": {
+      "addTitle": "Ajouter une connexion",
+      "editTitle": "Modifier {{name}}",
+      "provider": "Fournisseur d’identité",
+      "name": "Nom",
+      "nameHelp": "Affiché sur la page de connexion quand il y a plusieurs connexions.",
+      "clientId": "ID d’application (client)",
+      "clientSecret": "Secret client",
+      "clientSecretHelp": "Conservé chiffré et jamais réaffiché.",
+      "clientSecretKeep": "Un secret est enregistré. Laissez vide pour le garder.",
+      "directoryId": "ID de l’annuaire (locataire)",
+      "directoryIdHelp": "Le GUID de votre annuaire Entra. Les points d’accès partagés comme common ne sont pas acceptés.",
+      "hostedDomain": "Domaine Workspace",
+      "hostedDomainHelp": "Facultatif. Seuls les comptes de ce domaine Google Workspace peuvent se connecter.",
+      "metadataUrl": "URL des métadonnées",
+      "metadataUrlHelp": "Une adresse https des métadonnées de fédération de votre fournisseur d’identité.",
+      "metadataXml": "Ou collez le XML des métadonnées",
+      "manual": "Ou saisissez les valeurs vous-même",
+      "idpEntityId": "ID d’entité du fournisseur d’identité",
+      "idpSsoUrl": "URL de connexion du fournisseur d’identité",
+      "certificate": "Certificat de signature",
+      "certificateHelp": "Collez le certificat, avec ses lignes BEGIN et END.",
+      "save": "Enregistrer la connexion"
+    },
+    "rules": {
+      "title": "Règles de connexion",
+      "enforce": "Exiger l’authentification unique",
+      "enforceHelp": "Les personnes ayant une adresse de vos domaines vérifiés ne peuvent plus se connecter avec un mot de passe, et personne ne peut créer un nouveau compte avec une telle adresse. Les propriétaires gardent leur mot de passe et la connexion en deux étapes au cas où votre fournisseur d’identité serait indisponible.",
+      "jit": "Créer les comptes à la première connexion",
+      "jitHelp": "Une personne sans compte ni invitation en reçoit un avec le rôle par défaut ci-dessous. Désactivé : seuls les utilisateurs existants et les personnes invitées peuvent se connecter.",
+      "defaultRole": "Rôle par défaut des nouveaux comptes",
+      "save": "Enregistrer les règles de connexion",
+      "saved": "Règles de connexion enregistrées."
+    },
+    "test": {
+      "ok": "La connexion de test a réussi. Vérifiez le résultat ci-dessous, puis activez la connexion.",
+      "failed": "La connexion de test a échoué. La raison est affichée sur la connexion."
     }
   }
 }

@@ -75,6 +75,11 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
         'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
         'GET api/v1/public/branding' => 'BR-04: the sign-in page\'s branding of a host, through a security-definer function that returns only public fields (name, look, welcome text, signed asset URLs), never ids or rows; rate-limited',
+        // AUTH-11, ADR 023: single sign-on before anyone is signed in (SsoAuthController); rate-limited per address.
+        'POST api/v1/auth/sso/start' => 'AUTH-11: answers only an IdP sign-in URL or the names of the enabled connections of the tenant whose verified email domain or host was named (security-definer lookups returning tenant ids only); never a row of a tenant',
+        'GET api/v1/auth/sso/oidc/callback' => 'AUTH-11: the single-use state (only its sha256 is a cache key) names the flow and its tenant; answers only a redirect with a ticket or an error code in the fragment',
+        'POST api/v1/auth/sso/saml/{connection}/acs' => 'AUTH-11: the single-use RelayState names the flow and its tenant; the connection in the path must be the flow\'s; answers only a redirect with a ticket or an error code',
+        'POST api/v1/auth/sso/complete' => 'AUTH-11: needs the single-use ticket and the browser binding secret of its flow; answers the signed-in user\'s own token, as a password sign-in does',
         'GET api/v1/tls/ask' => 'BR-05: answers only 200 or 404 for whether a host is a verified custom domain (Caddy on-demand TLS); "no" cached 60 s; reachable only from Caddy on the private interface',
         'GET api/v1/branding/assets/{path}' => 'BR-02: a signed URL for one public brand asset; the controller enters the tenant the path names and serves the file only if that tenant has it',
         'GET api/v1/tenant-exports/{export}/download' => 'EXP-02: temporary signed URL for one full export and its requesting Owner; the controller enters the signed tenant and serves the zip only to that user while they are an active Owner',
@@ -164,6 +169,8 @@ class TenantIsolationTest extends TestCase
         'pos_cash_movement' => 'pos_cash_movement', // H2: pos/cash-movements/{pos_cash_movement}/approve|reject
         'tenant_export' => 'tenant_export', // EXP-02: tenant-exports/{tenant_export}/link, the Owner's export request
         'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
+        'sso_connection' => 'sso_connection', // AUTH-11: sso/connections/{sso_connection}[/enable|disable|archive|test]
+        'sso_domain' => 'sso_domain', // AUTH-11: sso/domains/{sso_domain}/check|archive
         'brand_asset' => 'brand_asset', // BR-02, LAY-05: sync/brand-assets/{brand_asset} (device), the tenant's logo
         'billing_invoice' => 'billing_invoice', // SUB-03: subscription/invoices/{billing_invoice}[/pdf|pay], the first invoice (the tenant's copy)
         'billing_payment' => 'billing_payment', // SUB-04: subscription/payments/{billing_payment}, an M-Pesa payment of that invoice
@@ -316,6 +323,9 @@ class TenantIsolationTest extends TestCase
      */
     public const REFERENCE_FIELDS = [
         'role_id' => 'role',
+        // AUTH-11: the JIT default role and its scope (PUT sso/settings).
+        'jit_role_id' => 'role',
+        'jit_scope_id' => 'company',
         'company_id' => 'company',
         'branch_id' => 'branch',
         'location_id' => 'location',
@@ -523,6 +533,8 @@ class TenantIsolationTest extends TestCase
         'tax_id' => "a company's tax registration number, free text",
         'sms_sender_id' => 'BR-06: the alphanumeric SMS sender name (3 to 11 letters), free text, never a row',
         'external_id' => 'HR-24: a biometric device\'s own event id, free text the device names; looked up only for that device under its tenant, never a reference to another row',
+        'client_id' => 'AUTH-11: an identity provider\'s OAuth client id, free text registered at the IdP, never a row',
+        'directory_id' => 'AUTH-11: an Entra ID directory (tenant) GUID at Microsoft, never a row',
         'session_id' => 'AUTH-07: a till sign-in session the device names itself (actor_proof); looked up only for that device under its tenant, never a reference to another row',
     ];
 
@@ -1665,6 +1677,8 @@ class TenantIsolationTest extends TestCase
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
+            // AUTH-11: JIT provisioning's default role (A's custom role) at A's company.
+            'PUT api/v1/sso/settings' => ['jit_role_id' => $tenant->id('role'), 'jit_scope_type' => 'company', 'jit_scope_id' => $tenant->id('company')],
             // LOY-01: the programme's gift card item (A's item is shared, TEN-08).
             'PUT api/v1/companies/{company}/loyalty-programme' => ['gift_card_item_id' => $tenant->id('gift_card_item')],
             // LOY-13: a preview of a draft bundle for the customer at the branch.

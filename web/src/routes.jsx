@@ -79,6 +79,7 @@ import AcceptInvitation from './pages/auth/AcceptInvitation'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import SignIn from './pages/auth/SignIn'
+import SsoComplete from './pages/auth/SsoComplete'
 import SignUp from './pages/auth/SignUp'
 import TwoFactor from './pages/auth/TwoFactor'
 import TwoFactorEnrol from './pages/auth/TwoFactorEnrol'
@@ -263,6 +264,7 @@ import Payments from './pages/settings/Payments'
 import RoleDetail from './pages/settings/RoleDetail'
 import Roles from './pages/settings/Roles'
 import Security from './pages/settings/Security'
+import SingleSignOn from './pages/settings/SingleSignOn'
 import Sessions from './pages/settings/Sessions'
 import Taxes from './pages/settings/Taxes'
 import Usage from './pages/settings/Usage'
@@ -307,6 +309,8 @@ export const routes = [
       { path: '/sign-up', element: <SignUp /> },
       { path: '/verify', element: <Verify /> },
       { path: '/two-factor', element: <TwoFactor /> },
+      // AUTH-11: the identity provider's callback lands here with a ticket in the fragment.
+      { path: '/sso/complete', element: <SsoComplete /> },
       { path: '/forgot-password', element: <ForgotPassword /> },
       { path: '/reset-password', element: <ResetPassword /> },
     ],
@@ -685,6 +689,15 @@ export const routes = [
         element: (
           <RequirePermission permission="core.settings.edit" tenantWide>
             <Security />
+          </RequirePermission>
+        ),
+      },
+      // AUTH-11: single sign-on (the Owner's, core.sso.manage).
+      {
+        path: '/settings/sso',
+        element: (
+          <RequirePermission permission="core.sso.manage" tenantWide>
+            <SingleSignOn />
           </RequirePermission>
         ),
       },

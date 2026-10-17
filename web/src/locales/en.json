@@ -490,7 +490,8 @@
     "ecommerceCashups": "Rider cash-ups",
     "ecommerceRiders": "Riders",
     "ecommerceReports": "Online reports",
-    "ecommerceSettings": "Store settings"
+    "ecommerceSettings": "Store settings",
+    "sso": "Single sign-on"
   },
   "shell": {
     "account": "Account menu",
@@ -592,6 +593,47 @@
       "signedInText": "This invitation creates a new account. Sign out first, then accept it.",
       "stay": "Stay signed in",
       "signOutAndAccept": "Sign out and accept"
+    },
+    "sso": {
+      "continue": "Continue with SSO",
+      "or": "or",
+      "emailLabel": "Work email",
+      "emailHelp": "Your email address tells us which organisation you sign in with.",
+      "start": "Continue to sign-in",
+      "choose": "Choose how to sign in",
+      "chooseFor": "Sign in with {{name}}",
+      "back": "Use your password instead",
+      "redirecting": "Taking you to your organisation’s sign-in page.",
+      "completing": "Signing you in.",
+      "failedTitle": "Single sign-on did not complete",
+      "tryAgain": "Start again",
+      "requiredTitle": "Your organisation uses single sign-on",
+      "requiredText": "Sign in with Continue with SSO instead of your password.",
+      "ticketInvalid": "This sign-in has expired or was already used. Start again.",
+      "notFound": "Single sign-on is not set up for this email address. Sign in with your password, or ask your administrator.",
+      "errors": {
+        "state_invalid": "This sign-in expired or was already used. Start again.",
+        "idp_error": "Your identity provider did not complete the sign-in. Try again, or ask your administrator.",
+        "connection_unavailable": "This sign-in method is no longer available. Ask your administrator.",
+        "token_exchange_failed": "The sign-in could not be confirmed with your identity provider. Try again in a few minutes.",
+        "signature_invalid": "The sign-in response could not be verified, so it was refused. Start again, and tell your administrator if it keeps happening.",
+        "issuer_mismatch": "The sign-in response came from an identity provider this organisation does not use, so it was refused. Tell your administrator.",
+        "audience_mismatch": "The sign-in response was meant for another application, so it was refused. Tell your administrator.",
+        "nonce_mismatch": "The sign-in response did not match this sign-in, so it was refused. Start again.",
+        "expired": "The sign-in response had expired. Start again, and check the date and time on your device if it keeps happening.",
+        "token_invalid": "The sign-in response could not be read, so it was refused. Start again.",
+        "email_missing": "Your identity provider did not share your email address. Ask your administrator to include it.",
+        "email_unverified": "Your Google account email is not verified. Verify it with Google, then try again.",
+        "hosted_domain_mismatch": "Sign in with your organisation’s Google Workspace account, not a personal one.",
+        "saml_invalid": "The sign-in response could not be verified, so it was refused. Start again, and tell your administrator if it keeps happening.",
+        "in_response_to_mismatch": "The sign-in response did not match this sign-in, so it was refused. Start again from this page.",
+        "replayed": "This sign-in response was already used, so it was refused. Start again.",
+        "domain_not_verified": "Your email domain is not set up for single sign-on here. Ask your administrator.",
+        "no_account": "No account in this organisation uses this email. Ask your administrator for an invitation.",
+        "identity_conflict": "Another sign-in is already linked to this account. Ask your administrator.",
+        "deactivated": "Your account is deactivated. Ask your administrator to reactivate it.",
+        "jit_stale": "New accounts cannot be created right now. Ask your administrator."
+      }
     }
   },
   "home": {
@@ -11971,6 +12013,129 @@
       "signOut": "Sign out",
       "orders": "Your orders",
       "noOrders": "No orders yet."
+    }
+  },
+  "sso": {
+    "title": "Single sign-on",
+    "description": "Let your team sign in with Microsoft Entra ID, Google Workspace or another SAML identity provider.",
+    "securityCard": {
+      "title": "Single sign-on",
+      "text": "Connections to your identity provider, your email domains and who must use them.",
+      "open": "Set up single sign-on"
+    },
+    "domains": {
+      "title": "Email domains",
+      "text": "Only addresses at a verified domain sign in with your connections. Prove each domain with a DNS record.",
+      "label": "Email domain",
+      "help": "For example company.co.ke",
+      "add": "Add domain",
+      "empty": "No email domains yet. Add the domain of your team’s email addresses.",
+      "pendingText": "Add this TXT record at your DNS provider, then check the domain.",
+      "failedText": "This domain could not be verified. Check the record, then check again.",
+      "verifiedText": "Verified {{when}}.",
+      "check": "Check now",
+      "checkFor": "Check {{domain}} now",
+      "remove": "Remove",
+      "removeFor": "Remove {{domain}}",
+      "removeTitle": "Remove {{domain}}?",
+      "removeBody": "People with addresses at this domain can no longer sign in with single sign-on. Their accounts stay.",
+      "removeConfirm": "Remove domain",
+      "status": {
+        "pending": "Waiting for DNS",
+        "verified": "Verified",
+        "failed": "Not verified"
+      },
+      "failure": {
+        "record_missing": "The record was not found yet.",
+        "lookup_failed": "The DNS lookup failed. It will be tried again.",
+        "claimed_elsewhere": "Another organisation verified this domain first.",
+        "record_removed": "The record was removed, so the domain stopped working."
+      },
+      "checkedAt": "Checked {{when}}.",
+      "record": {
+        "type": "Type",
+        "name": "Name",
+        "value": "Value"
+      }
+    },
+    "connections": {
+      "title": "Connections",
+      "text": "Register this app with your identity provider, then add the connection here and test it.",
+      "add": "Add connection",
+      "empty": "No connections yet.",
+      "provider": {
+        "entra": "Microsoft Entra ID",
+        "google": "Google Workspace",
+        "saml": "SAML 2.0"
+      },
+      "enabled": "Enabled",
+      "disabled": "Not enabled",
+      "test": "Test connection",
+      "testFor": "Test {{name}}",
+      "enable": "Enable",
+      "enableFor": "Enable {{name}}",
+      "disable": "Disable",
+      "disableFor": "Disable {{name}}",
+      "edit": "Edit",
+      "editFor": "Edit {{name}}",
+      "remove": "Remove",
+      "removeFor": "Remove {{name}}",
+      "removeTitle": "Remove {{name}}?",
+      "removeBody": "People who sign in with this connection will need another way in.",
+      "removeConfirm": "Remove connection",
+      "untested": "Not tested yet. Test it before you enable it.",
+      "testOk": "Test passed {{when}} as {{email}}.",
+      "testFailed": "Last test failed {{when}}: {{reason}}",
+      "testMfa": "The identity provider confirmed multi-factor authentication.",
+      "testNoMfa": "No multi-factor authentication was confirmed, so the app’s two-step sign-in still applies.",
+      "testAction": {
+        "linked": "Signs in the user already linked to this address.",
+        "link": "Links this address to its existing user on first sign-in.",
+        "invitation": "Accepts the open invitation for this address.",
+        "provision": "Creates an account with the default role."
+      },
+      "register": "Values for your identity provider",
+      "redirectUri": "Redirect URI",
+      "entityId": "Identifier (entity ID)",
+      "acsUrl": "Reply URL (ACS)"
+    },
+    "form": {
+      "addTitle": "Add a connection",
+      "editTitle": "Edit {{name}}",
+      "provider": "Identity provider",
+      "name": "Name",
+      "nameHelp": "Shown on the sign-in page when there is more than one connection.",
+      "clientId": "Application (client) ID",
+      "clientSecret": "Client secret",
+      "clientSecretHelp": "Stored encrypted and never shown again.",
+      "clientSecretKeep": "A secret is saved. Leave this empty to keep it.",
+      "directoryId": "Directory (tenant) ID",
+      "directoryIdHelp": "The GUID of your Entra directory. Shared endpoints such as common are not accepted.",
+      "hostedDomain": "Workspace domain",
+      "hostedDomainHelp": "Optional. Only accounts of this Google Workspace domain can sign in.",
+      "metadataUrl": "Metadata URL",
+      "metadataUrlHelp": "An https address of your identity provider’s federation metadata.",
+      "metadataXml": "Or paste the metadata XML",
+      "manual": "Or enter the values yourself",
+      "idpEntityId": "Identity provider entity ID",
+      "idpSsoUrl": "Identity provider sign-in URL",
+      "certificate": "Signing certificate",
+      "certificateHelp": "Paste the certificate, including its BEGIN and END lines.",
+      "save": "Save connection"
+    },
+    "rules": {
+      "title": "Sign-in rules",
+      "enforce": "Require single sign-on",
+      "enforceHelp": "People with addresses at your verified domains can no longer sign in with a password, and nobody can create a new account with one. Owners keep their password and two-step sign-in in case your identity provider is down.",
+      "jit": "Create accounts on first sign-in",
+      "jitHelp": "Someone with no account or invitation gets one with the default role below. When this is off, only existing users and invited people can sign in.",
+      "defaultRole": "Default role for new accounts",
+      "save": "Save sign-in rules",
+      "saved": "Sign-in rules saved."
+    },
+    "test": {
+      "ok": "The test sign-in worked. Check the result below, then enable the connection.",
+      "failed": "The test sign-in failed. The reason is shown on the connection."
     }
   }
 }

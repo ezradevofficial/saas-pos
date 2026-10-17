@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { api } from '@/api/client'
+import { usePermissions } from '@/auth/usePermissions'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, Select, TextField } from '@/components/ds'
@@ -116,6 +118,7 @@ function SettingsForm({ settings }) {
 export default function Security() {
   const { t } = useTranslation()
   const settings = useQuery({ queryKey: ['tenant', 'settings'], queryFn: () => api.get('tenant/settings') })
+  const { tenantWide } = usePermissions()
 
   return (
     <>
@@ -134,6 +137,14 @@ export default function Security() {
       {settings.data ? (
         <Card>
           <SettingsForm settings={settings.data.data} />
+        </Card>
+      ) : null}
+      {/* AUTH-11: single sign-on lives on its own page (the Owner's). */}
+      {tenantWide('core.sso.manage') ? (
+        <Card title={t('sso.securityCard.title')} subtitle={t('sso.securityCard.text')}>
+          <Link to="/settings/sso" className="text-label font-medium text-primary hover:text-primary-hover">
+            {t('sso.securityCard.open')}
+          </Link>
         </Card>
       ) : null}
     </>
