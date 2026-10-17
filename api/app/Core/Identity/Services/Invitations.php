@@ -12,6 +12,7 @@ use App\Core\Rbac\Grants;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\RoleManager;
 use App\Core\Rbac\Scope;
+use App\Core\Sso\SsoEnforcement;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -124,6 +125,13 @@ class Invitations
      */
     public function accept(Invitation $invitation, string $name, string $password, string $ip, string $userAgent): array
     {
+        // AUTH-11: under enforced SSO the invitee of a verified domain joins by signing in with SSO.
+        $ownerRole = Role::query()->whereKey(array_column($invitation->assignments ?? [], 'role_id'))->where('is_owner', true)->exists();
+
+        if (app(SsoEnforcement::class)->refusesInvitationPassword($invitation->email, $ownerRole)) {
+            throw new ApiException(403, 'sso_required', __('sso.errors.password_sso_required'));
+        }
+
         $user = $this->createUser($invitation, $name, $password);
 
         return ['user' => $user, 'token' => $this->authenticate->issueToken($user, $ip, $userAgent)];

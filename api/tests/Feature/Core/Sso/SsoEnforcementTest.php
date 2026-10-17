@@ -7,10 +7,12 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Services\TwoFactor;
 use App\Core\Rbac\Scope;
 use App\Core\Sso\Models\SsoConnection;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\Concerns\BuildsSso;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Support\SentInvitations;
 use Tests\TestCase;
 
 /**
@@ -29,6 +31,7 @@ class SsoEnforcementTest extends TestCase
     {
         parent::setUp();
         Notification::fake();
+        Mail::fake();
         $this->setUpSso();
         $this->headersFor();
         $this->inTenant(fn () => $this->owner->forceFill(['email' => 'owner@acme.co.ke'])->save());
@@ -103,6 +106,22 @@ class SsoEnforcementTest extends TestCase
         $second = $this->googleConnection();
         $this->postJson("/api/v1/sso/connections/{$id}/disable", [], $this->headersFor())->assertOk();
         $this->postJson("/api/v1/sso/connections/{$second}/archive", [], $this->headersFor())->assertStatus(409);
+    }
+
+    public function test_an_invitee_of_an_enforced_domain_joins_with_sso_not_a_password(): void
+    {
+        $this->enforce();
+        $this->postJson('/api/v1/invitations', [
+            'name' => 'Baraka', 'email' => 'baraka@acme.co.ke',
+            'assignments' => [['role_id' => $this->roles->get('cashier')->id, 'scope_type' => 'location', 'scope_id' => $this->locationA->id]],
+        ], $this->headersFor())->assertCreated();
+        $token = SentInvitations::lastToken();
+
+        $this->postJson("/api/v1/auth/invitations/{$token}/accept", ['name' => 'Baraka', 'password' => 'violet-harbour-42'])
+            ->assertForbidden()->assertJsonPath('code', 'sso_required');
+
+        $done = $this->entraSignIn('baraka@acme.co.ke');
+        $this->completeSso($this->ticketFrom($done['location']), $done['binding'])->assertOk()->assertJsonPath('user.email', 'baraka@acme.co.ke');
     }
 
     public function test_sign_up_is_refused_for_an_enforcing_tenants_domain(): void

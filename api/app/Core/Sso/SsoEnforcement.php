@@ -35,6 +35,16 @@ class SsoEnforcement
             && ! $this->owners->holdsOwnerRole($user);
     }
 
+    /**
+     * Whether an invitation for $email may not be accepted with a password
+     * (it is accepted by signing in with SSO instead). An invitation to an
+     * Owner role keeps the password, as Owners do. Requires the tenant context.
+     */
+    public function refusesInvitationPassword(?string $email, bool $ownerRole): bool
+    {
+        return $email !== null && ! $ownerRole && $this->settings->enforced() && $this->domains->covers($email);
+    }
+
     /** Whether a new account with $email must be refused. Leaves the tenant context as it was. */
     public function refusesSignUp(?string $email): bool
     {
