@@ -40,9 +40,10 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Everything else is refused, including new records and settings.
  *
- * ADM-01c: a tenant suspended by platform staff answers 403
- * `tenant_suspended` to every write except billing, the user's own
- * account and the data export.
+ * ADM-01c (owner decision 2026-10-17): a tenant suspended by platform
+ * staff answers 403 `tenant_suspended` to every write except billing,
+ * the user's own account, the data export, approvals and payroll (runs,
+ * corrections, cancellation and statutory returns). Tills stop.
  */
 class EnforceSubscription
 {
@@ -142,10 +143,12 @@ class EnforceSubscription
 
         $subscription = Subscription::query()->first(['id', 'status', 'pos_stops_at']);
 
-        // ADM-01c: a tenant suspended by platform staff keeps only its billing, its own
-        // account and the data export; everything else (tills included) is refused.
+        // ADM-01c (owner decision 2026-10-17): a tenant suspended by platform staff keeps its
+        // billing, its own account, the data export, approvals and payroll (runs, corrections,
+        // cancellation and statutory returns: PAY-28 and LIM-04's approvals rule hold);
+        // everything else, tills included, is refused.
         if ($subscription?->status === Subscription::SUSPENDED || ($subscription === null && Tenant::query()->whereKey($this->tenants->id())->value('status') === 'suspended')) {
-            if (in_array($class, [self::BILLING, self::ACCOUNT, self::EXPORT], true)) {
+            if (self::allowedWhileSuspended($class, $request->route())) {
                 return $next($request);
             }
 
@@ -165,6 +168,18 @@ class EnforceSubscription
         }
 
         throw new ApiException(402, 'subscription_overdue', __('billing.read_only.message'));
+    }
+
+    /** ADM-01c: what a suspended tenant may still write (the read-only classes for billing, account, export, approvals and payroll). */
+    public static function allowedWhileSuspended(string $class, Route|string|null $route): bool
+    {
+        if (in_array($class, [self::ALLOWED, self::BILLING, self::ACCOUNT, self::EXPORT, self::APPROVAL], true)) {
+            return true;
+        }
+
+        $uri = preg_replace('#^api/v1/#', '', ltrim($route instanceof Route ? $route->uri() : (string) $route, '/'));
+
+        return $class === self::STAFF && str_starts_with($uri, 'payroll/');
     }
 
     /** How a request to $route with $method is treated in read-only mode. */

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Platform;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Billing\Http\EnforceSubscription;
 use App\Core\Billing\Models\OperatorAccountEvent;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Billing\Operator\Accounts;
@@ -142,6 +143,39 @@ class PlatformTenantManagementTest extends TestCase
         $this->assertSame('2026-11-30', $this->subscription()->trial_ends_at->toDateString());
         $this->assertContains(PlatformNotices::TRIAL_EXTENDED, $this->ownerNotices());
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'platform.subscription.trial_extend')->exists()));
+    }
+
+    /** ADM-01c, owner decision 2026-10-17: suspension keeps billing, the account, the export, approvals and payroll (PAY-28, LIM-04). */
+    public function test_a_suspended_tenant_keeps_approvals_and_payroll_but_not_tills_or_other_writes(): void
+    {
+        $expect = [
+            'POST approvals/bulk-approve' => true,
+            'POST approvals/{approval}/approve' => true,
+            'POST pos/voids/{pos_void}/approve' => true,
+            'POST payroll/runs' => true,
+            'POST payroll/runs/{payroll_run}/calculate' => true,
+            'POST payroll/runs/{payroll_run}/post' => true,
+            'POST payroll/runs/{payroll_run}/corrections' => true,
+            'POST payroll/runs/{payroll_run}/cancel' => true,
+            'POST payroll/returns' => true,
+            'POST subscription/subscribe' => true,
+            'POST tenant-exports' => true,
+            'POST auth/sign-out' => true,
+            'POST hr/timesheets/approve' => false,
+            'POST hr/me/clock' => false,
+            'POST pos/sales' => false,
+            'POST pos/shifts' => false,
+            'POST parties' => false,
+        ];
+
+        foreach ($expect as $key => $allowed) {
+            [$method, $uri] = explode(' ', $key, 2);
+            $this->assertSame($allowed, EnforceSubscription::allowedWhileSuspended(EnforceSubscription::classify($method, $uri), $uri), $key);
+        }
+
+        $this->postJson("/api/v1/platform/tenants/{$this->owner->tenant_id}/suspend", ['reason' => 'Chargeback fraud under review'], $this->staffBearer($this->staff(PlatformUser::ROLE_SUPPORT)))->assertOk();
+        $this->assertNotSame('tenant_suspended', $this->postJson('/api/v1/approvals/bulk-approve', ['ids' => []], $this->headersFor())->json('code'));
+        $this->postJson('/api/v1/parties', ['kind' => 'organisation', 'roles' => ['customer'], 'name' => 'New co'], $this->headersFor())->assertForbidden()->assertJsonPath('code', 'tenant_suspended');
     }
 
     public function test_only_staff_with_tenant_management_act_on_tenants(): void
