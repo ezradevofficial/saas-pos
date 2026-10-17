@@ -25,6 +25,8 @@ return [
         'principal_inactive' => 'L’utilisateur au nom duquel ce webhook envoie n’est plus actif. Recréez le webhook avec un utilisateur actif.',
         'webhook_inactive' => 'Ce webhook est désactivé. Activez-le, puis relancez la livraison.',
         'replay_not_visible' => 'Cette livraison ne peut pas être relancée : son type d’événement n’est plus disponible ou l’utilisateur du webhook ne peut plus le voir.',
+        'not_owner' => 'Seul l’utilisateur au nom duquel ce webhook envoie peut modifier son URL, ses événements ou son filtre. Vous pouvez modifier sa description ou l’activer et le désactiver ; le propriétaire peut le reprendre.',
+        'take_over_not_visible' => 'Vous ne voyez pas les enregistrements de certains événements de ce webhook à sa portée, vous ne pouvez donc pas le reprendre. Retirez d’abord ces événements.',
     ],
 
     'test_message' => 'Ceci est un événement de test. Votre destination l’a reçu et peut vérifier sa signature.',

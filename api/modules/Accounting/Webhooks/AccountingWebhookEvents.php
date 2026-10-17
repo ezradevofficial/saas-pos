@@ -41,7 +41,7 @@ final class AccountingWebhookEvents
                         return null;
                     }
 
-                    return $occurrence->at($document->company_id, $document->branch_id)->with([
+                    return $occurrence->at($document->company_id, $document->branch_id)->when($document->posted_at?->toIso8601ZuluString())->with([
                         'document_id' => $document->id,
                         'kind' => $document->kind,
                         'number' => $document->number,

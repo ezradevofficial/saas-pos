@@ -20,6 +20,8 @@ use App\Core\Webhooks\Jobs\SweepWebhooks;
 use App\Core\Webhooks\Models\WebhookDelivery;
 use App\Core\Webhooks\Models\WebhookSubscription;
 use Carbon\CarbonImmutable;
+use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
@@ -234,6 +236,7 @@ class WebhookDeliveryTest extends TestCase
         $deliverer = app(WebhookDeliverer::class);
 
         foreach ([60, 300, 1800, 7200, 21600, 86400] as $attempt => $wait) {
+            $this->workerStarts($delivery->id);
             $this->inTenant(fn () => $deliverer->deliver($delivery->id));
             $delivery = $delivery->fresh();
             $this->assertSame([WebhookDelivery::RETRYING, $attempt + 1], [$delivery->status, $delivery->attempts]);
@@ -242,6 +245,7 @@ class WebhookDeliveryTest extends TestCase
         }
 
         // The seventh attempt fails for good (the dead-letter state).
+        $this->workerStarts($delivery->id);
         $this->inTenant(fn () => $deliverer->deliver($delivery->id));
         $delivery = $delivery->fresh();
         $this->assertSame([WebhookDelivery::FAILED, 7, 502, 'status', null], [$delivery->status, $delivery->attempts, $delivery->response_status, $delivery->error, $delivery->next_attempt_at]);
@@ -381,13 +385,13 @@ class WebhookDeliveryTest extends TestCase
         Http::fake(['*' => Http::sequence()->push('ok', 200)->push('down', 500)]);
         config(['webhooks.backoff' => []]);
         $first = $this->subscribe();
-        $second = $this->subscribe(['url' => 'https://other.example.com/x']);
+        $second = $this->subscribe(['url' => 'https://other.example.com/…/••••']);
         $this->happen();
 
         $this->getJson('/api/v1/webhook-deliveries', $this->headersFor())->assertOk()->assertJsonCount(2, 'data')
             ->assertJsonPath('meta.total', 2);
         $this->getJson("/api/v1/webhook-deliveries?webhook={$second['id']}", $this->headersFor())->assertOk()
-            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.webhook.url_display', 'https://other.example.com/x');
+            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.webhook.url_display', 'https://other.example.com/…/••••');
         $this->getJson('/api/v1/webhook-deliveries?status=failed', $this->headersFor())->assertOk()->assertJsonCount(1, 'data');
         $this->getJson('/api/v1/webhook-deliveries?type=webhook.test.v1', $this->headersFor())->assertOk()->assertJsonCount(0, 'data');
         $this->getJson('/api/v1/webhook-deliveries?status=nonsense', $this->headersFor())->assertUnprocessable();
@@ -448,5 +452,11 @@ class WebhookDeliveryTest extends TestCase
         $delivery = $this->deliveries()->sole();
         $this->assertSame([WebhookDelivery::FAILED, 'unreachable', null], [$delivery->status, $delivery->error, $delivery->response_status]);
         $this->assertNotNull($delivery->duration_ms);
+    }
+
+    /** A worker picks the queued SendWebhook up: its unique lock is released (ShouldBeUniqueUntilProcessing). */
+    private function workerStarts(string $deliveryId): void
+    {
+        (new UniqueLock(app(Cache::class)))->release(new SendWebhook($this->owner->tenant_id, $deliveryId));
     }
 }

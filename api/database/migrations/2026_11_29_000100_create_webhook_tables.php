@@ -65,6 +65,9 @@ return new class extends Migration
             $table->string('event_type', 80);
             // json, not jsonb: the body keeps the documented key order.
             $table->json('payload');
+            // Where the event happened (company, branch, location, document): the delivery is checked
+            // again against it at send time and for each reader of the log (RBAC-04).
+            $table->jsonb('occurrence')->nullable();
             $table->string('status', 20);
             $table->smallInteger('attempts')->default(0);
             $table->smallInteger('response_status')->nullable();
@@ -80,8 +83,15 @@ return new class extends Migration
 
             $table->index(['tenant_id', 'created_at']);
             $table->index(['subscription_id', 'created_at']);
-            $table->index(['tenant_id', 'status', 'updated_at']);
+            $table->index('created_at');
+            $table->index('replay_of');
         });
+
+        // The sweep's questions (app_tenants_with_webhook_work, SweepWebhooks), each with its own index.
+        DB::statement("create index webhook_deliveries_stale_idx on webhook_deliveries (updated_at) where status in ('pending', 'sending')");
+        DB::statement("create index webhook_deliveries_retry_idx on webhook_deliveries (next_attempt_at) where status = 'retrying'");
+        // One delivery per subscription and event (a fan-out retried after its commit adds nothing); replays add rows.
+        DB::statement('create unique index webhook_deliveries_once on webhook_deliveries (subscription_id, event_id) where replay_of is null');
 
         DB::statement("alter table webhook_deliveries add constraint webhook_deliveries_status_check check (status in ('pending', 'sending', 'retrying', 'delivered', 'failed'))");
         // A replay names a delivery of the same tenant (a plain FK is checked without RLS).
@@ -95,10 +105,14 @@ return new class extends Migration
             language sql stable security definer
             set search_path = pg_catalog, public
             as $fn$
-                select distinct d.tenant_id from public.webhook_deliveries d
-                where (d.status in ('pending', 'sending') and d.updated_at < p_stale_before)
-                   or (d.status = 'retrying' and d.next_attempt_at < p_stale_before)
-                   or d.created_at < p_prune_before
+                select d.tenant_id from public.webhook_deliveries d
+                where d.status in ('pending', 'sending') and d.updated_at < p_stale_before
+                union
+                select d.tenant_id from public.webhook_deliveries d
+                where d.status = 'retrying' and d.next_attempt_at < p_stale_before
+                union
+                select d.tenant_id from public.webhook_deliveries d
+                where d.created_at < p_prune_before
                 order by 1
             $fn$;
 

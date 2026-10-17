@@ -26,8 +26,11 @@ use Illuminate\Support\Facades\DB;
  *
  * - The delivery is claimed (pending or retrying to sending, attempts + 1),
  *   so two workers never send it twice.
- * - It is sent only while its subscription is live and its principal
- *   active; otherwise it fails at once (`disabled`, `principal`).
+ * - It is sent only while its subscription is live, its principal active,
+ *   its type's module active and the principal still allowed to see the
+ *   event where it happened (the stored occurrence); otherwise it fails at
+ *   once (`disabled`, `principal`). Fields the principal's rules hide by
+ *   now are taken out of the body before it is sent.
  * - The URL is checked again and resolved now (WebhookEndpoints): a
  *   refused address fails at once (`refused.<reason>`), with no request.
  * - The body is signed per WebhookSignature with every signing secret
@@ -54,6 +57,8 @@ class WebhookDeliverer
         private readonly Notifier $notifier,
         private readonly TenantContext $tenants,
         private readonly Auditor $auditor,
+        private readonly WebhookCatalogue $catalogue,
+        private readonly WebhookFanOut $fanOut,
     ) {}
 
     public function deliver(string $deliveryId): void
@@ -82,6 +87,26 @@ class WebhookDeliverer
             $this->fail($delivery, 'principal', count: false);
 
             return;
+        }
+
+        // Checked again now: the module may be off, or the principal may no longer see the event where it
+        // happened (RBAC-04, RBAC-08); fields their rules hide by now are left out (RBAC-05).
+        if ($delivery->event_type !== WebhookCatalogue::TEST) {
+            $type = $this->catalogue->active($delivery->event_type);
+
+            if ($type === null || ! $type->allows($principal, $this->fanOut->occurrenceOf($delivery->occurrence, $delivery->payload))) {
+                $this->fail($delivery, 'principal', count: false);
+
+                return;
+            }
+
+            $data = (array) ($delivery->payload['data'] ?? []);
+            $visible = $type->visibleData($principal, $data);
+
+            if ($visible !== $data) {
+                $delivery->payload = [...$delivery->payload, 'data' => (object) $visible];
+                $delivery->save();
+            }
         }
 
         try {

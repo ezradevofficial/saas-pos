@@ -634,6 +634,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('webhooks/{webhook}/rotate-secret', [WebhookController::class, 'rotate']);
     Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test'])->middleware('throttle:'.WebhooksServiceProvider::SEND_LIMITER);
     Route::post('webhooks/{webhook}/archive', [WebhookController::class, 'archive']);
+    Route::post('webhooks/{webhook}/take-over', [WebhookController::class, 'takeOver']);
     Route::get('webhook-deliveries', [WebhookDeliveryController::class, 'index']);
     Route::get('webhook-deliveries/{webhook_delivery}', [WebhookDeliveryController::class, 'show']);
     Route::post('webhook-deliveries/{webhook_delivery}/replay', [WebhookDeliveryController::class, 'replay'])->middleware('throttle:'.WebhooksServiceProvider::SEND_LIMITER);

@@ -22,6 +22,7 @@ use Modules\Inventory\Events\StockLow;
 use Modules\Inventory\InventoryServiceProvider;
 use Modules\Payroll\Events\PayrollApproved;
 use Modules\POS\Events\SaleCompleted;
+use Modules\POS\Webhooks\PosWebhookEvents;
 use Tests\Concerns\BuildsWebhooks;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -85,7 +86,20 @@ class WebhookCatalogueTest extends TestCase
         ]));
 
         $this->assertSame(['company-1', 'branch-1', 'location-1'], [$occurrence->companyId, $occurrence->branchId, $occurrence->locationId]);
-        $data = $occurrence->data;
+        // Review finding 9: queued with the id, the place and the sale's own time only; values are read in the job.
+        $this->assertSame(['sale_id' => 'sale-1'], $occurrence->data);
+        $this->assertSame('2026-10-16T09:00:00Z', $occurrence->occurredAt);
+
+        $data = PosWebhookEvents::sale([
+            'id' => 'sale-1', 'company_id' => 'company-1', 'branch_id' => 'branch-1', 'location_id' => 'location-1', 'device_id' => 'device-1',
+            'shift_id' => 'shift-1', 'cashier_id' => 'cashier-1', 'customer_id' => null, 'receipt_number' => 'R-1', 'status' => 'completed',
+            'sold_at' => '2026-10-16T09:00:00Z', 'offline' => false, 'currency' => 'KES',
+            'totals' => ['subtotal_minor' => '1000', 'discount_minor' => '0', 'tax_minor' => '160', 'total_minor' => '1160', 'paid_minor' => '1200', 'rounding_minor' => '0'],
+            'payments' => [['method' => 'mpesa', 'reference' => 'QWERTY']],
+            'lines' => [['id' => 'line-1', 'line_no' => 1, 'item_id' => 'item-1', 'uom_id' => 'uom-1', 'qty' => '1', 'unit_price_minor' => '1000',
+                'discount_minor' => '0', 'tax_minor' => '160', 'total_minor' => '1160', 'adjustments' => ['x' => 1]]],
+            'extensions' => ['loyalty' => ['phone' => '+254700000000']],
+        ]);
         $this->assertSame('R-1', $data['receipt_number']);
         $this->assertSame('1160', $data['totals']['total_minor']);
         $flat = json_encode($data);
@@ -113,8 +127,10 @@ class WebhookCatalogueTest extends TestCase
     public function test_payroll_totals_are_left_out_for_a_principal_whose_rules_hide_them(): void
     {
         $type = app(WebhookCatalogue::class)->find('payroll.approved.v1');
-        $occurrence = ($type->capture)(new PayrollApproved('tenant', 'run-1', 'PR-1', 'company-1', 'regular', '2026-10-01', '2026-10-31', '2026-10-28', ['KES' => ['gross' => 100000, 'net' => 80000]]));
-        $this->assertSame(['KES' => ['gross' => '100000', 'net' => '80000']], $occurrence->data['totals']);
+        $captured = ($type->capture)(new PayrollApproved('tenant', 'run-1', 'PR-1', 'company-1', 'regular', '2026-10-01', '2026-10-31', '2026-10-28', ['KES' => ['gross' => 100000, 'net' => 80000]]));
+        // Review finding 9: the totals never sit in the queue; the job reads them from the run.
+        $this->assertSame(['payroll_run_id' => 'run-1'], $captured->data);
+        $occurrence = $captured->with(['payroll_run_id' => 'run-1', 'number' => 'PR-1', 'totals' => ['KES' => ['gross' => '100000', 'net' => '80000']]]);
 
         $hiding = new class implements WebhookPrincipal
         {

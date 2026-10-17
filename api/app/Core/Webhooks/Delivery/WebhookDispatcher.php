@@ -61,7 +61,17 @@ class WebhookDispatcher
                 continue;
             }
 
-            FanOutWebhookEvent::dispatch($tenantId, $type->key, (string) Str::uuid7(), CarbonImmutable::now()->toIso8601ZuluString(), $occurrence->toArray());
+            FanOutWebhookEvent::dispatch($tenantId, $type->key, (string) Str::uuid7(), self::time($occurrence->occurredAt), $occurrence->toArray());
+        }
+    }
+
+    /** The event's own time where it has one (a sale's sold_at), else now; ISO 8601 UTC. */
+    private static function time(?string $at): string
+    {
+        try {
+            return ($at === null || $at === '' ? CarbonImmutable::now() : CarbonImmutable::parse($at))->utc()->toIso8601ZuluString();
+        } catch (Throwable) {
+            return CarbonImmutable::now()->toIso8601ZuluString();
         }
     }
 }

@@ -25,6 +25,8 @@ return [
         'principal_inactive' => 'The user this webhook sends as is no longer active. Create the webhook again as an active user.',
         'webhook_inactive' => 'This webhook is switched off. Switch it on, then replay the delivery.',
         'replay_not_visible' => 'This delivery can’t be replayed: its event type is no longer available or the webhook’s user can no longer see it.',
+        'not_owner' => 'Only the user this webhook sends as can change its URL, events or filter. You can change its description or switch it on or off; the Owner can take it over.',
+        'take_over_not_visible' => 'You can’t see the records of some of this webhook’s events at its scope, so you can’t take it over. Remove those events first.',
     ],
 
     'test_message' => 'This is a test event. Your endpoint received it and can check its signature.',

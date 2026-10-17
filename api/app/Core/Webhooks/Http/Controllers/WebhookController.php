@@ -8,6 +8,7 @@ use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Webhooks\Catalogue\WebhookEventType;
 use App\Core\Webhooks\Delivery\WebhookFanOut;
 use App\Core\Webhooks\Http\Requests\SaveWebhookRequest;
+use App\Core\Webhooks\Http\Requests\TakeOverWebhookRequest;
 use App\Core\Webhooks\Http\Requests\WebhookRequest;
 use App\Core\Webhooks\Models\WebhookSubscription;
 use App\Core\Webhooks\Principals\WebhookPrincipals;
@@ -52,38 +53,44 @@ class WebhookController
     {
         $subscriptions = WebhookSubscription::query()->whereNull('archived_at')->orderBy('created_at')->get();
 
-        return response()->json(['data' => $subscriptions->map(fn (WebhookSubscription $s) => $this->present($s))->values()]);
+        return response()->json(['data' => $subscriptions->map(fn (WebhookSubscription $s) => $this->present($s, $request))->values()]);
     }
 
     public function show(WebhookRequest $request): JsonResponse
     {
-        return response()->json(['data' => $this->present($request->subscription())]);
+        return response()->json(['data' => $this->present($request->subscription(), $request)]);
     }
 
     public function store(SaveWebhookRequest $request): JsonResponse
     {
         [$subscription, $secret] = $this->subscriptions->create($request->values(), $request->user());
 
-        return response()->json(['data' => [...$this->present($subscription), 'secret' => $secret]], 201);
+        return response()->json(['data' => [...$this->present($subscription, $request), 'secret' => $secret]], 201);
     }
 
     public function update(SaveWebhookRequest $request): JsonResponse
     {
         $subscription = $this->subscriptions->update($request->subscription(), $request->values(), $request->user());
 
-        return response()->json(['data' => $this->present($subscription)]);
+        return response()->json(['data' => $this->present($subscription, $request)]);
+    }
+
+    /** The Owner takes over someone else's subscription (it sends as them from now on). */
+    public function takeOver(TakeOverWebhookRequest $request): JsonResponse
+    {
+        return response()->json(['data' => $this->present($this->subscriptions->takeOver($request->subscription(), $request->user()), $request)]);
     }
 
     public function rotate(WebhookRequest $request): JsonResponse
     {
         [$subscription, $secret] = $this->subscriptions->rotate($request->subscription(), $request->user());
 
-        return response()->json(['data' => [...$this->present($subscription), 'secret' => $secret]]);
+        return response()->json(['data' => [...$this->present($subscription, $request), 'secret' => $secret]]);
     }
 
     public function archive(WebhookRequest $request): JsonResponse
     {
-        return response()->json(['data' => $this->present($this->subscriptions->archive($request->subscription(), $request->user()))]);
+        return response()->json(['data' => $this->present($this->subscriptions->archive($request->subscription(), $request->user()), $request)]);
     }
 
     /** A `webhook.test.v1` event to this subscription only, tried once (whatever it subscribes to). */
@@ -106,7 +113,7 @@ class WebhookController
     }
 
     /** @return array<string, mixed> */
-    private function present(WebhookSubscription $subscription): array
+    private function present(WebhookSubscription $subscription, WebhookRequest $request): array
     {
         $principal = $this->principals->of($subscription);
 
@@ -123,6 +130,8 @@ class WebhookController
                 'id' => $subscription->principal_id,
                 'name' => $principal?->name(),
                 'active' => $principal?->isActive() ?? false,
+                // Only the principal changes the URL, events or filter; the Owner may take it over.
+                'is_me' => WebhookSubscriptions::isPrincipal($subscription, $request->user()),
             ],
             'consecutive_failures' => $subscription->consecutive_failures,
             'disabled_reason' => $subscription->disabled_reason,

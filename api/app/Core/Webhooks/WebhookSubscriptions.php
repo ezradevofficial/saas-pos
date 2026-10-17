@@ -5,11 +5,14 @@ namespace App\Core\Webhooks;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\Scope;
 use App\Core\Tenancy\TenantContext;
+use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Webhooks\Delivery\WebhookEndpoints;
 use App\Core\Webhooks\Delivery\WebhookSignature;
 use App\Core\Webhooks\Models\WebhookSubscription;
 use App\Core\Webhooks\Principals\UserPrincipal;
+use App\Core\Webhooks\Principals\WebhookPrincipal;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -34,6 +37,7 @@ class WebhookSubscriptions
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly Auditor $auditor,
+        private readonly WebhookCatalogue $catalogue,
     ) {}
 
     /** Whether the current tenant has a live subscription to $type. */
@@ -67,17 +71,19 @@ class WebhookSubscriptions
      */
     public function create(array $values, User $by): array
     {
-        $max = (int) config('webhooks.max_subscriptions', 25);
-
-        if (WebhookSubscription::query()->whereNull('archived_at')->count() >= $max) {
-            $message = __('webhooks.errors.too_many', ['count' => $max]);
-
-            throw new ApiException(422, 'too_many_webhooks', $message, ['url' => [$message]]);
-        }
-
         $secret = WebhookSignature::newSecret();
 
         $subscription = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($values, $by, $secret) {
+            // The cap is counted under a per-tenant lock held to commit, so two requests never both pass it.
+            DB::connection(TenantContext::CONNECTION)->select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['webhook_subscriptions:'.$this->tenants->require()]);
+            $max = (int) config('webhooks.max_subscriptions', 25);
+
+            if (WebhookSubscription::query()->whereNull('archived_at')->count() >= $max) {
+                $message = __('webhooks.errors.too_many', ['count' => $max]);
+
+                throw new ApiException(422, 'too_many_webhooks', $message, ['url' => [$message]]);
+            }
+
             $subscription = WebhookSubscription::create([
                 'principal_type' => UserPrincipal::TYPE,
                 'principal_id' => $by->id,
@@ -149,6 +155,76 @@ class WebhookSubscriptions
 
             $after = $this->audited($subscription);
             $this->auditor->record('core.webhook.update', $subscription, $before, [...$after, ...($urlChanged ? ['url_changed' => true] : [])]);
+        });
+
+        $this->flush();
+
+        return $subscription;
+    }
+
+    /**
+     * Whether $user is the subscription's principal (only they change what
+     * it sends and where: URL, events, filter).
+     */
+    public static function isPrincipal(WebhookSubscription $subscription, User $user): bool
+    {
+        return $subscription->principal_type === UserPrincipal::TYPE && $subscription->principal_id === $user->id;
+    }
+
+    /**
+     * The scope a subscription receives events of: its branch, its company,
+     * or the whole tenant.
+     */
+    public static function scopeOf(?string $companyId, ?string $branchId): Scope
+    {
+        return match (true) {
+            $branchId !== null => Scope::branch($branchId),
+            $companyId !== null => Scope::company($companyId),
+            default => Scope::tenant(),
+        };
+    }
+
+    /**
+     * The indexes of $events $principal may not receive at $scope (types
+     * checked per document, with no permission, are checked when they happen).
+     *
+     * @param  list<string>  $events
+     * @return list<int>
+     */
+    public function invisibleEvents(WebhookPrincipal $principal, array $events, Scope $scope): array
+    {
+        $refused = [];
+
+        foreach (array_values($events) as $index => $key) {
+            $permission = $this->catalogue->find((string) $key)?->permission;
+
+            if ($permission !== null && ! $principal->can($permission, $scope)) {
+                $refused[] = $index;
+            }
+        }
+
+        return $refused;
+    }
+
+    /**
+     * The Owner takes over a subscription made by someone else: it sends as
+     * them from now on. Its events are checked against them at its scope
+     * first; audited (`core.webhook.take_over`).
+     */
+    public function takeOver(WebhookSubscription $subscription, User $owner): WebhookSubscription
+    {
+        $principal = new UserPrincipal($owner);
+
+        if ($this->invisibleEvents($principal, $subscription->events, self::scopeOf($subscription->company_id, $subscription->branch_id)) !== []) {
+            $message = __('webhooks.errors.take_over_not_visible');
+
+            throw new ApiException(422, 'webhook_events_not_visible', $message, ['events' => [$message]]);
+        }
+
+        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($subscription, $owner) {
+            $before = ['principal_type' => $subscription->principal_type, 'principal_id' => $subscription->principal_id];
+            $subscription->fill(['principal_type' => UserPrincipal::TYPE, 'principal_id' => $owner->id, 'updated_by' => $owner->id])->save();
+            $this->auditor->record('core.webhook.take_over', $subscription, $before, ['principal_type' => UserPrincipal::TYPE, 'principal_id' => $owner->id]);
         });
 
         $this->flush();

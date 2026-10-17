@@ -24,6 +24,8 @@ class SweepWebhooks implements ShouldBeUnique, ShouldQueue
 
     public int $uniqueFor = 600;
 
+    private const BATCH = 1000;
+
     public function __construct(
         public string $tenantId,
         public string $at,
@@ -47,7 +49,13 @@ class SweepWebhooks implements ShouldBeUnique, ShouldQueue
         $at = CarbonImmutable::parse($this->at);
         $staleBefore = $at->subMinutes((int) config('webhooks.stuck_minutes', 15));
 
-        WebhookDelivery::query()->where('created_at', '<', $at->subDays((int) config('webhooks.retention_days', 30)))->delete();
+        // Pruned in batches, so no statement holds many rows or runs long.
+        $before = $at->subDays((int) config('webhooks.retention_days', 30));
+
+        do {
+            $ids = WebhookDelivery::query()->where('created_at', '<', $before)->orderBy('created_at')->limit(self::BATCH)->pluck('id');
+            WebhookDelivery::query()->whereKey($ids->all())->delete();
+        } while ($ids->count() === self::BATCH);
 
         $stuck = WebhookDelivery::query()
             ->where(fn ($q) => $q->where(fn ($q) => $q->whereIn('status', [WebhookDelivery::PENDING, WebhookDelivery::SENDING])->where('updated_at', '<', $staleBefore))
@@ -55,10 +63,12 @@ class SweepWebhooks implements ShouldBeUnique, ShouldQueue
             ->limit(500)->get(['id', 'status']);
 
         foreach ($stuck as $delivery) {
-            if ($delivery->status === WebhookDelivery::SENDING) {
-                WebhookDelivery::query()->whereKey($delivery->id)->where('status', WebhookDelivery::SENDING)
-                    ->update(['status' => WebhookDelivery::RETRYING, 'updated_at' => $at]);
-            }
+            // Marked as queued again now, so the next sweep leaves it alone unless this job is lost too.
+            WebhookDelivery::query()->whereKey($delivery->id)->where('status', $delivery->status)->update([
+                'status' => $delivery->status === WebhookDelivery::SENDING ? WebhookDelivery::RETRYING : $delivery->status,
+                'next_attempt_at' => $delivery->status === WebhookDelivery::PENDING ? null : $at,
+                'updated_at' => $at,
+            ]);
 
             SendWebhook::dispatch($this->tenantId, $delivery->id);
         }

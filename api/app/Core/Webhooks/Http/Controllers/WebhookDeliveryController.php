@@ -5,7 +5,6 @@ namespace App\Core\Webhooks\Http\Controllers;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
-use App\Core\Rbac\ScopeResolver;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Webhooks\Delivery\WebhookFanOut;
 use App\Core\Webhooks\Http\Requests\ListWebhookDeliveriesRequest;
@@ -42,13 +41,13 @@ class WebhookDeliveryController
         ]);
     }
 
-    public function show(WebhookDeliveryRequest $request, WebhookCatalogue $catalogue, ScopeResolver $resolver): JsonResponse
+    public function show(WebhookDeliveryRequest $request, WebhookCatalogue $catalogue, WebhookFanOut $fanOut): JsonResponse
     {
         $delivery = $request->delivery()->load('subscription:id,url_display');
 
         return response()->json(['data' => [
             ...self::summary($delivery),
-            'payload' => $this->visiblePayload($delivery, $request->user(), $catalogue, $resolver),
+            'payload' => $this->visiblePayload($delivery, $request->user(), $catalogue, $fanOut),
             'response_body' => $delivery->response_body,
         ]]);
     }
@@ -62,7 +61,8 @@ class WebhookDeliveryController
             throw new ApiException(409, 'webhook_inactive', __('webhooks.errors.webhook_inactive'));
         }
 
-        $replay = $fanOut->single($subscription, $original->event_id, $original->event_type, $original->payload, $request->user(), $original->id);
+        // To the subscription's current URL and secret, as its current principal may see it now.
+        $replay = $fanOut->single($subscription, $original->event_id, $original->event_type, $original->payload, $request->user(), $original->id, $original->occurrence);
 
         if ($replay === null) {
             throw new ApiException(409, 'not_visible', __('webhooks.errors.replay_not_visible'));
@@ -94,8 +94,15 @@ class WebhookDeliveryController
         ];
     }
 
-    /** @return array<string, mixed>|null */
-    private function visiblePayload(WebhookDelivery $delivery, User $reader, WebhookCatalogue $catalogue, ScopeResolver $resolver): ?array
+    /**
+     * The body as its reader may see it: nothing unless the reader may see
+     * the event where it happened (the stored occurrence, the same check as
+     * for a principal, also for types checked per document), and then
+     * without the fields the reader's rules hide (RBAC-04, RBAC-05).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function visiblePayload(WebhookDelivery $delivery, User $reader, WebhookCatalogue $catalogue, WebhookFanOut $fanOut): ?array
     {
         $payload = $delivery->payload;
 
@@ -104,12 +111,13 @@ class WebhookDeliveryController
         }
 
         $type = $catalogue->find($delivery->event_type);
+        $viewer = new UserPrincipal($reader);
 
-        if ($type === null || ($type->permission !== null && ! $resolver->can($reader, $type->permission))) {
+        if ($type === null || ! $type->allows($viewer, $fanOut->occurrenceOf($delivery->occurrence, $payload))) {
             return null;
         }
 
-        $payload['data'] = (object) $type->visibleData(new UserPrincipal($reader), (array) ($payload['data'] ?? []));
+        $payload['data'] = (object) $type->visibleData($viewer, (array) ($payload['data'] ?? []));
 
         return $payload;
     }

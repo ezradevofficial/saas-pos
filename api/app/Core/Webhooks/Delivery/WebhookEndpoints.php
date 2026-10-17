@@ -57,12 +57,23 @@ class WebhookEndpoints
         return new WebhookTarget($url, $host, $port, $ip, plainHttp: $scheme === 'http');
     }
 
-    /** The URL as shown: without its query or fragment (which may carry a token). */
+    /**
+     * The URL as shown in the app, notifications, the audit log and the
+     * export: its scheme, host and port, with any path or query masked
+     * (`https://hooks.slack.com/…/••••`), as either may carry a token.
+     */
     public static function display(string $url): string
     {
-        $shown = strtok(strtok($url, '#') ?: '', '?') ?: '';
+        $parts = parse_url($url);
 
-        return mb_substr($shown, 0, 300);
+        if ($parts === false || ! isset($parts['host'])) {
+            return '••••';
+        }
+
+        $shown = strtolower((string) ($parts['scheme'] ?? 'https')).'://'.strtolower((string) $parts['host']).(isset($parts['port']) ? ':'.$parts['port'] : '');
+        $path = (string) ($parts['path'] ?? '');
+
+        return ($path !== '' && $path !== '/') || isset($parts['query']) ? $shown.'/…/••••' : $shown;
     }
 
     private function isLocalDevelopment(string $url): bool

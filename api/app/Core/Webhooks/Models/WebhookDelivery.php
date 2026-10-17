@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $event_id
  * @property string $event_type
  * @property array<string, mixed> $payload
+ * @property ?array<string, mixed> $occurrence where the event happened (WebhookOccurrence::scopeArray)
  * @property string $status
  * @property int $attempts
  * @property ?int $response_status
@@ -53,7 +54,7 @@ class WebhookDelivery extends Model
     protected $table = 'webhook_deliveries';
 
     protected $fillable = [
-        'subscription_id', 'event_id', 'event_type', 'payload', 'status', 'attempts', 'response_status', 'response_body',
+        'subscription_id', 'event_id', 'event_type', 'payload', 'occurrence', 'status', 'attempts', 'response_status', 'response_body',
         'duration_ms', 'error', 'next_attempt_at', 'last_attempt_at', 'delivered_at', 'replay_of', 'requested_by',
     ];
 
@@ -61,6 +62,7 @@ class WebhookDelivery extends Model
     {
         return [
             'payload' => 'array',
+            'occurrence' => 'array',
             'attempts' => 'integer',
             'response_status' => 'integer',
             'duration_ms' => 'integer',

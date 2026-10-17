@@ -46,7 +46,7 @@ class WebhookSubscriptionApiTest extends TestCase
             'events' => ['thing.happened.v1'],
             'branch_id' => $this->branchA->id,
         ], $this->headersFor())->assertCreated()
-            ->assertJsonPath('data.url_display', 'https://hooks.example.com/in')
+            ->assertJsonPath('data.url_display', 'https://hooks.example.com/…/••••')
             ->assertJsonPath('data.events', ['thing.happened.v1'])
             ->assertJsonPath('data.branch_id', $this->branchA->id)
             ->assertJsonPath('data.active', true)
@@ -71,7 +71,7 @@ class WebhookSubscriptionApiTest extends TestCase
 
         // AUD-01: audited without the URL's query or the secret.
         $entry = $this->inTenant(fn () => AuditEntry::query()->where('action', 'core.webhook.create')->sole());
-        $this->assertSame('https://hooks.example.com/in', $entry->after['url']);
+        $this->assertSame('https://hooks.example.com/…/••••', $entry->after['url']);
         $this->assertStringNotContainsString($secret, json_encode($entry->toArray()));
         $this->assertStringNotContainsString('token=abc', json_encode($entry->toArray()));
     }
@@ -242,7 +242,7 @@ class WebhookSubscriptionApiTest extends TestCase
             'description' => 'Changed',
             'active' => false,
         ], $this->headersFor())->assertOk()
-            ->assertJsonPath('data.url_display', 'https://other.example.com/hook')
+            ->assertJsonPath('data.url_display', 'https://other.example.com/…/••••')
             ->assertJsonPath('data.branch_id', $this->branchB->id)
             ->assertJsonPath('data.company_id', null)
             ->assertJsonPath('data.active', false);
