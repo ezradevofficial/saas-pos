@@ -1,0 +1,77 @@
+{
+  "_about": "NFR-10: one set of scrubbing rules for the API (App\\Core\\Observability\\Scrubber, reading its copy api/config/scrub-rules.json), the web app and the POS (@app/scrub). Edit here, then copy to api/config/scrub-rules.json; ScrubberTest fails when the copies differ. fixtures.json is run by both implementations.",
+  "replacement": "[redacted]",
+  "keys": [
+    ["password"], ["passwd"], ["passphrase"], ["pwd"],
+    ["secret"], ["secrets"], ["token"], ["tokens"], ["api", "key"], ["apikey"], ["access", "key"], ["private", "key"],
+    ["authorization"], ["auth"], ["cookie"], ["cookies"], ["set", "cookie"], ["session"], ["csrf"], ["xsrf"], ["signature"], ["sig"],
+    ["pin"], ["pins"], ["otp"], ["code", "hash"], ["two", "factor"], ["totp"], ["recovery", "codes"],
+    ["card"], ["card", "number"], ["pan"], ["cvv"], ["cvc"], ["expiry"],
+    ["iban"], ["swift"], ["account", "number"], ["bank", "account"], ["account", "no"],
+    ["email"], ["emails"], ["work", "email"], ["personal", "email"],
+    ["phone"], ["phones"], ["msisdn"], ["mobile"], ["telephone"], ["whatsapp"],
+    ["id", "number"], ["national", "id"], ["passport"], ["kra", "pin"], ["tax", "id"], ["nssf"], ["nhif"], ["shif"], ["identifiers"],
+    ["date", "of", "birth"], ["dob"], ["address"], ["addresses"], ["emergency", "contacts"], ["medical", "notes"],
+    ["ip"], ["ip", "address"], ["client", "ip"], ["x", "forwarded", "for"]
+  ],
+  "values": [
+    {
+      "name": "bearer",
+      "pattern": "\\b(Bearer|Basic)\\s+[A-Za-z0-9._~+/=|-]{8,}",
+      "flags": "i",
+      "replace": "$1 [redacted]"
+    },
+    {
+      "name": "jwt",
+      "pattern": "\\beyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}",
+      "flags": "",
+      "replace": "[token]"
+    },
+    {
+      "name": "sanctum_token",
+      "pattern": "\\b\\d+\\|[A-Za-z0-9]{20,}",
+      "flags": "",
+      "replace": "[token]"
+    },
+    {
+      "name": "query_secret",
+      "pattern": "([?&](?:token|access_token|signature|key|api_key|code|password|secret|pin|otp)=)[^&#\\s\"']+",
+      "flags": "i",
+      "replace": "$1[redacted]"
+    },
+    {
+      "name": "email",
+      "pattern": "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}",
+      "flags": "i",
+      "replace": "[email]"
+    },
+    {
+      "name": "card_number",
+      "pattern": "\\b(?:\\d[ -]?){12,18}\\d\\b",
+      "flags": "",
+      "replace": "[number]"
+    },
+    {
+      "name": "phone_international",
+      "pattern": "(?:\\+|\\b00)(?:\\d[ -]?){7,14}\\d\\b",
+      "flags": "",
+      "replace": "[phone]"
+    },
+    {
+      "name": "phone_local",
+      "pattern": "\\b0[1789]\\d{2}[ -]?\\d{3}[ -]?\\d{3}\\b",
+      "flags": "",
+      "replace": "[phone]"
+    },
+    {
+      "name": "country_phone",
+      "pattern": "\\b(?:254|243)\\d{9}\\b",
+      "flags": "",
+      "replace": "[phone]"
+    }
+  ],
+  "keep": [
+    "event_id", "release", "dist", "environment", "platform", "timestamp", "start_timestamp",
+    "trace_id", "span_id", "parent_span_id", "fingerprint", "tenant_id", "request_id", "level", "logger", "sdk", "transaction"
+  ]
+}

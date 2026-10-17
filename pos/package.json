@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
+    "@app/scrub": "^0.0.0",
     "@app/tokens": "^0.0.0",
     "@expo-google-fonts/geist": "^0.4.2",
     "@expo/metro-runtime": "~57.0.17",
