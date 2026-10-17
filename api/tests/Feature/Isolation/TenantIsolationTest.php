@@ -1065,7 +1065,7 @@ class TenantIsolationTest extends TestCase
 
         // Secrets: the stored value of every denied column, in either tenant, and the plain M-Pesa credentials.
         // AUTO-03: webhook URLs are write-only; their tokens never leave.
-        $secrets = ['key-a', 'secret-a', 'pass-a', 'key-b', 'secret-b', 'pass-b', 'hook-token-a', 'hook-token-b'];
+        $secrets = ['key-a', 'secret-a', 'pass-a', 'key-b', 'secret-b', 'pass-b', 'hook-token-a', 'hook-token-b', 'path-token-a', 'path-token-b'];
         foreach ([$a, $b] as $tenant) {
             $this->asTenant($tenant->tenantId, function () use (&$secrets) {
                 foreach (array_keys(ExportColumns::DENIED) as $key) {

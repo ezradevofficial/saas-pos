@@ -617,7 +617,7 @@ final class TwoTenants
         // HOOK-01: a webhook subscription of the company (its URL carries a token, its
         // secret is shown once: neither may reach the other tenant) and a test delivery.
         $webhook = self::ok($test->postJson('/api/v1/webhooks', [
-            'url' => "https://hooks.example.com/{$key}/events?token=hook-token-{$key}",
+            'url' => "https://hooks.example.com/{$key}/path-token-{$key}/events?token=hook-token-{$key}",
             'description' => "Webhook {$upper}",
             'events' => ['sale.completed.v1', 'document.stage_changed.v1'],
             'company_id' => $company,
@@ -711,7 +711,7 @@ final class TwoTenants
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, $subscriptionSecret, "hook-token-{$key}", $callbackToken, ...$ecommerce['contacts']])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, $subscriptionSecret, "hook-token-{$key}", "path-token-{$key}", $callbackToken, ...$ecommerce['contacts']])),
         );
     }
 
