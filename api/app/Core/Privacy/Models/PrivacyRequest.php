@@ -56,7 +56,7 @@ class PrivacyRequest extends Model
 
     public const REJECTED = 'rejected';
 
-    protected $fillable = ['subject_type', 'subject_id', 'kind', 'note', 'corrections', 'received_at', 'due_at', 'requested_by'];
+    protected $fillable = ['subject_type', 'subject_id', 'kind', 'status', 'note', 'corrections', 'received_at', 'due_at', 'requested_by'];
 
     protected function casts(): array
     {

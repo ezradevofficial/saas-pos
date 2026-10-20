@@ -5,6 +5,8 @@ namespace Modules\Payroll;
 use App\Core\DocumentTemplates\DataSources;
 use App\Core\Layouts\ListViewCatalogue;
 use App\Core\Numbering\DocumentNumberTypes;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
@@ -87,6 +89,11 @@ class PayrollServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/payroll.php', 'payroll');
+        // NFR-08: Payroll's copy of an employee is part of their data (access
+        // reports); payslips and returns are statutory records and are kept.
+        $this->callAfterResolving(PrivacySubjects::class, fn (PrivacySubjects $subjects) => $subjects->register(new SubjectSource(
+            subjectType: 'employee', table: 'payroll_employees', match: 'employee_id', personal: [],
+        )));
         $this->app->singleton(PayrollPack::class);
         $this->app->scoped(PayFields::class);
         $this->app->singleton(PaymentFormats::class, function () {

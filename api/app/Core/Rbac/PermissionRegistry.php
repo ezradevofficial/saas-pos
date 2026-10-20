@@ -96,6 +96,11 @@ class PermissionRegistry
         'onboarding' => ['view', 'edit', 'modules'],
         // HOOK-01: webhook subscriptions, their secrets, test events, the delivery log and replays (tenant scope; Owner, Admin).
         'webhook' => ['manage'],
+        // NFR-08: data subject requests (view; log and carry out: manage;
+        // approve or reject, never one's own: approve) and marketing consent
+        // records (tenant scope; Owner, Admin).
+        'privacy_request' => ['view', 'manage', 'approve'],
+        'consent' => ['view', 'manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

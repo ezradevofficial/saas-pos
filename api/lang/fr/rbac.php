@@ -81,6 +81,8 @@ return [
                 'tenant' => 'Export complet des données',
                 'subscription' => 'Abonnement et facturation',
                 'webhook' => 'Webhooks',
+                'privacy_request' => 'Demandes des personnes concernées',
+                'consent' => 'Consentement marketing',
             ],
             'pos' => [
                 'sale' => 'Ventes',

@@ -48,6 +48,7 @@ class PrivacyRequests
                 'subject_type' => $type,
                 'subject_id' => $subjectId,
                 'kind' => $kind,
+                'status' => PrivacyRequest::RECEIVED,
                 'note' => $note,
                 'corrections' => $kind === PrivacyRequest::CORRECTION ? $corrections : null,
                 'received_at' => $received,

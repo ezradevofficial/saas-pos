@@ -11,6 +11,8 @@ use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
 use App\Core\Payments\Events\PaymentIntentSettled;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
@@ -82,6 +84,12 @@ class EcommerceServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/ecommerce.php', 'ecommerce');
+        // NFR-08: a storefront account is part of its customer's data;
+        // anonymising the customer clears it and archives the account.
+        $this->callAfterResolving(PrivacySubjects::class, fn (PrivacySubjects $subjects) => $subjects->register(new SubjectSource(
+            subjectType: 'customer', table: 'ecom_customers', match: 'party_id',
+            personal: ['name' => 'label', 'email' => 'null', 'phone' => 'null'],
+        )));
         $this->app->singleton(WhatsAppProviders::class);
     }
 

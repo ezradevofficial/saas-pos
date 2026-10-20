@@ -81,6 +81,8 @@ return [
                 'tenant' => 'Full data export',
                 'subscription' => 'Subscription and billing',
                 'webhook' => 'Webhooks',
+                'privacy_request' => 'Data subject requests',
+                'consent' => 'Marketing consent',
             ],
             'pos' => [
                 'sale' => 'Sales',

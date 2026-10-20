@@ -625,6 +625,15 @@ final class TwoTenants
         $subscriptionSecret = $webhook->json('data.secret');
         $webhookDelivery = self::ok($test->postJson("/api/v1/webhooks/{$webhook->json('data.id')}/test", [], $owner), 202)->json('data.id');
 
+        // NFR-08: a data subject access request about the shared customer, and a
+        // marketing consent record for it.
+        $privacyRequest = self::ok($test->postJson('/api/v1/privacy/requests', [
+            'subject_type' => 'customer', 'subject_id' => $customer, 'kind' => 'access', 'note' => "Privacy {$upper}",
+        ], $owner), 201)->json('data.id');
+        self::ok($test->postJson('/api/v1/privacy/consents', [
+            'subject_type' => 'customer', 'subject_id' => $customer, 'purpose' => 'marketing', 'channel' => 'email', 'granted' => true, 'evidence' => "Consent {$upper}",
+        ], $owner), 201);
+
         // LIM-01, LIM-02: a day's usage metered against a plan of no devices: the paired till is over,
         // so the tenant has meter rows and an open overage (the Owner is warned).
         $plans = app(PlanAllowances::class);
@@ -695,6 +704,7 @@ final class TwoTenants
                 'import' => $import,
                 'webhook' => $webhook->json('data.id'),
                 'webhook_delivery' => $webhookDelivery,
+                'privacy_request' => $privacyRequest,
                 ...$dimensions,
                 ...$pos,
                 ...$inventory,

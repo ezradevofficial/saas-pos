@@ -13,6 +13,8 @@ use App\Core\MasterData\History\HistoryTypes;
 use App\Core\MasterData\RecordUsage;
 use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberTypes;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Sync\SyncSources;
@@ -117,6 +119,33 @@ class HrServiceProvider extends ServiceProvider
         $this->app->singleton(HrPack::class);
         $this->app->scoped(Sensitive::class);
         $this->app->scoped(Schedules::class);
+        // NFR-08: an employee is a data subject. Anonymisation clears contact,
+        // medical, emergency and biometric data; the name, identifiers and
+        // employment dates stay for statutory employment and tax records
+        // (docs/privacy.md, retention conflicts).
+        $this->callAfterResolving(PrivacySubjects::class, function (PrivacySubjects $subjects) {
+            $subjects->register(new SubjectSource(
+                subjectType: 'employee',
+                table: 'hr_employees',
+                match: 'id',
+                primary: true,
+                personal: [
+                    'work_email' => 'null', 'work_phone' => 'null', 'personal_email' => 'null', 'personal_phone' => 'null',
+                    'address' => 'null', 'emergency_contacts' => 'empty_array', 'medical_notes' => 'null', 'biometric_ref' => 'null',
+                    'custom' => 'null',
+                ],
+                correctable: [
+                    'first_name' => ['sometimes', 'string', 'min:1', 'max:100'],
+                    'middle_name' => ['sometimes', 'nullable', 'string', 'max:100'],
+                    'last_name' => ['sometimes', 'string', 'min:1', 'max:100'],
+                    'personal_email' => ['sometimes', 'nullable', 'email', 'max:254'],
+                    'personal_phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+                    'work_email' => ['sometimes', 'nullable', 'email', 'max:254'],
+                    'work_phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+                ],
+                display: ['first_name', 'last_name', 'number'],
+            ));
+        });
     }
 
     public function boot(): void

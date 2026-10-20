@@ -24,6 +24,7 @@ use App\Core\Observability\ObservabilityServiceProvider;
 use App\Core\Onboarding\OnboardingServiceProvider;
 use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Platform\PlatformServiceProvider;
+use App\Core\Privacy\PrivacyServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
 use App\Core\Sync\SyncServiceProvider;
 use App\Core\Webhooks\WebhooksServiceProvider;
@@ -67,6 +68,7 @@ return [
     CustomFormsServiceProvider::class,
     ImportsServiceProvider::class,
     DataExportServiceProvider::class,
+    PrivacyServiceProvider::class,
     WebhooksServiceProvider::class,
     SyncServiceProvider::class,
     PaymentsServiceProvider::class,
