@@ -164,6 +164,7 @@ class TenantIsolationTest extends TestCase
         'pos_cash_movement' => 'pos_cash_movement', // H2: pos/cash-movements/{pos_cash_movement}/approve|reject
         'tenant_export' => 'tenant_export', // EXP-02: tenant-exports/{tenant_export}/link, the Owner's export request
         'webhook' => 'webhook', // HOOK-01: webhooks/{webhook}[/rotate-secret|test|archive]
+        'privacy_request' => 'privacy_request', // NFR-08: privacy/requests/{privacy_request}[/approve|reject|execute|report]
         'webhook_delivery' => 'webhook_delivery', // HOOK-01: webhook-deliveries/{webhook_delivery}[/replay]
         'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
         'brand_asset' => 'brand_asset', // BR-02, LAY-05: sync/brand-assets/{brand_asset} (device), the tenant's logo
