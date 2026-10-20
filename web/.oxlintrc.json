@@ -52,7 +52,8 @@
     {
       "files": [
         "src/components/ui/**",
-        "src/routes.jsx"
+        "src/routes.jsx",
+        "src/platform/routes.jsx"
       ],
       "rules": {
         "react/only-export-components": "off"

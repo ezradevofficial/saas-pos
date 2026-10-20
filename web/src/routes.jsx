@@ -89,7 +89,6 @@ import SignUp from './pages/auth/SignUp'
 import TwoFactor from './pages/auth/TwoFactor'
 import Verify from './pages/auth/Verify'
 import Welcome from './pages/onboarding/Welcome'
-import SupportEnter from './pages/auth/SupportEnter'
 
 // NFR-02: every page is its own chunk, loaded when its route is first opened.
 // The layouts (eager, above) render each page inside a Suspense boundary.
@@ -313,6 +312,7 @@ const WebhookDetail = lazy(() => import('./pages/settings/webhooks/WebhookDetail
 const Webhooks = lazy(() => import('./pages/settings/webhooks/Webhooks'))
 const Privacy = lazy(() => import('./pages/settings/privacy/Privacy'))
 const SupportAccess = lazy(() => import('./pages/settings/SupportAccess'))
+const SupportEnter = lazy(() => import('./pages/auth/SupportEnter'))
 const Subscription = lazy(() => import('./pages/settings/Subscription'))
 const Imports = lazy(() => import('./pages/settings/Imports'))
 const ImportWizard = lazy(() => import('./pages/settings/imports/ImportWizard'))
