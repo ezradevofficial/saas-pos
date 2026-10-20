@@ -173,6 +173,7 @@ class TenantIsolationTest extends TestCase
         'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
         'sso_connection' => 'sso_connection', // AUTH-11: sso/connections/{sso_connection}[/enable|disable|archive|test]
         'sso_domain' => 'sso_domain', // AUTH-11: sso/domains/{sso_domain}/check|archive
+        'sso_identity' => 'sso_identity', // AUTH-11: me/sso/identities/{sso_identity}/archive, users/{user}/sso-identities/{sso_identity}/archive
         'brand_asset' => 'brand_asset', // BR-02, LAY-05: sync/brand-assets/{brand_asset} (device), the tenant's logo
         'billing_invoice' => 'billing_invoice', // SUB-03: subscription/invoices/{billing_invoice}[/pdf|pay], the first invoice (the tenant's copy)
         'billing_payment' => 'billing_payment', // SUB-04: subscription/payments/{billing_payment}, an M-Pesa payment of that invoice
@@ -328,6 +329,8 @@ class TenantIsolationTest extends TestCase
         // AUTH-11: the JIT default role and its scope (PUT sso/settings).
         'jit_role_id' => 'role',
         'jit_scope_id' => 'company',
+        // AUTH-11: linking one's own account to an enabled connection (POST me/sso/link).
+        'connection_id' => 'sso_live_connection',
         'company_id' => 'company',
         'branch_id' => 'branch',
         'location_id' => 'location',
@@ -1681,6 +1684,7 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
             // AUTH-11: JIT provisioning's default role (A's custom role) at A's company.
+            'POST api/v1/me/sso/link' => ['connection_id' => $tenant->id('sso_live_connection'), 'origin' => 'https://app.example.test'],
             'PUT api/v1/sso/settings' => ['jit_role_id' => $tenant->id('role'), 'jit_scope_type' => 'company', 'jit_scope_id' => $tenant->id('company')],
             // LOY-01: the programme's gift card item (A's item is shared, TEN-08).
             'PUT api/v1/companies/{company}/loyalty-programme' => ['gift_card_item_id' => $tenant->id('gift_card_item')],

@@ -32,6 +32,7 @@ use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Sso\Models\SsoConnection;
 use App\Core\Sso\Models\SsoIdentity;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Device;
@@ -74,6 +75,7 @@ use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Configuration\TestLayoutKind;
 use Tests\Support\Fiscal\TestFiscalSource;
 use Tests\Support\Limits\FixedAllowances;
+use Tests\Support\Sso\FakeSamlIdp;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestOrderType;
 use Tests\Support\Workflow\TestRequestType;
@@ -354,9 +356,15 @@ final class TwoTenants
         $ssoConnection = self::ok($test->postJson('/api/v1/sso/connections', [
             'provider' => 'entra', 'name' => "Entra {$upper}", 'client_id' => (string) Str::uuid(), 'client_secret' => "secret-{$key}", 'directory_id' => (string) Str::uuid(),
         ], $owner), 201)->json('data.id');
-        app(TenantContext::class)->run($tenantId, fn () => SsoIdentity::create([
+        $ssoIdentity = app(TenantContext::class)->run($tenantId, fn () => SsoIdentity::create([
             'user_id' => $ownerId, 'connection_id' => $ssoConnection, 'subject' => "subject-{$key}", 'email' => "owner-{$key}@staff-{$key}.example.org",
-        ]));
+        ])->id);
+        // AUTH-11: an enabled SAML connection (no network to start a sign-in) for linking one's own account.
+        $ssoLive = self::ok($test->postJson('/api/v1/sso/connections', [
+            'provider' => 'saml', 'name' => "SAML {$upper}", 'idp_entity_id' => "https://idp-{$key}.example.org", 'idp_sso_url' => "https://idp-{$key}.example.org/sso",
+            'idp_certificates' => [FakeSamlIdp::pair()['cert']],
+        ], $owner), 201)->json('data.id');
+        app(TenantContext::class)->run($tenantId, fn () => SsoConnection::query()->whereKey($ssoLive)->update(['enabled' => true, 'tested_at' => now()]));
 
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
@@ -701,6 +709,8 @@ final class TwoTenants
                 'tenant_domain' => $tenantDomain,
                 'sso_domain' => $ssoDomain,
                 'sso_connection' => $ssoConnection,
+                'sso_identity' => $ssoIdentity,
+                'sso_live_connection' => $ssoLive,
                 'brand_asset' => $brandAsset,
                 'billing_invoice' => $billingInvoice,
                 'billing_payment' => $billingPayment,
