@@ -44,9 +44,12 @@ fixed below.
   without the sensitive values.
 - **Country rules are data.** Identifier types and statutory leave types
   come from the country pack (`api/country-packs/{KE,CD}/hr.json`, CP-01);
-  public holidays from the core holiday calendar. Statutory leave days are
-  **not** in the pack yet: they are seeded as "needs confirmation" and block
-  the actions that depend on them (HR-12). Overtime, night and holiday
+  public holidays from the core holiday calendar. Since 2026-10-17 the
+  packs carry the **researched** statutory leave days and identifier
+  formats of `docs/country-packs-research-2026-10.md` (CP-01: used, with
+  their confidence and sources, until the owner confirms them); values
+  whose research was low confidence stay "needs confirmation" and block the
+  actions that depend on them (HR-12). Overtime, night and holiday
   classification thresholds are company data (time rules, HR-20); HR counts
   hours, Payroll applies rates.
 
@@ -65,9 +68,9 @@ fixed below.
 | HR-09 | **Sensitive data by role.** Groups and their permissions at the employee's place: identity (`hr.identity.view`/`edit`: identifiers, date of birth), bank (`hr.bank.view`/`edit`: pay accounts), pay (`hr.pay.view`/`edit`: contract pay), medical (`hr.medical.view`/`edit`: medical notes, medical documents), disciplinary (`hr.disciplinary.view`/`manage`: cases and their documents). On top, field rules (RBAC-05) on resource `hr_employee` (fields `identifiers`, `date_of_birth`, `pay_accounts`, `pay`, `medical_notes`, `disciplinary`, `personal_email`, `personal_phone`, `address`, `emergency_contacts`) hide a field from a role even when its permission is held; hidden fields are left out of API responses, lists, saved list views, exports (EXP-01) and record history, and writing a hidden or read-only field is refused (`field_readonly`). | Must |
 | HR-10 | **Encryption at rest.** Identifier values, pay account numbers and medical notes are stored encrypted with the application key; the database never holds them in clear. Uniqueness and lookup use a keyed digest (HMAC-SHA256 under `HR_DIGEST_KEY`, a key separate from the application key, required outside local and testing and checked at boot), never the clear value. | Must |
 | HR-11 | **Audit of sensitive data.** Every response that shows a sensitive group in full records `hr.employee.sensitive_view` (the groups and the employee; one entry per employee and request), and every document download `hr.document.download`. Changes are audited (AUD-01) without the sensitive values: identifier, pay account and medical changes record which fields changed (`hr.employee.sensitive_update`), never the values; contract pay changes record `pay_changed`. | Must |
-| HR-12 | **Leave types.** Per company: code, name, paid or unpaid, unit days, accrual (`none`, `annual`, `monthly`), entitlement days per year, day count basis (`working_days`, `calendar_days`), carry-over cap (null: no cap, 0: nothing carried), negative balance allowed, whether a document is required, and the statutory key it comes from. **Statutory types come from the country pack** (`statutory_leave_types`, effective-dated): `POST hr/leave-types/apply-pack` copies the missing ones into a company (and the first hire in a company does it). The pack has no confirmed day counts yet, so copied types are **"Days needed"** (`entitlement_days` null, `needs_confirmation`): accrual skips them (reported) and requests of them are refused (`leave_days_needed`) until a holder of `hr.leave.manage` enters and confirms the days, which the company then owns. Days are never guessed. | Must |
+| HR-12 | **Leave types.** Per company: code, name, paid or unpaid, unit days, accrual (`none`, `annual`, `monthly`), entitlement days per year, day count basis (`working_days`, `calendar_days`), carry-over cap (null: no cap, 0: nothing carried), negative balance allowed, whether a document is required, and the statutory key it comes from. **Statutory types come from the country pack** (`statutory_leave_types`, effective-dated): `POST hr/leave-types/apply-pack` copies the missing ones into a company (and the first hire in a company does it). A pack type whose days are usable (confirmed, or **researched** at high or medium confidence, CP-01) is copied with its days, `qualifying_months` (months of service before it can be taken), `half_pay_days` (days at half pay after the full-pay days in a year) and `events` (per-event days within the yearly days), and keeps the pack's `research` (confidence, date, sources, assumed fields); the web app shows the "from public research" notice on it and on its requests. A type whose days are not usable is **"Days needed"** (`entitlement_days` null, `needs_confirmation`): accrual skips it (reported) and requests of it are refused (`leave_days_needed`) until a holder of `hr.leave.manage` enters and confirms the days, or until apply-pack finds usable days for it in the pack. Changing or confirming a researched type's days makes them the company's own (its research is cleared). Days are never guessed. | Must |
 | HR-13 | **Entitlement and accrual.** A leave ledger (`hr_leave_entries`), append-only, holds every movement in days (2 decimals): `accrual`, `adjustment`, `taken`, `reversal`, `carry_over`, `expiry`. The balance at a date is the sum of entries effective on or before it; available = balance minus pending requests. Accrual runs daily per tenant (and on demand, `POST hr/leave-accruals/run`), idempotently (one entry per employee, type and accrual key): accrual starts on the type's `accrues_from` date (earlier entitlement is an opening adjustment); `annual` grants the year's entitlement on 1 January (or the first day employed), pro-rated for the days employed in the year as known (to the termination date, else 31 December) ÷ days in the year; `monthly` credits entitlement ÷ 12 at each month end, pro-rated for a partial first or last month (days employed ÷ days in the month); amounts round half up to 2 decimals. At the start of each year, a balance above the type's carry-over cap expires (`expiry` on 1 January). Manual adjustments (signed days, reason) need `hr.leave.manage`. Terminated employees stop accruing after their termination date. | Must |
-| HR-14 | **Leave requests with approval.** Employee, type, start and end date, half days at either end, reason. Days are counted on the company's working days (core business hours, closed on public holidays) or calendar days, per the type. Refused when the range overlaps another pending or approved request (`leave_overlap`), when available days are short and the type does not allow negative balances (`leave_balance_short`), when the type needs confirmation (`leave_days_needed`), and outside the employee's employment. A request is the workflow document `hr.leave_request` (WF-01), numbered (HR-36), pending until its flow ends. Default flow (WF-02): one approval by the employee's line manager (APR-02 `line_manager`, registered by HR: the linked user of the `reports_to` employee), escalated to the HR Officers at the employee's place after two business days; no line manager (or one without a user): the node's escalation target at once. Whoever asked on the employee's behalf never approves either (APR-07). The employee never approves their own (APR-07: the requester is the employee's user when linked). Approved: the days are posted as `taken` and `LeaveApproved` is raised. Cancel: pending (its flow cancelled) or approved and not yet ended (the days posted back as `reversal`, `LeaveCancelled`). | Must |
+| HR-14 | **Leave requests with approval.** Employee, type, start and end date, half days at either end, reason. Days are counted on the company's working days (core business hours, closed on public holidays) or calendar days, per the type. Refused before the type's qualifying service (`leave_qualifying_service`), for an event the type does not list (`leave_event_unknown`) or longer than the event's days (`leave_event_days`), when the range overlaps another pending or approved request (`leave_overlap`), when available days are short and the type does not allow negative balances (`leave_balance_short`), when the type needs confirmation (`leave_days_needed`), and outside the employee's employment. A request is the workflow document `hr.leave_request` (WF-01), numbered (HR-36), pending until its flow ends. Default flow (WF-02): one approval by the employee's line manager (APR-02 `line_manager`, registered by HR: the linked user of the `reports_to` employee), escalated to the HR Officers at the employee's place after two business days; no line manager (or one without a user): the node's escalation target at once. Whoever asked on the employee's behalf never approves either (APR-07). The employee never approves their own (APR-07: the requester is the employee's user when linked). Approved: the days are posted as `taken` and `LeaveApproved` is raised. Cancel: pending (its flow cancelled) or approved and not yet ended (the days posted back as `reversal`, `LeaveCancelled`). | Must |
 | HR-15 | **Balances and calendar.** Balances per employee and type at a date (entitled this year, taken, pending, balance, available); a leave calendar of pending and approved leave over a date range, filtered by company, branch, department and employee. | Must |
 | HR-16 | **Shift patterns.** Shifts (per company: code, name, start and end time, which may cross midnight, unpaid break minutes) and rotations (a cycle of N days, each day a shift or a rest day). Archived, not deleted. | Must |
 | HR-17 | **Rotating rosters per branch or department.** A roster names a company, a branch or department (or both), a rotation and its anchor date, and members (employees of the company, each with a day offset into the cycle and an optional period). Generating a roster over a date range (at most 92 days) creates one planned shift per member and working day of the rotation, idempotently: an existing shift of that employee and date (generated, manual or swapped) is kept, a day of approved leave is skipped, a terminated employee gets none after their termination date. Rosters and shifts are edited by holders of `hr.roster.manage` at the place. | Must |
@@ -106,7 +109,7 @@ are `numeric(8,2)`.
 | `hr_employee_identifiers` | employee, `type` (pack key), `value` (encrypted), `value_hint` (last 4), `value_digest` (keyed digest; unique per company and type) |
 | `hr_pay_accounts` | employee, kind, provider, branch code, account name, `account_number` (encrypted), `account_hint`, currency, `is_primary`, `archived_at` |
 | `hr_contracts` | employee, type, start and end date, probation end, position, department, pay basis, `pay_minor`, `currency`, hours per week, end reason, status (`active`, `ended`) |
-| `hr_leave_types` | company, code, name, `statutory_key`, paid, accrual, `entitlement_days`, `needs_confirmation`, `count_basis`, `carry_over_max_days`, `allow_negative`, `requires_document`, `accrues_from`, `archived_at` |
+| `hr_leave_types` | company, code, name, `statutory_key`, paid, accrual, `entitlement_days`, `needs_confirmation`, `count_basis`, `carry_over_max_days`, `allow_negative`, `requires_document`, `accrues_from`, `qualifying_months`, `half_pay_days`, `events`, `research`, `archived_at`; requests add `event`, `half_pay_days` and `research`; accrual entries `researched` |
 | `hr_leave_entries` | Append-only ledger: employee, leave type, kind, signed `days`, `effective_on`, `key` (unique per employee and type: accrual and expiry runs and requests post once), source request, note, who |
 | `hr_leave_requests` | number, employee, company, branch, location, leave type, dates, half days, `days`, reason, status (`pending`, `approved`, `rejected`, `cancelled`), requester, decider and time, canceller, time and reason |
 | `hr_shifts` | company, code, name, `start_time`, `end_time`, `break_minutes`, `archived_at` |
@@ -288,8 +291,11 @@ Decisions taken while building (no owner input asked, per instructions):
    they never count or bill as POS devices (LIM-01). Their tokens are core
    personal access tokens; the core token check accepts any tokenable that
    says whether it is active (a small core change).
-3. **Statutory leave days are not seeded.** The packs list the statutory
-   types; their days are null and "Days needed" until confirmed (HR-12).
+3. **Statutory leave days come from the pack when usable.** Researched
+   days (2026-10-17) are copied with their research; the others are null
+   and "Days needed" until confirmed (HR-12). A half-pay day (KE sick
+   leave) is credited and counted on the request; Payroll does not yet pay
+   it at half.
 4. **HR counts, Payroll pays.** Time rules classify minutes; no multiplier
    or premium rate lives in HR.
 5. **Emergency contacts are part of the employee record** (jsonb), not a
@@ -458,11 +464,20 @@ Owner decisions (2026-10-14):
 
 Open for the owner:
 
-- Statutory leave days per country and their legal references (Kenya:
-  annual, maternity, paternity, sick, compassionate; DR Congo: annual
-  (congé annuel), maternity, sick, circumstantial): see the packs' `todo`.
-- Identifier formats (KRA PIN, Kenyan national ID, DRC national ID, CNSS
-  number): the packs enforce none until confirmed.
+- Researched and applied (2026-10-17), to confirm through a pack release
+  (ADM-04): Kenya annual 21 working days after 12 months, maternity 90
+  calendar days paid, paternity 14 days paid, sick 30 days full pay then
+  15 at half pay after 2 months' service (medium); KRA PIN
+  `^[AP][0-9]{9}[A-Z]$` (high) and national ID `^[0-9]{7,9}$` (medium,
+  format only). DR Congo maternity 14 weeks (98 calendar days; marked paid
+  as an assumption, the pay rate is unconfirmed) and circumstantial leave
+  10 working days a year with own marriage 2 and birth of a child 2
+  (medium).
+- Still needed: Kenya compassionate and pre-adoptive leave; DR Congo
+  annual and sick leave (low confidence, "Days needed"), the maternity pay
+  rate, the other circumstantial events; the DRC national ID and CNSS
+  number formats (none enforced); paying KE half-pay sick days at half in
+  Payroll.
 - Decision 16 (next punch kind within 16 hours) against HR-24.
 
 ## Stage 7C closing review: Payroll-facing changes

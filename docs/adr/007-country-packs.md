@@ -71,6 +71,22 @@ Each publish (changed or not, so a run that stopped half-way is completed by the
 - `tax_category_codes` holds a category's default tax code for each company. Each row is a configuration row: the link from a category to a company's code. It is not a business record.
 - Clearing a company's default (`tax_code_id: null`) deletes the row. The change is audited on the category as `core.tax_category.codes_update`, with the codes before and after. The archive rule (TEN-06) applies to the category and the tax codes, not to these links.
 
+### Researched values (2026-10-17)
+
+- A pack row has a status (`ResearchStatus`): `confirmed`, `researched`
+  (from public research: `confidence` high or medium, `researched_on`,
+  https `source` URLs, `needs_confirmation: false`) or
+  `needs_confirmation`. Rows without `status` are read from
+  `needs_confirmation`, so earlier files stay valid. Low-confidence
+  research is never entered. `PackFile` validates the fields.
+- A researched rate is used. `country_pack_tax_codes.research` and
+  `tax_rates.research` keep its research; `TaxCalculator` marks each
+  `TaxAmount` `researched`; the API says `rate_researched`. Propagation
+  updates the research with the rate, so a version that confirms the rate
+  clears it.
+- Payroll and HR packs use the same status (docs/modules/payroll.md,
+  hr.md). What was applied: docs/country-packs-research-2026-10.md.
+
 ## Consequences
 
 - Legal changes reach every tenant that has not taken over a code, with a full audit trail, without per-tenant code.

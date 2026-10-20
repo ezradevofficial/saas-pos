@@ -30,11 +30,15 @@ Accounting turns into journals when both modules are active.
 - **Statutory rules are country-pack data, never code.** KE and CD
   statutory tables (bands, reliefs, contribution rates, tiers, caps, levies,
   rounding rules) are effective-dated rows in
-  `api/country-packs/{KE,CD}/payroll.json`. **No figure is shipped**: every
-  value is null and "rate needed" until the owner confirms it from an
-  official source. A run for a company whose country has a required value
-  missing is refused, naming what is missing (PAY-08). Tests inject their
-  own fixture rates; they are never written to the packs.
+  `api/country-packs/{KE,CD}/payroll.json`. Each value is **confirmed**,
+  **researched** (public research, high or medium confidence, with its
+  sources: used, and recorded on every run that uses it, with a notice in
+  the web app, CP-01) or null and "rate needed" until confirmed. Since
+  2026-10-17 the researched values of `docs/country-packs-research-2026-10.md`
+  are shipped; low-confidence ones stay null. A run for a company whose
+  country has a required value missing is refused, naming what is missing
+  (PAY-08). Tests inject their own fixture rates; they are never written
+  to the packs.
 - **A pure engine.** The statutory engine is a pure, deterministic function
   of the pack values in force and the employee's pay, in integer minor
   units, with each component's rounding rule taken from the pack.
@@ -83,11 +87,42 @@ Accounting turns into journals when both modules are active.
 A component of `payroll.json`:
 
 ```
-{code, kind: income_tax|contribution|levy|relief|allowance, method, base,
- applies_to?, when?: insurance_premiums|dependants|children, required,
- periods: [{effective_from, effective_to, needs_confirmation, rounding:
- {mode: half_up|down|up, unit_minor}, ...method values}]}
+{code, kind: income_tax|contribution|levy|relief|allowance|deduction_limit,
+ method, base, applies_to?, when?: insurance_premiums|dependants|children|
+ pension|post_retirement_medical|mortgage_interest, required,
+ category?, includes?, may_not_apply?, unconfirmed?: not_applied,
+ periods: [{effective_from, effective_to, needs_confirmation,
+ status?: confirmed|researched|needs_confirmation, confidence?, researched_on?,
+ source?: [urls], assumed?: [fields], rounding: {mode: half_up|down|up,
+ unit_minor}, ...method values}]}
 ```
+
+**Value status (CP-01, `App\Core\CountryPacks\ResearchStatus`).** A
+period is usable when confirmed (`needs_confirmation: false`) or
+`researched` with `confidence` high or medium, `researched_on` and https
+`source` URLs. Low-confidence research is never entered (the period stays
+`needs_confirmation`, and may say `confidence: low` with its sources).
+`assumed` lists a researched period's fields that are conservative
+defaults pending confirmation (CD: CNSS not deducted from the IPR base;
+rounding to the franc). A period takes the lowest confidence of its
+values. Every run records in `inputs.statutory` the researched periods it
+used (component, effective date, confidence, research date, sources,
+assumed fields), the components left out while unconfirmed and those the
+company marked not applicable; the run screen then shows "Some statutory
+values come from public research and haven't been confirmed by an
+accountant. Check them before filing.", linked to the statutory rates
+page (Payroll settings, Statutory tab), which lists each value's status,
+confidence and sources.
+
+**Not applicable (CP-01).** A component with `may_not_apply` (CD INPP)
+blocks runs while unconfirmed, but the company may mark it not applicable
+in Payroll settings (`POST payroll/statutory/{company}/not-applicable`
+with a reason, `payroll.settings.manage`; `DELETE …/{component}` undoes
+it). The mark (reason, who, when) is kept in `payroll_settings.not_applicable`,
+audited as `payroll.statutory.not_applicable` / `applicable`, and recorded
+on each run. **Not applied while unconfirmed:** a component with
+`unconfirmed: not_applied` (CD IPR dependants) is left out of runs instead
+of blocking them until its value is usable.
 
 Every money figure is per **month**, in minor units of the pack currency,
 as a digit string; rates are percentages as strings ("12.5"). A value that
@@ -95,7 +130,7 @@ is present and null is missing; a value absent does not apply. Methods:
 
 | Method | Values | Result |
 | --- | --- | --- |
-| `bands` | `bands: [{up_to_minor, rate}]` (last `up_to_minor` null), optional `max_rate` | Progressive tax on the base; capped at `max_rate` % of the base when present |
+| `bands` | `bands: [{up_to_minor, rate}]` (last `up_to_minor` null), optional `max_rate`, `min_minor` | Progressive tax on the base; capped at `max_rate` % of the base; at least `min_minor` on positive taxable pay (never more than that pay) |
 | `rate` | `employee_rate`, `employer_rate` (either may be absent), optional `base_cap_minor`, `employee_min_minor`, `employee_max_minor`, `reduces_taxable` | Percent of the base (capped), employee share floored and capped |
 | `tiers` | `tiers: [{up_to_minor, employee_rate, employer_rate}]`, `reduces_taxable` | Each slice of the base at its tier's rates |
 | `fixed` | `employee_minor` and/or `employer_minor`, `reduces_taxable` when it has an employee share | A fixed amount per employee per month |
@@ -104,25 +139,40 @@ is present and null is missing; a value absent does not apply. Methods:
 | `relief_rate` | `rate`, `cap_minor` | Percent of its base, capped, subtracted from `applies_to` |
 | `reduction_per_dependant` | `rate`, `max_dependants` | `applies_to` reduced by rate % per dependant (up to the max) |
 | `allowance_per_child` | `amount_minor`, `taxable`, `contributory` | Paid to the employee per child; added to gross |
+| `deduction_cap` | `cap_minor` (component `category` and `includes`) | The pre-tax deductions of its category (pay items with that `pre_tax_category`) plus the employee shares of the components it `includes` reduce taxable pay up to the cap; the excess stays taxable |
 
 Order: earnings in the pack currency → allowances → contributions (on
 `gross`, `taxable_gross`, `contributory_gross` or `basic`) → taxable pay
 (`taxable_gross` − pre-tax deductions − employee contributions that
-`reduces_taxable`) → income tax by bands → reductions per dependant → the
-`max_rate` cap → fixed and rate reliefs → floor at zero → rounding. Each
+`reduces_taxable` + what exceeds a deduction limit) → income tax by bands →
+reductions per dependant → the `max_rate` cap → the `min_minor` minimum →
+fixed and rate reliefs → floor at zero → rounding. Each
 component is computed exactly (decimals) and rounded once by its own rule.
 A pack's `non_monthly` value says how monthly figures apply to weekly and
 bi-weekly pay (`pro_rata`: × 12 ÷ periods per year); null blocks such runs.
 
 The packs ship the KE components `paye` (bands), `personal_relief`
 (relief_fixed), `insurance_relief` (relief_rate, when insurance premiums),
-`nssf` (tiers), `shif` (rate), `ahl` (rate), `nita` (fixed, employer); and
-the CD components `ipr` (bands with `max_rate`), `ipr_dependants`
-(reduction_per_dependant, when dependants), `cnss` (rate, employee and
-employer pension), `cnss_risks` and `cnss_family` (rate, employer), `inpp`
-(headcount_rate), `onem` (rate, employer) and `family_allowance`
-(allowance_per_child, when children). Every value is null; the packs'
-`todo` lists each one.
+`pension_deduction`, `post_retirement_medical_deduction` and
+`mortgage_interest_deduction` (deduction_cap, when the category is used;
+pension includes NSSF), `nssf` (tiers), `shif` (rate), `ahl` (rate),
+`nita` (fixed, employer); and the CD components `ipr` (bands with
+`max_rate` and `min_minor`), `ipr_dependants` (reduction_per_dependant,
+when dependants, not applied while unconfirmed), `cnss` (rate, employee
+and employer pension), `cnss_risks` and `cnss_family` (rate, employer),
+`inpp` (headcount_rate, may not apply), `onem` (rate, employer, on the
+taxable base) and `family_allowance` (allowance_per_child, when children).
+See "Statutory values" below for what is researched and what is still
+needed; the packs' `todo` lists each one.
+
+Worked example (ResearchedPackTest, shipped KE pack, pay date
+2026-10-28): gross KES 100,000 → NSSF 6,000 (9,000 × 6% + 91,000 × 6%),
+SHIF 2,750, housing levy 1,500 (employer 1,500), taxable pay 89,750, PAYE
+2,400 + 2,083.25 + 17,225.10 − 2,400 relief = 19,308.35, NITA 50
+(employer), net 70,441.65. With a pay date in January 2026 (NSSF year 3)
+NSSF is 4,320 and PAYE 19,812.35. CD at CDF 1,000,000: CNSS 50,000 (and
+50,000 employer), risks 15,000, family 65,000, ONEM 2,000, IPR 4,860 +
+125,700 = 130,560, net 819,440.
 
 ## Data model
 
@@ -433,43 +483,40 @@ decision the owner may change):
 | PAY-23, PAY-25 to PAY-27 | Built and tested (field rules, lists and exports, audit, scope across the tests; the tenant isolation suite covers every payroll table and route) |
 | PAY-28 | Built (EnforceSubscription allows calculate, submit and post) |
 
-## Statutory values the owner must confirm
+## Statutory values
 
-Nothing below is shipped; each is null in the pack until confirmed with
-its legal reference and effective date (the packs' `todo`).
+From public research (2026-10-17, `docs/country-packs-research-2026-10.md`),
+**researched** and used until the owner confirms them through a pack
+release (ADM-04), each with its sources in the pack:
 
 Kenya (`api/country-packs/KE/payroll.json`, KES):
 
-1. PAYE: the monthly bands (each upper limit and rate) and the rounding rule.
-2. Personal relief: the monthly amount.
-3. Insurance relief: the rate and the monthly cap.
-4. NSSF: the tiers (lower and upper earnings limits) with employee and employer rates, for the phase in force; whether the employee's NSSF reduces taxable pay; the rounding rule.
-5. SHIF: the employee rate, the monthly minimum, whether there is a maximum or an employer share; whether it reduces taxable pay; the rounding rule.
-6. Affordable Housing Levy: the employee and employer rates; whether the employee's levy reduces taxable pay (or gives a relief); the rounding rule.
-7. NITA: the employer levy per employee per month; the rounding rule.
-8. The bases: NSSF, SHIF and the levy on contributory gross pay; NITA per employee.
-9. How monthly figures apply to weekly and bi-weekly pay.
-10. Other items not modelled: pension relief limits, mortgage interest relief, the disability exemption.
-11. Layouts: iTax P10 (PAYE), NSSF, SHIF (SHA), housing levy and NITA returns, the P9 card, and the M-Pesa B2C bulk file.
+1. PAYE monthly bands 10% to 24,000, 25% to 32,333, 30% to 500,000, 32.5% to 800,000, 35% above (medium: the rounding rule is medium).
+2. Personal relief 2,400 a month (high). Residency is not recorded: every employee gets it.
+3. Insurance relief 15% of premiums, at most 5,000 a month (medium). SHIF is treated as a deduction, not an insurance-relief item.
+4. Deductions before PAYE: SHIF, the housing levy, pension and NSSF together up to 30,000, post-retirement medical fund up to 15,000, mortgage interest up to 30,000 a month (high). Pay items say their category (`pre_tax_category`).
+5. SHIF 2.75% of gross, minimum 300, no cap, employee only (medium with rounding).
+6. Housing levy 1.5% + 1.5%, no cap; the employee part reduces taxable pay.
+7. NSSF year 3 to 2026-01-31 (8,000 / 72,000) and year 4 from 2026-02-01 (9,000 / 108,000), 6% + 6% per tier; reduces taxable pay.
+8. NITA 50 per employee per month (employer).
+9. Rounding: each component to the cent, once (medium).
 
-DR Congo (`api/country-packs/CD/payroll.json`, CDF):
+DR Congo (`api/country-packs/CD/payroll.json`, CDF), all medium:
 
-1. IPR: the monthly bands in CDF (each upper limit and rate), the maximum as a share of taxable pay, and the rounding rule.
-2. IPR reduction for dependants: the rate per dependant and the maximum number.
-3. CNSS pension: employee and employer rates, whether a ceiling applies, whether the employee's share reduces taxable pay, the rounding rule.
-4. CNSS occupational risks: the employer rate and rounding.
-5. CNSS family benefits: the employer rate and rounding.
-6. INPP: the employer rate per headcount bracket and rounding.
-7. ONEM: the employer rate and rounding.
-8. Family allowances: the amount per child per month, whether taxable and subject to contributions, the rounding rule.
-9. The bases: CNSS on contributory gross pay; INPP and ONEM on gross pay.
-10. How monthly figures apply to weekly and bi-weekly pay.
-11. Other items not modelled: a minimum wage check, allowance exemptions, a tax on expatriates' pay.
-12. Layouts: the IPR (DGI), CNSS, INPP and ONEM declarations.
+1. IPR: annual bands ÷ 12 (3% to 162,000, 15% to 1,800,000, 30% to 3,600,000, 40% above, per month), capped at 30% of taxable pay, minimum CDF 2,000.
+2. CNSS pension 5% employee and 5% employer; occupational risks 1.5%; family benefits 6.5% (employer).
+3. ONEM 0.2% employer on the taxable base.
+4. Assumed until confirmed: the employee's CNSS does not reduce the IPR base; no CNSS ceiling; rounding to the franc.
+
+**Still needed** (null; the packs' `todo`):
+
+- KE: weekly and bi-weekly pay (`non_monthly`); other items (disability exemption); the return layouts (P10, NSSF, SHIF, housing levy, NITA, P9) and the M-Pesa B2C bulk file.
+- CD: **INPP** (sources conflict: low; runs are refused until confirmed, unless the company marks it not applicable); the **IPR reduction for dependants** (low; not applied, dependants give no reduction); the **family allowance** per child (runs with an employee who has children are refused); whether CNSS reduces the IPR base (low; not deducted); `non_monthly`; the declaration layouts (IPR, CNSS, INPP, ONEM).
+- Payroll does not yet reduce pay for HR's half-pay sick days (KE): the leave request records them.
 
 ## Open for the owner
 
-- Every statutory value above.
+- Confirming every researched value above, and the values still needed.
 - The CD liability accounts for INPP and ONEM (438) and other deductions
   (428), and INPP and ONEM expensed to 641 (accounting.md decision 27).
 - The engine's fixed order (decision 2), and whether premiums stack
