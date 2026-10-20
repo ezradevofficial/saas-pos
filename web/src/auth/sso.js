@@ -73,6 +73,10 @@ export const SSO_REASONS = [
   'identity_conflict',
   'deactivated',
   'jit_stale',
+  'ticket_invalid',
+  'owner_link_required',
+  'link_email_mismatch',
+  'name_id_transient',
 ]
 
 /** The sentence for a failure code from the callback (unknown codes read as the IdP's). */

@@ -142,7 +142,7 @@ export default function SignIn() {
       {ssoError ? (
         <div className="mb-4">
           <Alert tone="danger" title={t('auth.sso.failedTitle')}>
-            {ssoError === 'ticket_invalid' ? t('auth.sso.ticketInvalid') : ssoReason(t, ssoError)}
+            {ssoReason(t, ssoError)}
           </Alert>
         </div>
       ) : null}

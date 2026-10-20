@@ -633,7 +633,11 @@
         "no_account": "Aucun compte de cette organisation n’utilise cette adresse. Demandez une invitation à votre administrateur.",
         "identity_conflict": "Une autre connexion est déjà liée à ce compte. Demandez à votre administrateur.",
         "deactivated": "Votre compte est désactivé. Demandez à votre administrateur de le réactiver.",
-        "jit_stale": "Les nouveaux comptes ne peuvent pas être créés pour le moment. Demandez à votre administrateur."
+        "jit_stale": "Les nouveaux comptes ne peuvent pas être créés pour le moment. Demandez à votre administrateur.",
+        "ticket_invalid": "Cette connexion a expiré ou a déjà été utilisée. Recommencez.",
+        "owner_link_required": "Les propriétaires ne sont jamais liés par leur e-mail. Connectez-vous avec votre mot de passe, puis liez votre compte dans Paramètres, Sécurité.",
+        "link_email_mismatch": "Le fournisseur d’identité a connecté une autre personne. Connectez-vous-y avec votre propre compte, puis réessayez.",
+        "name_id_transient": "Votre fournisseur d’identité a envoyé un identifiant à usage unique. Demandez à votre administrateur d’envoyer l’adresse e-mail ou un identifiant persistant."
       }
     }
   },
@@ -12287,7 +12291,8 @@
         "linked": "Connecte l’utilisateur déjà lié à cette adresse.",
         "link": "Lie cette adresse à son utilisateur existant à la première connexion.",
         "invitation": "Accepte l’invitation en attente pour cette adresse.",
-        "provision": "Crée un compte avec le rôle par défaut."
+        "provision": "Crée un compte avec le rôle par défaut.",
+        "owner_link": "C’est un propriétaire : il lie lui-même son compte dans Paramètres, Sécurité."
       },
       "register": "Valeurs pour votre fournisseur d’identité",
       "redirectUri": "URI de redirection",
@@ -12331,6 +12336,26 @@
     "test": {
       "ok": "La connexion de test a réussi. Vérifiez le résultat ci-dessous, puis activez la connexion.",
       "failed": "La connexion de test a échoué. La raison est affichée sur la connexion."
+    },
+    "myLinks": {
+      "title": "Authentification unique pour votre compte",
+      "text": "Liez votre compte au fournisseur d’identité de votre organisation. Les propriétaires lient leur compte ici ; ils ne sont jamais liés par leur e-mail.",
+      "empty": "Votre compte n’est pas encore lié.",
+      "link": "Lier mon compte avec {{name}}",
+      "linked": "Lié en tant que {{email}} avec {{name}}.",
+      "unlink": "Délier",
+      "unlinkFor": "Délier {{name}}",
+      "done": "Votre compte est lié. La prochaine fois, connectez-vous avec Continuer avec le SSO.",
+      "failed": "Votre compte n’a pas été lié."
+    },
+    "userLinks": {
+      "title": "Liens d’authentification unique",
+      "text": "Les comptes du fournisseur d’identité avec lesquels cet utilisateur se connecte. Délier arrête cette connexion ; l’utilisateur peut se lier à nouveau en se connectant.",
+      "empty": "Aucun lien d’authentification unique.",
+      "linked": "{{email}} avec {{name}}",
+      "lastUsed": "Dernière utilisation {{when}}.",
+      "unlink": "Délier",
+      "unlinkFor": "Délier {{email}}"
     }
   }
 }

@@ -104,7 +104,8 @@ class SaveSsoConnectionRequest extends SsoManageRequest
 
         if ($this->provider() === SsoConnection::SAML) {
             if (filled($data['metadata_xml'] ?? null)) {
-                $settings = $metadata->fromXml($data['metadata_xml']);
+                // Pasted: nothing to fetch again.
+                $settings = [...$metadata->fromXml($data['metadata_xml']), 'metadata_url' => null];
             } elseif (filled($data['metadata_url'] ?? null)) {
                 $settings = $metadata->fromUrl($data['metadata_url']);
             }

@@ -115,6 +115,7 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_tenants_with_pending_domains()` | `DueTenants::withPendingDomains()` (BR-05) | active tenants with a custom domain waiting for its TXT record |
 | `app_tenants_with_domain_checks_due(p_at timestamptz)` | `domains:verify` (BR-05) | active tenants with a pending claim, a verified domain due for its daily re-check, or a claim failed for 7 days |
 | `app_tenants_with_sso_domain_checks_due(p_at timestamptz)` | `domains:verify` (AUTH-11, ADR 023) | the same, for SSO email domains (`sso_domains`) |
+| `app_tenants_with_sso_metadata_urls()` | `sso:refresh-metadata` (AUTH-11, ADR 023) | active tenants with a SAML connection whose metadata was fetched by URL |
 | `app_tenants_with_billing_due(p_at timestamptz)` | `billing:cycle` (SUB-03, SUB-05, ADR 016) | active customers whose trial or period ends within 7 days, or that are past due or read-only, or have an open invoice already due |
 | `app_tenants_with_modules_to_purge(p_before timestamptz)` | `billing:purge-report` (SUB-07) | switched-off modules, switched off before `p_before`, not yet flagged for purge |
 | `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `webhooks:sweep` (HOOK-01, ADR 021) | webhook deliveries left pending or sending, or overdue for a retry, since before `p_stale_before`, or created before `p_prune_before` (30-day retention) |
@@ -169,6 +170,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_with_billing_due(p_at timestamptz)` | `setof uuid` | `billing:cycle` |
 | `app_tenants_with_domain_checks_due(p_at timestamptz)` | `setof uuid` | `domains:verify` |
 | `app_tenants_with_sso_domain_checks_due(p_at timestamptz)` | `setof uuid` | `domains:verify`, SSO email domains (AUTH-11) |
+| `app_tenants_with_sso_metadata_urls()` | `setof uuid` | `sso:refresh-metadata` (AUTH-11) |
 | `app_tenants_with_due_approval_timers(p_at timestamptz)` | `setof uuid` | `approvals:process-timers` |
 | `app_tenants_with_due_crm_reminders(p_at timestamptz)` | `setof uuid` | `crm:remind` |
 | `app_tenants_with_expired_ecom_reservations(p_at timestamptz)` | `setof uuid` | `ecommerce:expire` |

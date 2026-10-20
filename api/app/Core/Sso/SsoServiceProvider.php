@@ -2,6 +2,7 @@
 
 namespace App\Core\Sso;
 
+use App\Core\Sso\Console\RefreshSamlMetadataCommand;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -19,5 +20,9 @@ class SsoServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for(self::LIMITER, fn (Request $request) => Limit::perMinute((int) config('sso.start_per_minute', 20))->by('sso|'.$request->ip()));
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([RefreshSamlMetadataCommand::class]);
+        }
     }
 }

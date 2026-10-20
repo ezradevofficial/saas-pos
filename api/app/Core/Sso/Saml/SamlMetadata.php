@@ -13,8 +13,10 @@ use Throwable;
  * certificates). Shown and saved like typed values.
  *
  * Fetching is SSRF-guarded: https only, the host must resolve only to
- * public addresses and the request is pinned to them (no rebinding), no
- * redirects, a timeout and a size cap.
+ * public addresses (never private, reserved, carrier-grade NAT, NAT64 or
+ * 6to4) and the request is pinned to them (no rebinding), no redirects, a
+ * timeout, and the body read with a running byte cap. The URL is kept, and
+ * `sso:refresh-metadata` reads it again daily (SamlMetadataRefresh).
  */
 class SamlMetadata
 {
@@ -55,7 +57,7 @@ class SamlMetadata
     }
 
     /**
-     * @return array{idp_entity_id: string, idp_sso_url: string, idp_certificates: list<string>}
+     * @return array{idp_entity_id: string, idp_sso_url: string, idp_certificates: list<string>, metadata_url: string}
      *
      * @throws ApiException 422 metadata_unreachable, metadata_invalid
      */
@@ -80,6 +82,7 @@ class SamlMetadata
         try {
             $response = Http::timeout((int) config('sso.metadata_timeout'))
                 ->withOptions([
+                    'stream' => true,
                     'allow_redirects' => false,
                     // Pinned to the addresses just checked.
                     'curl' => [CURLOPT_RESOLVE => array_map(fn ($ip) => "{$host}:{$port}:".(str_contains($ip, ':') ? "[{$ip}]" : $ip), $ips)],
@@ -94,12 +97,30 @@ class SamlMetadata
             throw self::unreachable();
         }
 
-        if (! $response->successful() || strlen($response->body()) > $max) {
+        if (! $response->successful()) {
+            throw self::unreachable();
+        }
+
+        // Read with a running cap: a body without (or lying about) its length stops here.
+        $stream = $response->toPsrResponse()->getBody();
+        $body = '';
+
+        try {
+            while (! $stream->eof() && strlen($body) <= $max) {
+                $body .= $stream->read(8192);
+            }
+        } catch (Throwable) {
+            throw self::unreachable();
+        } finally {
+            $stream->close();
+        }
+
+        if (strlen($body) > $max) {
             throw self::unreachable();
         }
 
         try {
-            return $this->fromXml($response->body());
+            return [...$this->fromXml($body), 'metadata_url' => $url];
         } catch (ApiException) {
             throw self::invalid('metadata_url');
         }
@@ -119,9 +140,47 @@ class SamlMetadata
         return @openssl_x509_read($pem) === false ? null : $pem;
     }
 
+    /**
+     * Ranges PHP's filters let through that still reach internal networks:
+     * carrier-grade NAT, NAT64 (an IPv4 address inside) and 6to4.
+     */
+    public const DENIED_RANGES = ['100.64.0.0/10', '64:ff9b::/96', '2002::/16'];
+
     public static function isPublic(string $ip): bool
     {
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            return false;
+        }
+
+        foreach (self::DENIED_RANGES as $range) {
+            if (self::inRange($ip, $range)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function inRange(string $ip, string $cidr): bool
+    {
+        [$subnet, $bits] = explode('/', $cidr);
+        $address = inet_pton($ip);
+        $network = inet_pton($subnet);
+
+        if ($address === false || $network === false || strlen($address) !== strlen($network)) {
+            return false;
+        }
+
+        $bits = (int) $bits;
+        $bytes = intdiv($bits, 8);
+
+        if (substr($address, 0, $bytes) !== substr($network, 0, $bytes)) {
+            return false;
+        }
+
+        $rest = $bits % 8;
+
+        return $rest === 0 || ((ord($address[$bytes]) ^ ord($network[$bytes])) & (0xFF << (8 - $rest)) & 0xFF) === 0;
     }
 
     private static function unreachable(): ApiException

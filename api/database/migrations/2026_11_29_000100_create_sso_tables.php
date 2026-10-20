@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Schema;
 // - sso_identities: a user linked to an IdP subject, one live link per
 //   connection; unlinking or repointing the connection archives links.
 //
-// Three owner-owned security-definer functions answer before any tenant is
+// Four owner-owned security-definer functions answer before any tenant is
 // known (ADR 002), each returning tenant ids only.
 return new class extends Migration
 {
@@ -122,6 +122,14 @@ return new class extends Migration
                     or (d.status = 'failed' and d.failed_at <= p_at - interval '7 days'))
                 order by 1
                 SQL],
+            // sso:refresh-metadata: active tenants with a SAML connection whose
+            // metadata was fetched by URL.
+            'app_tenants_with_sso_metadata_urls()' => ['', <<<'SQL'
+                select distinct c.tenant_id from public.sso_connections c
+                join public.tenants t on t.id = c.tenant_id and t.status = 'active'
+                where c.provider = 'saml' and c.archived_at is null and coalesce(c.settings->>'metadata_url', '') <> ''
+                order by 1
+                SQL],
         ] as $signature => [$types, $body]) {
             $name = strstr($signature, '(', true);
 
@@ -145,6 +153,7 @@ return new class extends Migration
         DB::unprepared('drop function if exists public.sso_tenant_for_email_domain(text)');
         DB::unprepared('drop function if exists public.sso_tenant_for_host(text, text)');
         DB::unprepared('drop function if exists public.app_tenants_with_sso_domain_checks_due(timestamptz)');
+        DB::unprepared('drop function if exists public.app_tenants_with_sso_metadata_urls()');
         Schema::dropIfExists('sso_identities');
         Schema::dropIfExists('sso_domains');
         Schema::dropIfExists('sso_connections');

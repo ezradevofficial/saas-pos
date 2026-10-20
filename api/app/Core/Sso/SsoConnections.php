@@ -30,7 +30,7 @@ class SsoConnections
     public const SETTINGS = [
         SsoConnection::ENTRA => ['client_id', 'directory_id'],
         SsoConnection::GOOGLE => ['client_id', 'hosted_domain'],
-        SsoConnection::SAML => ['idp_entity_id', 'idp_sso_url', 'idp_certificates'],
+        SsoConnection::SAML => ['idp_entity_id', 'idp_sso_url', 'idp_certificates', 'metadata_url'],
     ];
 
     /** Settings that name the IdP: changing one points the connection at another IdP. */

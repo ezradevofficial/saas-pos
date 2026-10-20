@@ -633,7 +633,11 @@
         "no_account": "No account in this organisation uses this email. Ask your administrator for an invitation.",
         "identity_conflict": "Another sign-in is already linked to this account. Ask your administrator.",
         "deactivated": "Your account is deactivated. Ask your administrator to reactivate it.",
-        "jit_stale": "New accounts cannot be created right now. Ask your administrator."
+        "jit_stale": "New accounts cannot be created right now. Ask your administrator.",
+        "ticket_invalid": "This sign-in has expired or was already used. Start again.",
+        "owner_link_required": "Owners are never linked by email. Sign in with your password, then link your account under Settings, Security.",
+        "link_email_mismatch": "The identity provider signed in someone else. Sign in there with your own account, then try again.",
+        "name_id_transient": "Your identity provider sent a one-time user ID. Ask your administrator to send the email address or a persistent ID."
       }
     }
   },
@@ -12287,7 +12291,8 @@
         "linked": "Signs in the user already linked to this address.",
         "link": "Links this address to its existing user on first sign-in.",
         "invitation": "Accepts the open invitation for this address.",
-        "provision": "Creates an account with the default role."
+        "provision": "Creates an account with the default role.",
+        "owner_link": "This is an Owner: they link their account themselves under Settings, Security."
       },
       "register": "Values for your identity provider",
       "redirectUri": "Redirect URI",
@@ -12331,6 +12336,26 @@
     "test": {
       "ok": "The test sign-in worked. Check the result below, then enable the connection.",
       "failed": "The test sign-in failed. The reason is shown on the connection."
+    },
+    "myLinks": {
+      "title": "Single sign-on for your account",
+      "text": "Link your account to your organisation’s identity provider. Owners link their account here; they are never linked by email.",
+      "empty": "Your account is not linked yet.",
+      "link": "Link my account with {{name}}",
+      "linked": "Linked as {{email}} with {{name}}.",
+      "unlink": "Unlink",
+      "unlinkFor": "Unlink {{name}}",
+      "done": "Your account is linked. Next time, sign in with Continue with SSO.",
+      "failed": "Your account was not linked."
+    },
+    "userLinks": {
+      "title": "Single sign-on links",
+      "text": "Identity provider accounts this user signs in with. Unlinking stops that sign-in; the user can link again by signing in.",
+      "empty": "No single sign-on links.",
+      "linked": "{{email}} with {{name}}",
+      "lastUsed": "Last used {{when}}.",
+      "unlink": "Unlink",
+      "unlinkFor": "Unlink {{email}}"
     }
   }
 }
