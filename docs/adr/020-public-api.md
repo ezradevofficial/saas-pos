@@ -21,6 +21,7 @@ About 950 method signatures across policies, services and resources take an `App
 
 - Format: `sk_live_<id>_<secret>` for live tenants, `sk_test_<id>_<secret>` for sandbox tenants. `<id>` is 16 lowercase letters and digits, stored in `api_keys.public_id` (unique); `<secret>` is 40 random letters and digits. The key is shown once, in the create or rotate response. Only `sha256(secret)` is stored, as Sanctum does for tokens (the secret has 238 bits of entropy, so a slow hash adds nothing).
 - **Lookup before the tenant is known** follows ADR 002: the security-definer function `api_key_tenant(p_public_id text, p_sandbox boolean)` returns only the tenant id of a key whose tenant's sandbox flag matches the prefix. The guard then enters that tenant and reads the key under row-level security, compares hashes with `hash_equals`, and refuses a revoked or expired key, a tenant that is not active, or a principal that is not status `service`.
+- **Who may change a key.** Renaming, rescoping and rotating take the right to grant the key's role at its scope (`Grants`), so a key manager cannot take over or widen a key they could not have made. Any key manager may revoke; the assignment is removed through `RoleManager` (owner safety, audit).
 - **Rotation with overlap.** Rotating keeps the id, stores the new secret's hash and moves the old hash to `previous_secret_hash` with `previous_expires_at` (0 to 168 hours, default 24). Both secrets work until then. Revoking clears both at once.
 - Every create, update, rotate and revoke is audited on the key (`core.api_key.*`, AUD-01, RBAC-12), and the principal's assignment through `RoleManager` as for people.
 
@@ -45,10 +46,11 @@ About 950 method signatures across policies, services and resources take an `App
 ### Deprecation and sunset
 
 - `config/api.php` `deprecations` lists operations as `"METHOD uri"` with `deprecated_at`, `sunset` (at least 6 months later) and a changelog anchor. The `public-api` middleware adds `Deprecation: @<unix time>` (RFC 9745), `Sunset: <HTTP date>` (RFC 8594) and `Link: <changelog>; rel="deprecation"`. The OpenAPI document marks them `deprecated: true`.
-- `php artisan api:docs --check` (CI) fails when the generated document drops an operation of the committed baseline (`resources/openapi/v1.json`) that has no deprecation entry, or when the baseline is stale.
+- `php artisan api:docs --check` (CI) fails when the generated document drops an operation of the committed baseline (`resources/openapi/v1.json`) that has no deprecation entry, or when the baseline is stale. CI then runs `api:docs --against=<file>` with the base branch's document (`origin/<base>` for a pull request, `HEAD~1` on a push), so a branch cannot drop an operation by rewriting the baseline too.
 
 ### Rate limits
 
+- Failed `sk_` authentications are limited per client address (`api.rate_limits.failed_auth_per_ip`, 429 before any lookup).
 - Two fixed one-minute windows per request, counted in the cache (Redis in production): per key, and per tenant across its keys. The tenant limit is the plan's (`catalogue_bundles.api_requests_per_minute`, null for the default), falling back to `api.rate_limits.tenant_per_minute`; the key limit is `api.rate_limits.key_per_minute`.
 - Every key response carries `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` (seconds) for the tighter of the two windows. A refused request answers 429 `rate_limited` with `Retry-After`, in the error shape below, in English or French.
 - People's requests keep their existing per-route limiters.
@@ -69,12 +71,15 @@ About 950 method signatures across policies, services and resources take an `App
   - the same key and body again replays the stored status and body, with `Idempotent-Replayed: true`;
   - the same key with another body answers 422 `idempotency_mismatch`;
   - the same key while the first request still runs answers 409 `idempotency_in_progress`;
-  - a 5xx is not stored, so the client may retry.
+  - a 5xx is not stored, so the client may retry;
+  - a claim holds its key 60 s (`locked_until`); after that, the same key and body take it over (a worker that died never blocks the key for a day).
+- The hash covers the method, the request URI with its query string, and the body.
+- `api:prune-idempotency` (hourly) deletes expired rows of every tenant through `app_prune_api_idempotency_keys()`, a security-definer function that returns only a count (ADR 002).
 - Modules with their own idempotency (POS sale UUIDs, e-commerce orders, loyalty charges) keep it; the header adds a uniform layer for every key POST.
 
 ### Usage
 
-- `api_key_usage_days` counts requests per key and UTC day (one upsert per request). The back office shows requests per day; `last_used_at` is updated at most once a minute.
+- Only admitted requests are counted (after the rate limit). Counters live in the cache (Redis: one INCR per key and UTC day, kept 3 days) with the key's last use; `api:flush-usage` (every 5 minutes) sets `api_key_usage_days` and `last_used_at` from them, tenant by tenant (`app_tenants_with_api_keys()`). Nothing is written to the database per request. The back office reads the table plus the counters not flushed yet.
 
 ### Documentation (API-04)
 
@@ -84,9 +89,13 @@ About 950 method signatures across policies, services and resources take an `App
 
 ### Sandbox (API-05)
 
-- `tenants.is_sandbox`, set only at sign-up (`sandbox: true`). A sandbox tenant:
-  - gets every module switched on and the sample data loaded (Phase 6 `SampleData`);
-  - has no subscription, trial or invoice, is skipped by usage metering, and `UsageLimits` never refuses it;
+- `tenants.is_sandbox`, set only at sign-up (`sandbox: true`). Sandbox sign-ups are limited per IP, per email domain and overall, an hour (`api.sandbox.sign_ups`). A sandbox tenant:
+  - gets every module switched on and the sample data loaded (Phase 6 `SampleData`) by `SetUpSandboxJob`, queued once its owner verified their contact;
+  - has hard caps (`api.sandbox.caps`): 3 users, 2 devices, 2 outlets, 500 records created since set-up or the last reset, 1,000 API requests a day (403 `sandbox_limit_reached`, 429 `sandbox_daily_limit`);
+  - is closed after 30 days without a sign-in or an API request (`sandbox:expire`, daily; keys revoked), its Owners emailed 7 days before;
+  - prints "SANDBOX – not a fiscal receipt" first on every document and receipt (the till's synced templates too);
+  - sends no email, SMS or WhatsApp: the messages are kept in `sandbox_outbox` and shown on Settings, API keys; in-app notifications as usual; sign-in codes and the closing notice still go out;
+  - has no subscription, trial or invoice and is skipped by usage metering; its caps above replace the plan's limits;
   - uses the fake payment and fiscal drivers whatever a method or company is configured with, even in production, since no money or tax document is real there (`Sandbox::active()` in `PaymentProviderRegistry` and `FiscalDrivers`);
   - can be reset by its Owner (`POST sandbox/reset`): every item, category, price list and party is archived and a fresh sample loaded;
   - is isolated by row-level security like every tenant.
@@ -97,5 +106,5 @@ About 950 method signatures across policies, services and resources take an `App
 - Policies and services need no changes to serve keys, and a key's writes are attributed through the same `created_by` and audit columns as a person's.
 - Code that selects people must keep filtering on `status = 'active'` (or `User::STATUS_ACTIVE`); a query on all users of a tenant also returns principals. The isolation suite and the new tests cover the known lists.
 - Adding a public route means the `public-api:<resource>` middleware, en/fr entries in `api_reference.php`, and regenerating the baseline (`php artisan api:docs --write`). Removing one needs a deprecation entry first.
-- The idempotency and usage tables grow with traffic; idempotency rows of a tenant are pruned lazily (expired rows deleted on a 1 in 100 lottery per key request).
+- The idempotency table is pruned hourly; the usage table grows by one row per key and day.
 - OAuth for marketplace apps (8B) adds another principal through the same mechanism: an install's principal user, with the consented scopes.
