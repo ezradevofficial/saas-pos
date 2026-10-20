@@ -41,7 +41,8 @@ class Authenticate
         $user = $this->findUser($login);
 
         // ONB-08: an assisted tenant's setup account never signs in (staff keep no tenant access).
-        if ($user === null || $user->is_platform_staff) {
+        // RBAC-13: nor does a support principal; its token comes only from a granted session.
+        if ($user === null || $user->is_platform_staff || $user->support_grant_id !== null) {
             Hash::check($password, self::$dummyHash ??= Hash::make(Str::random(40)));
 
             return SignInResult::invalid();

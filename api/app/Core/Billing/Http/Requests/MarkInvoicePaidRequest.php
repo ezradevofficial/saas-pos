@@ -7,7 +7,7 @@ use App\Core\Platform\Http\Requests\PlatformRequest;
 /** SUB-04: staff (owner, billing) record a bank transfer received for an invoice, with the bank's reference. */
 class MarkInvoicePaidRequest extends PlatformRequest
 {
-    protected ?string $ability = 'billing.manage';
+    protected ?string $ability = 'platform.billing.manage';
 
     public function rules(): array
     {

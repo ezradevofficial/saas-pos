@@ -5,6 +5,17 @@ import { LogoMark } from '@/layouts/Sidebar'
 import { cn } from '@/lib/utils'
 import { usePlatformAuth } from './usePlatformAuth'
 
+/** ADM-07: each area of the console, shown to the staff whose role allows it. */
+const NAV = [
+  { to: '/platform/tenants', label: 'platform.nav.tenants', permission: 'platform.tenants.view', end: true },
+  { to: '/platform/tenants/new', label: 'platform.nav.newTenant', permission: 'platform.tenants.create' },
+  { to: '/platform/catalogue', label: 'platform.nav.catalogue', permission: 'platform.catalogue.view' },
+  { to: '/platform/support', label: 'admin.nav.support', permission: 'platform.support.request' },
+  { to: '/platform/packs', label: 'admin.nav.packs', permission: 'platform.packs.view' },
+  { to: '/platform/reports', label: 'admin.nav.reports', permission: 'platform.reports.view' },
+  { to: '/platform/staff', label: 'admin.nav.staff', permission: 'platform.staff.manage' },
+]
+
 /**
  * The platform console (ADR 013), outside the tenant app shell: a quiet
  * top bar with the console's areas, the staff member and sign-out. No
@@ -21,27 +32,17 @@ export function PlatformLayout() {
             <LogoMark tone="page" />
             <span className="truncate text-label text-ink">{t('platform.console')}</span>
           </div>
-          <nav aria-label={t('platform.console')} className="flex items-center gap-4">
-            <NavLink
-              to="/platform/catalogue"
-              className={({ isActive }) => cn('rounded-sm py-1 text-label hover:text-ink', isActive ? 'text-ink' : 'text-ink-muted')}
-            >
-              {t('platform.nav.catalogue')}
-            </NavLink>
-            <NavLink
-              to="/platform/tenants"
-              className={({ isActive }) => cn('rounded-sm py-1 text-label hover:text-ink', isActive ? 'text-ink' : 'text-ink-muted')}
-            >
-              {t('platform.nav.tenants')}
-            </NavLink>
-            {user?.abilities?.includes('tenants.create') ? (
+          <nav aria-label={t('platform.console')} className="flex flex-wrap items-center gap-4">
+            {NAV.filter((item) => !item.permission || user?.abilities?.includes(item.permission)).map((item) => (
               <NavLink
-                to="/platform/tenants/new"
+                key={item.to}
+                to={item.to}
+                end={item.end}
                 className={({ isActive }) => cn('rounded-sm py-1 text-label hover:text-ink', isActive ? 'text-ink' : 'text-ink-muted')}
               >
-                {t('platform.nav.newTenant')}
+                {t(item.label)}
               </NavLink>
-            ) : null}
+            ))}
           </nav>
         </div>
         <div className="flex items-center gap-3">

@@ -4,11 +4,11 @@ namespace App\Core\CustomFields;
 
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -99,7 +99,7 @@ class CustomFieldFiles
             ]);
         }
 
-        return URL::temporarySignedRoute('custom_fields.file', $expires, ['path' => $file->path, 'user' => $user->id]);
+        return SignedUrls::temporary('custom_fields.file', $expires, ['path' => $file->path, 'user' => $user->id]);
     }
 
     /** @return array{id: string, name: string, mime: string, size: int, url: ?string} */

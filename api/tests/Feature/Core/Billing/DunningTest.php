@@ -299,6 +299,10 @@ class DunningTest extends TestCase
             'POST sync/device-secret/rotate' => 'device',
             'POST tenant-exports' => 'export',
             'POST tenant-exports/{tenant_export}/link' => 'export',
+            'POST support-access/{support_access_grant}/approve' => 'account',
+            'POST support-access/{support_access_grant}/deny' => 'account',
+            'POST support-access/{support_access_grant}/revoke' => 'account',
+            'POST support-session/end' => 'account',
         ];
         ksort($expected);
         $this->assertSame($expected, $allowed);

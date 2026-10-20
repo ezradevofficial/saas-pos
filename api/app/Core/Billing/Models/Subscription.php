@@ -75,7 +75,7 @@ class Subscription extends Model
         'country', 'currency', 'cycle', 'bundle', 'modules', 'quantities', 'price_ids', 'coupon_id', 'coupon_code',
         'coupon_until', 'status', 'trial_ends_at', 'current_period_start', 'current_period_end', 'period_amount_minor',
         'monthly_amount_minor', 'pending_change', 'past_due_since', 'read_only_since', 'pos_stops_at', 'grace_days',
-        'reminders_sent', 'default_payment_method_id', 'overage_billed_through',
+        'reminders_sent', 'default_payment_method_id', 'overage_billed_through', 'status_before_suspension',
     ];
 
     /** The reminder log is bookkeeping, not a change of the subscription. */

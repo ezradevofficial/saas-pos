@@ -7,5 +7,5 @@ use App\Core\Platform\Http\Requests\PlatformRequest;
 /** Platform console: tenants, their subscriptions and invoices (every staff role, `billing.view`). */
 class PlatformBillingRequest extends PlatformRequest
 {
-    protected ?string $ability = 'billing.view';
+    protected ?string $ability = 'platform.billing.view';
 }

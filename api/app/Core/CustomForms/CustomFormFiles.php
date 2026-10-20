@@ -5,11 +5,11 @@ namespace App\Core\CustomForms;
 use App\Core\Audit\Auditor;
 use App\Core\CustomFields\CustomFieldFiles;
 use App\Core\Http\ApiException;
+use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -71,7 +71,7 @@ class CustomFormFiles
             ]);
         }
 
-        return URL::temporarySignedRoute('custom_forms.file', $expires, ['path' => $file->path, 'user' => $user->id]);
+        return SignedUrls::temporary('custom_forms.file', $expires, ['path' => $file->path, 'user' => $user->id]);
     }
 
     /** @return array{id: string, name: string, mime: string, size: int, url: ?string} */

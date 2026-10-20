@@ -5,13 +5,13 @@ namespace App\Core\Branding;
 use App\Core\Audit\Auditor;
 use App\Core\Branding\Models\BrandAsset;
 use App\Core\Http\ApiException;
+use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -83,7 +83,7 @@ class BrandAssets
             return Storage::disk($asset->disk)->temporaryUrl($asset->path, $expires);
         }
 
-        return URL::temporarySignedRoute('branding.asset', $expires, ['path' => $asset->path]);
+        return SignedUrls::temporary('branding.asset', $expires, ['path' => $asset->path]);
     }
 
     /** The signed URL of the file at $path (a path the public lookup returned), or null. */

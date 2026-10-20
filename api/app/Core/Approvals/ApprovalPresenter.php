@@ -8,6 +8,7 @@ use App\Core\Approvals\Models\ApprovalAttachment;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Approvals\Resolvers\ApproverResolvers;
 use App\Core\Automation\Runtime\FieldVisibility;
+use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Workflow\Conditions\ConditionDescriber;
@@ -19,7 +20,6 @@ use App\Core\Workflow\Models\WorkflowVersion;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 
 /**
  * What the approvals inbox shows (APR-04): a request as a list item for
@@ -199,7 +199,7 @@ class ApprovalPresenter
             ]);
         }
 
-        return URL::temporarySignedRoute('approvals.attachment', $expires, ['path' => $file->path, 'user' => $viewer->id]);
+        return SignedUrls::temporary('approvals.attachment', $expires, ['path' => $file->path, 'user' => $viewer->id]);
     }
 
     /**

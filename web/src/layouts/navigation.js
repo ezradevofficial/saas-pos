@@ -346,6 +346,8 @@ export const NAV_GROUPS = [
       { to: '/settings/security', icon: 'security', label: (t) => t('nav.security'), permission: 'core.settings.edit', tenantWide: true, module: 'core' },
       // AUTH-11: single sign-on (Owners).
       { to: '/settings/sso', icon: 'key', label: (t) => t('nav.sso'), permission: 'core.sso.manage', tenantWide: true, module: 'core' },
+      // RBAC-13: who may see the organisation from our support team, and what they did.
+      { to: '/settings/security/support-access', icon: 'lock', label: (t) => t('nav.supportAccess'), permission: 'core.support_access.view', tenantWide: true, module: 'core' },
       { to: '/settings/numbering', icon: 'numbering', label: (t) => t('nav.numbering'), permission: NUMBERING_VIEW, module: 'core' },
       { to: '/settings/custom-fields', icon: 'columns', label: (t) => t('nav.customFields'), permission: CUSTOM_FIELD_VIEW, module: 'core' },
       // IMP-01..IMP-03: imports of items, contacts and prices.

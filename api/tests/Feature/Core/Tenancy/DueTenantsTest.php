@@ -42,6 +42,10 @@ class DueTenantsTest extends TestCase
             // AUTH-11: SSO email domains (domains:verify).
             'app_tenants_with_sso_domain_checks_due',
             'app_tenants_with_sso_metadata_urls',
+            // RBAC-13f.
+            'app_tenants_with_expired_support_grants',
+            // ADM-04 (review H3).
+            'app_tenants_for_pack_updates',
         ];
         $runtime = DB::selectOne('select current_user as name')->name;
         $owner = config('database.connections.pgsql_owner.username');

@@ -12,7 +12,7 @@ vi.mock('./platformClient', async (importOriginal) => ({
   platformApi: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
 }))
 
-const BILLING = { id: 's-2', name: 'Otieno Billing', email: 'billing@example.com', role: 'billing', status: 'active', two_factor_enabled: true, abilities: ['catalogue.view', 'billing.view', 'billing.manage'] }
+const BILLING = { id: 's-2', name: 'Otieno Billing', email: 'billing@example.com', role: 'finance', status: 'active', two_factor_enabled: true, abilities: ['platform.catalogue.view', 'platform.billing.view', 'platform.billing.manage'] }
 const ACCOUNT = {
   tenant_id: 't-1', name: 'Duka Bora', country: 'KE', plan: 'starter', cycle: 'monthly', status: 'past_due',
   mrr: { amount_minor: 390000, currency: 'KES' }, trial_ends_at: '2026-11-15T08:00:00Z', current_period_end: '2026-12-01', grace_days: null, purge_due: [],
@@ -22,7 +22,7 @@ const CATALOGUE = {
   'platform/catalogue/modules': { data: [{ key: 'pos', name: { en: 'Point of sale', fr: 'Point de vente' } }, { key: 'crm', name: { en: 'Customers', fr: 'Clients' } }] },
   'platform/catalogue/bundles': { data: [{ key: 'starter', name: { en: 'Starter', fr: 'Démarrage' } }] },
 }
-const SUPPORT = { ...BILLING, role: 'support', abilities: ['catalogue.view', 'billing.view', 'tenants.create'] }
+const SUPPORT = { ...BILLING, role: 'support', abilities: ['platform.catalogue.view', 'platform.billing.view', 'platform.tenants.create'] }
 const INVOICE = { id: 'oi-1', number: 'INV-2026-000004', kind: 'renewal', status: 'open', total: { amount_minor: 390000, currency: 'KES' }, period_start: '2026-12-01', period_end: '2027-01-01', due_at: '2026-12-01T00:00:00Z', paid_via: null }
 
 describe('Platform console tenants (ADR 016)', () => {
@@ -107,7 +107,7 @@ describe('Platform console tenants (ADR 016)', () => {
 
   it('offers no changes to support staff', async () => {
     platformApi.get.mockImplementation(async (path) => {
-      if (path === 'platform/me') return { data: { ...BILLING, role: 'support', abilities: ['catalogue.view', 'billing.view'] } }
+      if (path === 'platform/me') return { data: { ...BILLING, role: 'support', abilities: ['platform.catalogue.view', 'platform.billing.view'] } }
       if (CATALOGUE[path]) return CATALOGUE[path]
       if (path === 'platform/tenants/t-1') return { data: { account: ACCOUNT, subscription: null, grace_days: null, invoices: [INVOICE] } }
       throw apiError(404, 'not_found', 'Not found.')

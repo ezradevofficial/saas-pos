@@ -86,6 +86,7 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/payments/callbacks/{token}/{kind}' => 'a payment provider\'s callback: the 48-character callback token names one payment method (its tenant found by a security-definer function), the caller must be the provider\'s address, and it answers only "Accepted"',
         'GET api/v1/catalogue' => 'ONB-03: the global plan catalogue of a country (no tenant data, global tables); rate-limited',
         'POST api/v1/catalogue/quote' => 'ONB-03: prices a selection against the global catalogue; reads no tenant row; rate-limited',
+        'POST api/v1/auth/support-session' => 'RBAC-13c: a support session\'s one-time entry code (the tenant id and a 48-character secret, stored as sha256, valid 60 seconds, used once) is the credential; the tenant it names is entered and the code\'s hash looked up under its RLS; rate-limited (SupportAccessTest)',
         'POST api/v1/platform/auth/sign-in' => 'ADR 013: platform staff sign-in (platform_users, global); needs the email and password; rate-limited',
         'POST api/v1/platform/auth/two-factor' => 'ADR 013: needs the encrypted sign-in challenge and a TOTP code',
         'GET api/v1/platform/auth/setup/{token}' => 'ADR 013: the 48-character one-time setup token is the credential; answers only the staff member\'s name and email',
@@ -125,6 +126,8 @@ class TenantIsolationTest extends TestCase
      * TwoTenants, a row of that type in both tenants).
      */
     public const PARAMETERS = [
+        // RBAC-13: a support access request (pending) of each tenant.
+        'support_access_grant' => 'support_access_grant',
         'company' => 'company',
         'branch' => 'branch',
         'location' => 'location',
@@ -1441,8 +1444,15 @@ class TenantIsolationTest extends TestCase
         $uri = '/'.$route->uri();
 
         if ($platform) {
-            // Platform ids are catalogue rows, never tenant rows: any UUID will do.
-            return preg_replace('/\{[a-z_]+\??\}/', '00000000-0000-7000-8000-000000000000', $uri);
+            // Platform ids are catalogue rows, never tenant rows: any UUID will do,
+            // or the first allowed value of a constrained parameter (ADM-07 reports).
+            foreach ($route->parameterNames() as $name) {
+                $where = $route->wheres[$name] ?? '';
+                $value = preg_match('/^[a-z0-9_-]+(\|[a-z0-9_-]+)*$/', $where) ? explode('|', $where)[0] : '00000000-0000-7000-8000-000000000000';
+                $uri = str_replace(['{'.$name.'}', '{'.$name.'?}'], $value, $uri);
+            }
+
+            return $uri;
         }
 
         foreach ($route->parameterNames() as $name) {

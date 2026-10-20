@@ -200,7 +200,7 @@ class OnboardingReviewTest extends TestCase
         $this->assertSame(1, PlatformDatabase::connection()->table('platform_audit_logs')->where('action', 'platform.tenant.reinvite')->count());
 
         $this->postJson("/api/v1/platform/tenants/{$tenantId}/reinvite", [], $this->staffBearer($staff))->assertStatus(409)->assertJsonPath('code', 'already_handed_over');
-        $this->postJson("/api/v1/platform/tenants/{$tenantId}/reinvite", [], $this->staffBearer($this->staff(PlatformUser::ROLE_BILLING)))->assertForbidden();
+        $this->postJson("/api/v1/platform/tenants/{$tenantId}/reinvite", [], $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE)))->assertForbidden();
         $this->postJson('/api/v1/platform/tenants/'.Str::uuid7().'/reinvite', [], $this->staffBearer($staff))->assertNotFound();
     }
 

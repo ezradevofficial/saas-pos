@@ -125,6 +125,7 @@ final class PriceCalculator
                 'minimum_amount' => null,
                 'minimum_applied' => false,
                 'amount' => self::add($bundle->amount, self::mul($extra, $bundle->extraOutletAmount ?? 0)),
+                ...($bundle->deal ? ['deal' => true] : []),
             ];
         }
 
@@ -231,6 +232,7 @@ final class PriceCalculator
             'minimum_amount' => $minimum,
             'minimum_applied' => $minimumApplied,
             'amount' => $minimumApplied ? $minimum : $amount,
+            ...($module->deal ? ['deal' => true] : []),
         ];
     }
 

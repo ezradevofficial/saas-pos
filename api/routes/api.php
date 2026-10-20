@@ -762,3 +762,5 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 // ADR 013, SUB-01, ONB-03: the public plan catalogue and the platform staff console.
 require __DIR__.'/platform.php';
 require __DIR__.'/billing.php';
+// RBAC-13, ADM-03: support access with consent (tenant, staff and the session's entry code).
+require __DIR__.'/support.php';

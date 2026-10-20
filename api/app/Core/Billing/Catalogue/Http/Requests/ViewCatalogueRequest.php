@@ -7,5 +7,5 @@ use App\Core\Platform\Http\Requests\PlatformRequest;
 /** Staff who may read the catalogue (owner, billing, support). */
 class ViewCatalogueRequest extends PlatformRequest
 {
-    protected ?string $ability = 'catalogue.view';
+    protected ?string $ability = 'platform.catalogue.view';
 }

@@ -28,14 +28,18 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $current_period_end
  * @property int|null $grace_days
  * @property list<array<string, string>> $purge_due
+ * @property string|null $slug
+ * @property string|null $bundle
+ * @property list<string> $modules
+ * @property array<string, mixed>|null $deal
  */
 class OperatorAccount extends Model
 {
     use BelongsToTenant, HasUuids;
 
-    protected $fillable = ['customer_tenant_id', 'name', 'country', 'currency', 'plan', 'cycle', 'status', 'mrr_minor', 'trial_ends_at', 'current_period_end', 'grace_days', 'purge_due', 'alerts'];
+    protected $fillable = ['customer_tenant_id', 'name', 'slug', 'country', 'currency', 'plan', 'bundle', 'modules', 'deal', 'cycle', 'status', 'mrr_minor', 'trial_ends_at', 'current_period_end', 'grace_days', 'purge_due', 'alerts'];
 
-    protected $attributes = ['purge_due' => '[]', 'alerts' => '[]'];
+    protected $attributes = ['purge_due' => '[]', 'alerts' => '[]', 'modules' => '[]'];
 
     protected function casts(): array
     {
@@ -46,6 +50,8 @@ class OperatorAccount extends Model
             'grace_days' => 'integer',
             'purge_due' => 'array',
             'alerts' => 'array',
+            'modules' => 'array',
+            'deal' => 'array',
         ];
     }
 }

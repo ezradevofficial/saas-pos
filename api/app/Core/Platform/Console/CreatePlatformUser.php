@@ -21,7 +21,7 @@ class CreatePlatformUser extends Command
     protected $signature = 'platform:user
         {email : The staff member\'s email}
         {--name= : Their name (defaults to the part of the email before @)}
-        {--role=owner : owner, billing or support}
+        {--role=owner : owner, support, sales, finance, compliance or engineering}
         {--reset : Start an existing account over with a new setup link}';
 
     protected $description = 'Create a platform staff account and print its one-time setup link';

@@ -42,7 +42,8 @@ class UserController
     {
         $list = $request->list();
         $visible = $list->visible();
-        $query = User::query();
+        // RBAC-13: support principals are shown on the Support access screen, not as users.
+        $query = User::query()->whereNull('support_grant_id');
 
         if (! $visible->all) {
             $query->whereHas('assignments', fn (Builder $q) => ScopeNames::constrain($q, $visible));
