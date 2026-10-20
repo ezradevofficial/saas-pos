@@ -3,6 +3,7 @@
     "notes": "Fixed assets tax book reference data for Kenyan companies (docs/modules/fixed-assets.md FA-20). Structure only: class keys. No method or rate is entered until it is confirmed from an official source with its legal reference and effective date; a class with a null method or rate, or needs_confirmation true, is unconfirmed and the tax book is refused. Labels live in lang/{locale}/fixed_assets.php (tax_classes.*).",
     "sources": [],
     "todo": [
+        "Public research (2026-10-17, docs/country-packs-research-2026-10.md) is low confidence, so nothing is entered and the tax book stays refused: commonly cited rates are commercial buildings 10%, computers 25%, motor vehicles 25%, manufacturing machinery 50% in year 1 then 25%, but sources disagree on straight line against reducing balance and on later Finance Act changes. KRA capital deduction notice: https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure",
         "Income Tax Act, Second Schedule: confirm the official wear and tear classes and which assets fall in each.",
         "buildings: method (straight line or reducing balance), annual rate and effective date, with the legal reference.",
         "machinery: method, annual rate and effective date (including any split between heavy and other machinery).",
@@ -16,15 +17,74 @@
         "acquisition_rule: whether the year of acquisition counts as a full year (full_year) or pro rata by months in service (pro_rata_months), with the legal reference.",
         "Disposals: the balancing allowance or charge in the year of disposal (until confirmed the tax book gives no allowance that year and computes no balancing adjustment)."
     ],
-    "acquisition_rule": {"value": null, "needs_confirmation": true},
+    "acquisition_rule": {
+        "value": null,
+        "needs_confirmation": true
+    },
     "classes": [
-        {"key": "buildings", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "machinery", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "motor_vehicles", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "computers", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "software", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "furniture", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "telecommunication", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "other", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null}
+        {
+            "key": "buildings",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "machinery",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "motor_vehicles",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "computers",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "software",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "furniture",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "telecommunication",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "other",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        }
     ]
 }

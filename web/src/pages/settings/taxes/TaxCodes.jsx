@@ -6,6 +6,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, DataTable, Dialog, ListView, PercentInput, StatusBadge, TextField } from '@/components/ds'
+import { ResearchStatus, ResearchedNotice } from '@/components/ResearchedNotice'
 import { formatCalendarDate, todayIn } from '@/lib/dates'
 import { actionsColumn } from '@/lib/listColumns'
 import { formatDecimal } from '@/lib/money'
@@ -31,6 +32,14 @@ function CurrentRate({ code }) {
   if (code.rate_needed || !code.current_rate || code.current_rate.rate === null) {
     return <StatusBadge tone="warning">{t('taxes.rateNeeded')}</StatusBadge>
   }
+  if (code.rate_researched) {
+    return (
+      <span className="flex flex-col gap-1">
+        <Percent value={code.current_rate.rate} />
+        <StatusBadge tone="warning">{t('packs.status.researched')}</StatusBadge>
+      </span>
+    )
+  }
   return <Percent value={code.current_rate.rate} />
 }
 
@@ -49,6 +58,9 @@ function RateHistoryDialog({ code, onClose }) {
       render: (row) =>
         row.rate === null || row.needs_confirmation ? (
           <StatusBadge tone="warning">{t('taxes.rateNeeded')}</StatusBadge>
+        ) : row.research ? (
+          // CP-01: from public research, with its confidence and sources.
+          <ResearchStatus status="researched" confidence={row.research.confidence} researchedOn={row.research.researched_on} source={row.research.source ?? []} />
         ) : (
           <StatusBadge tone="success">{t('taxes.history.confirmed')}</StatusBadge>
         ),
@@ -223,6 +235,7 @@ export function TaxCodes({ company }) {
         ) : null}
       </div>
       {needed > 0 ? <Alert tone="warning" title={t('taxes.neededAlert', { count: needed })} /> : null}
+      {(codes.data?.data ?? []).some((code) => code.rate_researched) ? <ResearchedNotice /> : null}
       {applied ? (
         <Alert tone="success" title={applied.added.length ? t('taxes.pack.added', { count: applied.added.length, codes: applied.added.join(', ') }) : t('taxes.pack.nothing')} />
       ) : null}

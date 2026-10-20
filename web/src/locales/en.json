@@ -8132,7 +8132,11 @@
       "cancelHelp": "Pending leave stops its approval; approved leave gives the days back.",
       "cancelled": "Leave cancelled",
       "cancelReason": "Reason for cancelling",
-      "none": "No leave requests."
+      "none": "No leave requests.",
+      "event": "Event",
+      "eventHelp": "Some leave gives set days per event.",
+      "noEvent": "No event",
+      "halfPayDays": "Days at half pay"
     },
     "balances": {
       "title": "Balances",
@@ -8200,7 +8204,13 @@
       "archiveTitle": "Archive {{name}}",
       "archiveHelp": "Staff can no longer ask for this leave. Past requests and balances stay.",
       "archived": "Leave type archived",
-      "none": "No leave types yet. Add the statutory types to start."
+      "none": "No leave types yet. Add the statutory types to start.",
+      "rules": "Rules",
+      "qualifying_one": "After {{count}} month of service",
+      "qualifying_other": "After {{count}} months of service",
+      "halfPay": "then {{days}} days at half pay",
+      "event": "{{event}}: {{days}} days",
+      "valueStatus": "Days from"
     },
     "week": {
       "description": "Planned shifts by employee and day.",
@@ -9936,7 +9946,8 @@
       "startsOn": "First deduction",
       "status": "Status",
       "statutory": "Statutory deductions",
-      "totals": "Totals"
+      "totals": "Totals",
+      "valueStatus": "Value status"
     },
     "fields": {
       "amount": "Amount",
@@ -10066,7 +10077,8 @@
         "shipped": "Country pack",
         "override": "Test pack (staging)",
         "test": "Test fixture"
-      }
+      },
+      "notApplicable": "Marked not applicable for this company: {{components}}"
     },
     "kpi": {
       "employees": "Employees",
@@ -10377,11 +10389,19 @@
         "contributory": "Counts in the pay that contributions are worked out on.",
         "pre_tax": "Reduces taxable pay.",
         "insurance_premium": "The base of an insurance relief, when the country pack has one."
+      },
+      "preTaxCategory": "Statutory limit",
+      "preTaxCategoryHelp": "The country’s limit on this deduction before tax, if any.",
+      "preTaxCategories": {
+        "none": "No statutory limit",
+        "pension": "Pension (with NSSF)",
+        "post_retirement_medical": "Post-retirement medical fund",
+        "mortgage_interest": "Mortgage interest"
       }
     },
     "statutory": {
       "title": "Statutory rates in force",
-      "help": "From the country pack. The packs ship no figures on purpose: each value is confirmed by the platform team from an official source.",
+      "help": "From the country pack. Each value is confirmed, taken from public research (with its sources and confidence) or still needed; nothing is guessed.",
       "readyTitle": "Every statutory value is confirmed",
       "readyHelp": "Runs for this company can be calculated.",
       "notReadyTitle": "Statutory rates are not confirmed yet",
@@ -10402,14 +10422,18 @@
       "conditions": {
         "insurance_premiums": "an employee pays insurance premiums",
         "dependants": "an employee has dependants",
-        "children": "an employee has children"
+        "children": "an employee has children",
+        "pension": "an employee has pension deductions",
+        "post_retirement_medical": "an employee pays into a post-retirement medical fund",
+        "mortgage_interest": "an employee pays mortgage interest"
       },
       "kinds": {
         "income_tax": "Income tax",
         "relief": "Relief",
         "contribution": "Contribution",
         "levy": "Levy",
-        "allowance": "Allowance"
+        "allowance": "Allowance",
+        "deduction_limit": "Deduction limit"
       },
       "noPeriod": "No period in force",
       "valuesMissing_one": "{{count}} value missing",
@@ -10417,7 +10441,17 @@
       "complete": "Complete",
       "todo": "Values to confirm",
       "todoHelp": "The country pack’s own list, for the platform team.",
-      "returns": "Return layouts"
+      "returns": "Return layouts",
+      "markedNotApplicable": "Marked not applicable.",
+      "markedApplicable": "It applies again.",
+      "notApplicable": "Not applicable",
+      "markApplicable": "Apply it again",
+      "notApplied": "Not applied yet",
+      "notAppliedHelp": "Left out of runs until its value is confirmed.",
+      "markNotApplicable": "Mark not applicable",
+      "markTitle": "Mark {{component}} not applicable",
+      "markText": "Runs for this company will leave it out. Only do this if the company doesn’t owe it; the reason is kept in the audit log.",
+      "markReason": "Reason (for example the exemption reference)"
     },
     "review": {
       "attendanceOpen_one": "An attendance period overlapping this run is still open. Its time is paid by a later run, as arrears, once it closes.",
@@ -12167,5 +12201,26 @@
       "catalogueTitle": "Events you can subscribe to",
       "fields": "Fields"
     }
+  },
+  "packs": {
+    "researched": {
+      "title": "Values from public research",
+      "body": "Some statutory values come from public research and haven’t been confirmed by an accountant. Check them before filing.",
+      "link": "View statutory rates"
+    },
+    "status": {
+      "researched": "Researched",
+      "confirmed": "Confirmed",
+      "needs_confirmation": "Needs confirmation"
+    },
+    "confidence": "{{level}} confidence",
+    "confidenceLevels": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "researchedOn": "researched {{date}}",
+    "assumed": "Assumed until confirmed: {{fields}}",
+    "lowConfidence": "Research found conflicting sources, so no value is entered."
   }
 }

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Payroll\Models\Run;
 use Modules\Payroll\Statutory\MissingValues;
+use Modules\Payroll\Statutory\PayrollPack;
 use Modules\Payroll\Support\PayFields;
 
 /**
@@ -52,7 +53,7 @@ class RunResource extends JsonResource
             'statutory' => [
                 'researched' => $run->inputs['statutory']['researched'] ?? [],
                 'not_applied' => $run->inputs['statutory']['not_applied'] ?? [],
-                'not_applicable' => $run->inputs['statutory']['not_applicable'] ?? [],
+                'not_applicable' => array_map(fn (array $row) => [...$row, 'name' => PayrollPack::label('components', $row['component'])], $run->inputs['statutory']['not_applicable'] ?? []),
             ],
             'uses_researched_values' => ($run->inputs['statutory']['researched'] ?? []) !== [],
             // Decisions 29, 33, 40: open attendance periods, late HR changes since the last run, employees without a pay group.

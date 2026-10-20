@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Checkbox, DataTable, DecimalInput, Select, StatusBadge, Switch, Tabs, TextField } from '@/components/ds'
+import { ResearchStatus, ResearchedNotice } from '@/components/ResearchedNotice'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useHrCompany } from '@/pages/hr/hrData'
 import { codeLabel, enumLabel, enumOptions, FREQUENCIES, ITEM_KINDS, payrollKey, PERM, usePayrollMutation } from './payrollData'
@@ -56,7 +57,7 @@ export default function PayrollSettings() {
       {tab === 'settings' ? <CompanySettings key={company} company={company} /> : null}
       {tab === 'payGroups' ? <PayGroups company={company} /> : null}
       {tab === 'items' ? <Items company={company} /> : null}
-      {tab === 'statutory' ? <StatutoryPack query={statutory} /> : null}
+      {tab === 'statutory' ? <StatutoryPack query={statutory} company={company} /> : null}
     </>
   )
 }
@@ -333,15 +334,18 @@ function Items({ company }) {
 }
 
 const ITEM_FLAGS = { earning: ['taxable', 'contributory'], deduction: ['pre_tax', 'insurance_premium'] }
+const PRE_TAX_CATEGORIES = ['pension', 'post_retirement_medical', 'mortgage_interest']
 
 function ItemDialog({ company, row, onClose }) {
   const { t } = useTranslation()
-  const [form, setForm] = useState(() => ({ code: row?.code ?? '', name: row?.name ?? '', kind: row?.kind ?? 'earning', taxable: row?.taxable ?? false, contributory: row?.contributory ?? false, pre_tax: row?.pre_tax ?? false, insurance_premium: row?.insurance_premium ?? false }))
+  const [form, setForm] = useState(() => ({ code: row?.code ?? '', name: row?.name ?? '', kind: row?.kind ?? 'earning', taxable: row?.taxable ?? false, contributory: row?.contributory ?? false, pre_tax: row?.pre_tax ?? false, insurance_premium: row?.insurance_premium ?? false, pre_tax_category: row?.pre_tax_category ?? '' }))
   const save = usePayrollMutation((body) => (row ? api.patch(`payroll/items/${row.id}`, body) : api.post('payroll/items', { company_id: company, ...body })), { success: t('payroll.items.saved'), onDone: onClose })
-  const errors = save.errors(['code', 'name', 'kind', 'taxable', 'contributory', 'pre_tax', 'insurance_premium'])
+  const errors = save.errors(['code', 'name', 'kind', 'taxable', 'contributory', 'pre_tax', 'insurance_premium', 'pre_tax_category'])
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value })
   const flags = ITEM_FLAGS[form.kind]
-  const body = () => ({ code: form.code.trim(), name: form.name.trim(), ...(row ? {} : { kind: form.kind }), ...Object.fromEntries(flags.map((flag) => [flag, form[flag]])) })
+  // PAY-07: the statutory limit of a pre-tax deduction (KE: pension with NSSF, post-retirement medical fund, mortgage interest).
+  const category = form.kind === 'deduction' ? { pre_tax_category: form.pre_tax && form.pre_tax_category ? form.pre_tax_category : null } : {}
+  const body = () => ({ code: form.code.trim(), name: form.name.trim(), ...(row ? {} : { kind: form.kind }), ...Object.fromEntries(flags.map((flag) => [flag, form[flag]])), ...category })
   return (
     <FormDialog open title={row ? t('payroll.items.editTitle') : t('payroll.items.addTitle')} onClose={onClose} submitLabel={t('payroll.items.saveItem')} pending={save.isPending} disabled={!form.code.trim() || !form.name.trim()} errors={errors} onSubmit={() => save.mutate(body())}>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -354,6 +358,16 @@ function ItemDialog({ company, row, onClose }) {
         {flags.map((flag) => (
           <Checkbox key={flag} label={t(`payroll.items.flags.${flag}`)} help={t(`payroll.items.flagHelp.${flag}`)} checked={form[flag]} onChange={(event) => setForm({ ...form, [flag]: event.target.checked })} />
         ))}
+        {form.kind === 'deduction' && form.pre_tax ? (
+          <Select
+            label={t('payroll.items.preTaxCategory')}
+            help={t('payroll.items.preTaxCategoryHelp')}
+            options={[{ value: '', label: t('payroll.items.preTaxCategories.none') }, ...PRE_TAX_CATEGORIES.map((value) => ({ value, label: t(`payroll.items.preTaxCategories.${value}`) }))]}
+            value={form.pre_tax_category}
+            error={errors.fields.pre_tax_category}
+            onChange={set('pre_tax_category')}
+          />
+        ) : null}
       </fieldset>
     </FormDialog>
   )
@@ -362,11 +376,19 @@ function ItemDialog({ company, row, onClose }) {
 /**
  * PAY-08: the company's statutory pack in force today: each component and
  * what it lacks, the pack's own list of values to confirm, and its return
- * layouts. The packs ship no figures on purpose; runs are refused until the
- * platform team confirms every value a run needs.
+ * layouts. Runs are refused until every value a run needs is confirmed or
+ * researched (CP-01: each value's status, research confidence and sources
+ * are listed; this is the statutory rates page the researched notice links
+ * to). A component the pack allows may be marked not applicable for the
+ * company, with a reason (audited).
  */
-function StatutoryPack({ query }) {
+function StatutoryPack({ query, company }) {
   const { t } = useTranslation()
+  const { can } = usePermissions()
+  const manage = can(PERM.settingsManage)
+  const [marking, setMarking] = useState(null)
+  const mark = usePayrollMutation((body) => api.post(`payroll/statutory/${company}/not-applicable`, body), { success: t('payroll.statutory.markedNotApplicable'), onDone: () => setMarking(null) })
+  const clear = usePayrollMutation((code) => api.delete(`payroll/statutory/${company}/not-applicable/${code}`), { success: t('payroll.statutory.markedApplicable') })
   const pack = query.data?.data
   if (query.isError) return <Alert tone="danger" title={errorMessage(query.error)} />
   if (!pack) return <p className="text-ink-muted">{t('common.loading')}</p>
@@ -391,6 +413,7 @@ function StatutoryPack({ query }) {
           </div>
         </Alert>
       )}
+      {pack.researched ? <ResearchedNotice /> : null}
       <Card title={t('payroll.statutory.title')} subtitle={t('payroll.statutory.help')}>
         <div className="flex flex-col gap-4">
           <dl className="grid gap-4 sm:grid-cols-3">
@@ -418,14 +441,40 @@ function StatutoryPack({ query }) {
               { key: 'required', label: t('payroll.columns.applies'), render: (row) => (row.required ? t('payroll.statutory.always') : t('payroll.statutory.when', { condition: t(`payroll.statutory.conditions.${row.when}`, { defaultValue: row.when ?? '' }) })) },
               { key: 'effective_from', label: t('payroll.columns.inForceFrom'), render: (row) => (row.in_force ? <CalendarDate value={row.effective_from} /> : <span className="text-ink-muted">{t('payroll.statutory.noPeriod')}</span>) },
               {
+                key: 'status',
+                label: t('payroll.columns.valueStatus'),
+                wrap: true,
+                render: (row) => <ResearchStatus status={row.status} confidence={row.confidence} researchedOn={row.researched_on} source={row.source ?? []} assumed={(row.assumed ?? []).map((field) => field.name)} />,
+              },
+              {
                 key: 'missing',
                 label: t('payroll.columns.missing'),
                 wrap: true,
                 render: (row) =>
-                  row.missing?.length ? (
+                  row.not_applicable ? (
+                    <span className="flex flex-col items-start gap-1">
+                      <StatusBadge>{t('payroll.statutory.notApplicable')}</StatusBadge>
+                      <span className="text-caption text-ink-muted">{row.not_applicable.reason}</span>
+                      {manage ? (
+                        <Button variant="ghost" size="sm" loading={clear.isPending} onClick={() => clear.mutate(row.code)}>
+                          {t('payroll.statutory.markApplicable')}
+                        </Button>
+                      ) : null}
+                    </span>
+                  ) : row.not_applied ? (
+                    <span className="flex flex-col gap-1">
+                      <StatusBadge>{t('payroll.statutory.notApplied')}</StatusBadge>
+                      <span className="text-caption text-ink-muted">{t('payroll.statutory.notAppliedHelp')}</span>
+                    </span>
+                  ) : row.missing?.length ? (
                     <span className="flex flex-col gap-1">
                       <StatusBadge tone="danger">{t('payroll.statutory.valuesMissing', { count: row.missing.length })}</StatusBadge>
                       <span className="text-caption text-ink-muted">{row.missing.map((field) => field.name).join(', ')}</span>
+                      {row.may_not_apply && manage ? (
+                        <Button variant="secondary" size="sm" onClick={() => setMarking(row)}>
+                          {t('payroll.statutory.markNotApplicable')}
+                        </Button>
+                      ) : null}
                     </span>
                   ) : (
                     <StatusBadge tone="success">{t('payroll.statutory.complete')}</StatusBadge>
@@ -435,6 +484,18 @@ function StatutoryPack({ query }) {
           />
         </div>
       </Card>
+      <ConfirmDialog
+        open={Boolean(marking)}
+        title={t('payroll.statutory.markTitle', { component: marking?.name ?? '' })}
+        text={t('payroll.statutory.markText')}
+        reasonLabel={t('payroll.statutory.markReason')}
+        reasonRequired
+        confirmLabel={t('payroll.statutory.markNotApplicable')}
+        pending={mark.isPending}
+        error={mark.error}
+        onConfirm={(reason) => mark.mutate({ component: marking.code, reason })}
+        onClose={() => setMarking(null)}
+      />
       {pack.todo?.length ? (
         <Card title={t('payroll.statutory.todo')} subtitle={t('payroll.statutory.todoHelp')}>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-body">

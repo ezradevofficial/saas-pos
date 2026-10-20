@@ -8132,7 +8132,11 @@
       "cancelHelp": "Un congé en attente arrête son approbation ; un congé approuvé rend les jours.",
       "cancelled": "Congé annulé",
       "cancelReason": "Motif de l’annulation",
-      "none": "Aucune demande de congé."
+      "none": "Aucune demande de congé.",
+      "event": "Évènement",
+      "eventHelp": "Certains congés donnent un nombre de jours fixe par évènement.",
+      "noEvent": "Aucun évènement",
+      "halfPayDays": "Jours à demi-salaire"
     },
     "balances": {
       "title": "Soldes",
@@ -8200,7 +8204,13 @@
       "archiveTitle": "Archiver {{name}}",
       "archiveHelp": "Le personnel ne peut plus demander ce congé. Les demandes et soldes passés restent.",
       "archived": "Type de congé archivé",
-      "none": "Aucun type de congé pour l’instant. Ajoutez les types légaux pour commencer."
+      "none": "Aucun type de congé pour l’instant. Ajoutez les types légaux pour commencer.",
+      "rules": "Règles",
+      "qualifying_one": "Après {{count}} mois de service",
+      "qualifying_other": "Après {{count}} mois de service",
+      "halfPay": "puis {{days}} jours à demi-salaire",
+      "event": "{{event}} : {{days}} jours",
+      "valueStatus": "Jours issus de"
     },
     "week": {
       "description": "Les quarts planifiés par employé et par jour.",
@@ -9936,7 +9946,8 @@
       "startsOn": "Première retenue",
       "status": "Statut",
       "statutory": "Retenues légales",
-      "totals": "Totaux"
+      "totals": "Totaux",
+      "valueStatus": "Statut de la valeur"
     },
     "fields": {
       "amount": "Montant",
@@ -10066,7 +10077,8 @@
         "shipped": "Pack pays",
         "override": "Pack de test (préproduction)",
         "test": "Jeu de test"
-      }
+      },
+      "notApplicable": "Marqué non applicable pour cette entreprise : {{components}}"
     },
     "kpi": {
       "employees": "Employés",
@@ -10377,11 +10389,19 @@
         "contributory": "Compte dans le salaire sur lequel les cotisations sont calculées.",
         "pre_tax": "Réduit le salaire imposable.",
         "insurance_premium": "Sert de base à un abattement d’assurance, si le pack pays en prévoit un."
+      },
+      "preTaxCategory": "Plafond légal",
+      "preTaxCategoryHelp": "Le plafond légal du pays pour cette retenue avant impôt, s’il y en a un.",
+      "preTaxCategories": {
+        "none": "Pas de plafond légal",
+        "pension": "Retraite (avec la NSSF)",
+        "post_retirement_medical": "Fonds médical de retraite",
+        "mortgage_interest": "Intérêts hypothécaires"
       }
     },
     "statutory": {
       "title": "Taux légaux en vigueur",
-      "help": "Issus du pack pays. Les packs ne contiennent volontairement aucun chiffre : chaque valeur est confirmée par l’équipe de la plateforme à partir d’une source officielle.",
+      "help": "Issus du pack pays. Chaque valeur est confirmée, issue de recherches publiques (avec ses sources et son niveau de confiance) ou encore à confirmer ; rien n’est deviné.",
       "readyTitle": "Toutes les valeurs légales sont confirmées",
       "readyHelp": "Les paies de cette société peuvent être calculées.",
       "notReadyTitle": "Les taux légaux ne sont pas encore confirmés",
@@ -10402,14 +10422,18 @@
       "conditions": {
         "insurance_premiums": "un employé paie des primes d’assurance",
         "dependants": "un employé a des personnes à charge",
-        "children": "un employé a des enfants"
+        "children": "un employé a des enfants",
+        "pension": "un salarié a des retenues de retraite",
+        "post_retirement_medical": "un salarié cotise à un fonds médical de retraite",
+        "mortgage_interest": "un salarié paie des intérêts hypothécaires"
       },
       "kinds": {
         "income_tax": "Impôt sur le revenu",
         "relief": "Abattement",
         "contribution": "Cotisation",
         "levy": "Prélèvement",
-        "allowance": "Allocation"
+        "allowance": "Allocation",
+        "deduction_limit": "Plafond de déduction"
       },
       "noPeriod": "Aucune période en vigueur",
       "valuesMissing_one": "{{count}} valeur manquante",
@@ -10417,7 +10441,17 @@
       "complete": "Complet",
       "todo": "Valeurs à confirmer",
       "todoHelp": "La liste propre au pack pays, pour l’équipe de la plateforme.",
-      "returns": "Formats des déclarations"
+      "returns": "Formats des déclarations",
+      "markedNotApplicable": "Marqué non applicable.",
+      "markedApplicable": "S’applique de nouveau.",
+      "notApplicable": "Non applicable",
+      "markApplicable": "Appliquer de nouveau",
+      "notApplied": "Pas encore appliqué",
+      "notAppliedHelp": "Exclu des paies jusqu’à la confirmation de sa valeur.",
+      "markNotApplicable": "Marquer non applicable",
+      "markTitle": "Marquer {{component}} non applicable",
+      "markText": "Les paies de cette entreprise l’excluront. Ne le faites que si l’entreprise n’en est pas redevable ; le motif est conservé dans le journal d’audit.",
+      "markReason": "Motif (par exemple la référence de l’exonération)"
     },
     "review": {
       "attendanceOpen_one": "Une période de présence qui chevauche cette paie est encore ouverte. Son temps sera payé par une paie suivante, en rappel, une fois clôturée.",
@@ -12167,5 +12201,26 @@
       "catalogueTitle": "Événements auxquels vous abonner",
       "fields": "Champs"
     }
+  },
+  "packs": {
+    "researched": {
+      "title": "Valeurs issues de recherches publiques",
+      "body": "Certaines valeurs légales proviennent de recherches publiques et n’ont pas été confirmées par un comptable. Vérifiez-les avant toute déclaration.",
+      "link": "Voir les taux légaux"
+    },
+    "status": {
+      "researched": "Recherchée",
+      "confirmed": "Confirmée",
+      "needs_confirmation": "À confirmer"
+    },
+    "confidence": "confiance {{level}}",
+    "confidenceLevels": {
+      "high": "élevée",
+      "medium": "moyenne",
+      "low": "faible"
+    },
+    "researchedOn": "recherchée le {{date}}",
+    "assumed": "Supposé jusqu’à confirmation : {{fields}}",
+    "lowConfidence": "Les sources se contredisent : aucune valeur n’est saisie."
   }
 }

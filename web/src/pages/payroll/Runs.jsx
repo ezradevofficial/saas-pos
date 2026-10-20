@@ -7,6 +7,7 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, DataTable, KpiTile, ListView, Money, MultiSelect, Select, StageTracker, TextField } from '@/components/ds'
+import { ResearchedNotice } from '@/components/ResearchedNotice'
 import { useCompanies } from '@/layouts/companySelection'
 import { PageHeader } from '@/layouts/PageHeader'
 import { saveFile } from '@/lib/files'
@@ -261,6 +262,12 @@ export function RunDetail() {
         {status === 'pending' ? <Alert tone="info" title={t('payroll.run.pendingTitle')}>{t('payroll.run.pendingHelp')}</Alert> : null}
         {status === 'approved' ? <Alert tone="info" title={t('payroll.run.approvedTitle')}>{t('payroll.run.approvedHelp')}</Alert> : null}
         {status !== 'posted' && status !== 'cancelled' ? <RunReview review={run.review} /> : null}
+        {run.uses_researched_values ? <ResearchedNotice to="/payroll/settings?tab=statutory" /> : null}
+        {run.statutory?.not_applicable?.length ? (
+          <Alert tone="info" title={t('payroll.run.notApplicable', { components: run.statutory.not_applicable.map((row) => row.name ?? row.component).join(', ') })}>
+            {run.statutory.not_applicable.map((row) => row.reason).join(' · ')}
+          </Alert>
+        ) : null}
         <Card>
           <StageTracker stages={RUN_STAGES.map((name) => t(`payroll.stages.${name}`))} current={t(`payroll.stages.${stage}`)} blocked={status === 'cancelled'} />
         </Card>
