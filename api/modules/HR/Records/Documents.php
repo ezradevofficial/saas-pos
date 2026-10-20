@@ -5,11 +5,11 @@ namespace Modules\HR\Records;
 use App\Core\Audit\Auditor;
 use App\Core\CustomFields\CustomFieldFiles;
 use App\Core\Http\ApiException;
+use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Modules\HR\Models\Document;
 use Modules\HR\Models\Employee;
@@ -114,6 +114,6 @@ class Documents
             ]);
         }
 
-        return URL::temporarySignedRoute('hr.document.file', $expires, ['path' => $document->path, 'user' => $user->id]);
+        return SignedUrls::temporary('hr.document.file', $expires, ['path' => $document->path, 'user' => $user->id]);
     }
 }

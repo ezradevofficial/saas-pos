@@ -66,9 +66,9 @@ class SupportAccessGrant extends Model
     protected string $auditResource = 'support_access';
 
     /** The entry code is a credential: never written to the audit log. */
-    protected array $auditHidden = ['entry_code_hash', 'entry_code_expires_at'];
+    protected array $auditHidden = ['entry_code_hash', 'entry_code_expires_at', 'entry_code_agent_hash'];
 
-    protected $hidden = ['entry_code_hash'];
+    protected $hidden = ['entry_code_hash', 'entry_code_agent_hash'];
 
     protected $fillable = ['platform_user_id', 'staff_name', 'staff_email', 'reason', 'mode', 'hours', 'include_sensitive', 'status', 'requested_at',
         'decided_by', 'decided_at', 'decision_note', 'expires_at', 'revoked_by', 'ended_at', 'end_reason', 'principal_user_id', 'session_started_at'];

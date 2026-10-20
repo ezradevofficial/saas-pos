@@ -169,11 +169,11 @@ class SupportAccess
      *
      * @return array{entry_code: string, expires_at: string, grant: SupportAccessGrant}
      */
-    public function openSession(PlatformSupportRequest $request, PlatformUser $staff): array
+    public function openSession(PlatformSupportRequest $request, PlatformUser $staff, ?string $userAgent = null): array
     {
         $secret = Str::random(48);
 
-        $grant = $this->inTenantAsStaff($request, $staff, function (SupportAccessGrant $grant) use ($secret) {
+        $grant = $this->inTenantAsStaff($request, $staff, function (SupportAccessGrant $grant) use ($secret, $userAgent) {
             if (! $grant->isActive()) {
                 throw new ApiException(403, 'support_access_not_granted', __('platform.support.not_granted'));
             }
@@ -182,6 +182,8 @@ class SupportAccess
             $grant->forceFill([
                 'entry_code_hash' => hash('sha256', $secret),
                 'entry_code_expires_at' => CarbonImmutable::now()->addSeconds(self::ENTRY_CODE_SECONDS),
+                // Review L1: the code works only in the browser of the console session that asked for it.
+                'entry_code_agent_hash' => hash('sha256', (string) $userAgent),
             ])->save();
 
             return $grant;
@@ -231,13 +233,14 @@ class SupportAccess
                 $grant = SupportAccessGrant::query()->where('entry_code_hash', hash('sha256', $secret))
                     ->where('entry_code_expires_at', '>', now())->lockForUpdate()->first();
 
-                if ($grant === null || ! $grant->isActive() || $grant->principal_user_id === null) {
+                if ($grant === null || ! $grant->isActive() || $grant->principal_user_id === null
+                    || ! hash_equals((string) $grant->entry_code_agent_hash, hash('sha256', $userAgent))) {
                     return null;
                 }
 
                 $principal = User::query()->findOrFail($grant->principal_user_id);
                 $first = $grant->session_started_at === null;
-                $grant->forceFill(['entry_code_hash' => null, 'entry_code_expires_at' => null, 'session_started_at' => $grant->session_started_at ?? now()])->saveQuietly();
+                $grant->forceFill(['entry_code_hash' => null, 'entry_code_expires_at' => null, 'entry_code_agent_hash' => null, 'session_started_at' => $grant->session_started_at ?? now()])->saveQuietly();
 
                 $token = $principal->createDeviceToken('support-session', $ip, $userAgent, ['*']);
                 // The token ends with the grant, whatever else happens (Sanctum checks expires_at).

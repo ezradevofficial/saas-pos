@@ -16,34 +16,39 @@ use InvalidArgumentException;
  * - `entries`: the collections a diff compares, path => key fields
  *   (`tax_codes` by code and effective_from, `components` by code);
  * - `periods`: the collections whose rows are periods of one key, path =>
- *   key field, checked for overlaps.
+ *   key field, checked for overlaps;
+ * - `required`: keys every row of a collection must carry, path => keys
+ *   (`components.*.periods` for nested rows); an omitted key is an error
+ *   (review L7), a null one is judged by PackValidator.
  */
 class PackSchemas
 {
-    /** @var array<string, array{check: Closure(array<string, mixed>): void, entries: array<string, list<string>>, periods: array<string, string>}> */
+    /** @var array<string, array{check: Closure(array<string, mixed>): void, entries: array<string, list<string>>, periods: array<string, ?string>, required: array<string, list<string>>}> */
     private array $schemas = [];
 
     public function __construct()
     {
-        $this->register('tax', fn (array $content) => PackFile::fromArray($content), ['tax_codes' => ['code', 'effective_from']], ['tax_codes' => 'code']);
-        $this->register('holidays', fn (array $content) => HolidayFile::fromArray($content), ['holidays' => ['key']], []);
+        $this->register('tax', fn (array $content) => PackFile::fromArray($content), ['tax_codes' => ['code', 'effective_from']], ['tax_codes' => 'code'],
+            ['tax_codes' => ['code', 'kind', 'rate', 'needs_confirmation', 'effective_from', 'effective_to', 'fiscal_code']]);
+        $this->register('holidays', fn (array $content) => HolidayFile::fromArray($content), ['holidays' => ['key']], [], ['holidays' => ['key']]);
     }
 
     /**
      * @param  Closure(array<string, mixed>): mixed  $check
      * @param  array<string, list<string>>  $entries
-     * @param  array<string, string>  $periods
+     * @param  array<string, ?string>  $periods
+     * @param  array<string, list<string>>  $required
      */
-    public function register(string $kind, Closure $check, array $entries, array $periods): void
+    public function register(string $kind, Closure $check, array $entries, array $periods, array $required = []): void
     {
         if (! isset(PackDocuments::KINDS[$kind])) {
             throw new InvalidArgumentException("Unknown pack kind [{$kind}].");
         }
 
-        $this->schemas[$kind] = ['check' => $check, 'entries' => $entries, 'periods' => $periods];
+        $this->schemas[$kind] = ['check' => $check, 'entries' => $entries, 'periods' => $periods, 'required' => $required];
     }
 
-    /** @return array{check: Closure(array<string, mixed>): void, entries: array<string, list<string>>, periods: array<string, string>}|null */
+    /** @return array{check: Closure(array<string, mixed>): void, entries: array<string, list<string>>, periods: array<string, ?string>, required: array<string, list<string>>}|null */
     public function get(string $kind): ?array
     {
         return $this->schemas[$kind] ?? null;

@@ -14,7 +14,7 @@ vi.mock('./platformClient', async (importOriginal) => ({
 }))
 
 const ALL = [
-  'platform.tenants.view', 'platform.tenants.manage', 'platform.tenants.create', 'platform.catalogue.view', 'platform.billing.view', 'platform.deals.manage',
+  'platform.tenants.view', 'platform.tenants.owner_search', 'platform.tenants.manage', 'platform.tenants.create', 'platform.catalogue.view', 'platform.billing.view', 'platform.deals.manage',
   'platform.deals.approve', 'platform.support.request', 'platform.packs.view', 'platform.packs.manage', 'platform.packs.approve', 'platform.packs.publish',
   'platform.reports.view', 'platform.staff.manage',
 ]

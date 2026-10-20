@@ -5,6 +5,8 @@ namespace Tests\Feature\Core\Platform;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformDatabase;
+use App\Core\Platform\Reports\Http\PlatformReportsController;
+use App\Core\Platform\Reports\PlatformReports;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\CreatesPlatformStaff;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -112,5 +114,29 @@ class PlatformReportsTest extends TestCase
 
         $this->getJson('/api/v1/platform/reports/summary', $this->headersFor())->assertUnauthorized();
         $this->getJson('/api/v1/platform/reports/summary?from=2026-11-30&to=2026-11-01', $this->staffBearer($this->staff()))->assertStatus(422);
+    }
+
+    /** Review L4: formulas are neutralised, plain numbers (negative ones too) stay numbers. */
+    public function test_csv_cells_neutralise_formulas_but_keep_numbers(): void
+    {
+        $this->assertSame('-1200.00', PlatformReportsController::csvCell('-1200.00'));
+        $this->assertSame("'=SUM(A1)", PlatformReportsController::csvCell('=SUM(A1)'));
+        $this->assertSame("'-cmd", PlatformReportsController::csvCell('-cmd'));
+        $this->assertSame(42, PlatformReportsController::csvCell(42));
+    }
+
+    /** Review L5: MRR by module adds up to MRR (annual discount shared out, overage left out). */
+    public function test_mrr_by_module_adds_up_to_mrr(): void
+    {
+        $this->assertSame(['pos' => 300, 'payroll' => 701], PlatformReports::shareOut(1001, [['pos', 3000, 12], ['payroll', 7000, 12]], 'custom'));
+        $this->assertSame(['custom' => 500], PlatformReports::shareOut(500, [], 'custom'));
+
+        $annual = [...self::STARTER, 'cycle' => 'annual', 'modules' => ['inventory', 'loyalty', 'payroll', 'pos'], 'quantities' => ['outlet' => 1, 'employee' => 20]];
+        $this->postJson('/api/v1/subscription/change', [...$annual, 'expected_charge' => 0], $this->headersFor())->assertOk();
+        $this->activate();
+        $mrr = $this->getJson('/api/v1/platform/reports/summary', $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE)))->assertOk()->json('data.mrr');
+
+        $this->assertSame(array_sum(array_column($mrr['by_currency'], 'amount_minor')), array_sum(array_column($mrr['by_module'], 'amount_minor')));
+        $this->assertCount(2, $mrr['by_module']);
     }
 }

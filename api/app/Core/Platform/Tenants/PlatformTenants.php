@@ -10,12 +10,10 @@ use App\Core\Billing\Operator\Accounts;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Subscriptions\BillingTrial;
 use App\Core\Http\ApiException;
-use App\Core\Identity\Models\User;
 use App\Core\Limits\Models\UsageMeter;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformAuditor;
 use App\Core\Rbac\ModuleRegistry;
-use App\Core\Rbac\OwnerGuard;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
@@ -61,12 +59,12 @@ class PlatformTenants
             return collect();
         }
 
-        $ownerTenant = null;
+        $ownerTenants = null;
 
         if (filled($filters['owner_email'] ?? null)) {
-            $ownerTenant = $this->tenantOwnedBy((string) $filters['owner_email']);
+            $ownerTenants = $this->tenantsOwnedBy((string) $filters['owner_email']);
 
-            if ($ownerTenant === null) {
+            if ($ownerTenants === []) {
                 return collect();
             }
         }
@@ -76,7 +74,7 @@ class PlatformTenants
                 $term = '%'.addcslashes(mb_strtolower(trim((string) $filters['search'])), '%_\\').'%';
                 $q->where(fn (Builder $q) => $q->whereRaw('lower(name) like ?', [$term])->orWhereRaw('lower(slug) like ?', [$term]));
             })
-            ->when($ownerTenant !== null, fn (Builder $q) => $q->where('customer_tenant_id', $ownerTenant))
+            ->when($ownerTenants !== null, fn (Builder $q) => $q->whereIn('customer_tenant_id', $ownerTenants))
             ->when(filled($filters['country'] ?? null), fn (Builder $q) => $q->where('country', strtoupper((string) $filters['country'])))
             ->when(filled($filters['plan'] ?? null), fn (Builder $q) => $q->where('bundle', (string) $filters['plan']))
             ->when(filled($filters['status'] ?? null), fn (Builder $q) => $q->where('status', (string) $filters['status']))
@@ -86,20 +84,16 @@ class PlatformTenants
             ->get());
     }
 
-    /** The tenant whose Owner signs in with $email, or null. */
-    private function tenantOwnedBy(string $email): ?string
+    /**
+     * Review L3: the tenants where $email is an active Owner, through a
+     * security-definer lookup that returns tenant ids only.
+     *
+     * @return list<string>
+     */
+    private function tenantsOwnedBy(string $email): array
     {
-        $tenantId = DB::connection(TenantContext::CONNECTION)->selectOne('select public.auth_tenant_for_login(?) as id', [mb_strtolower(trim($email))])?->id;
-
-        if ($tenantId === null) {
-            return null;
-        }
-
-        return $this->tenants->run((string) $tenantId, function () use ($email) {
-            $user = User::query()->whereRaw('lower(email) = ?', [mb_strtolower(trim($email))])->first();
-
-            return $user !== null && app(OwnerGuard::class)->isOwner($user) ? $this->tenants->id() : null;
-        });
+        return array_map(fn ($row) => (string) $row->id, DB::connection(TenantContext::CONNECTION)
+            ->select('select t.id from public.app_tenants_owned_by_email(?) as t(id)', [mb_strtolower(trim($email))]));
     }
 
     /**

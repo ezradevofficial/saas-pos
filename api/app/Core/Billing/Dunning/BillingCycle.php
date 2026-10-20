@@ -170,7 +170,8 @@ class BillingCycle
         try {
             $coupon = $subscription->coupon_until === null ? $this->subscriptions->coupon($subscription, nextPeriod: true) : null;
 
-            return (int) $this->subscriptions->price($subscription->country, $plan, [], $coupon)['total'];
+            // Review L6: priced on the due date (prices and deals in force then).
+            return (int) $this->subscriptions->price($subscription->country, $plan, [], $coupon, $due)['total'];
         } catch (ApiException) {
             return $subscription->period_amount_minor;
         }

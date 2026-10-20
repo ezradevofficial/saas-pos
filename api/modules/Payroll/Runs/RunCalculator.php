@@ -77,7 +77,7 @@ class RunCalculator
         $this->rateCache = [];
         $company = Company::query()->findOrFail($run->company_id);
         $group = PayGroup::query()->findOrFail($run->pay_group_id);
-        $pack = $this->packs->of($company->country);
+        $pack = $this->packs->of($company->country, $run->pay_date);
 
         if ($pack === null) {
             throw Errors::make(422, 'payroll_pack_missing', ['country' => (string) $company->country]);
@@ -146,7 +146,7 @@ class RunCalculator
 
         // Review fix 5: what the run was calculated from (the pack's source and hash); decisions 29, 33, 40: what the reviewer should know.
         $run->fill(['missing' => null, 'totals' => $this->totals($run, $lines, $previous, $employees), 'inputs' => [
-            'pack' => $this->packs->source($company->country),
+            'pack' => $this->packs->source($company->country, $run->pay_date),
             'review' => $this->review($run, $group, $previous),
         ]])->save();
     }

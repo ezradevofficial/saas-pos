@@ -182,6 +182,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_with_stuck_automation(p_stale_before timestamptz)` | `setof uuid` | `automation:scan reap` |
 | `app_tenants_with_tenders()` | `setof uuid` | `procurement:rewrap-keys`, every tenant with a tender, suspended and closed ones included (ADR 019) |
 | `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `setof uuid` | `credit-limits:reconcile` |
+| `app_tenants_owned_by_email(p_email text)` | `setof uuid` | ADM-01 (review L3): the console's owner-email search, every tenant where the email is an active Owner; audited, support and compliance only |
 | `app_tenants_for_pack_updates()` | `setof uuid` | ADM-04 (ADR 022): every tenant that is not closed, suspended ones included, to receive a published tax release (one queued job per tenant) |
 | `app_tenants_with_expired_support_grants(p_at timestamptz)` | `setof uuid` | `support:expire`: support access approved and past its end (RBAC-13, docs/modules/platform-admin.md) |
 

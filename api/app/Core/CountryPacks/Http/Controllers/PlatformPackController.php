@@ -5,6 +5,7 @@ namespace App\Core\CountryPacks\Http\Controllers;
 use App\Core\CountryPacks\Http\Requests\DecidePackReleaseRequest;
 use App\Core\CountryPacks\Http\Requests\LoadPackReleaseRequest;
 use App\Core\CountryPacks\Http\Requests\PackReleaseRequest;
+use App\Core\CountryPacks\Http\Requests\SupersedePackReleaseRequest;
 use App\Core\CountryPacks\Models\CountryPackRelease;
 use App\Core\CountryPacks\PackDocuments;
 use App\Core\CountryPacks\PackReleases;
@@ -68,6 +69,14 @@ class PlatformPackController
         );
 
         return response()->json(['data' => self::present($release, $this->names([$release]), withContent: false)], 201);
+    }
+
+    /** Review L7: a draft that puts back what was in force before $release (approve and publish as usual). */
+    public function supersede(SupersedePackReleaseRequest $request, string $release): JsonResponse
+    {
+        $row = $this->releases->supersede(CountryPackRelease::query()->findOrFail($release), $request->staff());
+
+        return response()->json(['data' => self::present($row, $this->names([$row]), withContent: false)], 201);
     }
 
     public function approve(DecidePackReleaseRequest $request, string $release): JsonResponse

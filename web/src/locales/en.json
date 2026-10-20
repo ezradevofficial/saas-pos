@@ -12036,7 +12036,8 @@
       "suspendText": "Changes are refused and the tills stop selling. The Owners can still sign in, see and export their data, and pay. They are told why.",
       "reactivate": "Reactivate",
       "reactivateTitle": "Reactivate this tenant",
-      "reactivateText": "The account works again as before the suspension. The Owners are told."
+      "reactivateText": "The account works again as before the suspension. The Owners are told.",
+      "ownerEmailHelp": "Exact address. Searches are recorded."
     },
     "deals": {
       "title": "Enterprise deals",
@@ -12176,7 +12177,8 @@
       "removed_other": "{{count}} removed",
       "approve": "Approve",
       "publish": "Publish",
-      "reject": "Reject"
+      "reject": "Reject",
+      "supersede": "Put back the previous release"
     },
     "reports": {
       "title": "Reports",

@@ -53,7 +53,7 @@ class PlatformSupportController
     /** RBAC-13c: a one-time entry code (60 seconds) for the tenant web; the token itself never passes through the console. */
     public function session(SupportRequest $request, string $supportRequest): JsonResponse
     {
-        $result = $this->support->openSession($this->mirror($supportRequest), $request->staff());
+        $result = $this->support->openSession($this->mirror($supportRequest), $request->staff(), $request->userAgent());
 
         return response()->json(['data' => [
             'entry_code' => $result['entry_code'],

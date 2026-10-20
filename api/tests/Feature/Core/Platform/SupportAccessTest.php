@@ -6,6 +6,8 @@ use App\Core\Audit\AuditContext;
 use App\Core\Audit\AuditEntry;
 use App\Core\Automation\Models\AutomationRule;
 use App\Core\Billing\Subscriptions\Subscriptions;
+use App\Core\CustomFields\Entities\UserLookup;
+use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Platform\Models\PlatformUser;
@@ -383,5 +385,81 @@ class SupportAccessTest extends TestCase
         $this->getJson('/api/v1/parties', $session)->assertUnauthorized();
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'core.support_session.refused')->exists()));
         $this->assertTrue(PlatformDatabase::connection()->table('platform_audit_logs')->where('action', 'platform.support.token_refused')->exists());
+    }
+
+    /** Review L1: the entry code works only in the browser of the console session that asked for it. */
+    public function test_the_entry_code_is_bound_to_the_console_browser(): void
+    {
+        $grant = $this->ask();
+        $this->approve($grant);
+        $code = $this->postJson("/api/v1/platform/support/requests/{$grant}/session", [], [...$this->agentBearer, 'User-Agent' => 'ConsoleBrowser/1'])->assertOk()->json('data.entry_code');
+
+        $this->postJson('/api/v1/auth/support-session', ['code' => $code], ['User-Agent' => 'SomewhereElse/9'])->assertNotFound();
+        $this->postJson('/api/v1/auth/support-session', ['code' => $code], ['User-Agent' => 'ConsoleBrowser/1'])->assertOk();
+    }
+
+    /** Review L2: a signed link made in a session ends with its grant. */
+    public function test_signed_links_made_in_a_session_end_with_the_grant(): void
+    {
+        $grant = $this->ask();
+        $this->approve($grant);
+        $this->enter($grant);
+        $principal = $this->inTenant(fn () => User::query()->where('support_grant_id', $grant)->sole());
+
+        $url = $this->inTenant(function () use ($principal) {
+            request()->setUserResolver(fn () => $principal);
+
+            return SignedUrls::temporary('imports.file', now()->addDays(3), ['path' => 'tenants/x/missing.csv', 'user' => $principal->id]);
+        });
+        request()->setUserResolver(fn () => null);
+        $this->assertStringContainsString('sg=', $url);
+        $this->assertNotSame('support_access_ended', $this->getJson($url)->json('code'));
+
+        $this->postJson("/api/v1/support-access/{$grant}/revoke", [], $this->headersFor())->assertOk();
+        $this->getJson($url)->assertForbidden()->assertJsonPath('code', 'support_access_ended');
+    }
+
+    /** Review L9: user pickers never offer a support principal. */
+    public function test_user_pickers_never_offer_the_principal(): void
+    {
+        $grant = $this->ask();
+        $this->approve($grant);
+        $this->enter($grant);
+
+        $labels = $this->inTenant(fn () => array_column(app(UserLookup::class)->search($this->owner, '', 50), 'label'));
+        $this->assertNotContains($this->agent->name.' (support)', $labels);
+        $this->assertContains($this->owner->name, $labels);
+    }
+
+    /** Review L10: one tenant's failure never stops the others expiring. */
+    public function test_expiry_goes_on_when_one_tenant_fails(): void
+    {
+        $other = $this->otherTenant();
+        $this->asTenant($other['user']->tenant_id, fn () => app(Subscriptions::class)->startTrial('KE', self::STARTER));
+        $mine = $this->ask(hours: 1);
+        $this->approve($mine);
+        $theirs = $this->ask(hours: 1, tenant: $other['user']->tenant_id);
+        $this->postJson("/api/v1/support-access/{$theirs}/approve", ['include_sensitive' => false], $this->headersFor($other['user']))->assertOk();
+        $this->travelTo(CarbonImmutable::now()->addMinutes(61));
+
+        $real = app(SupportAccess::class);
+        $calls = 0;
+        $support = Mockery::mock($real);
+        $support->shouldReceive('expire')->andReturnUsing(function ($at) use ($real, &$calls) {
+            if ($calls++ === 0) {
+                throw new RuntimeException('tenant down');
+            }
+
+            return $real->expire($at);
+        });
+        $this->app->instance(SupportAccess::class, $support);
+
+        $this->artisan('support:expire')->assertSuccessful();
+        $statuses = [
+            $this->inTenant(fn () => SupportAccessGrant::query()->findOrFail($mine)->status),
+            $this->asTenant($other['user']->tenant_id, fn () => SupportAccessGrant::query()->findOrFail($theirs)->status),
+        ];
+        sort($statuses);
+        $this->assertSame([SupportAccessGrant::APPROVED, SupportAccessGrant::EXPIRED], $statuses);
     }
 }

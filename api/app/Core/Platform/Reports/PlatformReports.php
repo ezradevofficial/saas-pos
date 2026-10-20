@@ -69,9 +69,11 @@ class PlatformReports
             $invoice = OperatorInvoice::query()->where('customer_tenant_id', $account->customer_tenant_id)->whereIn('kind', ['first', 'renewal'])
                 ->where('status', '<>', 'void')->orderByDesc('period_start')->first();
 
-            foreach ($invoice === null ? [] : self::netLines($invoice) as [$key, $net, $months]) {
+            // Review L5: the account's MRR shared out by its plan lines (overage left out), so
+            // MRR by module adds up to MRR: the annual discount and coupons fall proportionally.
+            foreach (self::shareOut((int) $account->mrr_minor, $invoice === null ? [] : self::netLines($invoice, withOverage: false), $account->bundle ?? 'custom') as $key => $amount) {
                 $k = "{$key}|{$account->currency}";
-                $byModule[$k] = ($byModule[$k] ?? 0) + intdiv($net, max(1, $months));
+                $byModule[$k] = ($byModule[$k] ?? 0) + $amount;
             }
         }
 
@@ -198,12 +200,13 @@ class PlatformReports
      *
      * @return list<array{0: string, 1: int, 2: int}> [key, net minor units, months]
      */
-    private static function netLines(OperatorInvoice $invoice): array
+    private static function netLines(OperatorInvoice $invoice, bool $withOverage = true): array
     {
         $lines = [];
+        $types = $withOverage ? ['module', 'bundle', 'overage'] : ['module', 'bundle'];
 
         foreach ((array) $invoice->lines as $line) {
-            if (! in_array($line['type'] ?? null, ['module', 'bundle', 'overage'], true) || ! isset($line['net_minor'])) {
+            if (! in_array($line['type'] ?? null, $types, true) || ! isset($line['net_minor'])) {
                 continue;
             }
 
@@ -211,6 +214,35 @@ class PlatformReports
         }
 
         return $lines;
+    }
+
+    /**
+     * $total minor units shared out in proportion to the lines' net
+     * amounts, the remainder to the largest line (integers only); all to
+     * $fallback without lines.
+     *
+     * @param  list<array{0: string, 1: int, 2: int}>  $lines
+     * @return array<string, int>
+     */
+    public static function shareOut(int $total, array $lines, string $fallback): array
+    {
+        $weights = [];
+
+        foreach ($lines as [$key, $net]) {
+            $weights[$key] = ($weights[$key] ?? 0) + max(0, $net);
+        }
+
+        $sum = array_sum($weights);
+
+        if ($sum === 0) {
+            return $total === 0 ? [] : [$fallback => $total];
+        }
+
+        $shares = array_map(fn (int $weight) => intdiv($total * $weight, $sum), $weights);
+        arsort($weights);
+        $shares[array_key_first($weights)] += $total - array_sum($shares);
+
+        return $shares;
     }
 
     /**

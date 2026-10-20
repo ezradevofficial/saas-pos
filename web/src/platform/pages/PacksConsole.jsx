@@ -143,6 +143,8 @@ function ReleaseDialog({ id, onClose }) {
   if (data?.status === 'draft' && can('platform.packs.approve') && !mine(data.loaded_by) && !data.validation.errors.length) actions.push(['approve', 'primary'])
   if (data?.status === 'approved' && can('platform.packs.publish') && !mine(data.approved_by)) actions.push(['publish', 'pay'])
   if ((data?.status === 'draft' || data?.status === 'approved') && can('platform.packs.approve')) actions.push(['reject', 'ghost'])
+  // Review L7: put back what was in force before a published release (a new draft, approved and published as usual).
+  if (data?.status === 'published' && can('platform.packs.manage')) actions.push(['supersede', 'ghost'])
   return (
     <Dialog
       open

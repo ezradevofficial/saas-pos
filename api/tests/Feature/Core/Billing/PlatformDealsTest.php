@@ -3,10 +3,12 @@
 namespace Tests\Feature\Core\Billing;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Billing\Dunning\BillingCycle;
 use App\Core\Billing\Models\BillingDeal;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformDatabase;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\CreatesPlatformStaff;
@@ -152,5 +154,16 @@ class PlatformDealsTest extends TestCase
 
         $this->getJson('/api/v1/platform/tenants/00000000-0000-7000-8000-000000000000/deals', $sales)->assertNotFound();
         $this->getJson($url, $this->headersFor())->assertUnauthorized();
+    }
+
+    /** Review L6: the renewal reminder prices on the due date (a deal from that day counts). */
+    public function test_the_next_amount_is_priced_on_the_due_date(): void
+    {
+        $this->activate();
+        $deal = $this->draft(['effective_from' => '2026-12-01', 'lines' => [['type' => 'bundle', 'key' => 'starter', 'amount' => 250000]]]);
+        $this->approve($deal);
+
+        $amount = $this->inTenant(fn () => app(BillingCycle::class)->nextAmount($this->subscription(), CarbonImmutable::parse('2026-12-01', 'UTC')));
+        $this->assertSame(250000, $amount);
     }
 }

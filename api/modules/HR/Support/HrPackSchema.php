@@ -15,7 +15,8 @@ final class HrPackSchema
 {
     public static function register(PackSchemas $schemas): void
     {
-        $schemas->register('hr', fn (array $content) => self::check($content), ['identifier_types' => ['key'], 'statutory_leave_types' => ['key', 'effective_from']], ['statutory_leave_types' => 'key']);
+        $schemas->register('hr', fn (array $content) => self::check($content), ['identifier_types' => ['key'], 'statutory_leave_types' => ['key', 'effective_from']], ['statutory_leave_types' => 'key'],
+            ['identifier_types' => ['key', 'required', 'pattern'], 'statutory_leave_types' => ['key', 'accrual', 'count_basis', 'paid', 'days', 'needs_confirmation', 'effective_from', 'effective_to']]);
     }
 
     /** @param array<string, mixed> $content */

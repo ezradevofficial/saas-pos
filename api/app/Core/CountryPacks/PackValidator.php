@@ -68,6 +68,19 @@ class PackValidator
             }
         }
 
+        // Review L7: a row that leaves out a key its kind requires.
+        foreach ($schema['required'] ?? [] as $path => $keys) {
+            foreach ($this->groups($content, $path, null) as $group => $rows) {
+                foreach ($rows as $row) {
+                    $missing = array_values(array_diff($keys, array_keys($row)));
+
+                    if ($missing !== []) {
+                        $errors[] = __('country_packs.releases.missing_key', ['path' => $path, 'key' => (string) ($row['code'] ?? $row['key'] ?? $group), 'fields' => implode(', ', $missing)]);
+                    }
+                }
+            }
+        }
+
         $this->walk($kind, $content, '', $errors, $warnings);
 
         return ['errors' => array_values(array_unique($errors)), 'warnings' => array_values(array_unique($warnings))];
@@ -135,9 +148,9 @@ class PackValidator
 
         $groups = [];
 
-        foreach ((array) ($content[$path] ?? []) as $row) {
+        foreach ((array) ($content[$path] ?? []) as $i => $row) {
             if (is_array($row)) {
-                $groups[(string) ($row[$keyField] ?? '')][] = $row;
+                $groups[$keyField === null ? (string) $i : (string) ($row[$keyField] ?? '')][] = $row;
             }
         }
 

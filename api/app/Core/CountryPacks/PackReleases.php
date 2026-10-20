@@ -78,6 +78,30 @@ class PackReleases
         return $release;
     }
 
+    /**
+     * Review L7: undo a published release by loading the content before it
+     * (the previous published release, else the shipped file) as a new
+     * draft from today. It still goes through approval and publishing.
+     */
+    public function supersede(CountryPackRelease $release, PlatformUser $staff): CountryPackRelease
+    {
+        if ($release->status !== CountryPackRelease::PUBLISHED) {
+            throw new ApiException(422, 'pack_release_not_published', __('country_packs.releases.not_published'));
+        }
+
+        $previous = CountryPackRelease::query()->where('country', $release->country)->where('kind', $release->kind)
+            ->where('status', CountryPackRelease::PUBLISHED)->where('version', '<', $release->version)->orderByDesc('version')->first();
+        $file = PackDocuments::file($release->country, $release->kind);
+        $content = $previous?->content ?? ($file !== null && is_file($file) ? json_decode((string) file_get_contents($file), true, 64, JSON_THROW_ON_ERROR) : null);
+
+        if ($content === null) {
+            throw new ApiException(422, 'pack_release_nothing_before', __('country_packs.releases.nothing_before'));
+        }
+
+        return $this->load($release->country, $release->kind, $content, CarbonImmutable::now()->utc()->startOfDay(),
+            __('country_packs.releases.supersede_notes', ['version' => $previous?->version ?? '0']), $staff);
+    }
+
     public function approve(CountryPackRelease $release, PlatformUser $staff): CountryPackRelease
     {
         $release = PlatformDatabase::transaction(function () use ($release, $staff) {

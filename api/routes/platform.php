@@ -70,6 +70,7 @@ Route::prefix('platform')->group(function () {
         Route::post('{release}/approve', [PlatformPackController::class, 'approve'])->whereUuid('release');
         Route::post('{release}/reject', [PlatformPackController::class, 'reject'])->whereUuid('release');
         Route::post('{release}/publish', [PlatformPackController::class, 'publish'])->whereUuid('release');
+        Route::post('{release}/supersede', [PlatformPackController::class, 'supersede'])->whereUuid('release');
     });
 
     // ADM-06: revenue and usage reports, and their CSV downloads.

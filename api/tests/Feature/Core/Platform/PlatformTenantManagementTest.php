@@ -63,10 +63,14 @@ class PlatformTenantManagementTest extends TestCase
         $this->assertCount(2, $this->search(['status' => 'trial']));
 
         // Owner email: the sign-in lookup, then the Owner role checked in that tenant.
-        $this->assertSame([$theirs], array_column($this->search(['owner_email' => strtoupper($this->other['user']->email)]), 'tenant_id'));
-        $this->assertSame([], $this->search(['owner_email' => 'nobody@example.com']));
+        $this->assertSame([$theirs], array_column($this->search(['owner_email' => strtoupper($this->other['user']->email)], PlatformUser::ROLE_SUPPORT), 'tenant_id'));
+        $this->assertSame([], $this->search(['owner_email' => 'nobody@example.com'], PlatformUser::ROLE_COMPLIANCE));
         $cashier = $this->userWith('cashier', Scope::tenant());
-        $this->assertSame([], $this->search(['owner_email' => $cashier->email]), 'a user who is not an Owner finds nothing');
+        $this->assertSame([], $this->search(['owner_email' => $cashier->email], PlatformUser::ROLE_SUPPORT), 'a user who is not an Owner finds nothing');
+
+        // Review L3: only support, compliance and platform owners search by an Owner's email, and it is audited.
+        $this->getJson('/api/v1/platform/tenants?owner_email=nobody%40example.com', $this->staffBearer($this->staff(PlatformUser::ROLE_SALES)))->assertForbidden();
+        $this->assertSame(3, PlatformDatabase::connection()->table('platform_audit_logs')->where('action', 'platform.tenant.owner_search')->count());
 
         $this->getJson('/api/v1/platform/tenants?status=unknown', $this->staffBearer($this->staff()))->assertStatus(422);
     }

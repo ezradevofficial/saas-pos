@@ -7,6 +7,7 @@ use App\Core\Tenancy\DueTenants;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use Throwable;
 
 /**
  * RBAC-13f: approvals past their end become `expired`, their principals
@@ -25,8 +26,14 @@ class ExpireSupportAccess extends Command
         $at = CarbonImmutable::now();
         $count = 0;
 
+        // Review L10: one tenant's failure is reported and the others still expire.
         foreach ($due->withExpiredSupportGrants($at) as $tenantId) {
-            $count += $tenants->run($tenantId, fn () => $support->expire($at));
+            try {
+                $count += $tenants->run($tenantId, fn () => $support->expire($at));
+            } catch (Throwable $e) {
+                report($e);
+                $this->components->error("Support access of tenant {$tenantId} could not be expired; it is retried on the next run.");
+            }
         }
 
         $this->components->info("{$count} support access grants expired.");

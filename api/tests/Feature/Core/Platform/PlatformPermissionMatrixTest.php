@@ -53,6 +53,7 @@ class PlatformPermissionMatrixTest extends TestCase
         'POST packs/{release}/approve' => 'platform.packs.approve',
         'POST packs/{release}/reject' => 'platform.packs.approve',
         'POST packs/{release}/publish' => 'platform.packs.publish',
+        'POST packs/{release}/supersede' => 'platform.packs.manage',
         'GET reports/summary' => 'platform.reports.view',
         'GET reports/{report}.csv' => 'platform.reports.view',
         'GET staff' => 'platform.staff.manage',

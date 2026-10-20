@@ -72,11 +72,17 @@ class PlatformReportsController
             fputcsv($out, $header, escape: '');
 
             foreach ($rows as $row) {
-                // Cells never start a formula (CSV injection).
-                fputcsv($out, array_map(fn ($v) => is_string($v) && preg_match('/^[=+\-@\t\r]/', $v) === 1 ? "'".$v : $v, $row), escape: '');
+                // Cells never start a formula (CSV injection); plain numbers (a negative amount) stay numbers (review L4).
+                fputcsv($out, array_map(self::csvCell(...), $row), escape: '');
             }
 
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** A CSV cell that never starts a formula (CSV injection); plain numbers, negative ones too, stay numbers (review L4). */
+    public static function csvCell(mixed $value): mixed
+    {
+        return is_string($value) && ! is_numeric($value) && preg_match('/^[=+\-@\t\r]/', $value) === 1 ? "'".$value : $value;
     }
 }

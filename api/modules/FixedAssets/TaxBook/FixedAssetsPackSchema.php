@@ -15,7 +15,8 @@ final class FixedAssetsPackSchema
 {
     public static function register(PackSchemas $schemas): void
     {
-        $schemas->register('fixed_assets', fn (array $content) => self::check($content), ['classes' => ['key', 'effective_from']], ['classes' => 'key']);
+        $schemas->register('fixed_assets', fn (array $content) => self::check($content), ['classes' => ['key', 'effective_from']], ['classes' => 'key'],
+            ['classes' => ['key', 'method', 'rate', 'needs_confirmation', 'effective_from', 'effective_to']]);
     }
 
     /** @param array<string, mixed> $content */

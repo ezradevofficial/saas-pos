@@ -47,6 +47,10 @@ class PlatformTenantController
     {
         $accounts = $this->platformTenants->search($request->validated());
 
+        if ($request->filled('owner_email')) {
+            $this->auditor->record('platform.tenant.owner_search', null, null, ['owner_email' => mb_strtolower(trim((string) $request->validated('owner_email'))), 'found' => $accounts->pluck('customer_tenant_id')->all()]);
+        }
+
         return response()->json(['data' => $accounts->map(fn (OperatorAccount $a) => self::account($a))->all()]);
     }
 

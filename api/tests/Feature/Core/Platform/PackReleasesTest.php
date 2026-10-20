@@ -148,7 +148,8 @@ class PackReleasesTest extends TestCase
         $this->setUpPayroll();
         // No injected pack: the run reads what the platform published.
         $this->app->instance(PayrollPack::class, new PayrollPack);
-        $release = $this->load('payroll', FixturePacks::ke());
+        // In force before the run's pay date (review L7: runs read the release of their pay date).
+        $release = $this->load('payroll', FixturePacks::ke(), from: '2026-01-01');
         $this->approveAndPublish($release['id']);
 
         $this->payrollEmployee('5000000');
@@ -225,5 +226,31 @@ class PackReleasesTest extends TestCase
 
         $this->assertSame([$published['id']], CountryPackRelease::on('pgsql')->pluck('id')->all());
         $this->assertSame(2, CountryPackRelease::query()->whereIn('id', [$draft['id'], $published['id']])->count(), 'the platform role sees them all');
+    }
+
+    /** Review L7: a row that leaves out a required key is an error. */
+    public function test_an_omitted_required_key_is_an_error(): void
+    {
+        $hr = self::file('KE', 'hr');
+        unset($hr['statutory_leave_types'][0]['paid']);
+
+        $errors = $this->load('hr', $hr)['validation']['errors'];
+        $this->assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'paid')));
+    }
+
+    /** Review L7: payroll reads the release in force on the pay date; supersede puts the previous content back as a draft. */
+    public function test_payroll_reads_the_release_of_the_pay_date_and_a_release_can_be_superseded(): void
+    {
+        $release = $this->load('payroll', FixturePacks::ke(), from: '2026-12-01');
+        $this->approveAndPublish($release['id']);
+        $packs = new PayrollPack;
+
+        $this->assertSame('shipped', $packs->source('KE', CarbonImmutable::parse('2026-11-25'))['source']);
+        $this->assertSame('release', $packs->source('KE', CarbonImmutable::parse('2026-12-25'))['source']);
+
+        $draft = $this->postJson("/api/v1/platform/packs/{$release['id']}/supersede", [], $this->loader)->assertCreated()->json('data');
+        $this->assertSame('draft', $draft['status']);
+        $this->assertEquals(self::file('KE', 'payroll'), CountryPackRelease::query()->findOrFail($draft['id'])->content);
+        $this->postJson("/api/v1/platform/packs/{$draft['id']}/supersede", [], $this->loader)->assertStatus(422);
     }
 }

@@ -17,7 +17,8 @@ final class PayrollPackSchema
 {
     public static function register(PackSchemas $schemas): void
     {
-        $schemas->register('payroll', fn (array $content) => self::check($content), ['components' => ['code'], 'returns' => ['key']], ['components.*.periods' => null]);
+        $schemas->register('payroll', fn (array $content) => self::check($content), ['components' => ['code'], 'returns' => ['key']], ['components.*.periods' => null],
+            ['components' => ['code', 'kind', 'method', 'periods'], 'components.*.periods' => ['effective_from', 'effective_to', 'needs_confirmation']]);
     }
 
     /** @param array<string, mixed> $content */

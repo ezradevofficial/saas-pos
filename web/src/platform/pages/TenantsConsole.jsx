@@ -63,7 +63,7 @@ export function TenantsList() {
         }}
       >
         <TextField label={t('admin.tenants.nameOrSlug')} value={filters.search} onChange={set('search')} />
-        <TextField type="email" label={t('admin.tenants.ownerEmail')} value={filters.owner_email} onChange={set('owner_email')} />
+        {can('platform.tenants.owner_search') ? <TextField type="email" label={t('admin.tenants.ownerEmail')} help={t('admin.tenants.ownerEmailHelp')} value={filters.owner_email} onChange={set('owner_email')} /> : null}
         <Select
           label={t('platform.customers.columns.country')}
           value={filters.country}

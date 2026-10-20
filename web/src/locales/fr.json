@@ -12036,7 +12036,8 @@
       "suspendText": "Les modifications sont refusées et les caisses cessent de vendre. Les propriétaires peuvent toujours se connecter, consulter et exporter leurs données, et payer. Le motif leur est communiqué.",
       "reactivate": "Réactiver",
       "reactivateTitle": "Réactiver ce compte",
-      "reactivateText": "Le compte fonctionne de nouveau comme avant la suspension. Les propriétaires sont prévenus."
+      "reactivateText": "Le compte fonctionne de nouveau comme avant la suspension. Les propriétaires sont prévenus.",
+      "ownerEmailHelp": "Adresse exacte. Les recherches sont enregistrées."
     },
     "deals": {
       "title": "Contrats Entreprise",
@@ -12176,7 +12177,8 @@
       "removed_other": "{{count}} retirés",
       "approve": "Approuver",
       "publish": "Publier",
-      "reject": "Refuser"
+      "reject": "Refuser",
+      "supersede": "Rétablir la version précédente"
     },
     "reports": {
       "title": "Rapports",

@@ -58,6 +58,8 @@ class PlatformUser extends Authenticatable
      */
     public const PERMISSIONS = [
         'platform.tenants.view' => self::ROLES,
+        // Review L3: finding a tenant by its Owner's email (personal data), audited.
+        'platform.tenants.owner_search' => [self::ROLE_OWNER, self::ROLE_SUPPORT, self::ROLE_COMPLIANCE],
         // Suspend, reactivate, extend a trial, resend the Owner invitation.
         'platform.tenants.manage' => [self::ROLE_OWNER, self::ROLE_SUPPORT, self::ROLE_FINANCE],
         // ONB-08: create a tenant for a customer (field sales, support).

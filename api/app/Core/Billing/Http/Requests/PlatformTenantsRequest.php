@@ -12,6 +12,12 @@ class PlatformTenantsRequest extends PlatformRequest
 {
     protected ?string $ability = 'platform.tenants.view';
 
+    public function authorize(): bool
+    {
+        // Review L3: searching by an Owner's email is for support and compliance (and platform owners).
+        return parent::authorize() && (! $this->filled('owner_email') || (bool) $this->staff()?->allows('platform.tenants.owner_search'));
+    }
+
     public function rules(): array
     {
         return [
