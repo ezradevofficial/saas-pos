@@ -16,13 +16,17 @@ use Illuminate\Console\Command;
  * - an operation or a parameter of the baseline is gone without a
  *   deprecation entry (`api.deprecations`);
  * - the baseline is not the generated document (run `--write`).
+ *
+ * `--against=<file>` (CI) compares with the base branch's document
+ * instead: removals without a deprecation entry fail, additions do not.
  */
 class ApiDocsCommand extends Command
 {
     protected $signature = 'api:docs
         {--write : Write the generated document to the baseline}
         {--check : Fail on undocumented routes, removals without a deprecation and a stale baseline}
-        {--baseline= : Another baseline file to compare with (tests)}';
+        {--baseline= : Another baseline file to compare with (tests)}
+        {--against= : The base branch\'s document (CI): fail on removals without a deprecation entry, never on additions}';
 
     protected $description = 'Generate or check the public API\'s OpenAPI document (API-04).';
 
@@ -43,6 +47,25 @@ class ApiDocsCommand extends Command
             if (! $this->option('check')) {
                 return self::SUCCESS;
             }
+        }
+
+        // CI: what the base branch published (origin/main for a PR, HEAD~1 on main).
+        if (is_string($this->option('against'))) {
+            $against = (string) $this->option('against');
+            $problems = [
+                ...$this->undocumented($document, $spec),
+                ...$this->removals($spec, is_file($against) ? (array) json_decode((string) file_get_contents($against), true) : []),
+            ];
+
+            foreach ($problems as $problem) {
+                $this->error($problem);
+            }
+
+            if ($problems === []) {
+                $this->info('Nothing the base branch published was removed without a deprecation entry.');
+            }
+
+            return $problems === [] ? self::SUCCESS : self::FAILURE;
         }
 
         $problems = [

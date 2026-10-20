@@ -74,6 +74,25 @@ class OpenApiDocumentTest extends TestCase
         unlink($path);
     }
 
+    public function test_ci_compares_removals_against_the_base_branchs_document(): void
+    {
+        // Review item 4: the base branch's document (origin/main or HEAD~1) may hold
+        // operations this branch dropped; additions alone pass, staleness is not checked against it.
+        $base = json_decode((string) file_get_contents(base_path(OpenApiDocument::BASELINE)), true);
+        unset($base['paths']['/items']['post']);
+        $path = tempnam(sys_get_temp_dir(), 'openapi-base-');
+        file_put_contents($path, json_encode($base));
+        $this->artisan('api:docs', ['--against' => $path])->assertSuccessful();
+
+        $base['paths']['/legacy-things'] = ['get' => ['operationId' => 'core.legacy.index', 'parameters' => []]];
+        file_put_contents($path, json_encode($base));
+        $this->artisan('api:docs', ['--against' => $path])
+            ->expectsOutputToContain('GET legacy-things: removed without a deprecation entry')
+            ->assertFailed();
+
+        unlink($path);
+    }
+
     public function test_a_deprecated_operation_is_marked_in_the_document(): void
     {
         config(['api.deprecations' => ['GET items' => ['deprecated_at' => '2026-10-01', 'sunset' => '2027-04-01']]]);

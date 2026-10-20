@@ -98,6 +98,9 @@ jobs:
         working-directory: api
     steps:
       - uses: actions/checkout@v5
+        with:
+          # API-04: the OpenAPI check compares with HEAD~1 on pushes to main.
+          fetch-depth: 2
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -159,7 +162,24 @@ jobs:
       # reads models' column types).
       - name: OpenAPI document
         if: matrix.suite.pint
-        run: php artisan api:docs --check
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          php artisan api:docs --check
+          # The base's document: the target branch for a pull request, the previous commit on a push.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_REF"
+            BASE="origin/$BASE_REF"
+          else
+            BASE="HEAD~1"
+          fi
+          if git cat-file -e "$BASE:api/resources/openapi/v1.json" 2>/dev/null; then
+            git show "$BASE:api/resources/openapi/v1.json" > "$RUNNER_TEMP/openapi-base.json"
+            php artisan api:docs --against="$RUNNER_TEMP/openapi-base.json"
+          else
+            echo "No OpenAPI document at $BASE yet: nothing to compare."
+          fi
 
       - name: Tests (${{ matrix.suite.name }})
         run: ${{ matrix.suite.command }}
