@@ -17,6 +17,7 @@ import { StaffSignInScreen } from './src/screens/StaffSignInScreen';
 import { NETWORK } from './src/sync/engine';
 import { useSyncStatus } from './src/sync/useSyncStatus';
 import { useAppFonts } from './src/theme/fonts';
+import { setSentryTenant } from './src/lib/sentry';
 import { DISPLAY_QUERY } from './src/pos/customerDisplay';
 import { CustomerDisplayScreen } from './src/screens/CustomerDisplayScreen';
 import { TillThemeProvider, useTillTheme } from './src/theme/TillTheme';
@@ -28,7 +29,11 @@ function useLocation(paired) {
   const [location, setLocation] = useState(null);
   useEffect(() => {
     if (!paired) return;
-    store.settings().then((settings) => setLocation(settings?.location?.name ?? null));
+    store.settings().then((settings) => {
+      setLocation(settings?.location?.name ?? null);
+      // NFR-10: error reports carry the till's tenant id, never a name.
+      setSentryTenant(settings?.tenant_id);
+    });
   }, [store, paired, lastPulledAt]);
   return location;
 }
