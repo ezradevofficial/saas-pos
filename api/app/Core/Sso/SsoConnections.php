@@ -16,7 +16,11 @@ use Illuminate\Support\Facades\DB;
  * whether the secret changed, never the secret.
  *
  * - A changed setting or secret clears the last test; enabling needs a
- *   passing test since. An enabled connection stays enabled when edited.
+ *   passing test since. A new name, secret or Workspace domain keeps an
+ *   enabled connection enabled; a change to an identity-bearing setting
+ *   (client id, directory, IdP entity id, certificates) repoints it at
+ *   another IdP: its links are archived and it is disabled until a new
+ *   test passes (ADR 023, revised).
  * - While SSO is enforced, the last enabled connection cannot be disabled
  *   or archived.
  */
@@ -29,9 +33,13 @@ class SsoConnections
         SsoConnection::SAML => ['idp_entity_id', 'idp_sso_url', 'idp_certificates'],
     ];
 
+    /** Settings that name the IdP: changing one points the connection at another IdP. */
+    public const IDENTITY_BEARING = ['client_id', 'directory_id', 'idp_entity_id', 'idp_certificates'];
+
     public function __construct(
         private readonly Auditor $auditor,
         private readonly SsoSettings $settings,
+        private readonly SsoIdentities $identities,
     ) {}
 
     /** @param array{provider: string, name: string, settings: array<string, mixed>, client_secret?: ?string} $data */
@@ -79,10 +87,19 @@ class SsoConnections
             }
 
             $settingsChanged = $connection->settings !== $before['settings'];
+            $repointed = array_values(array_filter(self::IDENTITY_BEARING, fn (string $key) => ($before['settings'][$key] ?? null) !== ($connection->settings[$key] ?? null)));
+            $wasEnabled = (bool) $connection->enabled;
 
             if ($settingsChanged || $secretChanged) {
                 $connection->tested_at = null;
                 $connection->last_test = null;
+            }
+
+            // ADR 023 (revised): another IdP. Its subjects mean other people, so
+            // the links go, and the connection waits for a new passing test.
+            if ($repointed !== [] && $wasEnabled) {
+                $this->assertNotLastWhileEnforced($connection);
+                $connection->enabled = false;
             }
 
             $connection->save();
@@ -90,6 +107,14 @@ class SsoConnections
 
             if ($after !== $before || $secretChanged) {
                 $this->auditor->record('core.sso.connection_update', $connection, $before, [...$after, 'secret_changed' => $secretChanged]);
+            }
+
+            if ($repointed !== []) {
+                if ($wasEnabled) {
+                    $this->auditor->record('core.sso.connection_disable', $connection, ['enabled' => true], ['enabled' => false, 'reason' => 'repointed']);
+                }
+
+                $this->identities->archiveForConnection($connection, $repointed);
             }
 
             return $connection;

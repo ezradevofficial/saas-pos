@@ -33,8 +33,10 @@ class SsoLinkingTest extends TestCase
         Notification::fake();
         $this->setUpSso();
         $this->verifyDomain('acme.co.ke');
-        $this->entraConnection();
+        $this->entra = $this->entraConnection();
     }
+
+    private string $entra;
 
     private function member(array $attributes): User
     {
@@ -239,5 +241,61 @@ class SsoLinkingTest extends TestCase
 
         $this->assertSame('owner_link_required', $this->signsIn('coowner@acme.co.ke')[0]);
         $this->inTenant(fn () => $this->assertSame(0, User::query()->where('email', 'coowner@acme.co.ke')->count()));
+    }
+
+    public function test_repointing_a_connection_archives_its_links_and_disables_it_until_tested(): void
+    {
+        $amina = $this->member(['email' => 'amina@acme.co.ke']);
+        $this->assertNull($this->signsIn('amina@acme.co.ke')[0]);
+
+        // A new name or secret is the same IdP: links and the connection stay.
+        $this->patchJson("/api/v1/sso/connections/{$this->entra}", ['name' => 'Entra', 'client_secret' => 'rotated'], $this->headersFor())
+            ->assertOk()->assertJsonPath('data.enabled', true);
+        $this->inTenant(fn () => $this->assertSame(1, SsoIdentity::query()->whereNull('archived_at')->count()));
+
+        // Another directory is another IdP: its subjects mean other people.
+        $this->patchJson("/api/v1/sso/connections/{$this->entra}", ['directory_id' => '11111111-2222-4333-8444-555555555555'], $this->headersFor())
+            ->assertOk()->assertJsonPath('data.enabled', false)->assertJsonPath('data.tested_at', null);
+        $this->inTenant(function () use ($amina) {
+            $this->assertSame(0, SsoIdentity::query()->where('user_id', $amina->id)->whereNull('archived_at')->count());
+            $this->assertSame(1, SsoIdentity::query()->where('user_id', $amina->id)->whereNotNull('archived_at')->count(), 'kept as history');
+            $archive = AuditEntry::query()->where('action', 'core.sso.identities_archive')->sole();
+            $this->assertSame([1, ['directory_id']], [$archive->after['archived'], $archive->after['changed']]);
+            $this->assertSame(1, AuditEntry::query()->where('action', 'core.sso.connection_disable')->where('auditable_id', $this->entra)->count());
+        });
+        $this->postJson('/api/v1/auth/sso/start', ['email' => 'amina@acme.co.ke'])->assertNotFound();
+    }
+
+    public function test_repointing_the_last_connection_is_refused_while_sso_is_enforced(): void
+    {
+        $this->putJson('/api/v1/sso/settings', ['enforce' => true], $this->headersFor())->assertOk();
+        $this->patchJson("/api/v1/sso/connections/{$this->entra}", ['client_id' => '11111111-2222-4333-8444-555555555555'], $this->headersFor())
+            ->assertStatus(409)->assertJsonPath('code', 'enforce_needs_connection');
+    }
+
+    public function test_links_are_listed_and_unlinked_by_their_user_or_an_sso_manager(): void
+    {
+        $amina = $this->member(['email' => 'amina@acme.co.ke']);
+        $this->assertNull($this->signsIn('amina@acme.co.ke')[0]);
+        $this->inTenant(fn () => $amina->forceFill(['password' => $this->password])->save());
+
+        $links = $this->getJson("/api/v1/users/{$amina->id}/sso-identities", $this->headersFor())->assertOk()->json('data');
+        $this->assertSame([['Microsoft', 'amina@acme.co.ke']], array_map(fn ($l) => [$l['connection_name'], $l['email']], $links));
+
+        // Not an SSO manager: refused; the user's own list works.
+        $this->getJson("/api/v1/users/{$amina->id}/sso-identities", $this->headersFor($amina))->assertForbidden();
+        $this->getJson('/api/v1/me/sso', $this->headersFor($amina))->assertOk()->assertJsonPath('data.identities.0.id', $links[0]['id']);
+
+        // A link is not found under another user's id.
+        $this->postJson("/api/v1/users/{$this->owner->id}/sso-identities/{$links[0]['id']}/archive", [], $this->headersFor())->assertNotFound();
+        $this->postJson("/api/v1/users/{$amina->id}/sso-identities/{$links[0]['id']}/archive", [], $this->headersFor())->assertOk();
+        $this->getJson("/api/v1/users/{$amina->id}/sso-identities", $this->headersFor())->assertJsonPath('data', []);
+        $this->inTenant(fn () => $this->assertSame('manager', AuditEntry::query()->where('action', 'auth.sso.unlink')->sole()->after['by']));
+
+        // Signing in again links afresh; then Amina unlinks it herself.
+        $this->assertNull($this->signsIn('amina@acme.co.ke')[0]);
+        $own = $this->getJson('/api/v1/me/sso', $this->headersFor($amina))->json('data.identities.0.id');
+        $this->postJson("/api/v1/me/sso/identities/{$own}/archive", [], $this->headersFor($amina))->assertOk();
+        $this->getJson('/api/v1/me/sso', $this->headersFor($amina))->assertJsonPath('data.identities', []);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Core\Sso\Http\Controllers;
 
+use App\Core\Identity\Models\User;
 use App\Core\Sso\Http\Requests\MySsoRequest;
 use App\Core\Sso\Http\Requests\UserSsoIdentitiesRequest;
 use App\Core\Sso\Models\SsoConnection;
@@ -51,12 +52,12 @@ class SsoIdentityController
         return response()->json(['data' => null]);
     }
 
-    public function ofUser(UserSsoIdentitiesRequest $request): JsonResponse
+    public function ofUser(UserSsoIdentitiesRequest $request, User $user): JsonResponse
     {
         return response()->json(['data' => $this->identities->of($request->target())->map(fn (SsoIdentity $i) => SsoIdentities::present($i))->values()]);
     }
 
-    public function unlink(UserSsoIdentitiesRequest $request): JsonResponse
+    public function unlink(UserSsoIdentitiesRequest $request, User $user): JsonResponse
     {
         $this->identities->unlink($request->identity(), 'manager');
 
