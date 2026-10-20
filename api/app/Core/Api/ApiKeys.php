@@ -83,10 +83,17 @@ class ApiKeys
         });
     }
 
-    /** @param array{name?: string, scopes?: list<string>} $data */
-    public function update(ApiKey $key, array $data): ApiKey
+    /**
+     * Rename or rescope a key. Like rotating, it takes being allowed to
+     * grant the key's role at its scope (Grants): a key manager who could
+     * not have made this key cannot widen or take it over (review, ADR 020).
+     *
+     * @param  array{name?: string, scopes?: list<string>}  $data
+     */
+    public function update(User $actor, ApiKey $key, array $data): ApiKey
     {
         $this->assertActive($key);
+        $this->assertMayManage($actor, $key);
 
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($key, $data) {
             $key = ApiKey::query()->whereKey($key->id)->lockForUpdate()->firstOrFail();
@@ -117,9 +124,10 @@ class ApiKeys
      *
      * @return array{key: ApiKey, plain: string}
      */
-    public function rotate(ApiKey $key, int $overlapHours): array
+    public function rotate(User $actor, ApiKey $key, int $overlapHours): array
     {
         $this->assertActive($key);
+        $this->assertMayManage($actor, $key);
 
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($key, $overlapHours) {
             $key = ApiKey::query()->whereKey($key->id)->lockForUpdate()->firstOrFail();
@@ -158,12 +166,25 @@ class ApiKeys
                 'previous_expires_at' => null,
             ])->save();
 
-            $key->assignment()->get()->each->delete();
+            // RBAC-10, RBAC-12: through RoleManager (owner safety, audit); any key manager may revoke.
+            $key->assignment()->get()->each(fn ($assignment) => $this->roles->remove($assignment));
             $this->auditor->record('core.api_key.revoke', $key, null, $this->describe($key));
             $this->scopes->flush();
 
             return $key;
         });
+    }
+
+    /** The actor could grant the key's role at the key's scope (403 `cannot_grant` otherwise). */
+    private function assertMayManage(User $actor, ApiKey $key): void
+    {
+        $assignment = $key->assignment()->with('role')->first();
+
+        if ($assignment === null || $assignment->role === null) {
+            throw Grants::cannotGrant();
+        }
+
+        $this->grants->assertCanGrant($actor, $assignment->role, $assignment->scope());
     }
 
     private function assertActive(ApiKey $key): void

@@ -110,6 +110,23 @@ class ApiKeyManagementTest extends TestCase
         $this->createKey(['expires_at' => now()->subDay()->toIso8601String()])->assertUnprocessable()->assertJsonValidationErrors('expires_at');
     }
 
+    public function test_a_key_manager_who_could_not_grant_its_role_cannot_rotate_or_rescope_it_but_may_revoke_it(): void
+    {
+        // Review (ADR 020): the Owner's key with the Accountant role; an Admin
+        // lacks some of its permissions, so may not take it over or widen it.
+        $key = $this->apiKey(['role_id' => $this->roles->get('accountant')->id, 'scopes' => ['core.party.read']]);
+        $admin = $this->userWith('admin', Scope::tenant());
+
+        $this->postJson("/api/v1/api-keys/{$key['id']}/rotate", [], $this->headersFor($admin))->assertForbidden()->assertJsonPath('code', 'cannot_grant');
+        $this->patchJson("/api/v1/api-keys/{$key['id']}", ['scopes' => ['core.party.write']], $this->headersFor($admin))->assertForbidden()->assertJsonPath('code', 'cannot_grant');
+        $this->patchJson("/api/v1/api-keys/{$key['id']}", ['name' => 'Taken'], $this->headersFor($admin))->assertForbidden();
+        $this->getJson('/api/v1/companies', $this->keyHeaders($key['secret']))->assertForbidden()->assertJsonPath('code', 'api_scope_missing');
+        $this->inTenant(fn () => $this->assertSame('Integration', ApiKey::findOrFail($key['id'])->name));
+
+        $this->postJson("/api/v1/api-keys/{$key['id']}/revoke", [], $this->headersFor($admin))->assertOk();
+        $this->inTenant(fn () => $this->assertSame(1, AuditEntry::where('action', 'rbac.assignment.delete')->count()));
+    }
+
     public function test_another_tenants_keys_are_not_found(): void
     {
         $other = $this->otherTenant();

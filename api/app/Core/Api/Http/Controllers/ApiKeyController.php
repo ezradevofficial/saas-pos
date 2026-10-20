@@ -74,12 +74,12 @@ class ApiKeyController
 
     public function update(UpdateApiKeyRequest $request, ApiKey $apiKey): ApiKeyResource
     {
-        return $this->resource($this->keys->update($apiKey, $request->validated()));
+        return $this->resource($this->keys->update($request->user(), $apiKey, $request->validated()));
     }
 
     public function rotate(RotateApiKeyRequest $request, ApiKey $apiKey): JsonResponse
     {
-        ['key' => $key, 'plain' => $plain] = $this->keys->rotate($apiKey, $request->overlapHours());
+        ['key' => $key, 'plain' => $plain] = $this->keys->rotate($request->user(), $apiKey, $request->overlapHours());
 
         return $this->withSecret($key, $plain, 200);
     }
