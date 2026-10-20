@@ -160,4 +160,19 @@ class SamlSignInTest extends TestCase
         $this->assertSame('saml_invalid', $this->errorFrom($this->samlReturn($this->saml, $started['query']['RelayState'], base64_encode('<not-saml/>'))));
         $this->assertSame('state_invalid', $this->errorFrom($this->samlReturn($this->saml, 'unknown', 'x')));
     }
+
+    public function test_the_request_asks_for_a_stable_name_id_and_a_transient_one_is_refused(): void
+    {
+        $started = $this->startSso(['email' => 'amina@acme.co.ke']);
+        parse_str((string) parse_url($started['url'], PHP_URL_QUERY), $query);
+        $request = gzinflate(base64_decode($query['SAMLRequest']));
+        $this->assertStringContainsString('Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"', $request);
+        $this->assertStringContainsString('NameIDPolicy', $request);
+
+        // A transient NameID changes every sign-in: nothing to link by.
+        $this->assertSame('name_id_transient', $this->errorFrom($this->signInWith(['name_id_format' => 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient'])['location']));
+        // Persistent is fine (the email comes from the claim).
+        $persistent = $this->signInWith(['name_id_format' => 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent', 'attributes' => ['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress' => 'amina@acme.co.ke']]);
+        $this->ticketFrom($persistent['location']);
+    }
 }

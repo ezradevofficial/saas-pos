@@ -24,7 +24,9 @@ use Throwable;
  * - Destination and Recipient the connection's ACS URL;
  * - NotBefore / NotOnOrAfter with php-saml's 180-second skew;
  * - InResponseTo the flow's AuthnRequest id;
- * - each assertion id used once (cache, until it expires).
+ * - each assertion id used once (cache, until it expires);
+ * - a stable NameID: the request asks for emailAddress, persistent is
+ *   accepted, transient is refused (`name_id_transient`).
  *
  * The library compares Destination and Recipient with "the current URL",
  * which it reads from PHP globals: they are pointed at the configured ACS
@@ -80,7 +82,8 @@ class SamlClient
             'sp' => [
                 'entityId' => $connection->spEntityId(),
                 'assertionConsumerService' => ['url' => $connection->acsUrl(), 'binding' => Constants::BINDING_HTTP_POST],
-                'NameIDFormat' => Constants::NAMEID_UNSPECIFIED,
+                // A stable subject: the address (emailAddress); persistent is accepted too, transient never.
+                'NameIDFormat' => Constants::NAMEID_EMAIL_ADDRESS,
             ],
             'idp' => [
                 'entityId' => (string) $connection->setting('idp_entity_id'),
@@ -148,6 +151,11 @@ class SamlClient
 
         if ($assertionId === '' || $nameId === '' || strlen($nameId) > 255) {
             throw new SsoFailure('saml_invalid', 'No assertion id or NameID.');
+        }
+
+        // A transient NameID is new at every sign-in: it cannot name a linked user.
+        if ($response->getNameIdFormat() === Constants::NAMEID_TRANSIENT) {
+            throw new SsoFailure('name_id_transient');
         }
 
         // Replay: an assertion id is accepted once, remembered until it expires.

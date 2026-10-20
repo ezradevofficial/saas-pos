@@ -64,7 +64,7 @@ class FakeSamlIdp
             .'<samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>'
             .'<saml:Assertion ID="'.$assertionId.'" Version="2.0" IssueInstant="'.$at($now).'">'
             .'<saml:Issuer>'.$issuer.'</saml:Issuer>'
-            .'<saml:Subject><saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">'.$email.'</saml:NameID>'
+            .'<saml:Subject><saml:NameID Format="'.htmlspecialchars($o['name_id_format'] ?? 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress', ENT_XML1).'">'.$email.'</saml:NameID>'
             .'<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">'
             .'<saml:SubjectConfirmationData NotOnOrAfter="'.$at($noa).'" Recipient="'.$acs.'"'.$irt.'/>'
             .'</saml:SubjectConfirmation></saml:Subject>'
