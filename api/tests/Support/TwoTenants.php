@@ -340,7 +340,9 @@ final class TwoTenants
         self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/publish", ['revision' => $configDraft['draft']['revision']], $owner));
         self::ok($test->putJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/draft", ['payload' => ['columns' => [['id' => 'code']]]], $owner));
 
-        // TPL-01: a template preview the owner made (its PDF is kept for a few minutes).
+        // TPL-01: a template preview the owner made. Its PDF is kept for 10 minutes in
+        // production; the isolation walk can outlast that, so the fixture keeps it a day.
+        config(['document_templates.preview_minutes' => 24 * 60]);
         $templatePreview = basename(dirname((string) parse_url(self::ok($test->postJson('/api/v1/templates/preview', [
             'type' => 'sales.quote', 'payload' => DefaultTemplates::for('sales.quote'),
         ], $owner))->json('data.pdf_url'), PHP_URL_PATH)));
