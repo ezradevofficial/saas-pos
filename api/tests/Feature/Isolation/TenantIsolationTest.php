@@ -535,6 +535,7 @@ class TenantIsolationTest extends TestCase
         'external_id' => 'HR-24: a biometric device\'s own event id, free text the device names; looked up only for that device under its tenant, never a reference to another row',
         'client_id' => 'AUTH-11: an identity provider\'s OAuth client id, free text registered at the IdP, never a row',
         'directory_id' => 'AUTH-11: an Entra ID directory (tenant) GUID at Microsoft, never a row',
+        'idp_entity_id' => 'AUTH-11: a SAML identity provider\'s entity id (a URI it names itself), free text, never a row',
         'session_id' => 'AUTH-07: a till sign-in session the device names itself (actor_proof); looked up only for that device under its tenant, never a reference to another row',
     ];
 
