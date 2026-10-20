@@ -1428,8 +1428,15 @@ class TenantIsolationTest extends TestCase
         $uri = '/'.$route->uri();
 
         if ($platform) {
-            // Platform ids are catalogue rows, never tenant rows: any UUID will do.
-            return preg_replace('/\{[a-z_]+\??\}/', '00000000-0000-7000-8000-000000000000', $uri);
+            // Platform ids are catalogue rows, never tenant rows: any UUID will do,
+            // or the first allowed value of a constrained parameter (ADM-07 reports).
+            foreach ($route->parameterNames() as $name) {
+                $where = $route->wheres[$name] ?? '';
+                $value = preg_match('/^[a-z0-9_-]+(\|[a-z0-9_-]+)*$/', $where) ? explode('|', $where)[0] : '00000000-0000-7000-8000-000000000000';
+                $uri = str_replace(['{'.$name.'}', '{'.$name.'?}'], $value, $uri);
+            }
+
+            return $uri;
         }
 
         foreach ($route->parameterNames() as $name) {
