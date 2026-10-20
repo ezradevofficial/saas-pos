@@ -21,8 +21,9 @@ use Symfony\Component\HttpFoundation\Response;
  * For a key's request, in order:
  * 1. the key's scopes must cover the resource: read for GET and HEAD,
  *    write otherwise (403 `api_scope_missing`);
- * 2. the request is counted (usage per day, last use) and rate-limited per
- *    key and per tenant (API-03; RateLimit-* headers, 429 `rate_limited`);
+ * 2. the request is rate-limited per key and per tenant (API-03;
+ *    RateLimit-* headers, 429 `rate_limited`), then counted (usage per day,
+ *    last use, in the cache);
  * 3. a POST with `Idempotency-Key` runs once (Idempotency).
  *
  * People's requests pass through unchanged. Every response of a
@@ -56,8 +57,9 @@ class PublicApi
             throw new ApiException(403, 'api_scope_missing', __('api.errors.scope_missing', ['scope' => $scope]), extra: ['scope' => $scope]);
         }
 
-        $this->usage->record($key, $request->ip());
+        // Only admitted requests are counted: a 429 is not usage.
         $window = $this->limits->hit($key);
+        $this->usage->record($key, $request->ip());
 
         $idempotencyKey = $request->headers->get(Idempotency::HEADER);
         $response = $request->isMethod('POST') && $idempotencyKey !== null

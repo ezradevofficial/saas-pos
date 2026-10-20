@@ -4,12 +4,15 @@ namespace App\Core\Api;
 
 use App\Core\Api\Auth\ApiKeyAwareGuard;
 use App\Core\Api\Console\ApiDocsCommand;
+use App\Core\Api\Console\FlushApiUsageCommand;
+use App\Core\Api\Console\PruneIdempotencyKeysCommand;
 use App\Core\Api\Http\Middleware\PublicApi;
 use App\Core\Api\Sandbox\Sandbox;
 use App\Core\Api\Sandbox\SetUpSandbox;
 use App\Core\Tenancy\Events\TenantProvisioned;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Auth\RequestGuard;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessing;
@@ -71,7 +74,14 @@ class ApiServiceProvider extends ServiceProvider
             ->routes(fn (Route $route) => ApiScopes::resourceOf($route) !== null);
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ApiDocsCommand::class]);
+            $this->commands([ApiDocsCommand::class, FlushApiUsageCommand::class, PruneIdempotencyKeysCommand::class]);
         }
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            // API-03: cached request counters to the daily usage table.
+            $schedule->command('api:flush-usage')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+            // API-01: stored idempotent responses past their 24 hours.
+            $schedule->command('api:prune-idempotency')->hourly()->withoutOverlapping()->onOneServer();
+        });
     }
 }

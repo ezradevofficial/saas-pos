@@ -15,7 +15,7 @@ class SecurityDefinerFunctionsTest extends TestCase
     use RefreshTenantDatabase;
 
     /** Functions that return something other than tenant ids, each explained in ADR 002. */
-    private const RESULT_EXCEPTIONS = ['app_public_branding'];
+    private const RESULT_EXCEPTIONS = ['app_public_branding', 'app_prune_api_idempotency_keys'];
 
     /** @return list<object{name: string, result: string, config: ?string, public_execute: bool}> */
     private function functions(): array

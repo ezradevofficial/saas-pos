@@ -2,6 +2,7 @@
 
 namespace App\Core\Api\Http\Resources;
 
+use App\Core\Api\ApiUsage;
 use App\Core\Api\Models\ApiKey;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -32,7 +33,7 @@ class ApiKeyResource extends JsonResource
             'created_by' => $this->creator === null ? null : ['id' => $this->creator->id, 'name' => $this->creator->name],
             'created_at' => $this->created_at?->toIso8601String(),
             'expires_at' => $this->expires_at?->toIso8601String(),
-            'last_used_at' => $this->last_used_at?->toIso8601String(),
+            'last_used_at' => app(ApiUsage::class)->lastUsedAt($this->resource)?->toIso8601String(),
             'rotated_at' => $this->rotated_at?->toIso8601String(),
             'previous_expires_at' => $this->previous_expires_at?->toIso8601String(),
             'revoked_at' => $this->revoked_at?->toIso8601String(),

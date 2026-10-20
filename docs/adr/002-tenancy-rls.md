@@ -141,7 +141,7 @@ Two more functions answer for hosts, before any tenant is known:
 
 ### Every security-definer function (stage 7B closing review)
 
-Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid` (the one documented exception: `app_public_branding`, public fields of a sign-in page, above).
+Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid` (two documented exceptions: `app_public_branding`, public fields of a sign-in page, above; and `app_prune_api_idempotency_keys`, which deletes expired stored API responses of every tenant and returns only how many, below).
 
 | Function | Returns | Used for |
 | --- | --- | --- |
@@ -159,6 +159,9 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_assisted_tenant_for_contact(p_contact text)` | `setof uuid` | assisted onboarding by contact (ONB-) |
 | `app_tenant_for_verified_domain(p_host text)` | `setof uuid` | a verified custom domain (BR-05) |
 | `app_public_branding(p_slug text, p_host text)` | a table of public fields | the sign-in page's look (BR-04); documented exception |
+| `app_prune_api_idempotency_keys(p_before timestamptz)` | `integer` | `api:prune-idempotency` (API-01, ADR 020): deletes `api_idempotency_keys` rows that expired before `p_before`, in every tenant, and returns how many; nothing else is read or changed; documented exception |
+| `app_tenants_with_api_keys()` | `setof uuid` | `api:flush-usage` (API-03): active tenants with a key not revoked |
+| `app_sandbox_tenant_ids()` | `setof uuid` | `sandbox:expire` (API-05): active developer sandboxes |
 | `app_active_tenant_ids()` | `setof uuid` | exchange rates, usage metering |
 | `app_operator_tenant_id()` | `setof uuid` | the operator tenant (ADR 016) |
 | `app_tenants_awaiting_handover(p_before timestamptz)` | `setof uuid` | assisted onboarding handovers |

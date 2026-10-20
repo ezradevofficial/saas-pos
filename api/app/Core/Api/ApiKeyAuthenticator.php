@@ -4,6 +4,7 @@ namespace App\Core\Api;
 
 use App\Core\Api\Models\ApiKey;
 use App\Core\Audit\AuditContext;
+use App\Core\Http\ApiErrorRenderer;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Tenant;
@@ -11,6 +12,7 @@ use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * API-02, API-05 (ADR 020): turns `sk_<mode>_<id>_<secret>` into the key's
@@ -36,7 +38,50 @@ class ApiKeyAuthenticator
         private readonly AuditContext $audit,
     ) {}
 
+    private const FAILED = 'api_key_authentication_failed';
+
     public function authenticate(Request $request, string $plain): ?User
+    {
+        // Review item 5: guessing keys from one address is limited (429 before any lookup).
+        $failures = 'api-key-failures|'.$request->ip();
+        $max = max(1, (int) config('api.rate_limits.failed_auth_per_ip', 20));
+
+        if (RateLimiter::tooManyAttempts($failures, $max)) {
+            $retry = max(1, RateLimiter::availableIn($failures));
+
+            throw new ApiException(429, 'rate_limited', ApiErrorRenderer::retryMessage($retry), headers: ['Retry-After' => $retry]);
+        }
+
+        // The guard is asked again on every Auth::user() of a failed request: count the failure once.
+        if ($request->attributes->get(self::FAILED) === true) {
+            return null;
+        }
+
+        $principal = $this->resolve($plain);
+
+        if ($principal === null) {
+            $request->attributes->set(self::FAILED, true);
+            RateLimiter::hit($failures, (int) config('api.rate_limits.failed_auth_decay_seconds', 600));
+
+            return null;
+        }
+
+        if (ApiScopes::resourceOf($request->route()) === null) {
+            $this->tenants->set(null);
+
+            throw new ApiException(403, 'api_key_route_refused', __('api.errors.route_refused'));
+        }
+
+        $key = $principal->currentAccessToken();
+        $this->context->set($key);
+        // AUD-02: every entry written with the key names it (its principal is the entry's user).
+        $this->audit->setMetadata(['api_key_id' => $key->id]);
+
+        return $principal;
+    }
+
+    /** The key's principal (with the key as its token), or null for a key that does not authenticate. */
+    private function resolve(string $plain): ?User
     {
         $token = ApiKeyToken::parse($plain);
 
@@ -68,16 +113,6 @@ class ApiKeyAuthenticator
 
             return null;
         }
-
-        if (ApiScopes::resourceOf($request->route()) === null) {
-            $this->tenants->set(null);
-
-            throw new ApiException(403, 'api_key_route_refused', __('api.errors.route_refused'));
-        }
-
-        $this->context->set($key);
-        // AUD-02: every entry written with the key names it (its principal is the entry's user).
-        $this->audit->setMetadata(['api_key_id' => $key->id]);
 
         return $principal->withAccessToken($key);
     }

@@ -623,6 +623,8 @@ final class TwoTenants
         ], $owner), 201);
         $keyHeaders = ['Authorization' => 'Bearer '.$apiKey->json('secret'), 'Accept' => 'application/json'];
         self::ok($test->getJson('/api/v1/locations', $keyHeaders));
+        // API-03: counted in the cache, written to api_key_usage_days by the scheduled flush.
+        $test->artisan('api:flush-usage')->assertSuccessful();
         self::ok($test->postJson('/api/v1/parties', ['kind' => 'person', 'name' => "API customer {$upper}", 'roles' => ['customer']], [...$keyHeaders, 'Idempotency-Key' => "isolation-{$key}"]), 201);
         // HOOK-01: a webhook subscription of the company (its URL carries a token, its
         // secret is shown once: neither may reach the other tenant) and a test delivery.

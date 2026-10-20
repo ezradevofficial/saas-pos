@@ -120,11 +120,11 @@ class ApiConventionsTest extends TestCase
         $key = $this->apiKey();
         $body = ['kind' => 'person', 'name' => 'Kamau', 'roles' => ['customer']];
         $headers = $this->keyHeaders($key['secret'], [Idempotency::HEADER => 'in-flight']);
-        $hash = hash('sha256', "POST\napi/v1/parties\n".json_encode($body));
+        $hash = hash('sha256', "POST\n/api/v1/parties\n".json_encode($body));
 
         $this->inTenant(fn () => DB::table('api_idempotency_keys')->insert([
             'id' => (string) Str::uuid7(), 'tenant_id' => $this->owner->tenant_id, 'api_key_id' => $key['id'], 'key' => 'in-flight',
-            'request_hash' => $hash, 'expires_at' => now()->addDay(), 'created_at' => now(), 'updated_at' => now(),
+            'request_hash' => $hash, 'locked_until' => now()->addSeconds(60), 'expires_at' => now()->addDay(), 'created_at' => now(), 'updated_at' => now(),
         ]));
         $this->postJson('/api/v1/parties', $body, $headers)->assertConflict()->assertJsonPath('code', 'idempotency_in_progress');
         $this->assertSame(0, $this->inTenant(fn () => Party::where('name', 'Kamau')->count()));
@@ -150,16 +150,83 @@ class ApiConventionsTest extends TestCase
         $this->getJson('/api/v1/parties', $this->keyHeaders($key['secret']))->assertOk()->assertHeaderMissing('Deprecation');
     }
 
-    public function test_usage_is_counted_and_last_use_recorded(): void
+    public function test_a_stale_claim_is_taken_over_once_its_lock_expires(): void
+    {
+        // Review item 3: a request that died after claiming its key leaves a null-status row; after 60 s another may run.
+        $key = $this->apiKey();
+        $body = ['kind' => 'person', 'name' => 'Njeri', 'roles' => ['customer']];
+        $headers = $this->keyHeaders($key['secret'], [Idempotency::HEADER => 'stale']);
+        $hash = hash('sha256', "POST\n/api/v1/parties\n".json_encode($body));
+
+        $this->inTenant(fn () => DB::table('api_idempotency_keys')->insert([
+            'id' => (string) Str::uuid7(), 'tenant_id' => $this->owner->tenant_id, 'api_key_id' => $key['id'], 'key' => 'stale',
+            'request_hash' => $hash, 'locked_until' => now()->subSecond(), 'expires_at' => now()->addDay(), 'created_at' => now(), 'updated_at' => now(),
+        ]));
+
+        $this->postJson('/api/v1/parties', $body, $headers)->assertCreated();
+        $this->postJson('/api/v1/parties', $body, $headers)->assertCreated()->assertHeader(Idempotency::REPLAYED_HEADER, 'true');
+        $this->assertSame(1, $this->inTenant(fn () => Party::where('name', 'Njeri')->count()));
+    }
+
+    public function test_the_idempotency_hash_covers_the_query_string(): void
     {
         $key = $this->apiKey();
+        $body = ['kind' => 'person', 'name' => 'Wairimu', 'roles' => ['customer']];
 
-        $this->getJson('/api/v1/companies', $this->keyHeaders($key['secret'], ['REMOTE_ADDR' => '10.1.2.3']))->assertOk();
+        $this->postJson('/api/v1/parties?source=crm', $body, $this->keyHeaders($key['secret'], [Idempotency::HEADER => 'q-1']))->assertCreated();
+        $this->postJson('/api/v1/parties?source=shop', $body, $this->keyHeaders($key['secret'], [Idempotency::HEADER => 'q-1']))
+            ->assertUnprocessable()->assertJsonPath('code', 'idempotency_mismatch');
+    }
+
+    public function test_expired_idempotency_rows_are_pruned_by_the_scheduled_command(): void
+    {
+        // Review item 6: a security-definer function deletes expired rows of every tenant.
+        $key = $this->apiKey();
+        $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Old', 'roles' => ['customer']], $this->keyHeaders($key['secret'], [Idempotency::HEADER => 'old']))->assertCreated();
+        $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'New', 'roles' => ['customer']], $this->keyHeaders($key['secret'], [Idempotency::HEADER => 'new']))->assertCreated();
+        $this->inTenant(fn () => DB::table('api_idempotency_keys')->where('key', 'old')->update(['expires_at' => now()->subMinute()]));
+
+        $this->artisan('api:prune-idempotency')->assertSuccessful();
+
+        $this->assertSame(['new'], $this->inTenant(fn () => DB::table('api_idempotency_keys')->pluck('key')->all()));
+    }
+
+    public function test_usage_counts_only_admitted_requests_and_is_flushed_to_the_daily_table(): void
+    {
+        // Review item 5: counted in the cache (Redis in production) and flushed by a scheduled job.
+        config(['api.rate_limits.key_per_minute' => 2]);
+        $key = $this->apiKey();
+
+        $this->getJson('/api/v1/companies', $this->keyHeaders($key['secret']))->assertOk();
+        $this->getJson('/api/v1/companies', $this->keyHeaders($key['secret']))->assertOk();
+        $this->getJson('/api/v1/companies', $this->keyHeaders($key['secret']))->assertStatus(429);
+
+        $this->assertSame(0, $this->inTenant(fn () => DB::table('api_key_usage_days')->count()), 'nothing written per request');
+        $this->getJson("/api/v1/api-keys/{$key['id']}/usage", $this->headersFor())->assertOk()->assertJsonPath('meta.total', 2);
+
+        $this->artisan('api:flush-usage')->assertSuccessful();
 
         $this->inTenant(function () use ($key) {
-            $stored = ApiKey::findOrFail($key['id']);
-            $this->assertNotNull($stored->last_used_at);
-            $this->assertSame(1, (int) DB::table('api_key_usage_days')->where('api_key_id', $key['id'])->value('requests'));
+            $this->assertNotNull(ApiKey::findOrFail($key['id'])->last_used_at);
+            $this->assertSame(2, (int) DB::table('api_key_usage_days')->where('api_key_id', $key['id'])->value('requests'));
         });
+        // Flushing again sets the same total (idempotent).
+        $this->artisan('api:flush-usage')->assertSuccessful();
+        $this->assertSame(2, $this->inTenant(fn () => (int) DB::table('api_key_usage_days')->where('api_key_id', $key['id'])->value('requests')));
+    }
+
+    public function test_failed_key_authentications_are_limited_per_ip(): void
+    {
+        config(['api.rate_limits.failed_auth_per_ip' => 3]);
+        $wrong = 'sk_live_'.str_repeat('a', 16).'_'.str_repeat('B', 40);
+
+        foreach (range(1, 3) as $i) {
+            $this->getJson('/api/v1/companies', $this->keyHeaders($wrong))->assertUnauthorized();
+        }
+
+        $this->getJson('/api/v1/companies', $this->keyHeaders($wrong))->assertStatus(429)->assertJsonPath('code', 'rate_limited')->assertHeader('Retry-After');
+        // A valid key from the same address is refused too until the window ends.
+        $key = $this->apiKey();
+        $this->getJson('/api/v1/companies', $this->keyHeaders($key['secret']))->assertStatus(429);
     }
 }
