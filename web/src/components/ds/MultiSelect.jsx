@@ -55,6 +55,8 @@ export function MultiSelect({ label, help, error, placeholder, options = [], val
               id={pickerId}
               role="combobox"
               aria-expanded={open}
+              aria-controls={`${pickerId}-list`}
+              aria-haspopup="listbox"
               aria-required={required ? 'true' : undefined}
               aria-invalid={error ? 'true' : undefined}
               aria-describedby={error || help ? `${pickerId}-msg` : undefined}
@@ -84,7 +86,7 @@ export function MultiSelect({ label, help, error, placeholder, options = [], val
                   className="h-control w-full min-w-0 bg-transparent text-body text-ink outline-none placeholder:text-ink-muted"
                 />
               </div>
-              <CommandList className="max-h-picker" aria-multiselectable="true">
+              <CommandList id={`${pickerId}-list`} className="max-h-picker" aria-multiselectable="true">
                 <CommandEmpty className="px-3 py-4 text-body text-ink-muted">{t('ds.combobox.noMatches')}</CommandEmpty>
                 <CommandGroup className="p-1 text-ink">
                   {shown.map(({ option, index }) => {

@@ -64,10 +64,13 @@ export function Chart({ type = 'bar', points = [], title, valueLabel, formatValu
 
   return (
     <figure className={cn('flex min-w-0 flex-col gap-2', className)}>
+      {/* NFR-09: focusable on purpose: arrow keys move the tooltip between points. */}
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
         aria-labelledby={`${id}-title`}
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
         onKeyDown={onKeyDown}
         onMouseLeave={() => setActive(null)}
