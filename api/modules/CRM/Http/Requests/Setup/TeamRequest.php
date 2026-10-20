@@ -2,6 +2,7 @@
 
 namespace Modules\CRM\Http\Requests\Setup;
 
+use Illuminate\Validation\Rule;
 use Modules\CRM\Http\Requests\CrmRules;
 use Modules\CRM\Http\Requests\SetupRequest;
 
