@@ -310,6 +310,7 @@ const Dimensions = lazy(() => import('./pages/settings/Dimensions'))
 const DataExport = lazy(() => import('./pages/settings/DataExport'))
 const WebhookDetail = lazy(() => import('./pages/settings/webhooks/WebhookDetail'))
 const Webhooks = lazy(() => import('./pages/settings/webhooks/Webhooks'))
+const Privacy = lazy(() => import('./pages/settings/privacy/Privacy'))
 const Subscription = lazy(() => import('./pages/settings/Subscription'))
 const Imports = lazy(() => import('./pages/settings/Imports'))
 const ImportWizard = lazy(() => import('./pages/settings/imports/ImportWizard'))
@@ -825,6 +826,8 @@ export const routes = [
       // HOOK-01: webhooks, their delivery log and the developer guide (Owner, Admin).
       { path: '/settings/webhooks', element: <RequirePermission permission="core.webhook.manage" tenantWide><Webhooks /></RequirePermission> },
       { path: '/settings/webhooks/:webhookId', element: <RequirePermission permission="core.webhook.manage" tenantWide><WebhookDetail /></RequirePermission> },
+      // NFR-08: data subject requests and marketing consent (Owner, Admin).
+      { path: '/settings/privacy', element: <RequirePermission permission={['core.privacy_request.view', 'core.consent.view']} tenantWide><Privacy /></RequirePermission> },
       { path: '/settings/numbering', element: <RequirePermission permission={NUMBERING_VIEW}><Numbering /></RequirePermission> },
       // AUTH-06: one's own POS PIN.
       { path: '/settings/pos-pin', element: <MyPosPin /> },
