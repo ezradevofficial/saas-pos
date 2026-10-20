@@ -35,6 +35,8 @@ class SsoFlows
 {
     public const TEST_PATH = '/settings/sso';
 
+    public const LINK_PATH = '/settings/security';
+
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly OidcClient $oidc,
@@ -99,6 +101,21 @@ class SsoFlows
         return $this->begin($connection, $this->origin($origin), $tester->id);
     }
 
+    /**
+     * ADR 023: $user links their own account (Settings, Security), the only
+     * way an Owner is ever linked. The connection must be enabled.
+     *
+     * @throws ApiException 404 sso_not_found
+     */
+    public function startLink(SsoConnection $connection, User $user, ?string $origin): array
+    {
+        if (! $connection->isLive()) {
+            throw self::notFound();
+        }
+
+        return $this->begin($connection, $this->origin($origin), null, $user->id);
+    }
+
     /** The browser's next stop after the IdP sent it back with $state. */
     public function oidcCallback(?string $state, ?string $code, ?string $error): string
     {
@@ -123,7 +140,7 @@ class SsoFlows
     }
 
     /** @return array{redirect_url: string, binding: string} */
-    private function begin(SsoConnection $connection, string $origin, ?string $testerId): array
+    private function begin(SsoConnection $connection, string $origin, ?string $testerId, ?string $linkUserId = null): array
     {
         $state = Str::random(43);
         $binding = Str::random(43);
@@ -133,6 +150,7 @@ class SsoFlows
             'binding_hash' => hash('sha256', $binding),
             'origin' => $origin,
             'tester_id' => $testerId,
+            'link_user_id' => $linkUserId,
         ];
 
         try {
@@ -171,6 +189,7 @@ class SsoFlows
         $this->tenants->set($flow['tenant_id']);
         $connection = SsoConnection::query()->whereKey($flow['connection_id'])->whereNull('archived_at')->first();
         $test = $flow['tester_id'] !== null;
+        $linkUserId = $flow['link_user_id'] ?? null;
 
         try {
             if ($connection === null || (! $test && ! $connection->enabled) || (($protocol === SsoConnection::SAML) !== (! $connection->isOidc()))) {
@@ -186,10 +205,20 @@ class SsoFlows
                 return $flow['origin'].self::TEST_PATH.'#test=ok';
             }
 
+            if ($linkUserId !== null) {
+                $this->linker->linkSelf($connection, $assertion, User::query()->find($linkUserId) ?? throw new SsoFailure('no_account'));
+
+                return $flow['origin'].self::LINK_PATH.'#sso_link=ok';
+            }
+
             $user = $this->linker->resolve($connection, $assertion);
         } catch (SsoFailure $e) {
             if ($connection !== null) {
                 $this->recordFailure($connection, $e, $test);
+            }
+
+            if ($linkUserId !== null) {
+                return $flow['origin'].self::LINK_PATH.'#sso_link=failed&reason='.$e->reason;
             }
 
             return $test ? $flow['origin'].self::TEST_PATH.'#test=failed' : self::failedUrl($flow['origin'], $e->reason);
@@ -198,6 +227,10 @@ class SsoFlows
 
             if ($connection !== null) {
                 $this->recordFailure($connection, new SsoFailure('idp_error', $e->getMessage()), $test);
+            }
+
+            if ($linkUserId !== null) {
+                return $flow['origin'].self::LINK_PATH.'#sso_link=failed&reason=idp_error';
             }
 
             return $test ? $flow['origin'].self::TEST_PATH.'#test=failed' : self::failedUrl($flow['origin'], 'idp_error');

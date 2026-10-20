@@ -74,6 +74,12 @@ class SsoDomains
             ->where('domain', $domain)->where('status', SsoDomain::VERIFIED)->whereNull('archived_at')->exists();
     }
 
+    /** True when $domain is a verified, unarchived email domain of the current tenant. */
+    public function isVerified(string $domain): bool
+    {
+        return SsoDomain::query()->where('domain', Str::lower($domain))->where('status', SsoDomain::VERIFIED)->whereNull('archived_at')->exists();
+    }
+
     public function hasVerified(): bool
     {
         return SsoDomain::query()->where('status', SsoDomain::VERIFIED)->whereNull('archived_at')->exists();

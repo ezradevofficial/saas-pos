@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Schema;
 // - sso_domains: the tenant's email domains, proven by a DNS TXT record as
 //   custom domains are (BR-05). Several tenants may claim one; the first to
 //   prove it wins (unique among verified, unarchived rows).
-// - sso_identities: a user linked to an IdP subject, one per connection.
+// - sso_identities: a user linked to an IdP subject, one live link per
+//   connection; unlinking or repointing the connection archives links.
 //
 // Three owner-owned security-definer functions answer before any tenant is
 // known (ADR 002), each returning tenant ids only.
@@ -74,12 +75,16 @@ return new class extends Migration
             $table->string('subject', 255);
             $table->string('email', 255);
             $table->timestampTz('last_sign_in_at')->nullable();
+            // Unlinked, or the connection was repointed at another IdP (TEN-06: kept, never deleted).
+            $table->timestampTz('archived_at')->nullable();
             $table->timestampsTz();
             $table->foreign(['tenant_id', 'connection_id'])->references(['tenant_id', 'id'])->on('sso_connections')->restrictOnDelete();
-            $table->unique(['connection_id', 'subject']);
-            $table->unique(['connection_id', 'user_id']);
             $table->index('user_id');
         });
+
+        // One live link per subject and per user on a connection; archived links stay as history.
+        DB::statement('create unique index sso_identities_subject_unique on sso_identities (connection_id, subject) where archived_at is null');
+        DB::statement('create unique index sso_identities_user_unique on sso_identities (connection_id, user_id) where archived_at is null');
 
         Rls::enable('sso_identities');
 

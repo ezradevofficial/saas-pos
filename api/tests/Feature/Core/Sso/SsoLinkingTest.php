@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\BuildsSso;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Support\Sso\FakeOidcIdp;
 use Tests\TestCase;
 
 /**
@@ -194,5 +195,49 @@ class SsoLinkingTest extends TestCase
         [$error, $response] = $this->signsIn('amina.otieno@acme.co.ke', ['sub' => 'entra-subject-'.md5('amina@acme.co.ke')]);
         $this->assertNull($error);
         $response->assertJsonPath('user.id', $user->id);
+    }
+
+    public function test_an_owner_is_never_linked_by_email_but_links_their_own_account_while_signed_in(): void
+    {
+        $this->inTenant(fn () => $this->owner->forceFill(['email' => 'owner@acme.co.ke'])->save());
+        $this->assertSame('owner_link_required', $this->signsIn('owner@acme.co.ke')[0]);
+        $this->inTenant(fn () => $this->assertSame(0, SsoIdentity::query()->count()));
+
+        // Signed in with the password, the Owner starts the link from Settings, Security.
+        $mine = $this->getJson('/api/v1/me/sso', $this->headersFor())->assertOk();
+        $connection = $mine->json('data.connections.0.id');
+        $this->assertSame([], $mine->json('data.identities'));
+        $redirect = $this->postJson('/api/v1/me/sso/link', ['connection_id' => $connection, 'origin' => 'https://app.example.test'], $this->headersFor())
+            ->assertOk()->json('data.redirect_url');
+        parse_str((string) parse_url($redirect, PHP_URL_QUERY), $query);
+
+        // Someone else's IdP account cannot be linked to the Owner.
+        $this->idp->idToken = FakeOidcIdp::sign(FakeOidcIdp::entraClaims('amina@acme.co.ke', $query['nonce']));
+        $this->assertSame('https://app.example.test/settings/security#sso_link=failed&reason=link_email_mismatch', $this->oidcReturn($query['state']));
+
+        $redirect = $this->postJson('/api/v1/me/sso/link', ['connection_id' => $connection, 'origin' => 'https://app.example.test'], $this->headersFor())->json('data.redirect_url');
+        parse_str((string) parse_url($redirect, PHP_URL_QUERY), $query);
+        $this->idp->idToken = FakeOidcIdp::sign(FakeOidcIdp::entraClaims('owner@acme.co.ke', $query['nonce']));
+        $this->assertSame('https://app.example.test/settings/security#sso_link=ok', $this->oidcReturn($query['state']));
+
+        $this->getJson('/api/v1/me/sso', $this->headersFor())->assertJsonPath('data.identities.0.email', 'owner@acme.co.ke');
+        $link = $this->inTenant(fn () => AuditEntry::query()->where('action', 'auth.sso.link')->sole());
+        $this->assertSame(['self', $this->owner->id], [$link->after['via'], $link->user_id]);
+
+        // From now on the Owner signs in with SSO through the link.
+        [$error, $response] = $this->signsIn('owner@acme.co.ke');
+        $this->assertNull($error);
+        $response->assertJsonPath('user.id', $this->owner->id);
+    }
+
+    public function test_an_invitation_to_an_owner_role_is_never_accepted_by_sso(): void
+    {
+        $this->postJson('/api/v1/invitations', [
+            'name' => 'Co-owner', 'email' => 'coowner@acme.co.ke',
+            'assignments' => [['role_id' => $this->roles->get('owner')->id, 'scope_type' => 'tenant']],
+        ], $this->headersFor())->assertCreated();
+
+        $this->assertSame('owner_link_required', $this->signsIn('coowner@acme.co.ke')[0]);
+        $this->inTenant(fn () => $this->assertSame(0, User::query()->where('email', 'coowner@acme.co.ke')->count()));
     }
 }

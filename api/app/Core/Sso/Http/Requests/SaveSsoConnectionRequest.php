@@ -2,6 +2,7 @@
 
 namespace App\Core\Sso\Http\Requests;
 
+use App\Core\Sso\Domains\SsoDomains;
 use App\Core\Sso\Models\SsoConnection;
 use App\Core\Sso\Saml\SamlMetadata;
 use App\Core\Sso\SsoConnections;
@@ -71,6 +72,13 @@ class SaveSsoConnectionRequest extends SsoManageRequest
     public function after(): array
     {
         return [function (Validator $validator) {
+            // ADR 023: a Google Workspace domain the tenant has not proven is never trusted.
+            $hd = $this->input('hosted_domain');
+
+            if (is_string($hd) && $hd !== '' && ! $validator->errors()->has('hosted_domain') && ! app(SsoDomains::class)->isVerified($hd)) {
+                $validator->errors()->add('hosted_domain', __('sso.errors.hosted_domain_unverified'));
+            }
+
             foreach ((array) $this->input('idp_certificates', []) as $i => $certificate) {
                 if (is_string($certificate) && SamlMetadata::normaliseCertificate($certificate) === null) {
                     $validator->errors()->add("idp_certificates.{$i}", __('sso.errors.certificate_invalid'));

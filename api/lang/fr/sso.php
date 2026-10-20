@@ -25,6 +25,7 @@ return [
 
     'errors' => [
         'domain_added' => 'Ce domaine est déjà dans votre liste. Vérifiez-le là, ou retirez-le d’abord.',
+        'hosted_domain_unverified' => 'Vérifiez d’abord ce domaine dans Domaines de messagerie : seul un domaine prouvé peut limiter la connexion Google.',
         'domain_format' => 'Saisissez un domaine comme entreprise.cd, sans @, http:// ni chemin.',
         'platform_domain' => 'C’est le domaine de la plateforme. Ajoutez plutôt le domaine de messagerie de votre organisation.',
         'jit_owner_role' => 'Les nouveaux comptes ne peuvent pas recevoir un rôle de propriétaire. Choisissez un autre rôle par défaut.',

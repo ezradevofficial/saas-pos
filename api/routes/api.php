@@ -111,8 +111,10 @@ use App\Core\Sso\Http\Controllers\SsoAuthController;
 use App\Core\Sso\Http\Controllers\SsoConnectionController;
 use App\Core\Sso\Http\Controllers\SsoController;
 use App\Core\Sso\Http\Controllers\SsoDomainController;
+use App\Core\Sso\Http\Controllers\SsoIdentityController;
 use App\Core\Sso\Models\SsoConnection;
 use App\Core\Sso\Models\SsoDomain;
+use App\Core\Sso\Models\SsoIdentity;
 use App\Core\Sso\SsoServiceProvider;
 use App\Core\Sync\Http\Controllers\SyncBrandAssetController;
 use App\Core\Sync\Http\Controllers\SyncController;
@@ -162,6 +164,7 @@ Route::model('config_document', ConfigDocument::class);
 Route::model('tenant_domain', TenantDomain::class);
 Route::model('sso_connection', SsoConnection::class);
 Route::model('sso_domain', SsoDomain::class);
+Route::model('sso_identity', SsoIdentity::class);
 Route::model('tenant_export', TenantExport::class);
 Route::model('custom_field', CustomFieldDefinition::class);
 Route::model('custom_form_type', CustomFormType::class);
@@ -651,6 +654,12 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('sso/domains', [SsoDomainController::class, 'store']);
     Route::post('sso/domains/{sso_domain}/check', [SsoDomainController::class, 'check']);
     Route::post('sso/domains/{sso_domain}/archive', [SsoDomainController::class, 'archive']);
+    // AUTH-11, ADR 023: SSO links: one's own (Settings, Security), and a user's as an SSO manager sees them.
+    Route::get('me/sso', [SsoIdentityController::class, 'mine']);
+    Route::post('me/sso/link', [SsoIdentityController::class, 'link'])->name('sso.me.link');
+    Route::post('me/sso/identities/{sso_identity}/archive', [SsoIdentityController::class, 'unlinkMine']);
+    Route::get('users/{user}/sso-identities', [SsoIdentityController::class, 'ofUser']);
+    Route::post('users/{user}/sso-identities/{sso_identity}/archive', [SsoIdentityController::class, 'unlink']);
 
     // EXP-02: full tenant data exports (Owners only, core.tenant.export at tenant scope).
     Route::get('tenant-exports', [TenantExportController::class, 'index']);

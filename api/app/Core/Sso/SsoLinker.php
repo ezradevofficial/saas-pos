@@ -9,6 +9,8 @@ use App\Core\Identity\Services\Invitations;
 use App\Core\Limits\Units;
 use App\Core\Limits\UsageLimits;
 use App\Core\Rbac\Grants;
+use App\Core\Rbac\Models\Role;
+use App\Core\Rbac\OwnerGuard;
 use App\Core\Rbac\RoleManager;
 use App\Core\Sso\Domains\SsoDomains;
 use App\Core\Sso\Models\SsoConnection;
@@ -33,7 +35,9 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
  * 5. JIT provisioning, when the tenant switched it on;
  * 6. otherwise `no_account`.
  *
- * Platform staff and assisted setup accounts are never linked (ONB-08).
+ * Platform staff and assisted setup accounts are never linked (ONB-08),
+ * and neither is an Owner by email, nor an invitation to an Owner role:
+ * an Owner links their own account while signed in (linkSelf).
  * Links are audited as `auth.sso.link`, new users as `auth.sso.provision`.
  */
 class SsoLinker
@@ -46,6 +50,8 @@ class SsoLinker
 
     public const PROVISION = 'provision';
 
+    public const OWNER_LINK = 'owner_link';
+
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly SsoDomains $domains,
@@ -55,6 +61,7 @@ class SsoLinker
         private readonly RoleManager $roles,
         private readonly UsageLimits $limits,
         private readonly Auditor $auditor,
+        private readonly OwnerGuard $owners,
     ) {}
 
     /**
@@ -74,14 +81,23 @@ class SsoLinker
             return ['action' => self::LINKED, 'user_id' => $linked->id];
         }
 
-        $user = $this->matching($connection, $assertion);
+        try {
+            $user = $this->matching($connection, $assertion);
 
-        if ($user !== null) {
-            return ['action' => self::LINK, 'user_id' => $user->id];
-        }
+            if ($user !== null) {
+                return ['action' => self::LINK, 'user_id' => $user->id];
+            }
 
-        if ($this->openInvitation($assertion->email) !== null) {
-            return ['action' => self::INVITATION, 'user_id' => null];
+            if ($this->openInvitation($assertion->email) !== null) {
+                return ['action' => self::INVITATION, 'user_id' => null];
+            }
+        } catch (SsoFailure $e) {
+            // The connection works; an Owner links their own account from Settings, Security.
+            if ($e->reason !== 'owner_link_required') {
+                throw $e;
+            }
+
+            return ['action' => self::OWNER_LINK, 'user_id' => User::query()->where('email', $assertion->email)->value('id')];
         }
 
         if ($this->settings->values()['jit_provisioning']) {
@@ -137,7 +153,7 @@ class SsoLinker
     /** The user linked to this subject, checked usable. */
     private function linked(SsoConnection $connection, SsoAssertion $assertion): ?User
     {
-        $identity = SsoIdentity::query()->where('connection_id', $connection->id)->where('subject', $assertion->subject)->first();
+        $identity = SsoIdentity::query()->where('connection_id', $connection->id)->where('subject', $assertion->subject)->whereNull('archived_at')->first();
 
         if ($identity === null) {
             return null;
@@ -164,7 +180,12 @@ class SsoLinker
 
         $this->assertUsable($user);
 
-        if (SsoIdentity::query()->where('connection_id', $connection->id)->where('user_id', $user->id)->exists()) {
+        // ADR 023: an Owner is never linked by email; they link their own account while signed in.
+        if ($this->owners->holdsOwnerRole($user)) {
+            throw new SsoFailure('owner_link_required');
+        }
+
+        if (SsoIdentity::query()->where('connection_id', $connection->id)->where('user_id', $user->id)->whereNull('archived_at')->exists()) {
             throw new SsoFailure('identity_conflict');
         }
 
@@ -186,11 +207,47 @@ class SsoLinker
         }
     }
 
+    /** The open invitation for $email; one granting an Owner role is never accepted by SSO (ADR 023). */
     private function openInvitation(string $email): ?Invitation
     {
-        return Invitation::query()->where('email', $email)
+        $invitation = Invitation::query()->where('email', $email)
             ->whereNull('accepted_at')->whereNull('revoked_at')->where('expires_at', '>', now())
             ->latest()->first();
+
+        $roleIds = array_column($invitation?->assignments ?? [], 'role_id');
+
+        if ($roleIds !== [] && Role::query()->whereKey($roleIds)->where('is_owner', true)->exists()) {
+            throw new SsoFailure('owner_link_required');
+        }
+
+        return $invitation;
+    }
+
+    /**
+     * ADR 023: link $user's own account, started by them while signed in
+     * (the only way an Owner is ever linked). The IdP must assert $user's
+     * email, of a verified domain; the subject must not be another user's.
+     *
+     * @throws SsoFailure
+     */
+    public function linkSelf(SsoConnection $connection, SsoAssertion $assertion, User $user): User
+    {
+        $this->assertDomain($assertion);
+        $this->assertUsable($user);
+
+        if ($user->email === null || ! hash_equals(Str::lower($user->email), $assertion->email)) {
+            throw new SsoFailure('link_email_mismatch');
+        }
+
+        $taken = SsoIdentity::query()->where('connection_id', $connection->id)->whereNull('archived_at')
+            ->where(fn ($q) => $q->where('subject', $assertion->subject)->orWhere('user_id', $user->id))
+            ->get();
+
+        if ($taken->contains(fn (SsoIdentity $identity) => $identity->user_id !== $user->id || $identity->subject !== $assertion->subject)) {
+            throw new SsoFailure('identity_conflict');
+        }
+
+        return $taken->isEmpty() ? $this->link($connection, $assertion, $user, 'self') : $user;
     }
 
     private function link(SsoConnection $connection, SsoAssertion $assertion, User $user, string $via): User

@@ -99,6 +99,8 @@ class FakeOidcIdp
             'aud' => self::CLIENT_ID,
             'sub' => 'entra-subject-'.md5($email),
             'tid' => self::DIRECTORY,
+            // The UPN: what a sign-in links by unless the email is marked verified (xms_edov).
+            'preferred_username' => $email,
             'email' => $email,
             'name' => 'Amina Otieno',
             'nonce' => $nonce,

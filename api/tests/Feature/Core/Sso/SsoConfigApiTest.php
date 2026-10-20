@@ -128,7 +128,8 @@ class SsoConfigApiTest extends TestCase
 
         $connection = $this->getJson('/api/v1/sso', $headers)->json('data.connections.0');
         $this->assertTrue($connection['last_test']['ok']);
-        $this->assertSame(['owner@acme.co.ke', true, 'link', $this->owner->id], [$connection['last_test']['email'], $connection['last_test']['mfa'], $connection['last_test']['action'], $connection['last_test']['user_id']]);
+        // The tester is an Owner: never linked by email, they link from Settings, Security (ADR 023).
+        $this->assertSame(['owner@acme.co.ke', true, 'owner_link', $this->owner->id], [$connection['last_test']['email'], $connection['last_test']['mfa'], $connection['last_test']['action'], $connection['last_test']['user_id']]);
         $this->inTenant(fn () => $this->assertSame(0, DB::table('sso_identities')->count()));
 
         $this->postJson("/api/v1/sso/connections/{$id}/enable", [], $headers)->assertOk()->assertJsonPath('data.enabled', true);

@@ -298,4 +298,48 @@ class OidcSignInTest extends TestCase
         $this->idp->idToken = FakeOidcIdp::sign(FakeOidcIdp::entraClaims('amina@acme.co.ke', $started['query']['nonce']));
         $this->assertStringStartsWith('https://app.example.test/sso/complete#', $this->oidcReturn($started['query']['state']));
     }
+
+    public function test_entra_links_by_the_upn_unless_the_email_is_verified(): void
+    {
+        // The email claim is not proof of ownership in Entra: an admin of the directory can type any address there.
+        $boss = $this->inTenant(fn () => $this->colleague($this->owner, ['email' => 'boss@acme.co.ke']));
+
+        $spoofed = $this->entraSignIn('amina@acme.co.ke', ['email' => 'boss@acme.co.ke']);
+        $this->completeSso($this->ticketFrom($spoofed['location']), $spoofed['binding'])->assertOk()->assertJsonPath('user.id', $this->amina->id);
+        $this->inTenant(fn () => $this->assertSame(0, SsoIdentity::query()->where('user_id', $boss->id)->count()));
+
+        // A verified email (xms_edov) is used, whatever the UPN.
+        $verified = $this->entraSignIn('boss@acme.co.ke', ['preferred_username' => 'b.oss@acme.co.ke', 'xms_edov' => true, 'sub' => 'boss-subject']);
+        $this->completeSso($this->ticketFrom($verified['location']), $verified['binding'])->assertOk()->assertJsonPath('user.id', $boss->id);
+
+        // No UPN and an unverified email: nothing to link by.
+        $this->assertSame('email_missing', $this->errorFrom($this->entraSignIn('amina@acme.co.ke', ['preferred_username' => null, 'sub' => 'third'])['location']));
+    }
+
+    public function test_google_hd_must_be_a_verified_domain_or_the_emails_own(): void
+    {
+        $google = $this->googleConnection();
+        $start = fn () => $this->startSso(['email' => 'amina@acme.co.ke', 'connection_id' => $google]);
+
+        // A Workspace of another organisation, asserting an address of ours.
+        $started = $start();
+        $this->idp->idToken = FakeOidcIdp::sign(FakeOidcIdp::googleClaims('amina@acme.co.ke', $started['query']['nonce'], ['hd' => 'evil-workspace.com']));
+        $this->assertSame('hosted_domain_mismatch', $this->errorFrom($this->oidcReturn($started['query']['state'])));
+
+        // A verified secondary domain of ours is fine.
+        $this->verifyDomain('acme-group.co.ke');
+        $started = $start();
+        $this->idp->idToken = FakeOidcIdp::sign(FakeOidcIdp::googleClaims('amina@acme.co.ke', $started['query']['nonce'], ['hd' => 'acme-group.co.ke']));
+        $this->ticketFrom($this->oidcReturn($started['query']['state']));
+    }
+
+    public function test_a_google_hosted_domain_must_be_verified_when_saved(): void
+    {
+        $body = ['provider' => 'google', 'name' => 'Google 2', 'client_id' => FakeOidcIdp::GOOGLE_CLIENT_ID, 'client_secret' => 's'];
+        $this->postJson('/api/v1/sso/connections', [...$body, 'hosted_domain' => 'unverified.example'], $this->headersFor())
+            ->assertStatus(422)->assertJsonValidationErrors('hosted_domain');
+        $id = $this->postJson('/api/v1/sso/connections', [...$body, 'hosted_domain' => 'acme.co.ke'], $this->headersFor())->assertCreated()->json('data.id');
+        $this->patchJson("/api/v1/sso/connections/{$id}", ['hosted_domain' => 'unverified.example'], $this->headersFor())
+            ->assertStatus(422)->assertJsonValidationErrors('hosted_domain');
+    }
 }

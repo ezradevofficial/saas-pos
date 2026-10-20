@@ -2,6 +2,7 @@
 
 namespace App\Core\Sso\Oidc;
 
+use App\Core\Sso\Domains\SsoDomains;
 use App\Core\Sso\Models\SsoConnection;
 use App\Core\Sso\SsoAssertion;
 use App\Core\Sso\SsoFailure;
@@ -25,12 +26,16 @@ use Throwable;
  *   several audiences, `azp` must be the client id);
  * - `nonce` the flow's;
  * - an email: Google's verified (`email_verified`) and of a Workspace
- *   (`hd`, the connection's hosted domain when one is set); Entra's
- *   `email`, else `preferred_username`;
+ *   (`hd`: the email's own domain or a verified domain of the tenant, and
+ *   the connection's hosted domain when one is set); Entra's
+ *   `email` only when `xms_edov` marks it verified, else the UPN
+ *   (`preferred_username`);
  * - MFA when `amr` holds `mfa`.
  */
 class IdTokenValidator
 {
+    public function __construct(private readonly SsoDomains $domains) {}
+
     public const LEEWAY = 60;
 
     public const ALGORITHM = 'RS256';
@@ -94,16 +99,21 @@ class IdTokenValidator
                 throw new SsoFailure('email_unverified');
             }
 
-            $hd = $claims->hd ?? null;
+            $hd = is_string($claims->hd ?? null) ? Str::lower($claims->hd) : '';
             $required = $connection->setting('hosted_domain');
+            $email = $claims->email ?? null;
+            $own = is_string($email) && $hd === SsoDomains::domainOf($email);
 
-            if (! is_string($hd) || $hd === '' || (is_string($required) && $required !== '' && Str::lower($hd) !== Str::lower($required))) {
+            // The Workspace must be the organisation's: the email's own domain or one it verified.
+            if ($hd === '' || (is_string($required) && $required !== '' && $hd !== Str::lower($required)) || (! $own && ! $this->domains->isVerified($hd))) {
                 throw new SsoFailure('hosted_domain_mismatch');
             }
-
-            $email = $claims->email ?? null;
         } else {
-            $email = $claims->email ?? $claims->preferred_username ?? null;
+            // Entra's `email` is whatever the directory holds, unverified unless the optional
+            // claim `xms_edov` (email domain owner verified) says so; the UPN is the directory's own.
+            $edov = $claims->xms_edov ?? null;
+            $verified = $edov === true || $edov === 'true' || $edov === 1 || $edov === '1';
+            $email = $verified && is_string($claims->email ?? null) ? $claims->email : ($claims->preferred_username ?? null);
         }
 
         if (! is_string($email) || filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 255) {

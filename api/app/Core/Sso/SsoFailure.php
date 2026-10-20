@@ -17,6 +17,7 @@ final class SsoFailure extends RuntimeException
         'token_invalid', 'email_missing', 'email_unverified', 'hosted_domain_mismatch',
         'saml_invalid', 'in_response_to_mismatch', 'replayed',
         'domain_not_verified', 'no_account', 'identity_conflict', 'deactivated', 'jit_stale',
+        'owner_link_required', 'link_email_mismatch', 'name_id_transient', 'ticket_invalid',
     ];
 
     public function __construct(public readonly string $reason, ?string $detail = null)

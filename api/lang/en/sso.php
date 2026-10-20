@@ -25,6 +25,7 @@ return [
 
     'errors' => [
         'domain_added' => 'This domain is already on your list. Check it there, or remove it first.',
+        'hosted_domain_unverified' => 'Verify this domain under Email domains first: only a domain you have proven can limit Google sign-in.',
         'domain_format' => 'Enter a domain such as company.co.ke, without @, http:// or a path.',
         'platform_domain' => 'This is the platform’s own domain. Add your organisation’s email domain instead.',
         'jit_owner_role' => 'New accounts cannot get an Owner role. Choose another default role.',
