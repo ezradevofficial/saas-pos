@@ -12256,6 +12256,18 @@
       "confirmTitle": "Reset the sandbox?",
       "confirmBody": "Every item, category, price list and contact is archived, then new sample data is loaded. Documents such as sales keep their history.",
       "confirm": "Reset sandbox"
+    },
+    "outbox": {
+      "title": "Sandbox outbox",
+      "text": "A sandbox sends no email, SMS or WhatsApp. What it would have sent is kept here.",
+      "empty": "Nothing sent yet.",
+      "to": "{{channel}} to {{recipient}}",
+      "channels": {
+        "email": "Email",
+        "sms": "SMS",
+        "whatsapp": "WhatsApp",
+        "push": "Push"
+      }
     }
   },
   "developers": {

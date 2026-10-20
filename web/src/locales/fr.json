@@ -12256,6 +12256,18 @@
       "confirmTitle": "Réinitialiser le bac à sable ?",
       "confirmBody": "Chaque article, catégorie, liste de prix et contact est archivé, puis de nouvelles données d’exemple sont chargées. Les documents comme les ventes gardent leur historique.",
       "confirm": "Réinitialiser le bac à sable"
+    },
+    "outbox": {
+      "title": "Boîte d’envoi du bac à sable",
+      "text": "Un bac à sable n’envoie ni e-mail, ni SMS, ni WhatsApp. Ce qu’il aurait envoyé est gardé ici.",
+      "empty": "Rien d’envoyé pour l’instant.",
+      "to": "{{channel}} à {{recipient}}",
+      "channels": {
+        "email": "E-mail",
+        "sms": "Texto",
+        "whatsapp": "Message WhatsApp",
+        "push": "Notification push"
+      }
     }
   },
   "developers": {

@@ -31,6 +31,7 @@ function setUp({ mode = 'live', keys = [KEY] } = {}) {
     ['api-keys/usage', USAGE],
     [/^api-keys\/k-1\/usage$/, { ...USAGE, meta: { total: 3 } }],
     ['roles?per_page=200', ROLES],
+    ['sandbox/outbox', { data: [{ id: 'o-1', channel: 'email', recipient: 'dev@example.com', subject: 'You are invited', body: 'Accept: https://app.example/invitations/abc', source: 'notification', created_at: '2026-10-16T08:00:00Z' }] }],
     [/^(branches|locations)\?/, { data: [], meta: { total: 0 } }],
   ], { permissions: tenantWide(['core.api_key.manage', 'core.role.assign', 'core.item.view']) })
 }
@@ -116,6 +117,9 @@ describe('API keys (API-02, API-03, API-05)', () => {
     renderApp('/settings/api-keys')
 
     expect(await screen.findByText('Developer sandbox')).toBeInTheDocument()
+    // API-05: what the sandbox would have sent.
+    expect(await screen.findByText('You are invited')).toBeInTheDocument()
+    expect(screen.getByText('Email to dev@example.com')).toBeInTheDocument()
     expect(screen.getByText('No API keys yet. Create one to connect another system.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reset sample data' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Reset sandbox' }))

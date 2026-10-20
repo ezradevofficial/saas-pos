@@ -35,6 +35,27 @@ return [
         'max_body_bytes' => 1024 * 1024,
     ],
 
+    // API-05 (review): developer sandboxes are free, so they are capped and expire.
+    'sandbox' => [
+        // Sandbox sign-ups (a live sign-up is not counted here).
+        'sign_ups' => [
+            'per_ip_per_hour' => (int) env('SANDBOX_SIGN_UPS_PER_IP', 3),
+            'per_domain_per_hour' => (int) env('SANDBOX_SIGN_UPS_PER_DOMAIN', 5),
+            'per_hour' => (int) env('SANDBOX_SIGN_UPS_PER_HOUR', 50),
+        ],
+        // Hard caps; `records` counts audited creations since set-up or the last reset.
+        'caps' => [
+            'user' => (int) env('SANDBOX_MAX_USERS', 3),
+            'device' => (int) env('SANDBOX_MAX_DEVICES', 2),
+            'outlet' => (int) env('SANDBOX_MAX_OUTLETS', 2),
+            'records' => (int) env('SANDBOX_MAX_RECORDS', 500),
+            'api_requests_per_day' => (int) env('SANDBOX_MAX_API_REQUESTS_PER_DAY', 1000),
+        ],
+        // Closed after this many days without a sign-in or an API request; the Owners are warned before.
+        'inactive_days' => (int) env('SANDBOX_INACTIVE_DAYS', 30),
+        'warn_days_before' => 7,
+    ],
+
     // Usage chart and counters: days of history the back office shows.
     'usage_days' => 30,
 

@@ -3,6 +3,7 @@
 namespace App\Core\Billing\Http;
 
 use App\Core\Api\Sandbox\Sandbox;
+use App\Core\Api\Sandbox\SandboxCaps;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Http\ApiException;
 use App\Core\Tenancy\TenantContext;
@@ -136,6 +137,11 @@ class EnforceSubscription
             throw new ApiException(403, 'sandbox_not_billed', __('api.errors.sandbox_not_billed'));
         }
 
+        // API-05 (review): a sandbox's creations are capped (SandboxCaps).
+        if ($request->isMethod('POST') && $this->tenants->id() !== null && ! self::sandboxCapExempt($request) && $this->sandbox->active()) {
+            app(SandboxCaps::class)->assertCanCreateRecord();
+        }
+
         if ($class === self::ALLOWED || $this->tenants->id() === null) {
             return $next($request);
         }
@@ -155,6 +161,20 @@ class EnforceSubscription
         }
 
         throw new ApiException(402, 'subscription_overdue', __('billing.read_only.message'));
+    }
+
+    /** Writes that are not new records: the account, keys, the sandbox's own reset, onboarding. */
+    private static function sandboxCapExempt(Request $request): bool
+    {
+        $uri = preg_replace('#^api/v1/#', '', (string) $request->route()?->uri());
+
+        foreach (['auth/', 'me', 'api-keys', 'sandbox/', 'onboarding', 'subscription'] as $prefix) {
+            if (str_starts_with($uri, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** A subscription write, or choosing modules (which starts a trial). */

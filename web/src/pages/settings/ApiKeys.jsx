@@ -262,6 +262,36 @@ function UsageCard({ keys }) {
   )
 }
 
+/** API-05 (review): what the sandbox would have sent by email, SMS or WhatsApp, newest first. */
+function SandboxOutbox() {
+  const { t } = useTranslation()
+  const locale = useLocale()
+  const query = useQuery({ queryKey: ['sandbox', 'outbox'], queryFn: () => api.get('sandbox/outbox') })
+  const messages = query.data?.data ?? []
+
+  return (
+    <Card title={t('apiKeys.outbox.title')} subtitle={t('apiKeys.outbox.text')}>
+      {query.isError ? <Alert tone="danger" title={errorMessage(query.error)} /> : null}
+      {query.isPending ? <p className="text-ink-muted">{t('common.loading')}</p> : null}
+      {!query.isPending && !query.isError && messages.length === 0 ? <p className="text-ink-muted">{t('apiKeys.outbox.empty')}</p> : null}
+      <ul className="flex flex-col divide-y divide-border">
+        {messages.map((message) => (
+          <li key={message.id} className="flex flex-col gap-1 py-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="font-medium text-ink">{message.subject || t(`apiKeys.outbox.channels.${message.channel}`, { defaultValue: message.channel })}</span>
+              <span className="text-caption text-ink-muted">{formatWhen(message.created_at, locale)}</span>
+            </div>
+            <span className="text-caption text-ink-muted">
+              {t('apiKeys.outbox.to', { channel: t(`apiKeys.outbox.channels.${message.channel}`, { defaultValue: message.channel }), recipient: message.recipient ?? '' })}
+            </span>
+            <p className="text-body whitespace-pre-line break-words text-ink">{message.body}</p>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
 /** API-05: a developer sandbox's notice and its reset. */
 function SandboxCard() {
   const { t } = useTranslation()
@@ -398,6 +428,7 @@ export default function ApiKeys() {
       {query.isError ? <Alert tone="danger" title={errorMessage(query.error)} /> : null}
       <div className="flex flex-col gap-5">
         {sandbox ? <SandboxCard /> : null}
+        {sandbox ? <SandboxOutbox /> : null}
         <DataTable columns={columns} rows={keys} loading={query.isPending} caption={t('apiKeys.title')} emptyText={t('apiKeys.empty')} />
         <UsageCard keys={keys} />
       </div>

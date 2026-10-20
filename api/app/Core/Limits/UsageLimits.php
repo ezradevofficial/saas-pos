@@ -3,6 +3,7 @@
 namespace App\Core\Limits;
 
 use App\Core\Api\Sandbox\Sandbox;
+use App\Core\Api\Sandbox\SandboxCaps;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Limits\Models\Overage;
@@ -52,6 +53,7 @@ class UsageLimits
         private readonly UsageNotices $notices,
         private readonly OwnerGuard $owners,
         private readonly Sandbox $sandbox,
+        private readonly SandboxCaps $sandboxCaps,
     ) {}
 
     /**
@@ -118,13 +120,15 @@ class UsageLimits
             throw new LogicException('ensureCanAdd() must run inside the transaction that adds the item.');
         }
 
-        // API-05: a developer sandbox has no plan, so nothing is over it (ADR 020).
-        if ($this->sandbox->active()) {
-            return;
-        }
-
         $tenantId = $this->tenants->require();
         $db->select("select pg_advisory_xact_lock(hashtext('usage:' || ? || ':' || ?))", [$tenantId, $unit]);
+
+        // API-05: a developer sandbox has no plan; its hard caps apply instead (ADR 020).
+        if ($this->sandbox->active()) {
+            $this->sandboxCaps->assertCanAdd($unit, $this->counter->count($unit));
+
+            return;
+        }
 
         $overage = Overage::query()->open()->where('unit', $unit)->first();
 

@@ -78,6 +78,7 @@ final class ExportColumns
         // API-02 (ADR 020): API keys' secrets are kept only as hashes, and never exported.
         'api_keys.secret_hash' => 'an API key\'s secret hash (API-02)',
         'api_keys.previous_secret_hash' => 'an API key\'s previous secret hash, during a rotation overlap (API-02)',
+        'sandbox_outbox.body' => 'a message a developer sandbox would have sent, which may hold a one-time link or code (API-05)',
         'api_idempotency_keys.body' => 'a stored response replayed to an API key for 24 hours (API-01): a cache, not a record; the records it shows are exported themselves',
     ];
 

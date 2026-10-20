@@ -2,6 +2,7 @@
 
 namespace App\Core\Identity\Http\Controllers;
 
+use App\Core\Api\Sandbox\SetUpSandboxJob;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Http\Requests\ResendCodeRequest;
 use App\Core\Identity\Http\Requests\VerifyRequest;
@@ -47,6 +48,11 @@ class VerifyController
         $tenant = Tenant::findOrFail($challenge->tenant_id);
         if ($tenant->slug === null) {
             $slugs->assign($tenant, $tenant->name);
+        }
+
+        // API-05 (review): a developer sandbox is set up only once its owner is verified, by a queued job.
+        if ($tenant->is_sandbox) {
+            SetUpSandboxJob::dispatch($tenant->id, $user->id);
         }
 
         $token = $authenticate->issueToken($user, (string) $request->ip(), (string) $request->userAgent(), $request->deviceName());

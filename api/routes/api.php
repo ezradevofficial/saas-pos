@@ -184,7 +184,7 @@ foreach (Dimensions::TYPES as $parameter => $model) {
 // Prefix /api/v1 (bootstrap/app.php). AUTH-01, AUTH-03, AUTH-04, AUTH-09, AUTH-10.
 Route::prefix('auth')->group(function () {
     // ONB-01: per IP, per email or phone number, and across the platform.
-    Route::post('sign-up', SignUpController::class)->middleware(['throttle:auth-ip', 'throttle:'.OnboardingServiceProvider::SIGN_UP_DESTINATION_LIMITER, 'throttle:'.OnboardingServiceProvider::SIGN_UP_GLOBAL_LIMITER]);
+    Route::post('sign-up', SignUpController::class)->middleware(['throttle:auth-ip', 'throttle:'.ApiServiceProvider::SANDBOX_SIGN_UP_LIMITER, 'throttle:'.OnboardingServiceProvider::SIGN_UP_DESTINATION_LIMITER, 'throttle:'.OnboardingServiceProvider::SIGN_UP_GLOBAL_LIMITER]);
     Route::post('verify', [VerifyController::class, 'verify'])->middleware('throttle:auth-ip');
     Route::post('verify/resend', [VerifyController::class, 'resend'])->middleware('throttle:auth-ip');
     Route::post('sign-in', SignInController::class)->middleware(['throttle:auth-ip', 'throttle:auth-login']);
@@ -671,6 +671,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('api-keys/{api_key}/revoke', [ApiKeyController::class, 'revoke']);
     Route::get('api-keys/{api_key}/usage', [ApiKeyController::class, 'usage']);
     Route::post('sandbox/reset', [SandboxController::class, 'reset']);
+    Route::get('sandbox/outbox', [SandboxController::class, 'outbox']);
 
     // LAY-06, LAY-07: versioned configuration of a registered kind (themes,
     // layouts, templates): documents per key and scope, their versions, and

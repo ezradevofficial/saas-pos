@@ -7,6 +7,8 @@ use App\Core\Api\ApiRateLimits;
 use App\Core\Api\ApiScopes;
 use App\Core\Api\ApiUsage;
 use App\Core\Api\Idempotency;
+use App\Core\Api\Sandbox\Sandbox;
+use App\Core\Api\Sandbox\SandboxCaps;
 use App\Core\Http\ApiException;
 use Carbon\CarbonImmutable;
 use Closure;
@@ -39,6 +41,8 @@ class PublicApi
         private readonly ApiRateLimits $limits,
         private readonly ApiUsage $usage,
         private readonly Idempotency $idempotency,
+        private readonly Sandbox $sandbox,
+        private readonly SandboxCaps $caps,
     ) {}
 
     public function handle(Request $request, Closure $next, string $resource): Response
@@ -59,6 +63,12 @@ class PublicApi
 
         // Only admitted requests are counted: a 429 is not usage.
         $window = $this->limits->hit($key);
+
+        // API-05: a sandbox's requests of the day are capped.
+        if ($this->sandbox->active()) {
+            $this->caps->assertApiRequestAllowed($key->tenant_id);
+        }
+
         $this->usage->record($key, $request->ip());
 
         $idempotencyKey = $request->headers->get(Idempotency::HEADER);

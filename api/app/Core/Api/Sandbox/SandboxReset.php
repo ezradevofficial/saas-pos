@@ -31,6 +31,7 @@ class SandboxReset
         private readonly PriceWriter $prices,
         private readonly SampleData $sample,
         private readonly Auditor $auditor,
+        private readonly SandboxCaps $caps,
     ) {}
 
     /** @return array<string, int> archived records by type */
@@ -62,6 +63,8 @@ class SandboxReset
 
             $this->auditor->record('core.sandbox.reset', $state, null, ['archived' => $archived]);
             $this->sample->load($actor);
+            // The records cap counts from the reset.
+            $this->caps->restartRecordCount();
 
             return $archived;
         });

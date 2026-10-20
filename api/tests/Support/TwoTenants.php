@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use App\Core\Api\Sandbox\SandboxOutbox;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
@@ -625,6 +626,8 @@ final class TwoTenants
         self::ok($test->getJson('/api/v1/locations', $keyHeaders));
         // API-03: counted in the cache, written to api_key_usage_days by the scheduled flush.
         $test->artisan('api:flush-usage')->assertSuccessful();
+        // API-05: an outbox message (the fixture tenants are live: written as a sandbox's outbox would).
+        app(TenantContext::class)->run($tenantId, fn () => app(SandboxOutbox::class)->record('email', "outbox-{$key}@example.com", "Outbox {$upper}", "Kept {$upper}", 'mail'));
         self::ok($test->postJson('/api/v1/parties', ['kind' => 'person', 'name' => "API customer {$upper}", 'roles' => ['customer']], [...$keyHeaders, 'Idempotency-Key' => "isolation-{$key}"]), 201);
         // HOOK-01: a webhook subscription of the company (its URL carries a token, its
         // secret is shown once: neither may reach the other tenant) and a test delivery.
