@@ -27,6 +27,8 @@ use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Notifications\Notifier;
+use App\Core\Privacy\Models\PrivacyRequest;
+use App\Core\Privacy\PrivacyRequests;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Role;
@@ -630,6 +632,13 @@ final class TwoTenants
         $privacyRequest = self::ok($test->postJson('/api/v1/privacy/requests', [
             'subject_type' => 'customer', 'subject_id' => $customer, 'kind' => 'access', 'note' => "Privacy {$upper}",
         ], $owner), 201)->json('data.id');
+        // Approved by the manager (four eyes) and carried out, so its access report exists.
+        app(TenantContext::class)->run($tenantId, function () use ($privacyRequest, $managerId, $ownerId) {
+            $requests = app(PrivacyRequests::class);
+            $request = PrivacyRequest::query()->findOrFail($privacyRequest);
+            $requests->approve($request, User::query()->findOrFail($managerId));
+            $requests->execute($request, User::query()->findOrFail($ownerId));
+        });
         self::ok($test->postJson('/api/v1/privacy/consents', [
             'subject_type' => 'customer', 'subject_id' => $customer, 'purpose' => 'marketing', 'channel' => 'email', 'granted' => true, 'evidence' => "Consent {$upper}",
         ], $owner), 201);

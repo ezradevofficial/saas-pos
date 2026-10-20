@@ -13,8 +13,9 @@ class ConsentRequest extends PrivacyRequestAction
     public function rules(): array
     {
         return [
-            'subject_type' => ['required', 'string', Rule::in(Consents::SUBJECT_TYPES)],
-            'subject_id' => ['required', 'uuid'],
+            // Without a subject the answer is empty (a list with nothing chosen yet).
+            'subject_type' => ['nullable', 'required_with:subject_id', 'string', Rule::in(Consents::SUBJECT_TYPES)],
+            'subject_id' => ['nullable', 'uuid'],
         ];
     }
 }

@@ -14,6 +14,10 @@ class ConsentController
 
     public function index(ConsentRequest $request): JsonResponse
     {
+        if (! $request->validated('subject_id')) {
+            return response()->json(['data' => ['current' => [], 'history' => []]]);
+        }
+
         return response()->json(['data' => $this->consents->forSubject((string) $request->validated('subject_type'), (string) $request->validated('subject_id'))]);
     }
 
