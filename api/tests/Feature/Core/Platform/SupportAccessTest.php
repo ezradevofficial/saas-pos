@@ -278,12 +278,13 @@ class SupportAccessTest extends TestCase
         $device = $this->inTenant(fn () => Device::query()->create(['location_id' => $this->locationA->id, 'name' => 'Till 9', 'code' => 'T9', 'status' => Device::STATUS_PENDING]));
 
         $permissions = array_column($this->getJson('/api/v1/me/permissions', $session)->assertOk()->json('permissions'), 'name');
-        foreach (['core.device.pair', 'core.device.create', 'core.automation.edit', 'core.notification_template.edit', 'pos.sale.share'] as $never) {
+        foreach (['core.device.pair', 'core.device.create', 'core.automation.edit', 'core.notification_template.edit', 'pos.sale.share', 'core.webhook.manage'] as $never) {
             $this->assertNotContains($never, $permissions, $never);
         }
 
         $this->postJson("/api/v1/devices/{$device->id}/pairing-code", [], $session)->assertForbidden();
         $this->postJson('/api/v1/automation-rules', ['name' => 'Exfiltrate'], $session)->assertForbidden();
+        $this->postJson('/api/v1/webhooks', ['url' => 'https://example.com/hook', 'events' => ['sale.completed']], $session)->assertForbidden(); // HOOK-01
         $this->postJson("/api/v1/companies/{$this->acme->id}/accounting/recurring-journals", [], $session)->assertForbidden()->assertJsonPath('code', 'support_route_refused');
         $this->getJson('/api/v1/parties?format=csv', $session)->assertForbidden()->assertJsonPath('code', 'support_route_refused');
         $this->getJson('/api/v1/parties', $session)->assertOk();

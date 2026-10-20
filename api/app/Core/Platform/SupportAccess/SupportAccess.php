@@ -72,6 +72,7 @@ class SupportAccess
         'core.automation.edit', 'core.notification_template.edit', 'core.notification_settings.edit',
         'crm.settings.manage', 'ecommerce.store.manage', 'pos.sale.share',
         'procurement.tender.create', 'procurement.rfq.create',
+        'core.webhook.manage',
     ];
 
     /**
