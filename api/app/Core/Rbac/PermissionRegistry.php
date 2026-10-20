@@ -96,6 +96,8 @@ class PermissionRegistry
         'onboarding' => ['view', 'edit', 'modules'],
         // API-02, API-05 (ADR 020): the tenant's API keys and its developer sandbox's reset (Owner, Admin).
         'api_key' => ['manage'],
+        // HOOK-01: webhook subscriptions, their secrets, test events, the delivery log and replays (tenant scope; Owner, Admin).
+        'webhook' => ['manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

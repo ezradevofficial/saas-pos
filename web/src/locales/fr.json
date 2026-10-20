@@ -399,6 +399,7 @@
     "formLayouts": "Mises en page des formulaires",
     "formTypes": "Formulaires",
     "dataExport": "Export des données",
+    "webhooks": "Webhooks",
     "subscription": "Abonnement",
     "usage": "Utilisation",
     "imports": "Importations",
@@ -11976,6 +11977,200 @@
       "noOrders": "Aucune commande pour le moment."
     }
   },
+  "webhooks": {
+    "title": "Webhooks",
+    "description": "Envoyez les événements à vos autres systèmes dès qu’ils se produisent, signés pour qu’ils puissent vérifier leur origine.",
+    "tabs": {
+      "webhooks": "Destinations",
+      "deliveries": "Journal des livraisons",
+      "guide": "Guide du développeur"
+    },
+    "add": "Ajouter un webhook",
+    "empty": "Aucun webhook pour l’instant. Ajoutez-en un pour envoyer des événements à un autre système.",
+    "listLabel": "Liste des webhooks",
+    "status": {
+      "active": "Activé",
+      "off": "Désactivé",
+      "failing": "Désactivé après des échecs"
+    },
+    "row": {
+      "events_one": "{{count}} événement",
+      "events_other": "{{count}} événements",
+      "lastDelivery": "Dernière livraison {{when}}",
+      "never": "Rien n’a encore été livré",
+      "failures_one": "{{count}} échec d’affilée",
+      "failures_other": "{{count}} échecs d’affilée",
+      "open": "Ouvrir le webhook {{url}}"
+    },
+    "fields": {
+      "url": "URL de destination",
+      "urlHelp": "Une adresse https:// publique. Sa chaîne de requête reste secrète et n’est plus jamais affichée.",
+      "urlKeep": "Laissez vide pour garder l’URL actuelle ({{url}}).",
+      "description": "Description",
+      "descriptionHelp": "Ce qui reçoit ces événements, pour votre équipe.",
+      "events": "Événements",
+      "eventsHelp": "Seuls les événements des modules que vous utilisez sont listés. Les événements ne sont envoyés que pour les enregistrements que vous voyez.",
+      "filter": "Envoyer les événements de",
+      "filterAll": "Toute l’organisation",
+      "filterCompany": "Une société",
+      "filterBranch": "Une agence",
+      "company": "Société",
+      "branch": "Agence",
+      "active": "Envoyer les événements"
+    },
+    "form": {
+      "createTitle": "Ajouter un webhook",
+      "editTitle": "Modifier le webhook",
+      "create": "Ajouter le webhook",
+      "save": "Enregistrer les modifications",
+      "noEvents": "Choisissez au moins un événement.",
+      "pickCompany": "Choisissez la société.",
+      "pickBranch": "Choisissez l’agence.",
+      "locked": "Ce webhook envoie au nom de {{name}}. Seul cet utilisateur peut modifier son URL, ses événements ou son filtre ; vous pouvez modifier sa description ou l’activer et le désactiver."
+    },
+    "secret": {
+      "title": "Secret de signature",
+      "onceTitle": "Copiez ce secret maintenant",
+      "onceBody": "Il n’est affiché qu’une fois. Votre destination l’utilise pour vérifier la signature de chaque événement.",
+      "copy": "Copier le secret",
+      "copied": "Secret copié.",
+      "copyFailed": "Le secret n’a pas pu être copié. Sélectionnez-le et copiez-le à la main.",
+      "done": "J’ai enregistré le secret",
+      "rotate": "Renouveler le secret",
+      "rotateTitle": "Renouveler le secret de signature ?",
+      "rotateBody": "Un nouveau secret est créé maintenant. L’ancien continue de signer pendant {{hours}} heures, pour que vous mettiez à jour votre destination sans perdre d’événements.",
+      "rotateNow": "Renouveler le secret",
+      "rotatedAt": "Dernier renouvellement {{when}}.",
+      "overlapUntil": "L’ancien secret signe aussi jusqu’au {{when}}."
+    },
+    "detail": {
+      "back": "Tous les webhooks",
+      "edit": "Modifier",
+      "test": "Envoyer un événement de test",
+      "testSent": "Événement de test envoyé. Sa réponse figure dans le journal ci-dessous.",
+      "archive": "Archiver",
+      "archiveTitle": "Archiver ce webhook ?",
+      "archiveBody": "Plus aucun événement ne lui est envoyé. Son journal des livraisons est conservé 30 jours.",
+      "archiveNow": "Archiver le webhook",
+      "switchOn": "Activer",
+      "switchOff": "Désactiver",
+      "disabledTitle_one": "Désactivé après {{count}} livraison échouée",
+      "disabledTitle_other": "Désactivé après {{count}} livraisons échouées d’affilée",
+      "disabledBody": "Vérifiez que le système destinataire fonctionne, puis réactivez le webhook. Les livraisons échouées peuvent être relancées depuis le journal.",
+      "principalInactive": "L’utilisateur au nom duquel ce webhook envoie n’est plus actif, rien n’est donc envoyé. Ajoutez de nouveau le webhook avec un utilisateur actif.",
+      "events": "Événements",
+      "filter": "Envoie les événements de",
+      "sendsAs": "Envoie au nom de",
+      "notFound": "Ce webhook n’existe pas ou a été archivé.",
+      "settings": "Réglages",
+      "takeOver": "Reprendre",
+      "takeOverTitle": "Reprendre ce webhook ?",
+      "takeOverBody": "Il envoie actuellement au nom de {{name}}. Une fois repris, il envoie en votre nom, avec ce que vous voyez, et vous seul pouvez modifier son URL, ses événements ou son filtre."
+    },
+    "deliveries": {
+      "title": "Journal des livraisons",
+      "empty": "Aucune livraison pour l’instant.",
+      "emptyFiltered": "Aucune livraison ne correspond à ces filtres.",
+      "retention": "Les livraisons sont conservées {{days}} jours.",
+      "columns": {
+        "created": "Heure",
+        "event": "Événement",
+        "webhook": "Destination",
+        "status": "Statut",
+        "response": "Réponse",
+        "attempts": "Tentatives"
+      },
+      "filters": {
+        "status": "Statut",
+        "allStatuses": "Tous les statuts",
+        "type": "Événement",
+        "allTypes": "Tous les événements"
+      },
+      "statuses": {
+        "pending": "En attente",
+        "sending": "Envoi en cours",
+        "retrying": "Nouvel essai prévu",
+        "delivered": "Livrée",
+        "failed": "Échouée"
+      },
+      "noAnswer": "Pas de réponse",
+      "pageOf": "Page {{page}} sur {{last}}",
+      "previous": "Page précédente",
+      "next": "Page suivante"
+    },
+    "delivery": {
+      "title": "Livraison",
+      "eventId": "Identifiant de l’événement",
+      "eventType": "Événement",
+      "status": "Statut",
+      "attempts": "Tentatives",
+      "response": "Réponse",
+      "duration": "{{ms}} ms",
+      "responseBody": "Corps de la réponse (premier Ko)",
+      "payload": "Corps envoyé",
+      "payloadHidden": "Vous ne voyez pas les enregistrements de cet événement, son corps est donc masqué.",
+      "nextAttempt": "Prochain essai {{when}}",
+      "replay": "Relancer la livraison",
+      "replayed": "Livraison remise en file avec le même identifiant d’événement.",
+      "replayOf": "Une relance d’une livraison précédente.",
+      "problem": "Problème",
+      "when": "Créée"
+    },
+    "errors": {
+      "unreachable": "La destination n’a pas pu être jointe.",
+      "status": "La destination a répondu avec un statut d’erreur.",
+      "disabled": "Le webhook a été désactivé ou archivé avant l’envoi.",
+      "principal": "L’utilisateur au nom duquel ce webhook envoie n’est plus actif.",
+      "refused": {
+        "invalid": "L’URL n’est pas une adresse web valide.",
+        "not_https": "L’URL n’utilise pas https://.",
+        "credentials": "L’URL contient un identifiant ou un mot de passe.",
+        "private_address": "L’URL mène à un réseau privé ou interne.",
+        "unresolved": "Le nom d’hôte de la destination est introuvable."
+      }
+    },
+    "events": {
+      "sale_completed_v1": "Vente terminée",
+      "sale_voided_v1": "Vente annulée",
+      "sale_refunded_v1": "Vente remboursée",
+      "stock_low_v1": "Stock bas",
+      "invoice_posted_v1": "Facture comptabilisée",
+      "credit_note_posted_v1": "Avoir comptabilisé",
+      "supplier_invoice_approved_v1": "Facture fournisseur approuvée",
+      "purchase_order_approved_v1": "Bon de commande approuvé",
+      "payroll_approved_v1": "Paie approuvée",
+      "order_placed_v1": "Commande en ligne passée",
+      "order_paid_v1": "Commande en ligne payée",
+      "order_status_changed_v1": "Statut de commande en ligne modifié",
+      "order_completed_v1": "Commande en ligne livrée",
+      "document_stage_changed_v1": "Document passé à une étape",
+      "webhook_test_v1": "Événement de test"
+    },
+    "modules": {
+      "core": "Plateforme",
+      "pos": "Point de vente",
+      "inventory": "Stocks",
+      "accounting": "Comptabilité",
+      "procurement": "Achats",
+      "payroll": "Paie",
+      "ecommerce": "Commerce en ligne"
+    },
+    "guide": {
+      "title": "Recevoir les webhooks",
+      "intro": "Chaque événement est un POST HTTPS avec un corps JSON : id, type, occurred_at et data. Répondez avec un statut 2xx en moins de 10 secondes, et faites le travail long après avoir répondu.",
+      "signingTitle": "Vérifier la signature",
+      "signing": "Chaque requête porte les en-têtes Webhook-Id, Webhook-Timestamp et Webhook-Signature, tels que les définit la spécification Standard Webhooks, pour que ses bibliothèques puissent les vérifier. Pour vérifier à la main, calculez le HMAC-SHA256 de « id.timestamp.body » avec votre secret (la partie après whsec_, décodée en base64), encodez-le en base64 et comparez-le à chaque valeur « v1, » de Webhook-Signature. Refusez les horodatages de plus de 5 minutes.",
+      "rotation": "Après un renouvellement du secret, les requêtes portent deux signatures pendant {{hours}} heures. Acceptez l’une ou l’autre jusqu’à ce que vous utilisiez le nouveau secret.",
+      "retriesTitle": "Nouvelles tentatives",
+      "retries": "Si votre destination ne répond pas 2xx, la livraison est retentée après 1 minute, 5 minutes, 30 minutes, 2 heures, 6 heures et 24 heures, puis marquée échouée. Après {{count}} livraisons échouées d’affilée, le webhook est désactivé et ses responsables sont prévenus. Les redirections ne sont jamais suivies.",
+      "orderTitle": "Doublons et ordre",
+      "order": "Un événement peut arriver plusieurs fois, et les événements peuvent arriver dans n’importe quel ordre. Utilisez l’identifiant de l’événement pour ignorer les répétitions, et occurred_at ou l’enregistrement lui-même pour savoir lequel est le plus récent.",
+      "dataTitle": "Ce qui est envoyé",
+      "data": "Seulement des identifiants et quelques champs documentés, jamais de coordonnées ni de secrets, et seulement les enregistrements que l’utilisateur du webhook peut voir. Un type versionné (.v1) ne change jamais de forme : une nouvelle version est ajoutée à la place.",
+      "catalogueTitle": "Événements auxquels vous abonner",
+      "fields": "Champs"
+    }
+  },
   "apiKeys": {
     "title": "Clés d’API",
     "description": "Les clés permettent à vos autres systèmes d’utiliser l’API publique. Chaque clé agit avec un rôle à un endroit, et ses portées la limitent encore.",
@@ -12147,9 +12342,9 @@
       },
       "webhooks": {
         "title": "Notifications webhook",
-        "summary": "Des événements envoyés à vos systèmes. Bientôt disponibles.",
-        "p1": "Les webhooks enverront des événements signés, comme une vente terminée ou une facture approuvée, à vos systèmes, avec des nouvelles tentatives et un journal des envois.",
-        "p2": "D’ici là, lisez les changements avec les points d’accès de liste, triés par leur dernière modification."
+        "summary": "Des événements envoyés à vos systèmes dès qu’ils se produisent.",
+        "p1": "Les webhooks envoient des événements signés, comme une vente terminée ou un document qui change d’étape, à l’URL de votre choix, avec de nouvelles tentatives et un journal des envois.",
+        "p2": "Configurez-les dans Paramètres, Webhooks : choisissez les événements, copiez une fois le secret de signature et vérifiez la signature et l’horodatage de chaque requête avant de lui faire confiance."
       }
     },
     "errorCodes": {

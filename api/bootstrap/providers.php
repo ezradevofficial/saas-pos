@@ -26,6 +26,7 @@ use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Platform\PlatformServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
 use App\Core\Sync\SyncServiceProvider;
+use App\Core\Webhooks\WebhooksServiceProvider;
 use App\Core\Workflow\WorkflowServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\CoreServiceProvider;
@@ -65,6 +66,7 @@ return [
     CustomFormsServiceProvider::class,
     ImportsServiceProvider::class,
     DataExportServiceProvider::class,
+    WebhooksServiceProvider::class,
     SyncServiceProvider::class,
     PaymentsServiceProvider::class,
     FiscalServiceProvider::class,

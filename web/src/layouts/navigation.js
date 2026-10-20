@@ -365,6 +365,8 @@ export const NAV_GROUPS = [
       { to: '/settings/usage', icon: 'chart', label: (t) => t('nav.usage'), owner: true },
       // EXP-02: the full data export (Owners only).
       { to: '/settings/data-export', icon: 'download', label: (t) => t('nav.dataExport'), permission: 'core.tenant.export', tenantWide: true, module: 'core' },
+      // HOOK-01: webhooks to other systems (Owner, Admin).
+      { to: '/settings/webhooks', icon: 'link', label: (t) => t('nav.webhooks'), permission: 'core.webhook.manage', tenantWide: true, module: 'core' },
       // LAY-01, LAY-02: the dashboards and menus of the organisation and its roles.
       { to: '/settings/layouts/dashboards', icon: 'dashboard', label: (t) => t('nav.dashboards'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },
       { to: '/settings/layouts/navigation', icon: 'menu', label: (t) => t('nav.navigationEditor'), permission: LAYOUT_VIEW, tenantWide: true, module: 'core' },

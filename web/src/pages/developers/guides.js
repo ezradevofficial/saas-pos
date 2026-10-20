@@ -98,7 +98,7 @@ Link: <https://app.example.com/developers/changelog#items-v1>; rel="deprecation"
     code: `curl "https://api.example.com/api/v1/items" \\
   -H "Authorization: Bearer sk_test_<id>_<secret>"`,
   },
-  { id: 'webhooks', paragraphs: ['p1', 'p2'] },
+  { id: 'webhooks', paragraphs: ['p1', 'p2'] }, // HOOK-01: Settings, Webhooks.
 ]
 
 export const guideById = (id) => GUIDES.find((guide) => guide.id === id) ?? null

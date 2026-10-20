@@ -624,6 +624,16 @@ final class TwoTenants
         $keyHeaders = ['Authorization' => 'Bearer '.$apiKey->json('secret'), 'Accept' => 'application/json'];
         self::ok($test->getJson('/api/v1/locations', $keyHeaders));
         self::ok($test->postJson('/api/v1/parties', ['kind' => 'person', 'name' => "API customer {$upper}", 'roles' => ['customer']], [...$keyHeaders, 'Idempotency-Key' => "isolation-{$key}"]), 201);
+        // HOOK-01: a webhook subscription of the company (its URL carries a token, its
+        // secret is shown once: neither may reach the other tenant) and a test delivery.
+        $webhook = self::ok($test->postJson('/api/v1/webhooks', [
+            'url' => "https://hooks.example.com/{$key}/path-token-{$key}/events?token=hook-token-{$key}",
+            'description' => "Webhook {$upper}",
+            'events' => ['sale.completed.v1', 'document.stage_changed.v1'],
+            'company_id' => $company,
+        ], $owner), 201);
+        $subscriptionSecret = $webhook->json('data.secret');
+        $webhookDelivery = self::ok($test->postJson("/api/v1/webhooks/{$webhook->json('data.id')}/test", [], $owner), 202)->json('data.id');
 
         // LIM-01, LIM-02: a day's usage metered against a plan of no devices: the paired till is over,
         // so the tenant has meter rows and an open overage (the Owner is warned).
@@ -694,6 +704,8 @@ final class TwoTenants
                 'billing_payment_method' => $billingMethod,
                 'import' => $import,
                 'api_key' => $apiKey->json('data.id'),
+                'webhook' => $webhook->json('data.id'),
+                'webhook_delivery' => $webhookDelivery,
                 ...$dimensions,
                 ...$pos,
                 ...$inventory,
@@ -710,7 +722,7 @@ final class TwoTenants
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, "hook-token-{$key}", $callbackToken, $apiKey->json('secret'), ...$ecommerce['contacts']])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, $subscriptionSecret, "hook-token-{$key}", "path-token-{$key}", $callbackToken, $apiKey->json('secret'), ...$ecommerce['contacts']])),
         );
     }
 

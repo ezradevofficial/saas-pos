@@ -42,6 +42,9 @@ Schedule::command('domains:verify')->everyTenMinutes()->withoutOverlapping()->on
 // EXP-02: full tenant exports past their expiry (files deleted after 7 days) and builds a dead worker left behind.
 Schedule::command('exports:expire')->hourly()->withoutOverlapping()->onOneServer();
 
+// HOOK-01: webhook deliveries past their 30 days deleted, and ones a dead worker left behind queued again.
+Schedule::command('webhooks:sweep')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+
 // SUB-03, SUB-05: reminders, renewals and invoices, past due and read-only, hourly (each acts once a day).
 Schedule::command('billing:cycle')->hourly()->withoutOverlapping()->onOneServer();
 
