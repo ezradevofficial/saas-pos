@@ -41,6 +41,10 @@ class LeaveTest extends TestCase
     {
         parent::setUp();
 
+        // HR-12 to HR-15: the fixed leave dates below are in the future of 14 October 2026 (the
+        // accrual date), and a request is cancelled "before it ends": the clock is fixed there.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14T09:00:00Z'));
+
         Notification::fake();
         $this->setUpHr();
         $this->assertSame(0, Artisan::call('country-packs:holidays', ['code' => 'KE']));
