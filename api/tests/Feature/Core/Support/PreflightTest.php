@@ -50,7 +50,7 @@ class PreflightTest extends TestCase
         [$code, $output] = $this->preflight();
 
         $this->assertSame(0, $code, $output);
-        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role'] as $label) {
+        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role', 'Platform database role', 'Error tracking', 'Metrics access'] as $label) {
             $this->assertStringContainsString($label, $output);
         }
         // No SMS provider yet: a warning, not a failure.

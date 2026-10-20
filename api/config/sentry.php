@@ -15,7 +15,7 @@ return [
 
     'dsn' => env('SENTRY_LARAVEL_DSN', env('SENTRY_DSN')),
 
-    'release' => env('SENTRY_RELEASE'),
+    'release' => env('SENTRY_RELEASE', is_file(base_path('REVISION')) ? trim((string) file_get_contents(base_path('REVISION'))) : null),
 
     'environment' => env('SENTRY_ENVIRONMENT', env('APP_ENV')),
 
