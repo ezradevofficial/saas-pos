@@ -105,6 +105,8 @@ class ReviewAttendanceTest extends TestCase
 
     public function test_a_transfer_takes_pending_leave_future_shifts_and_open_swaps_along(): void
     {
+        // HR-21: the fixed dates below are future (swappable shifts, a December period) as of 14 October 2026.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14T09:00:00Z'));
         $peer = $this->employee(['first_name' => 'Peer', 'location_id' => $this->locationA->id]);
         $shift = $this->plan($this->amina, '2026-11-20');
         $swap = $this->postJson('/api/v1/hr/shift-swaps', ['employee_id' => $this->amina->id, 'roster_shift_id' => $shift, 'peer_employee_id' => $peer->id], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');
@@ -171,6 +173,8 @@ class ReviewAttendanceTest extends TestCase
 
     public function test_closed_periods_are_final_for_shifts_swaps_approvals_and_cannot_close_early(): void
     {
+        // HR-21: the fixed dates below are future (swappable shifts, a December period) as of 14 October 2026.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14T09:00:00Z'));
         $this->postJson('/api/v1/hr/time-rules', ['company_id' => $this->acme->id, 'effective_from' => '2026-01-01'], $this->headersFor($this->hrOfficer))->assertCreated();
         $future = $this->postJson('/api/v1/hr/attendance-periods', ['company_id' => $this->acme->id, 'start_date' => '2026-12-01', 'end_date' => '2026-12-31'], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');
         $this->postJson("/api/v1/hr/attendance-periods/{$future}/close", [], $this->headersFor($this->hrOfficer))->assertUnprocessable()->assertJsonPath('code', 'period_not_ended');
@@ -194,6 +198,8 @@ class ReviewAttendanceTest extends TestCase
 
     public function test_a_swap_is_stale_once_a_shift_changed_or_started(): void
     {
+        // HR-21: the fixed dates below are future (swappable shifts, a December period) as of 14 October 2026.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14T09:00:00Z'));
         $peer = $this->employee(['first_name' => 'Peer', 'location_id' => $this->locationA->id]);
         $mine = $this->plan($this->amina, '2026-11-20');
         $swap = $this->postJson('/api/v1/hr/shift-swaps', ['employee_id' => $this->amina->id, 'roster_shift_id' => $mine, 'peer_employee_id' => $peer->id], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');
