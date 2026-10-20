@@ -96,6 +96,17 @@ return [
             'after_commit' => false,
         ],
 
+        // HOOK-01: webhook fan-outs and deliveries on their own connection
+        // and supervisor; every call ends within webhooks.timeout plus DNS.
+        'redis-webhooks' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => env('WEBHOOKS_QUEUE', 'webhooks'),
+            'retry_after' => (int) env('REDIS_WEBHOOKS_RETRY_AFTER', 90),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

@@ -155,6 +155,12 @@ class DueTenants
         return $this->ids('app_tenants_with_expired_ecom_reservations(?::timestamptz)', [$at->toIso8601String()]);
     }
 
+    /** @return list<string> HOOK-01: webhook deliveries left behind since before $staleBefore, or created before $pruneBefore (migration 2026_11_29_000100). */
+    public function withWebhookWork(CarbonInterface $staleBefore, CarbonInterface $pruneBefore): array
+    {
+        return $this->ids('app_tenants_with_webhook_work(?::timestamptz, ?::timestamptz)', [$staleBefore->toIso8601String(), $pruneBefore->toIso8601String()]);
+    }
+
     /** @return list<string> Every active tenant. */
     public function active(): array
     {

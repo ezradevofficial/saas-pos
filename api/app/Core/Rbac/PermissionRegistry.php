@@ -97,6 +97,8 @@ class PermissionRegistry
         // edit: tenant scope; Owner, Admin); the business type and the
         // modules the trial covers (modules: the subscription, Owner only).
         'onboarding' => ['view', 'edit', 'modules'],
+        // HOOK-01: webhook subscriptions, their secrets, test events, the delivery log and replays (tenant scope; Owner, Admin).
+        'webhook' => ['manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

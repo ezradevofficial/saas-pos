@@ -16,6 +16,7 @@ use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
 use App\Core\Sync\SyncSources;
+use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -49,6 +50,7 @@ use Modules\Inventory\Stock\OpeningStock;
 use Modules\Inventory\Stock\Places;
 use Modules\Inventory\Stock\Valuer;
 use Modules\Inventory\Sync\StockSource;
+use Modules\Inventory\Webhooks\InventoryWebhookEvents;
 use Modules\Manufacturing\Events\MaterialsMoved;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
@@ -106,6 +108,9 @@ class InventoryServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // HOOK-01: the module's public webhook events (sent only while it is active).
+        InventoryWebhookEvents::register($this->app->make(WebhookCatalogue::class));
+
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 

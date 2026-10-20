@@ -314,6 +314,22 @@ return [
             'timeout' => (int) env('IMPORT_TIMEOUT', 3600),
             'nice' => 10,
         ],
+        // HOOK-01: webhook fan-outs and deliveries (docs/adr/021-webhooks.md),
+        // on their own connection so a slow receiver delays nothing else.
+        'supervisor-webhooks' => [
+            'connection' => 'redis-webhooks',
+            'queue' => [env('WEBHOOKS_QUEUE', 'webhooks')],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'minProcesses' => 1,
+            'maxProcesses' => 3,
+            'maxTime' => 3600,
+            'maxJobs' => 1000,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
     ],
 
     // The first matching name wins: `local` first, then every other
@@ -327,6 +343,7 @@ return [
             'supervisor-fiscal' => ['maxProcesses' => 1],
             'supervisor-exports' => ['maxProcesses' => 1],
             'supervisor-imports' => ['maxProcesses' => 1],
+            'supervisor-webhooks' => ['maxProcesses' => 1],
         ],
 
         '*' => [
@@ -337,6 +354,7 @@ return [
             'supervisor-fiscal' => ['maxProcesses' => 4, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
             'supervisor-exports' => ['maxProcesses' => 2],
             'supervisor-imports' => ['maxProcesses' => 2],
+            'supervisor-webhooks' => ['maxProcesses' => 6, 'balanceMaxShift' => 1, 'balanceCooldown' => 3],
         ],
     ],
 

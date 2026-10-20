@@ -81,6 +81,7 @@ return [
                 'custom_form_type' => 'Types de formulaires personnalisés',
                 'tenant' => 'Export complet des données',
                 'subscription' => 'Abonnement et facturation',
+                'webhook' => 'Webhooks',
             ],
             'pos' => [
                 'sale' => 'Ventes',

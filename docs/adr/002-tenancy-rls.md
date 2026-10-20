@@ -117,6 +117,7 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_tenants_with_sso_domain_checks_due(p_at timestamptz)` | `domains:verify` (AUTH-11, ADR 023) | the same, for SSO email domains (`sso_domains`) |
 | `app_tenants_with_billing_due(p_at timestamptz)` | `billing:cycle` (SUB-03, SUB-05, ADR 016) | active customers whose trial or period ends within 7 days, or that are past due or read-only, or have an open invoice already due |
 | `app_tenants_with_modules_to_purge(p_before timestamptz)` | `billing:purge-report` (SUB-07) | switched-off modules, switched off before `p_before`, not yet flagged for purge |
+| `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `webhooks:sweep` (HOOK-01, ADR 021) | webhook deliveries left pending or sending, or overdue for a retry, since before `p_stale_before`, or created before `p_prune_before` (30-day retention) |
 | `app_operator_tenant_id()` | billing (ADR 016) | the operator tenant, the platform's seller (at most one) |
 | `app_tenants_with_due_recurring_journals(p_on date)` | `accounting:recurring` (ACC-06; Accounting migration `2026_11_05_000100`) | an active recurring journal due on or before `p_on` |
 | `app_tenants_with_loyalty_sales_to_reprocess(p_at timestamptz, p_pending_before timestamptz)` | `loyalty:reprocess` (LOY-03; Loyalty migration `2026_11_06_000200`) | a Loyalty sale `failed` whose next attempt is due at `p_at` (backoff 5 min, 15 min, 1 h, 6 h, 24 h, then `failed_permanently`), or left `pending` since before `p_pending_before` |
@@ -186,6 +187,7 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_with_stuck_automation(p_stale_before timestamptz)` | `setof uuid` | `automation:scan reap` |
 | `app_tenants_with_tenders()` | `setof uuid` | `procurement:rewrap-keys`, every tenant with a tender, suspended and closed ones included (ADR 019) |
 | `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `setof uuid` | `credit-limits:reconcile` |
+| `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `setof uuid` | `webhooks:sweep` (ADR 021) |
 
 ### Nobody but the owner creates objects in `public`
 
