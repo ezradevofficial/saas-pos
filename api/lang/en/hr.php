@@ -38,6 +38,9 @@ return [
         'entitlement_required' => 'A leave type that accrues needs its days per year.',
         'leave_type_other_company' => 'Choose a leave type of the employee’s company.',
         'leave_days_needed' => 'The days of :type aren’t confirmed yet. Ask HR to enter and confirm them.',
+        'leave_qualifying_service' => ':type can be taken after :months months of service, from :date. Choose a later start date.',
+        'leave_event_unknown' => 'This event isn’t one of the events of :type. Choose one from the list, or leave the event empty.',
+        'leave_event_days' => ':event gives at most :days days. Shorten the request.',
         'leave_balance_short' => 'Not enough leave left: :available days available.',
         'leave_overlap' => 'Another leave request covers some of these dates.',
         'leave_outside_employment' => 'These dates are outside the employee’s employment.',
@@ -143,6 +146,10 @@ return [
             'paternity' => 'Paternity leave',
             'sick' => 'Sick leave',
             'circumstantial' => 'Circumstantial leave',
+        ],
+        'leave_events' => [
+            'marriage' => 'Own marriage',
+            'birth' => 'Birth of a child',
         ],
     ],
     'numbering' => [

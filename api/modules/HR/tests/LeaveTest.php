@@ -53,22 +53,30 @@ class LeaveTest extends TestCase
 
     public function test_statutory_types_need_their_days_confirmed_before_requests_or_accrual(): void
     {
-        $annual = $this->inTenant(fn () => LeaveType::query()->where('statutory_key', 'annual')->sole());
-        $this->assertTrue($annual->needs_confirmation);
+        // A type whose days are still needed (as copied before the pack had researched days).
+        $annual = $this->inTenant(function () {
+            $type = LeaveType::query()->where('statutory_key', 'annual')->sole();
+            $type->forceFill(['entitlement_days' => null, 'needs_confirmation' => true, 'research' => null, 'qualifying_months' => null, 'accrues_from' => null])->save();
+
+            return $type;
+        });
 
         $this->request($annual, '2026-10-19', '2026-10-20')->assertUnprocessable()->assertJsonPath('code', 'leave_days_needed');
         $run = $this->postJson('/api/v1/hr/leave-accruals/run', ['company_id' => $this->acme->id, 'as_of' => '2026-10-14'], $this->headersFor($this->hrOfficer))->assertOk()->json('data');
         $this->assertSame(0, $run['posted']);
         $this->assertContains('ANNUAL', array_column($run['skipped_types'], 'code'));
 
-        // Applying the pack again copies nothing twice.
+        // Applying the pack again copies nothing twice, and fills a type still needed with the pack's researched days (CP-01).
+        $this->postJson('/api/v1/hr/leave-types/apply-pack', ['company_id' => $this->acme->id], $this->headersFor($this->hrOfficer))->assertOk()
+            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.statutory_key', 'annual')->assertJsonPath('data.0.entitlement_days', '21.00')->assertJsonPath('data.0.researched', true);
         $this->postJson('/api/v1/hr/leave-types/apply-pack', ['company_id' => $this->acme->id], $this->headersFor($this->hrOfficer))->assertOk()->assertJsonCount(0, 'data');
+        $this->inTenant(fn () => $annual->refresh()->forceFill(['entitlement_days' => null, 'needs_confirmation' => true, 'research' => null, 'qualifying_months' => null, 'accrues_from' => null])->save());
 
         // The company enters and confirms the days: from then on they are its own.
         $this->patchJson("/api/v1/hr/leave-types/{$annual->id}", ['confirm' => true], $this->headersFor($this->hrOfficer))
             ->assertUnprocessable()->assertJsonPath('code', 'entitlement_required');
         $this->patchJson("/api/v1/hr/leave-types/{$annual->id}", ['entitlement_days' => '21', 'confirm' => true, 'accrues_from' => '2026-01-01'], $this->headersFor($this->hrOfficer))
-            ->assertOk()->assertJsonPath('data.days_needed', false)->assertJsonPath('data.entitlement_days', '21.00');
+            ->assertOk()->assertJsonPath('data.days_needed', false)->assertJsonPath('data.entitlement_days', '21.00')->assertJsonPath('data.researched', false);
         $this->assertSame(2, $this->postJson('/api/v1/hr/leave-accruals/run', ['company_id' => $this->acme->id, 'as_of' => '2026-10-14'], $this->headersFor($this->hrOfficer))->json('data.posted'));
     }
 

@@ -14,6 +14,7 @@ use Modules\HR\Models\Employee;
 use Modules\HR\Models\LeaveRequest;
 use Modules\HR\Models\LeaveType;
 use Modules\HR\Support\Errors;
+use Modules\HR\Support\HrPack;
 use Modules\HR\Support\Numbers;
 
 /**
@@ -60,6 +61,22 @@ class LeaveRequests
             throw Errors::make(422, 'leave_outside_employment', field: 'start_date');
         }
 
+        // HR-12: some leave needs months of service first (KE: annual after 12, sick after 2).
+        if ($type->qualifying_months !== null && $data['start_date'] < $employee->hire_date->addMonthsNoOverflow($type->qualifying_months)->toDateString()) {
+            throw Errors::make(422, 'leave_qualifying_service', ['type' => $type->name, 'months' => $type->qualifying_months, 'date' => $employee->hire_date->addMonthsNoOverflow($type->qualifying_months)->toDateString()], 'start_date');
+        }
+
+        $event = $data['event'] ?? null;
+        $eventDays = null;
+
+        if ($event !== null) {
+            $eventDays = collect($type->events ?? [])->firstWhere('key', $event)['days'] ?? null;
+
+            if ($eventDays === null) {
+                throw Errors::make(422, 'leave_event_unknown', ['type' => $type->name], 'event');
+            }
+        }
+
         $startHalf = (bool) ($data['start_half'] ?? false);
         $endHalf = (bool) ($data['end_half'] ?? false);
         $dates = $this->days->dates($type, $employee, $data['start_date'], $data['end_date'], $startHalf, $endHalf);
@@ -69,7 +86,12 @@ class LeaveRequests
             throw Errors::make(422, 'leave_no_days', field: 'start_date');
         }
 
-        return Errors::transaction(function () use ($employee, $type, $data, $by, $dates, $total, $startHalf, $endHalf) {
+        // HR-12: an event's days (CD circumstantial leave: own marriage 2, birth of a child 2).
+        if ($eventDays !== null && BigDecimal::of($total)->isGreaterThan($eventDays)) {
+            throw Errors::make(422, 'leave_event_days', ['event' => HrPack::label('leave_events', $event), 'days' => $eventDays], 'end_date');
+        }
+
+        return Errors::transaction(function () use ($employee, $type, $data, $by, $dates, $total, $startHalf, $endHalf, $event) {
             // One request at a time per employee: status, overlaps and balances are checked under this lock.
             $locked = Employee::query()->whereKey($employee->id)->lockForUpdate()->firstOrFail();
 
@@ -85,6 +107,7 @@ class LeaveRequests
             }
 
             $this->assertBalance($employee, $type, $data['end_date'], $total);
+            $halfPay = $this->halfPayDays($employee, $type, $data['start_date'], $total);
 
             $request = LeaveRequest::create([
                 'number' => $this->numbers->next(Numbers::LEAVE_REQUEST, $employee->company_id, $employee->branch_id),
@@ -100,6 +123,10 @@ class LeaveRequests
                 'days' => $total,
                 'dates' => $dates,
                 'reason' => $data['reason'] ?? null,
+                'event' => $event,
+                'half_pay_days' => $halfPay,
+                // CP-01: the type's days come from public research: the request records it.
+                'research' => $type->research,
                 'status' => LeaveRequest::PENDING,
                 'requested_by' => $by->id,
             ]);
@@ -243,6 +270,27 @@ class LeaveRequests
         }
     }
 
+    /**
+     * HR-12: the request's days at half pay: those beyond the type's
+     * full-pay days in the calendar year, counting the year's pending and
+     * approved requests of the type before it (KE sick leave: 30 full,
+     * then 15 half). Payroll does not reduce pay for them yet.
+     */
+    private function halfPayDays(Employee $employee, LeaveType $type, string $startDate, string $days): string
+    {
+        if ($type->half_pay_days === null || BigDecimal::of((string) $type->half_pay_days)->isZero() || $type->entitlement_days === null) {
+            return '0';
+        }
+
+        $year = CarbonImmutable::parse($startDate)->year;
+        $used = LeaveRequest::query()->where('employee_id', $employee->id)->where('leave_type_id', $type->id)
+            ->whereIn('status', [LeaveRequest::PENDING, LeaveRequest::APPROVED])
+            ->whereBetween('start_date', ["{$year}-01-01", "{$year}-12-31"])->sum('days');
+        $fullLeft = BigDecimal::max(BigDecimal::of((string) $type->entitlement_days)->minus((string) $used), 0);
+
+        return (string) BigDecimal::max(BigDecimal::of($days)->minus($fullLeft), 0)->toScale(2);
+    }
+
     private function assertBalance(Employee $employee, LeaveType $type, string $endDate, string $days): void
     {
         if ($type->allow_negative) {
@@ -253,8 +301,8 @@ class LeaveRequests
 
         if ($type->accrual === 'none') {
             // Not tracked as a balance: at most the type's days per request.
-            if ($type->entitlement_days !== null && $needed->isGreaterThan(BigDecimal::of((string) $type->entitlement_days))) {
-                throw Errors::make(422, 'leave_balance_short', ['available' => (string) $type->entitlement_days], 'end_date');
+            if ($type->entitlement_days !== null && $needed->isGreaterThan(BigDecimal::of((string) $type->yearlyDays()))) {
+                throw Errors::make(422, 'leave_balance_short', ['available' => (string) $type->yearlyDays()], 'end_date');
             }
 
             return;

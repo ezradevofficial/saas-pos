@@ -27,6 +27,12 @@ class LeaveTypeResource extends JsonResource
             'allow_negative' => $this->allow_negative,
             'requires_document' => $this->requires_document,
             'accrues_from' => Refs::date($this->accrues_from),
+            'qualifying_months' => $this->qualifying_months,
+            'half_pay_days' => $this->half_pay_days === null ? null : (string) $this->half_pay_days,
+            'events' => array_map(fn (array $e) => [...$e, 'label' => HrPack::label('leave_events', $e['key'])], $this->events ?? []),
+            // CP-01: days from public research, not yet confirmed (the web app shows the notice).
+            'researched' => $this->researched(),
+            'research' => $this->research,
             'archived_at' => Refs::at($this->archived_at),
         ];
     }

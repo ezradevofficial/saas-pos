@@ -24,6 +24,8 @@ use Modules\HR\Support\Errors;
  * - Expiry: on 1 January of each year after the first, a balance on
  *   31 December above the type's carry-over cap expires (`expiry:YYYY`).
  *
+ * The yearly days are the full-pay days plus any half-pay days (KE sick
+ * leave, HR-12); an accrual from researched days says so (CP-01).
  * Amounts round half up to 2 decimals. Types that need confirmation are
  * skipped and reported (HR-12): days are never guessed.
  */
@@ -80,7 +82,9 @@ class Accruals
         }
 
         $posted = 0;
-        $entitlement = BigDecimal::of((string) $type->entitlement_days);
+        // HR-12: half-pay days (KE sick leave) are credited with the full-pay days.
+        $entitlement = BigDecimal::of((string) $type->yearlyDays());
+        $researched = $type->researched();
 
         for ($year = $from->year; $year <= $asOf->year; $year++) {
             $yearStart = CarbonImmutable::create($year, 1, 1);
@@ -110,7 +114,7 @@ class Accruals
                 $daysInYear = $yearStart->daysInYear;
                 $employed = (int) $start->diffInDays($end) + 1;
                 $amount = $employed >= $daysInYear ? $entitlement : $entitlement->multipliedBy($employed)->dividedBy($daysInYear, 10, RoundingMode::HalfUp);
-                $posted += $this->ledger->post($employee->id, $type->id, 'accrual', (string) $amount->toScale(2, RoundingMode::HalfUp), $start->toDateString(), "accrual:{$year}") === null ? 0 : 1;
+                $posted += $this->ledger->post($employee->id, $type->id, 'accrual', (string) $amount->toScale(2, RoundingMode::HalfUp), $start->toDateString(), "accrual:{$year}", researched: $researched) === null ? 0 : 1;
 
                 continue;
             }
@@ -138,7 +142,7 @@ class Accruals
                 $employed = (int) $s->diffInDays($e) + 1;
                 $monthly = $entitlement->dividedBy(12, 10, RoundingMode::HalfUp);
                 $amount = $employed >= $daysInMonth ? $monthly : $monthly->multipliedBy($employed)->dividedBy($daysInMonth, 10, RoundingMode::HalfUp);
-                $posted += $this->ledger->post($employee->id, $type->id, 'accrual', (string) $amount->toScale(2, RoundingMode::HalfUp), $monthEnd->toDateString(), 'accrual:'.$month->format('Y-m')) === null ? 0 : 1;
+                $posted += $this->ledger->post($employee->id, $type->id, 'accrual', (string) $amount->toScale(2, RoundingMode::HalfUp), $monthEnd->toDateString(), 'accrual:'.$month->format('Y-m'), researched: $researched) === null ? 0 : 1;
             }
         }
 

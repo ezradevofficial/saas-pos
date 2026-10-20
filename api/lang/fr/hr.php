@@ -38,6 +38,9 @@ return [
         'entitlement_required' => 'Un type de congé qui s’acquiert doit avoir ses jours par an.',
         'leave_type_other_company' => 'Choisissez un type de congé de la société de l’employé.',
         'leave_days_needed' => 'Les jours de :type ne sont pas encore confirmés. Demandez aux RH de les saisir et de les confirmer.',
+        'leave_qualifying_service' => ':type peut être pris après :months mois de service, à partir du :date. Choisissez une date de début plus tardive.',
+        'leave_event_unknown' => 'Cet évènement ne fait pas partie des évènements de :type. Choisissez-en un dans la liste ou laissez l’évènement vide.',
+        'leave_event_days' => ':event donne au plus :days jours. Raccourcissez la demande.',
         'leave_balance_short' => 'Solde de congé insuffisant : :available jours disponibles.',
         'leave_overlap' => 'Une autre demande de congé couvre une partie de ces dates.',
         'leave_outside_employment' => 'Ces dates sont en dehors de la période d’emploi de l’employé.',
@@ -142,6 +145,10 @@ return [
             'paternity' => 'Congé de paternité',
             'sick' => 'Congé de maladie',
             'circumstantial' => 'Congé de circonstance',
+        ],
+        'leave_events' => [
+            'marriage' => 'Mariage du travailleur',
+            'birth' => 'Naissance d’un enfant',
         ],
     ],
     'numbering' => [

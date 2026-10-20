@@ -4,6 +4,7 @@ namespace Modules\HR\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\HR\Support\HrPack;
 
 /** HR-14: a leave request. */
 class LeaveRequestResource extends JsonResource
@@ -23,6 +24,11 @@ class LeaveRequestResource extends JsonResource
             'days' => (string) $this->days,
             'dates' => $this->dates,
             'reason' => $this->reason,
+            'event' => $this->event,
+            'event_label' => $this->event === null ? null : HrPack::label('leave_events', $this->event),
+            'half_pay_days' => (string) ($this->half_pay_days ?? '0'),
+            // CP-01: the type's days came from public research when this was asked.
+            'researched' => $this->research !== null,
             'status' => $this->status,
             'requested_by' => Refs::user($this->requester),
             'decided_at' => Refs::at($this->decided_at),

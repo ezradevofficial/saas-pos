@@ -17,6 +17,8 @@ final class LeaveRequestRules
             'start_half' => ['sometimes', 'boolean'],
             'end_half' => ['sometimes', 'boolean'],
             'reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            // HR-14: the event of a type with per-event days (circumstantial leave: marriage, birth).
+            'event' => ['sometimes', 'nullable', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}$/'],
         ];
     }
 }

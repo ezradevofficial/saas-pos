@@ -51,6 +51,7 @@ class LeaveRequest extends Model implements HasScope
             'start_half' => 'boolean',
             'end_half' => 'boolean',
             'dates' => 'array',
+            'research' => 'array',
             'decided_at' => 'immutable_datetime',
             'cancelled_at' => 'immutable_datetime',
         ];
