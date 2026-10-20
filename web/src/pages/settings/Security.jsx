@@ -9,6 +9,7 @@ import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { MySsoLinks } from './sso/SsoLinks'
 
 const FIELDS = ['password_min_length', 'session_timeout_minutes', 'default_locale']
 
@@ -147,6 +148,8 @@ export default function Security() {
           </Link>
         </Card>
       ) : null}
+      {/* AUTH-11, ADR 023: link one's own account (how an Owner is linked). */}
+      <MySsoLinks />
     </>
   )
 }
