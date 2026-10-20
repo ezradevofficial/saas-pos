@@ -39,7 +39,7 @@ class Authenticate
         $user = $this->findUser($login);
 
         // ONB-08: an assisted tenant's setup account never signs in (staff keep no tenant access).
-        if ($user === null || $user->is_platform_staff || $user->isServicePrincipal()) {
+        if ($user === null || $user->is_platform_staff || ! $user->isPerson()) {
             Hash::check($password, self::$dummyHash ??= Hash::make(Str::random(40)));
 
             return SignInResult::invalid();

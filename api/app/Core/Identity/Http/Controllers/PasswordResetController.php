@@ -47,7 +47,7 @@ class PasswordResetController
         $timebox->call(function () use ($login) {
             $user = $this->authenticate->findUser($login);
 
-            if ($user === null || ! $user->isActive()) {
+            if ($user === null || ! $user->isActive() || ! $user->isPerson()) {
                 return;
             }
 

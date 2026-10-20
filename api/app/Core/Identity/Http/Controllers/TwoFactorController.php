@@ -50,7 +50,7 @@ class TwoFactorController
             throw new ApiException(403, 'deactivated', __('auth.deactivated'));
         }
 
-        if ($user === null || ! $user->isActive() || ! $user->hasTwoFactor()) {
+        if ($user === null || ! $user->isActive() || ! $user->isPerson() || ! $user->hasTwoFactor()) {
             throw Challenges::failure();
         }
 

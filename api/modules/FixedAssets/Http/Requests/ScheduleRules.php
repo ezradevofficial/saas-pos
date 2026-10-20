@@ -32,7 +32,7 @@ final class ScheduleRules
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'schedule_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('fa_maintenance_schedules', 'id')],
             'due_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
-            'assigned_to' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')],
+            'assigned_to' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
             'vendor_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('parties', 'id')],
             'status' => ['sometimes', 'string', Rule::in(Maintenance::STATUSES)],
             'completed_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],

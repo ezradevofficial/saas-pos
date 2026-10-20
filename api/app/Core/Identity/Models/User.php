@@ -112,6 +112,12 @@ class User extends Authenticatable implements HasLocalePreference
         return $this->status === self::STATUS_ACTIVE || $this->status === self::STATUS_SERVICE;
     }
 
+    /** A person (any status), not an API key's service principal (ADR 020): for checks meant for people. */
+    public function isPerson(): bool
+    {
+        return ! $this->isServicePrincipal();
+    }
+
     /** API-02: an API key's service principal (ADR 020). */
     public function isServicePrincipal(): bool
     {

@@ -27,7 +27,7 @@ class TeamRequest extends SetupRequest
             'name' => [$action === 'store' ? 'required' : 'sometimes', 'string', 'max:120'],
             'leader_id' => CrmRules::id('users'),
             'members' => ['sometimes', 'array', 'max:200'],
-            'members.*.user_id' => ['required', 'uuid', 'distinct', 'exists:users,id'],
+            'members.*.user_id' => ['required', 'uuid', 'distinct', Rule::exists('users', 'id')->where('status', 'active')],
         ];
     }
 }
