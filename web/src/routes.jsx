@@ -308,6 +308,8 @@ const DocumentTemplates = lazy(() => import('./pages/settings/DocumentTemplates'
 const TemplateDesigner = lazy(() => import('./pages/settings/templates/TemplateDesigner'))
 const Dimensions = lazy(() => import('./pages/settings/Dimensions'))
 const DataExport = lazy(() => import('./pages/settings/DataExport'))
+const WebhookDetail = lazy(() => import('./pages/settings/webhooks/WebhookDetail'))
+const Webhooks = lazy(() => import('./pages/settings/webhooks/Webhooks'))
 const Subscription = lazy(() => import('./pages/settings/Subscription'))
 const Imports = lazy(() => import('./pages/settings/Imports'))
 const ImportWizard = lazy(() => import('./pages/settings/imports/ImportWizard'))
@@ -820,6 +822,9 @@ export const routes = [
       // LIM-01, LIM-02: usage against the plan (Owners only).
       { path: '/settings/usage', element: <RequirePermission owner><Usage /></RequirePermission> },
       { path: '/settings/data-export', element: <RequirePermission permission="core.tenant.export" tenantWide><DataExport /></RequirePermission> },
+      // HOOK-01: webhooks, their delivery log and the developer guide (Owner, Admin).
+      { path: '/settings/webhooks', element: <RequirePermission permission="core.webhook.manage" tenantWide><Webhooks /></RequirePermission> },
+      { path: '/settings/webhooks/:webhookId', element: <RequirePermission permission="core.webhook.manage" tenantWide><WebhookDetail /></RequirePermission> },
       { path: '/settings/numbering', element: <RequirePermission permission={NUMBERING_VIEW}><Numbering /></RequirePermission> },
       // AUTH-06: one's own POS PIN.
       { path: '/settings/pos-pin', element: <MyPosPin /> },

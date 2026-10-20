@@ -12,6 +12,7 @@ use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
+use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -34,6 +35,7 @@ use Modules\Procurement\Listeners\RecordReceiptExceptions;
 use Modules\Procurement\Listeners\SettleProcurementDocument;
 use Modules\Procurement\Portal\PortalNotices;
 use Modules\Procurement\Printing\ProcurementSource;
+use Modules\Procurement\Webhooks\ProcurementWebhookEvents;
 
 /**
  * The Procurement module (docs/modules/procurement.md). Registered for
@@ -90,6 +92,9 @@ class ProcurementServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // HOOK-01: the module's public webhook events (sent only while it is active).
+        ProcurementWebhookEvents::register($this->app->make(WebhookCatalogue::class));
+
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         // ACC-29: GRNs, landed costs and approved invoices raised again for the Accounting backfill.
         $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(ProcurementEventReplay::class)($from, $to, $emit));

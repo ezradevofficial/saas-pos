@@ -117,6 +117,11 @@ use App\Core\Tenancy\Http\Controllers\DevicePairingController;
 use App\Core\Tenancy\Http\Controllers\LocationController;
 use App\Core\Tenancy\Http\Controllers\TenantSettingsController;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
+use App\Core\Webhooks\Http\Controllers\WebhookController;
+use App\Core\Webhooks\Http\Controllers\WebhookDeliveryController;
+use App\Core\Webhooks\Models\WebhookDelivery;
+use App\Core\Webhooks\Models\WebhookSubscription;
+use App\Core\Webhooks\WebhooksServiceProvider;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Http\Controllers\BusinessHoursController;
 use App\Core\Workflow\Http\Controllers\DocumentTypeController;
@@ -131,7 +136,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'tenant_domain', 'custom_field', 'import', 'tenant_export', 'export', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'tenant_domain', 'custom_field', 'import', 'tenant_export', 'export', 'webhook', 'webhook_delivery', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -153,6 +158,8 @@ Route::model('custom_field', CustomFieldDefinition::class);
 Route::model('custom_form_type', CustomFormType::class);
 Route::model('custom_form_record', CustomFormRecord::class);
 Route::model('import', Import::class);
+Route::model('webhook', WebhookSubscription::class);
+Route::model('webhook_delivery', WebhookDelivery::class);
 
 // WF-10: {document_type}/{document} is the document's running flow, else
 // its latest; a type of an inactive module, or a document without a flow
@@ -617,6 +624,20 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('tenant-exports', [TenantExportController::class, 'index']);
     Route::post('tenant-exports', [TenantExportController::class, 'store']);
     Route::post('tenant-exports/{tenant_export}/link', [TenantExportController::class, 'link']);
+
+    // HOOK-01: webhook subscriptions, test events, the delivery log and replays (core.webhook.manage, tenant scope).
+    Route::get('webhooks/catalogue', [WebhookController::class, 'catalogue']);
+    Route::get('webhooks', [WebhookController::class, 'index']);
+    Route::post('webhooks', [WebhookController::class, 'store']);
+    Route::get('webhooks/{webhook}', [WebhookController::class, 'show']);
+    Route::patch('webhooks/{webhook}', [WebhookController::class, 'update']);
+    Route::post('webhooks/{webhook}/rotate-secret', [WebhookController::class, 'rotate']);
+    Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test'])->middleware('throttle:'.WebhooksServiceProvider::SEND_LIMITER);
+    Route::post('webhooks/{webhook}/archive', [WebhookController::class, 'archive']);
+    Route::post('webhooks/{webhook}/take-over', [WebhookController::class, 'takeOver']);
+    Route::get('webhook-deliveries', [WebhookDeliveryController::class, 'index']);
+    Route::get('webhook-deliveries/{webhook_delivery}', [WebhookDeliveryController::class, 'show']);
+    Route::post('webhook-deliveries/{webhook_delivery}/replay', [WebhookDeliveryController::class, 'replay'])->middleware('throttle:'.WebhooksServiceProvider::SEND_LIMITER);
 
     // LIM-01, LIM-02: the plan's usage, overages and extra cost (Owners only).
     Route::get('usage', UsageController::class);

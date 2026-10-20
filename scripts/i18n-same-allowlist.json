@@ -97,5 +97,7 @@
   "Documents",
   "Note",
   "Convention",
-  "Version"
+  "Version",
+  "Webhooks",
+  "{{ms}} ms"
 ]

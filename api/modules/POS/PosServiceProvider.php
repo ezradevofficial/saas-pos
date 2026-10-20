@@ -20,6 +20,7 @@ use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
 use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\Events\DeviceUnpaired;
+use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +45,7 @@ use Modules\POS\Sync\Sources\NumberRangeSource;
 use Modules\POS\Sync\Sources\OpenShiftSource;
 use Modules\POS\Sync\Sources\PosLayoutSource;
 use Modules\POS\Sync\Sources\TemplateSource;
+use Modules\POS\Webhooks\PosWebhookEvents;
 
 /**
  * The POS module (docs/modules/pos.md). Registered for every tenant, as
@@ -98,6 +100,9 @@ class PosServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // HOOK-01: the module's public webhook events (sent only while it is active).
+        PosWebhookEvents::register($this->app->make(WebhookCatalogue::class));
+
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 

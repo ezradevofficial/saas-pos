@@ -3,6 +3,7 @@
 namespace Modules\Loyalty\Tests;
 
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Webhooks\Delivery\WebhookDispatcher;
 use Brick\Math\BigInteger;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -39,7 +40,8 @@ class PosEventChainTest extends TestCase
 
     /** Listeners that run in the request but only queue a job (they carry ids, never the snapshot). */
     /** Listeners that only dispatch a queued job (ids only) and cannot fail the upload. */
-    private const DISPATCH_ONLY = [MoveStockForSale::class, BackflushSales::class];
+    // HOOK-01: WebhookDispatcher queues one fan-out job when the tenant subscribes, and reports instead of throwing.
+    private const DISPATCH_ONLY = [MoveStockForSale::class, BackflushSales::class, WebhookDispatcher::class];
 
     public function test_every_listener_on_the_sale_events_is_queued_or_only_queues(): void
     {
