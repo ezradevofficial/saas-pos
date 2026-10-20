@@ -150,4 +150,13 @@ return [
             'sms' => '{app_name} : paiement de {amount} reçu pour la facture {number}.',
         ],
     ],
+    // ADM-02 : contrats Entreprise sur mesure.
+    'deals' => [
+        'unknown_item' => 'Ce module ou cette offre n’est pas au catalogue. Choisissez-en un que le catalogue vend.',
+        'duplicate_line' => 'Cet élément figure deux fois dans le contrat. Gardez une ligne par élément.',
+        'overlaps' => 'Un autre contrat approuvé couvre une partie de ces dates. Terminez-le d’abord ou modifiez les dates.',
+        'not_pending' => 'Ce contrat a déjà été tranché.',
+        'not_approved' => 'Seul un contrat approuvé peut être terminé.',
+        'own_draft' => 'Vous avez rédigé ce contrat : une autre personne des finances doit l’approuver ou le refuser.',
+    ],
 ];

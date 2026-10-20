@@ -46,6 +46,9 @@ final class ExportColumns
         'webhook_subscriptions.url' => 'a webhook subscription\'s endpoint URL, which may carry a token (HOOK-01, encrypted)',
         'webhook_subscriptions.secret' => 'a webhook subscription\'s signing secret (HOOK-01, encrypted)',
         'webhook_subscriptions.previous_secret' => 'a webhook subscription\'s previous signing secret during a rotation (HOOK-01, encrypted)',
+        // RBAC-13: the support entry code is a one-time credential; its hash and the browser binding never leave.
+        'support_access_grants.entry_code_hash' => 'the one-time support entry code hash (RBAC-13)',
+        'support_access_grants.entry_code_agent_hash' => 'the hash of the console browser the support entry code is bound to (RBAC-13, review L1)',
         // Denied rather than decrypted: the app only ever shows it masked, and
         // decrypting would put the application key in the export path.
         'payment_intents.phone' => 'the payer\'s phone number, shown only masked (encrypted)',

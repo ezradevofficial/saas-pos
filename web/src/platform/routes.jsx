@@ -3,6 +3,10 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { PlatformAuthProvider, RequirePlatformAccess } from './PlatformAuth'
 import { PlatformLayout } from './PlatformLayout'
 import CatalogueConsole from './pages/CatalogueConsole'
+import PacksConsole from './pages/PacksConsole'
+import ReportsConsole from './pages/ReportsConsole'
+import StaffConsole from './pages/StaffConsole'
+import SupportConsole from './pages/SupportConsole'
 import NewTenant from './pages/NewTenant'
 import PlatformEnrol from './pages/PlatformEnrol'
 import PlatformSetup from './pages/PlatformSetup'
@@ -44,6 +48,11 @@ export const platformRoutes = [
           // ADR 016: customer tenants, their subscriptions and invoices.
           { path: 'tenants', element: <TenantsList /> },
           { path: 'tenants/:tenantId', element: <TenantDetail /> },
+          // RBAC-13: support requests and sessions; ADM-04: country packs; ADM-06: reports; ADM-07: staff.
+          { path: 'support', element: <SupportConsole /> },
+          { path: 'packs', element: <PacksConsole /> },
+          { path: 'reports', element: <ReportsConsole /> },
+          { path: 'staff', element: <StaffConsole /> },
         ],
       },
     ],

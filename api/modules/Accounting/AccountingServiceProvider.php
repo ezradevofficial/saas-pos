@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting;
 
+use App\Core\CountryPacks\PackSchemas;
 use App\Core\Currency\CurrencyUsage;
 use App\Core\DocumentTemplates\DataSources;
 use App\Core\Fiscal\FiscalSources;
@@ -11,6 +12,7 @@ use App\Core\MasterData\RecordUsage;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
+use App\Core\Platform\Tenants\TenantHealthProbes;
 use App\Core\Rbac\Events\ModuleActivated;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
@@ -23,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Accounting\Chart\ChartTemplates;
 use Modules\Accounting\Console\BackfillPostings;
 use Modules\Accounting\Console\PostSalesSummaries;
 use Modules\Accounting\Console\RunRecurringJournals;
@@ -39,6 +42,7 @@ use Modules\Accounting\Listeners\PostModuleEvent;
 use Modules\Accounting\Listeners\QueueFiscalDocument;
 use Modules\Accounting\Listeners\SeedModuleRules;
 use Modules\Accounting\Listeners\SettleJournal;
+use Modules\Accounting\Models\PostingException;
 use Modules\Accounting\Payments\Payments;
 use Modules\Accounting\Webhooks\AccountingWebhookEvents;
 use Modules\CRM\Events\QuoteConverted;
@@ -143,6 +147,10 @@ class AccountingServiceProvider extends ServiceProvider
         // SUB-07: Accounting is sold as Essentials or Pro; Pro also unlocks the Pro features.
         $modules->soldAs(self::MODULE, ['accounting_essentials', 'accounting_pro']);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // ADM-04b: chart template releases are checked like the shipped files (ADR 022).
+        $this->app->make(PackSchemas::class)->register('accounts', fn (array $content) => $this->app->make(ChartTemplates::class)->check((string) ($content['code'] ?? ''), $content), ['accounts' => ['code']], []);
+        // ADM-01b: open posting exceptions, a count in the console's tenant health.
+        $this->app->make(TenantHealthProbes::class)->register('posting_exceptions', self::MODULE, fn () => PostingException::query()->where('status', PostingException::OPEN)->count());
 
         // NUM-01: journals, documents, receipts and payments, numbered per year.
         $types = $this->app->make(DocumentNumberTypes::class);

@@ -2,6 +2,7 @@
 
 namespace Modules\FixedAssets\TaxBook;
 
+use App\Core\CountryPacks\PackDocuments;
 use InvalidArgumentException;
 
 /**
@@ -33,7 +34,7 @@ class TaxClasses
     public function override(string $country, array $pack): void
     {
         $this->overrides[$country] = $pack;
-        unset($this->read[$country]);
+        $this->read = [];
     }
 
     /** @return list<array{key: string, method: ?string, rate: ?string, needs_confirmation: bool, effective_from: ?string, effective_to: ?string}> */
@@ -43,7 +44,10 @@ class TaxClasses
             return [];
         }
 
-        return $this->read[$country] ??= $this->load($country);
+        // ADM-04d: a newly published release is picked up without a restart.
+        $key = $country.'|'.(app(PackDocuments::class)->release($country, 'fixed_assets')?->id ?? 'file');
+
+        return $this->read[$key] ??= $this->load($country);
     }
 
     /**
@@ -131,6 +135,11 @@ class TaxClasses
     {
         if (isset($this->overrides[$country])) {
             return $this->overrides[$country];
+        }
+
+        // ADM-04d (ADR 022): a published release in force replaces the shipped file.
+        if (($release = app(PackDocuments::class)->release($country, 'fixed_assets')) !== null) {
+            return $release->content;
         }
 
         $file = base_path("country-packs/{$country}/fixed_assets.json");

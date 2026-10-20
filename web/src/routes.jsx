@@ -89,6 +89,7 @@ import SignUp from './pages/auth/SignUp'
 import TwoFactor from './pages/auth/TwoFactor'
 import Verify from './pages/auth/Verify'
 import Welcome from './pages/onboarding/Welcome'
+import SupportEnter from './pages/auth/SupportEnter'
 
 // NFR-02: every page is its own chunk, loaded when its route is first opened.
 // The layouts (eager, above) render each page inside a Suspense boundary.
@@ -311,6 +312,7 @@ const DataExport = lazy(() => import('./pages/settings/DataExport'))
 const WebhookDetail = lazy(() => import('./pages/settings/webhooks/WebhookDetail'))
 const Webhooks = lazy(() => import('./pages/settings/webhooks/Webhooks'))
 const Privacy = lazy(() => import('./pages/settings/privacy/Privacy'))
+const SupportAccess = lazy(() => import('./pages/settings/SupportAccess'))
 const Subscription = lazy(() => import('./pages/settings/Subscription'))
 const Imports = lazy(() => import('./pages/settings/Imports'))
 const ImportWizard = lazy(() => import('./pages/settings/imports/ImportWizard'))
@@ -384,6 +386,8 @@ export const routes = [
     children: [
       { path: '/invitations/:token', element: <AcceptInvitation /> },
       { path: '/approvals/email/:token', element: <EmailApproval /> },
+      // RBAC-13c: the console's one-time code becomes a support session here.
+      { path: '/support/enter', element: <SupportEnter /> },
     ],
   },
   // ECOM-05: the storefront, open to everyone on the tenant's host; it never uses a tenant user's sign-in.
@@ -751,6 +755,15 @@ export const routes = [
         element: (
           <RequirePermission permission="core.settings.edit" tenantWide>
             <Security />
+          </RequirePermission>
+        ),
+      },
+      // RBAC-13b: support requests, active sessions and their history (Owner, Admin).
+      {
+        path: '/settings/security/support-access',
+        element: (
+          <RequirePermission permission="core.support_access.view" tenantWide>
+            <SupportAccess />
           </RequirePermission>
         ),
       },

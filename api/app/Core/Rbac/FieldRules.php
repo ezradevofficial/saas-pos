@@ -3,6 +3,7 @@
 namespace App\Core\Rbac;
 
 use App\Core\Identity\Models\User;
+use App\Core\Platform\SupportAccess\SupportAccess;
 use App\Core\Rbac\Models\FieldRule;
 
 /**
@@ -18,6 +19,13 @@ class FieldRules
     /** @return array{hidden: list<string>, readonly: list<string>} */
     public function for(User $user, string $resource): array
     {
+        // RBAC-13 (review M6): a support principal holds no role; it gets the most restrictive
+        // answer instead: every field any role's rule hides stays hidden, every restricted one
+        // read-only, and personal data stays hidden unless the grant includes sensitive data.
+        if ($user->support_grant_id !== null) {
+            return $this->forSupport($user, $resource);
+        }
+
         $roleIds = $this->resolver->roleIds($user);
 
         if ($roleIds === []) {
@@ -42,6 +50,24 @@ class FieldRules
             }
         }
 
+        sort($hidden);
+        sort($readonly);
+
+        return ['hidden' => $hidden, 'readonly' => $readonly];
+    }
+
+    /** @return array{hidden: list<string>, readonly: list<string>} */
+    private function forSupport(User $user, string $resource): array
+    {
+        $rules = FieldRule::query()->where('resource', $resource)->get();
+        $hidden = $rules->where('mode', FieldRule::HIDDEN)->pluck('field')->unique()->all();
+
+        if (! app(SupportAccess::class)->grantOf($user)?->include_sensitive) {
+            $hidden = [...$hidden, ...(SupportAccess::SENSITIVE_FIELDS[$resource] ?? [])];
+        }
+
+        $hidden = array_values(array_unique($hidden));
+        $readonly = array_values(array_diff($rules->pluck('field')->unique()->all(), $hidden));
         sort($hidden);
         sort($readonly);
 

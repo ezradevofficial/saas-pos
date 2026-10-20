@@ -80,6 +80,7 @@ return [
                 'custom_form_type' => 'Types de formulaires personnalisés',
                 'tenant' => 'Export complet des données',
                 'subscription' => 'Abonnement et facturation',
+                'support_access' => 'Accès du support',
                 'webhook' => 'Webhooks',
                 'privacy_request' => 'Demandes des personnes concernées',
                 'consent' => 'Consentement marketing',

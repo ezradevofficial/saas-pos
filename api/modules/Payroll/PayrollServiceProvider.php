@@ -2,6 +2,7 @@
 
 namespace Modules\Payroll;
 
+use App\Core\CountryPacks\PackSchemas;
 use App\Core\DocumentTemplates\DataSources;
 use App\Core\Layouts\ListViewCatalogue;
 use App\Core\Numbering\DocumentNumberTypes;
@@ -41,6 +42,7 @@ use Modules\Payroll\Payslips\PayslipSource;
 use Modules\Payroll\Runs\PostingGroups;
 use Modules\Payroll\Runs\RunType;
 use Modules\Payroll\Statutory\PayrollPack;
+use Modules\Payroll\Statutory\PayrollPackSchema;
 use Modules\Payroll\Support\Numbers;
 use Modules\Payroll\Support\PayFields;
 use Modules\Payroll\Webhooks\PayrollWebhookEvents;
@@ -112,6 +114,8 @@ class PayrollServiceProvider extends ServiceProvider
 
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // ADM-04b: the payroll pack release schema (ADR 022).
+        PayrollPackSchema::register($this->app->make(PackSchemas::class));
 
         // WF-01, WF-02, PAY-16: runs are approved through a flow (maker-checker).
         $this->app->make(DocumentTypeRegistry::class)->register(RunType::class);

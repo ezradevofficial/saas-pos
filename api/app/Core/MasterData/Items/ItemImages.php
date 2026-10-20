@@ -4,12 +4,12 @@ namespace App\Core\MasterData\Items;
 
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -149,7 +149,7 @@ class ItemImages
             return Storage::disk($image->disk)->temporaryUrl($image->path, $expires);
         }
 
-        return URL::temporarySignedRoute('media.show', $expires, ['path' => $image->path, 'user' => $user->id]);
+        return SignedUrls::temporary('media.show', $expires, ['path' => $image->path, 'user' => $user->id]);
     }
 
     /** @return int the item's image count, below the maximum */

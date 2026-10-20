@@ -2,7 +2,6 @@
 
 namespace App\Core\Billing\Dunning;
 
-use App\Core\Billing\Catalogue\Catalogue;
 use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\Subscription;
@@ -48,7 +47,6 @@ class BillingCycle
         private readonly BillingNotices $notices,
         private readonly PlatformSettings $settings,
         private readonly OveragePricing $overage,
-        private readonly Catalogue $catalogue,
         private readonly Accounts $accounts,
     ) {}
 
@@ -172,7 +170,8 @@ class BillingCycle
         try {
             $coupon = $subscription->coupon_until === null ? $this->subscriptions->coupon($subscription, nextPeriod: true) : null;
 
-            return (int) $this->subscriptions->price($subscription->country, $plan, [], $coupon)['total'];
+            // Review L6: priced on the due date (prices and deals in force then).
+            return (int) $this->subscriptions->price($subscription->country, $plan, [], $coupon, $due)['total'];
         } catch (ApiException) {
             return $subscription->period_amount_minor;
         }
@@ -227,7 +226,7 @@ class BillingCycle
             if ($kind === 'renewal' && $subscription->hasPeriod()) {
                 $from = CarbonImmutable::parse($subscription->current_period_start->toDateString(), 'UTC');
                 $to = CarbonImmutable::parse($subscription->current_period_end->toDateString(), 'UTC');
-                $overage = $this->overage->forPeriod($subscription, $this->catalogue->snapshot($subscription->country, $from->toDateString(), $subscription->price_ids ?? []), $from, $to);
+                $overage = $this->overage->forPeriod($subscription, $this->subscriptions->snapshot($subscription->country, $subscription->price_ids ?? [], $from), $from, $to);
                 // Charged once: the period is marked with the invoice that carries it (saved with the plan below).
                 $this->overage->billed($subscription, $to);
             }

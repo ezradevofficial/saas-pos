@@ -3,6 +3,7 @@
 namespace Modules\HR;
 
 use App\Core\Approvals\Resolvers\ApproverResolvers;
+use App\Core\CountryPacks\PackSchemas;
 use App\Core\Currency\CurrencyUsage;
 use App\Core\CustomFields\CustomFieldEntities;
 use App\Core\Identity\Models\User;
@@ -51,6 +52,7 @@ use Modules\HR\Rosters\Schedules;
 use Modules\HR\Rosters\ShiftSwapType;
 use Modules\HR\Support\Access;
 use Modules\HR\Support\HrPack;
+use Modules\HR\Support\HrPackSchema;
 use Modules\HR\Support\Numbers;
 use Modules\HR\Support\Sensitive;
 use Modules\HR\Sync\ClockStaffSource;
@@ -152,6 +154,8 @@ class HrServiceProvider extends ServiceProvider
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // ADM-04b: the HR pack release schema (ADR 022).
+        HrPackSchema::register($this->app->make(PackSchemas::class));
         $this->app->make(ModuleRegistry::class)->provide(self::MODULE, self::PAYROLL, self::CORE_RESOURCES);
 
         // WF-01, WF-02, HR-14, HR-19: leave requests and shift swaps run through flows.
