@@ -21,13 +21,14 @@ class PackTaxCode extends Model
 
     protected $fillable = [
         'country_pack_id', 'code', 'kind', 'rate',
-        'needs_confirmation', 'effective_from', 'effective_to', 'fiscal_code',
+        'needs_confirmation', 'effective_from', 'effective_to', 'fiscal_code', 'research',
     ];
 
     protected function casts(): array
     {
         return [
             'needs_confirmation' => 'boolean',
+            'research' => 'array',
             'effective_from' => 'immutable_date',
             'effective_to' => 'immutable_date',
         ];

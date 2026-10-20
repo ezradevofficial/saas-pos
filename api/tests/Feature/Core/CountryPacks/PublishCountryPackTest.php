@@ -66,15 +66,17 @@ class PublishCountryPackTest extends TestCase
             $pack = CountryPack::latest($code);
             $this->assertNotNull($pack, "{$code} is not published");
             $this->assertSame(1, $pack->version);
-            $this->assertSame([], $pack->summary['sources']);
+            $this->assertNotEmpty($pack->summary['sources']);
             $this->assertNotEmpty($pack->summary['todo']);
 
             $codes = $pack->taxCodes()->get()->keyBy('code');
             $this->assertCount($count, $codes);
 
-            // Nothing is stated that cannot be confirmed: the standard rate is null and flagged.
-            $this->assertNull($codes['VAT_STD']->rate);
-            $this->assertTrue($codes['VAT_STD']->needs_confirmation);
+            // CP-01: the standard rate comes from public research (high confidence), with its sources.
+            $this->assertSame('16.0000', $codes['VAT_STD']->rate);
+            $this->assertFalse($codes['VAT_STD']->needs_confirmation);
+            $this->assertSame(['high', '2026-10-17'], [$codes['VAT_STD']->research['confidence'], $codes['VAT_STD']->research['researched_on']]);
+            $this->assertContains('VAT_STD', $pack->summary['researched']);
             $this->assertSame('0.0000', $codes['VAT_ZERO']->rate);
             $this->assertFalse($codes['VAT_ZERO']->needs_confirmation);
             $this->assertNull($codes['VAT_EXEMPT']->rate);
@@ -86,15 +88,15 @@ class PublishCountryPackTest extends TestCase
                 $this->assertTrue($row->kind === 'exempt' || $row->rate !== null || $row->needs_confirmation, "{$code} {$row->code}");
             }
 
-            $this->assertSame(['VAT_STD', 'VAT_WHT'], CountryPack::latest('KE')->summary['needs_confirmation']);
+            $this->assertSame(['VAT_WHT'], CountryPack::latest('KE')->summary['needs_confirmation']);
         }
 
-        // Only rates that are 0 by definition are filled in, in every shipped file.
+        // Every rate in a shipped file is 0 by definition, or researched with its sources (never invented).
         foreach (['KE', 'CD'] as $code) {
             $data = json_decode(file_get_contents(base_path("country-packs/{$code}/pack.json")), true);
 
             foreach ($data['tax_codes'] as $row) {
-                $this->assertContains($row['rate'], [null, '0', 0], "{$code} {$row['code']} states a rate");
+                $this->assertTrue(in_array($row['rate'], [null, '0', 0], true) || (($row['status'] ?? null) === 'researched' && $row['source'] !== []), "{$code} {$row['code']} states a rate");
             }
         }
     }
@@ -237,7 +239,7 @@ class PublishCountryPackTest extends TestCase
             }
         }
 
-        $this->assertNull(PackTaxCode::where('country_pack_id', $pack->id)->where('code', 'VAT_STD')->value('rate'));
+        $this->assertSame('16.0000', PackTaxCode::where('country_pack_id', $pack->id)->where('code', 'VAT_STD')->value('rate'));
 
         foreach (['country_packs', 'country_pack_tax_codes'] as $table) {
             $this->assertTrue((bool) DB::selectOne("select has_table_privilege(current_user, '{$table}', 'SELECT') as p")->p);

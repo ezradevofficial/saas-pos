@@ -24,7 +24,8 @@ use InvalidArgumentException;
  *
  * Exempt codes add no tax (and carry no rate). A code without a confirmed
  * rate on that date throws TaxRateMissing (422 `tax_rate_missing`); an
- * archived code is refused (422 `tax_code_archived`).
+ * archived code is refused (422 `tax_code_archived`). A rate from public
+ * research (CP-01) is used, and its tax amount says `researched`.
  *
  * Withholding codes are left out (no amount in the result) unless
  * $includeWithholding is true: withholding is withheld by the buyer when
@@ -55,7 +56,7 @@ class TaxCalculator
             }
 
             if ($code->isExempt()) {
-                $applied[] = [$code, null];
+                $applied[] = [$code, null, false];
 
                 continue;
             }
@@ -66,7 +67,7 @@ class TaxCalculator
                 throw TaxRateMissing::for($code, $code->localDate($at));
             }
 
-            $applied[] = [$code, BigDecimal::of($rate->rate)];
+            $applied[] = [$code, BigDecimal::of($rate->rate), $rate->isResearched()];
         }
 
         $zero = Money::ofMinor(0, $amount->currency());
@@ -76,25 +77,25 @@ class TaxCalculator
             : $this->exclusive($amount, $applied, $zero);
     }
 
-    /** @param list<array{0: TaxCode, 1: ?BigDecimal}> $applied */
+    /** @param list<array{0: TaxCode, 1: ?BigDecimal, 2: bool}> $applied */
     private function exclusive(Money $net, array $applied, Money $zero): TaxLineResult
     {
         $taxes = [];
         $gross = $net;
 
-        foreach ($applied as [$code, $rate]) {
+        foreach ($applied as [$code, $rate, $researched]) {
             $tax = $rate === null ? $zero : Money::ofMinor(
                 (string) BigDecimal::of($net->minor())->multipliedBy($rate)->dividedBy(100, 0, RoundingMode::HalfUp),
                 $net->currency(),
             );
-            $taxes[] = $this->amount($code, $rate, $tax);
+            $taxes[] = $this->amount($code, $rate, $tax, $researched);
             $gross = $gross->plus($tax);
         }
 
         return new TaxLineResult($net, $taxes, $gross);
     }
 
-    /** @param list<array{0: TaxCode, 1: ?BigDecimal}> $applied */
+    /** @param list<array{0: TaxCode, 1: ?BigDecimal, 2: bool}> $applied */
     private function inclusive(Money $gross, array $applied, Money $zero): TaxLineResult
     {
         $combined = BigDecimal::zero();
@@ -117,15 +118,15 @@ class TaxCalculator
 
         $taxes = [];
 
-        foreach ($applied as $index => [$code, $rate]) {
-            $taxes[] = $this->amount($code, $rate, $parts[$index]);
+        foreach ($applied as $index => [$code, $rate, $researched]) {
+            $taxes[] = $this->amount($code, $rate, $parts[$index], $researched);
         }
 
         return new TaxLineResult($gross->minus($total), $taxes, $gross);
     }
 
-    private function amount(TaxCode $code, ?BigDecimal $rate, Money $tax): TaxAmount
+    private function amount(TaxCode $code, ?BigDecimal $rate, Money $tax, bool $researched): TaxAmount
     {
-        return new TaxAmount($code->id, $code->code, $code->kind, $rate === null ? null : (string) $rate->toScale(4), $tax);
+        return new TaxAmount($code->id, $code->code, $code->kind, $rate === null ? null : (string) $rate->toScale(4), $tax, $researched);
     }
 }

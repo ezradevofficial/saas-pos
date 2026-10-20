@@ -123,6 +123,8 @@ class PropagateCountryPack
                     'rate' => $period->rate,
                     'effective_to' => $period->effective_to?->toDateString(),
                     'needs_confirmation' => $period->rate === null || $period->needs_confirmation,
+                    // CP-01: a researched rate the owner later confirms loses its research here.
+                    'research' => $period->research,
                 ];
                 $row = $existing->get($from);
 
@@ -130,7 +132,8 @@ class PropagateCountryPack
                     continue;
                 }
 
-                if ($row->rate !== $values['rate'] || $row->effective_to?->toDateString() !== $values['effective_to'] || $row->needs_confirmation !== $values['needs_confirmation']) {
+                if ($row->rate !== $values['rate'] || $row->effective_to?->toDateString() !== $values['effective_to'] || $row->needs_confirmation !== $values['needs_confirmation']
+                    || self::research($row->research) !== self::research($values['research'])) {
                     $row->fill($values)->save();
                     $changed = true;
                 }
@@ -147,6 +150,7 @@ class PropagateCountryPack
                     'effective_from' => $from,
                     'effective_to' => $period->effective_to?->toDateString(),
                     'needs_confirmation' => $period->rate === null || $period->needs_confirmation,
+                    'research' => $period->research,
                     'source' => TaxRate::SOURCE_PACK,
                 ]);
                 $changed = true;
@@ -170,7 +174,7 @@ class PropagateCountryPack
 
     /**
      * @param  Collection<int, TaxRate>  $rows
-     * @return list<array{rate: ?string, effective_from: string, effective_to: ?string, needs_confirmation: bool}>
+     * @return list<array{rate: ?string, effective_from: string, effective_to: ?string, needs_confirmation: bool, researched: bool}>
      */
     private function summary(Collection $rows): array
     {
@@ -179,6 +183,19 @@ class PropagateCountryPack
             'effective_from' => $row->effective_from->toDateString(),
             'effective_to' => $row->effective_to?->toDateString(),
             'needs_confirmation' => $row->needs_confirmation,
+            'researched' => $row->research !== null,
         ])->values()->all();
+    }
+
+    /** Research in one comparable form (keys sorted). */
+    private static function research(?array $research): ?string
+    {
+        if ($research === null) {
+            return null;
+        }
+
+        ksort($research);
+
+        return json_encode($research);
     }
 }

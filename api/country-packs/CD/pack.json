@@ -1,14 +1,17 @@
 {
     "code": "CD",
-    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %).",
-    "sources": [],
+    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %). A rate with status 'researched' comes from public research (docs/country-packs-research-2026-10.md): it is used, with its confidence, research date and sources, and what it taxes says so until the owner confirms it through a pack release (ADM-04).",
+    "sources": [
+        "https://trykintsugi.com/fr-ca/sales-tax-guides/africa/democratic-republic-of-congo"
+    ],
     "todo": [
-        "VAT_STD: the standard TVA rate, with its legal reference and effective date (DGI / Code de la TVA).",
-        "Reduced TVA rates, if any apply to the products sold: codes, rates and legal references.",
+        "VAT_STD: confirm the researched 16% standard TVA rate (Code de la TVA) with its legal reference; it is used now, marked researched.",
+        "VAT_ZERO: confirm the researched 0% rate on exports and its official name.",
+        "Reduced TVA rates: sources cite 1%, 5% or 8% inconsistently (low confidence), so none is entered; confirm which apply, with legal references.",
         "Excise duty (droits d'accises): which codes apply, their rates or specific amounts, with legal references.",
         "Withholding taxes that apply at the point of sale, if any, with rates and legal references.",
         "fiscal_code: the DGI tax group for each code on normalised invoices (needed for the e-MCF integration, phase 4).",
-        "VAT_ZERO and VAT_EXEMPT: confirm the official names and that they map to the DGI groups."
+        "VAT_EXEMPT: confirm the official name and that it maps to the DGI group."
     ],
     "documents": {
         "fiscal": {
@@ -27,11 +30,17 @@
         {
             "code": "VAT_STD",
             "kind": "vat",
-            "rate": null,
-            "needs_confirmation": true,
+            "rate": "16",
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
             "effective_to": null,
-            "fiscal_code": null
+            "fiscal_code": null,
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://trykintsugi.com/fr-ca/sales-tax-guides/africa/democratic-republic-of-congo"
+            ]
         },
         {
             "code": "VAT_ZERO",
@@ -40,7 +49,13 @@
             "needs_confirmation": false,
             "effective_from": "2026-01-01",
             "effective_to": null,
-            "fiscal_code": null
+            "fiscal_code": null,
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://trykintsugi.com/fr-ca/sales-tax-guides/africa/democratic-republic-of-congo"
+            ]
         },
         {
             "code": "VAT_EXEMPT",

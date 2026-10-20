@@ -36,9 +36,9 @@ class CountryPacks
 
             $previous = $latest === null ? [] : PackTaxCode::on(SyncPermissions::OWNER_CONNECTION)
                 ->where('country_pack_id', $latest->id)->get()
-                ->map(fn (PackTaxCode $row) => $this->row($row->only(['code', 'kind', 'rate', 'needs_confirmation', 'effective_from', 'effective_to', 'fiscal_code'])))
+                ->map(fn (PackTaxCode $row) => $this->row($row->only(['code', 'kind', 'rate', 'needs_confirmation', 'effective_from', 'effective_to', 'fiscal_code', 'research'])))
                 ->all();
-            $current = array_map(fn (array $row) => $this->row($row), $file->taxCodes());
+            $current = array_map(fn (array $row) => $this->row([...$row, 'research' => PackFile::research($row)]), $file->taxCodes());
 
             $pack = CountryPack::on(SyncPermissions::OWNER_CONNECTION)->create([
                 'code' => $file->code(),
@@ -51,6 +51,7 @@ class CountryPacks
                     'todo' => array_values($file->data['todo']),
                     'tax_codes' => count(array_unique(array_column($current, 'code'))),
                     'needs_confirmation' => array_values(array_unique(array_column(array_filter($current, fn (array $row) => $row['needs_confirmation']), 'code'))),
+                    'researched' => array_values(array_unique(array_column(array_filter($current, fn (array $row) => $row['research'] !== null), 'code'))),
                     'changes' => $this->changes($previous, $current),
                 ],
             ]);
@@ -65,6 +66,7 @@ class CountryPacks
                     'effective_from' => $row['effective_from'],
                     'effective_to' => $row['effective_to'],
                     'fiscal_code' => $row['fiscal_code'],
+                    'research' => PackFile::research($row),
                 ]);
             }
 
@@ -124,6 +126,19 @@ class CountryPacks
             'effective_from' => $date($row['effective_from']),
             'effective_to' => $date($row['effective_to']),
             'fiscal_code' => $row['fiscal_code'],
+            'research' => self::sorted($row['research'] ?? null),
         ];
+    }
+
+    /** Research in one comparable form (keys sorted), whether read from the file or jsonb. */
+    private static function sorted(?array $research): ?array
+    {
+        if ($research === null) {
+            return null;
+        }
+
+        ksort($research);
+
+        return $research;
     }
 }

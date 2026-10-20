@@ -1,13 +1,18 @@
 {
     "code": "KE",
-    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %).",
-    "sources": [],
+    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %). A rate with status 'researched' comes from public research (docs/country-packs-research-2026-10.md): it is used, with its confidence, research date and sources, and what it taxes says so until the owner confirms it through a pack release (ADM-04).",
+    "sources": [
+        "https://aln.africa/wp-content/uploads/2026/04/Temporary-Reduction-of-VAT-on-Selected-Petroleum-Products-Legal-Alert-ALN-Kenya-17042026.pdf",
+        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/",
+        "https://orbitax.com/news/country/article/Kenya-Extends-Temporarily-Redu-62662"
+    ],
     "todo": [
-        "VAT_STD: the standard VAT rate, with its legal reference and effective date (KRA / VAT Act).",
+        "VAT_STD: confirm the researched 16% standard rate (VAT Act) with its legal reference; it is used now, marked researched.",
+        "VAT_ZERO: confirm the researched 0% zero rate (VAT Act Second Schedule) and its official name.",
         "VAT_WHT: the withholding VAT rate, with its legal reference and effective date, and who withholds it.",
         "Excise duty: which excise codes apply to the products sold, their rates or specific amounts, with legal references.",
         "fiscal_code: the KRA eTIMS tax band for each code (needed for the eTIMS integration, phase 4).",
-        "VAT_ZERO and VAT_EXEMPT: confirm the official names and that they map to the eTIMS bands."
+        "VAT_EXEMPT: confirm the official name and that it maps to the eTIMS band."
     ],
     "documents": {
         "fiscal": {
@@ -26,11 +31,19 @@
         {
             "code": "VAT_STD",
             "kind": "vat",
-            "rate": null,
-            "needs_confirmation": true,
+            "rate": "16",
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
             "effective_to": null,
-            "fiscal_code": null
+            "fiscal_code": null,
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://aln.africa/wp-content/uploads/2026/04/Temporary-Reduction-of-VAT-on-Selected-Petroleum-Products-Legal-Alert-ALN-Kenya-17042026.pdf",
+                "https://orbitax.com/news/country/article/Kenya-Extends-Temporarily-Redu-62662",
+                "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+            ]
         },
         {
             "code": "VAT_ZERO",
@@ -39,7 +52,15 @@
             "needs_confirmation": false,
             "effective_from": "2026-01-01",
             "effective_to": null,
-            "fiscal_code": null
+            "fiscal_code": null,
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://aln.africa/wp-content/uploads/2026/04/Temporary-Reduction-of-VAT-on-Selected-Petroleum-Products-Legal-Alert-ALN-Kenya-17042026.pdf",
+                "https://orbitax.com/news/country/article/Kenya-Extends-Temporarily-Redu-62662",
+                "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+            ]
         },
         {
             "code": "VAT_EXEMPT",

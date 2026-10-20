@@ -55,7 +55,7 @@ class PackPropagationTest extends TestCase
         return VerificationChallenge::findOrFail($challengeId)->tenant_id;
     }
 
-    /** The shipped KE pack with VAT_STD confirmed at a synthetic 12.5 from 2026-07-01. */
+    /** The shipped KE pack with VAT_STD (researched 16) closed on 2026-06-30 and confirmed at a synthetic 12.5 from 2026-07-01. */
     private function versionTwo(): string
     {
         $data = json_decode(file_get_contents(base_path('country-packs/KE/pack.json')), true);
@@ -69,7 +69,8 @@ class PackPropagationTest extends TestCase
             }
 
             $periods[] = ['effective_to' => '2026-06-30'] + $row;
-            $periods[] = ['rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-07-01'] + $row;
+            // Confirmed: no research fields.
+            $periods[] = ['rate' => '12.5', 'needs_confirmation' => false, 'status' => 'confirmed', 'effective_from' => '2026-07-01'] + array_diff_key($row, array_flip(['confidence', 'researched_on', 'source']));
         }
 
         $data['tax_codes'] = $periods;
@@ -122,7 +123,7 @@ class PackPropagationTest extends TestCase
 
         // The untouched company follows the pack from the new period's start date.
         $this->assertSame([
-            [null, '2026-01-01', '2026-06-30', true, 'pack'],
+            ['16.0000', '2026-01-01', '2026-06-30', false, 'pack'],
             ['12.5000', '2026-07-01', null, false, 'pack'],
         ], $this->rates($untouched, 'VAT_STD'));
         // Propagation touches rates only, never the tenant's name.

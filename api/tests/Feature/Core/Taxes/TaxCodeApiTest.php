@@ -50,10 +50,14 @@ class TaxCodeApiTest extends TestCase
         $this->assertSame(['VAT_EXEMPT', 'VAT_STD', 'VAT_WHT', 'VAT_ZERO'], $codes->keys()->all());
         $this->assertSame(['VAT_EXEMPT', 'VAT_STD', 'VAT_ZERO'], collect($this->codes($cd))->pluck('code')->all());
 
-        // The unconfirmed standard rate is copied as needed, never filled in.
+        // CP-01: the researched standard rate is copied with its research; an unconfirmed one stays needed, never filled in.
         $std = $codes['VAT_STD'];
-        $this->assertSame(['vat', 'VAT_STD', null, true], [$std['kind'], $std['pack_code'], $std['current_rate']['rate'], $std['rate_needed']]);
-        $this->assertSame([['rate' => null, 'effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true, 'source' => 'pack']], array_map(fn ($r) => array_diff_key($r, ['id' => 1]), $std['rates']));
+        $this->assertSame(['vat', 'VAT_STD', '16.0000', false, true], [$std['kind'], $std['pack_code'], $std['current_rate']['rate'], $std['rate_needed'], $std['rate_researched']]);
+        $this->assertSame(['high', '2026-10-17'], [$std['rates'][0]['research']['confidence'], $std['rates'][0]['research']['researched_on']]);
+        $this->assertNotEmpty($std['rates'][0]['research']['source']);
+        $wht = $codes['VAT_WHT'];
+        $this->assertSame([['rate' => null, 'effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true, 'source' => 'pack', 'research' => null]], array_map(fn ($r) => array_diff_key($r, ['id' => 1]), $wht['rates']));
+        $this->assertSame([true, false], [$wht['rate_needed'], $wht['rate_researched']]);
         $this->assertSame(['0.0000', false], [$codes['VAT_ZERO']['current_rate']['rate'], $codes['VAT_ZERO']['rate_needed']]);
         $this->assertSame([[], null, false], [$codes['VAT_EXEMPT']['rates'], $codes['VAT_EXEMPT']['current_rate'], $codes['VAT_EXEMPT']['rate_needed']]);
         // Named once in the tenant's language (en here); the name is then the tenant's.
@@ -74,7 +78,8 @@ class TaxCodeApiTest extends TestCase
         // The tenant renames one, sets a rate, archives another.
         $std = $this->codeId('VAT_STD');
         $this->patchJson("/api/v1/tax-codes/{$std}", ['name' => 'VAT', 'code' => 'vat'], $this->headersFor())->assertOk()->assertJsonPath('data.code', 'VAT');
-        $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '12.5', 'effective_from' => '2026-01-01'], $this->headersFor())->assertCreated();
+        // The researched pack rate taxed from 2026-01-01: the tenant's own rate starts later.
+        $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '12.5', 'effective_from' => '2026-07-01'], $this->headersFor())->assertCreated();
         $this->postJson('/api/v1/tax-codes/'.$this->codeId('VAT_WHT').'/archive', [], $this->headersFor())->assertOk();
 
         $again = $this->applyPack();
@@ -83,7 +88,7 @@ class TaxCodeApiTest extends TestCase
         $this->inTenant(function () use ($std) {
             $code = TaxCode::findOrFail($std);
             $this->assertSame(['VAT', 'VAT', 'VAT_STD'], [$code->code, $code->name, $code->pack_code]);
-            $this->assertSame(['12.5000'], $code->rates()->pluck('rate')->all());
+            $this->assertSame(['16.0000', '12.5000'], $code->rates()->orderBy('effective_from')->pluck('rate')->all());
             $this->assertSame(4, TaxCode::where('company_id', $this->acme->id)->count());
             $this->assertSame(1, AuditEntry::where('action', 'core.tax_code.apply_pack')->count());
         });
@@ -144,7 +149,8 @@ class TaxCodeApiTest extends TestCase
     public function test_a_new_rate_closes_the_previous_one_and_history_is_never_rewritten(): void
     {
         $this->applyPack();
-        $std = $this->codeId('VAT_STD');
+        // The withholding rate is still needed in the shipped KE pack.
+        $std = $this->codeId('VAT_WHT');
         $url = "/api/v1/tax-codes/{$std}/rates";
 
         // The still-needed rate is filled in for its own start date.
