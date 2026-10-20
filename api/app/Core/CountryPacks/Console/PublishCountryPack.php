@@ -3,6 +3,7 @@
 namespace App\Core\CountryPacks\Console;
 
 use App\Core\CountryPacks\CountryPacks;
+use App\Core\CountryPacks\PackDocuments;
 use App\Core\CountryPacks\PackFile;
 use App\Core\CountryPacks\PackLabels;
 use App\Core\MasterData\Taxes\PropagateCountryPack;
@@ -32,7 +33,9 @@ class PublishCountryPack extends Command
         $code = strtoupper((string) $this->argument('code'));
 
         try {
-            $file = PackFile::read($this->option('file') ?: PackFile::path($code));
+            // ADM-04d (ADR 022): a published release in force is the pack; the shipped file otherwise.
+            $release = $this->option('file') ? null : app(PackDocuments::class)->content($code, 'tax');
+            $file = $release !== null ? PackFile::fromArray($release) : PackFile::read($this->option('file') ?: PackFile::path($code));
         } catch (InvalidArgumentException $e) {
             $this->components->error($e->getMessage());
 

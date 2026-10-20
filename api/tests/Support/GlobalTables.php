@@ -31,6 +31,8 @@ final class GlobalTables
         'catalogue_prices' => 'versioned list prices per country (SUB-01)',
         'catalogue_annual_discounts' => 'the annual discount as data (SUB-01)',
         'catalogue_coupons' => 'coupons, created by platform staff (SUB-01)',
+        'country_pack_releases' => 'country pack releases loaded and published by platform staff (ADM-04, ADR 022); reference data read by every tenant',
+        'platform_support_requests' => 'the console\'s mirror of support access requests (RBAC-13); the consent is the tenant\'s own row',
     ];
 
     /**
@@ -43,5 +45,6 @@ final class GlobalTables
     public const OPERATOR = [
         'operator_invoices' => 'the platform invoices the operator issues to its customers (SUB-03)',
         'operator_accounts' => 'the operator\'s record of each customer for the platform console',
+        'operator_account_events' => 'status changes of each customer\'s account, for the revenue reports (ADM-06)',
     ];
 }

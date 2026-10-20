@@ -42,8 +42,8 @@ class UserController
     {
         $list = $request->list();
         $visible = $list->visible();
-        // ADR 020: API keys' principals are managed under api-keys, not listed as people.
-        $query = User::query()->where('status', '<>', User::STATUS_SERVICE);
+        // ADR 020: API keys' principals are managed under api-keys; RBAC-13: support principals on the Support access screen.
+        $query = User::query()->where('status', '<>', User::STATUS_SERVICE)->whereNull('support_grant_id');
 
         if (! $visible->all) {
             $query->whereHas('assignments', fn (Builder $q) => ScopeNames::constrain($q, $visible));

@@ -6,6 +6,7 @@ use App\Core\Audit\Auditor;
 use App\Core\DataExport\Jobs\BuildTenantExport;
 use App\Core\DataExport\Models\TenantExport;
 use App\Core\Http\ApiException;
+use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
 use App\Core\Notifications\LocalDate;
 use App\Core\Notifications\NotificationEvent;
@@ -16,7 +17,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Number;
 use Throwable;
 
@@ -202,7 +202,7 @@ class TenantExports
         }
 
         return [
-            'url' => URL::temporarySignedRoute('tenant_exports.download', $expires, [
+            'url' => SignedUrls::temporary('tenant_exports.download', $expires, [
                 'export' => $export->id,
                 'tenant' => $export->tenant_id,
                 'user' => $user->id,

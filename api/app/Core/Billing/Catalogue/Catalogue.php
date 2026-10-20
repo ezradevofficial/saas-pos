@@ -16,6 +16,7 @@ use App\Core\Billing\Catalogue\Pricing\PriceCalculator;
 use App\Core\Billing\Catalogue\Pricing\QuoteRequest;
 use App\Core\Http\ApiException;
 use App\Core\Platform\PlatformDatabase;
+use Illuminate\Support\Str;
 
 /**
  * SUB-01, ONB-03: the catalogue read from the database: the snapshot the
@@ -40,6 +41,9 @@ class Catalogue
         $currency = CatalogueCountry::on(PlatformDatabase::READ)->find($country)?->currency ?? throw self::unknownCountry();
 
         $prices = CataloguePrice::on(PlatformDatabase::READ)->current($country, $date)->get()->keyBy(fn (CataloguePrice $p) => "{$p->item_type}:{$p->item_key}");
+
+        // ADM-02: rows priced by a deal (`deal:<id>`) are the deal's to keep, not the catalogue's.
+        $locked = array_filter($locked, fn ($id) => is_string($id) && Str::isUuid($id));
 
         if ($locked !== []) {
             // Archived rows included: a row archived after the sale still prices the period it was sold for.

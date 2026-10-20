@@ -265,6 +265,8 @@ import Payments from './pages/settings/Payments'
 import RoleDetail from './pages/settings/RoleDetail'
 import Roles from './pages/settings/Roles'
 import Security from './pages/settings/Security'
+import SupportAccess from './pages/settings/SupportAccess'
+import SupportEnter from './pages/auth/SupportEnter'
 import Sessions from './pages/settings/Sessions'
 import Taxes from './pages/settings/Taxes'
 import Usage from './pages/settings/Usage'
@@ -324,6 +326,8 @@ export const routes = [
     children: [
       { path: '/invitations/:token', element: <AcceptInvitation /> },
       { path: '/approvals/email/:token', element: <EmailApproval /> },
+      // RBAC-13c: the console's one-time code becomes a support session here.
+      { path: '/support/enter', element: <SupportEnter /> },
     ],
   },
   // ECOM-05: the storefront, open to everyone on the tenant's host; it never uses a tenant user's sign-in.
@@ -703,6 +707,15 @@ export const routes = [
         element: (
           <RequirePermission permission="core.settings.edit" tenantWide>
             <Security />
+          </RequirePermission>
+        ),
+      },
+      // RBAC-13b: support requests, active sessions and their history (Owner, Admin).
+      {
+        path: '/settings/security/support-access',
+        element: (
+          <RequirePermission permission="core.support_access.view" tenantWide>
+            <SupportAccess />
           </RequirePermission>
         ),
       },

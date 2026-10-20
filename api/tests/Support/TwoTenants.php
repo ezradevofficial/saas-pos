@@ -7,6 +7,7 @@ use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Webhooks\HostResolver;
+use App\Core\Billing\Models\BillingDeal;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\DataExport\Jobs\BuildTenantExport;
@@ -28,6 +29,7 @@ use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Notifications\Notifier;
+use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Role;
@@ -649,6 +651,16 @@ final class TwoTenants
         app(TenantContext::class)->run($tenantId, fn () => app(UsageLimits::class)->meter(CarbonImmutable::now()));
         app()->instance(PlanAllowances::class, $plans);
 
+        // RBAC-13: a pending support access request from a (fictional) staff member,
+        // and ADM-02: a pending Enterprise deal. Tenant rows only: the platform mirror
+        // and staff live on the platform connection.
+        [$supportGrant, $billingDeal] = app(TenantContext::class)->run($tenantId, fn () => [
+            SupportAccessGrant::query()->create(['platform_user_id' => (string) Str::uuid7(), 'staff_name' => 'Support '.$upper, 'staff_email' => "support-{$key}@example.com",
+                'reason' => 'Help with the import', 'mode' => 'read', 'hours' => 4, 'requested_at' => now()])->id,
+            BillingDeal::query()->create(['country' => 'KE', 'currency' => 'KES', 'lines' => [['type' => 'bundle', 'key' => 'starter', 'amount' => 300000]],
+                'effective_from' => now()->toDateString(), 'reason' => 'Negotiated three-year term', 'created_by_staff' => (string) Str::uuid7(), 'created_by_name' => 'Sales '.$upper])->id,
+        ]);
+
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
 
@@ -707,6 +719,8 @@ final class TwoTenants
                 'billing_invoice' => $billingInvoice,
                 'billing_payment' => $billingPayment,
                 'billing_payment_method' => $billingMethod,
+                'support_access_grant' => $supportGrant,
+                'billing_deal' => $billingDeal,
                 'import' => $import,
                 'api_key' => $apiKey->json('data.id'),
                 'webhook' => $webhook->json('data.id'),

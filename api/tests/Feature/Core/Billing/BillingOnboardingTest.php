@@ -96,9 +96,9 @@ class BillingOnboardingTest extends TestCase
     public function test_a_staff_extension_moves_the_one_trial_end(): void
     {
         $this->pick();
-        $staff = $this->staffBearer($this->staff(PlatformUser::ROLE_BILLING));
+        $staff = $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE));
 
-        $this->postJson("/api/v1/platform/tenants/{$this->owner['tenant']}/trial", ['trial_ends_at' => '2026-11-30T12:00:00Z'], $staff)->assertOk();
+        $this->postJson("/api/v1/platform/tenants/{$this->owner['tenant']}/trial", ['trial_ends_at' => '2026-11-30T12:00:00Z', 'reason' => 'Customer asked for more time'], $staff)->assertOk();
 
         $this->assertSame('2026-11-30', $this->inTenant(fn () => Subscription::query()->sole()->trial_ends_at->toDateString()));
         $this->assertSame('2026-11-30', $this->inTenant(fn () => OnboardingState::query()->sole()->trial_ends_at->toDateString()));

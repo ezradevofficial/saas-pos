@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
-import { Alert, Button, Card, DataTable, Dialog, Money, StatusBadge, TextField } from '@/components/ds'
+import { Alert, Button, Card, DataTable, Dialog, Money, Select, StatusBadge, TextField } from '@/components/ds'
+import { decimalToMinor } from '@/lib/money'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatCalendarDate } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
@@ -12,8 +13,11 @@ import { STATUS_TONES, INVOICE_TONES } from '@/pages/settings/subscription/subsc
 import { useCatalogueKeyNames } from '../useCatalogueName'
 import { usePlatformAuth } from '../usePlatformAuth'
 import { platformApi } from '../platformClient'
+import { Detail, ReasonDialog } from './adminParts'
 
 const TENANTS_KEY = ['platform', 'tenants']
+const EMPTY_FILTERS = { search: '', owner_email: '', country: '', plan: '', status: '', module: '' }
+const STATUSES = ['trial', 'active', 'past_due', 'read_only', 'suspended', 'cancelled']
 
 /** Platform console: customer tenants with plan, status, MRR and trial end (ADR 016). */
 export function TenantsList() {
@@ -22,7 +26,11 @@ export function TenantsList() {
   const navigate = useNavigate()
   const { can } = usePlatformAuth()
   const names = useCatalogueKeyNames()
-  const tenants = useQuery({ queryKey: TENANTS_KEY, queryFn: () => platformApi.get('platform/tenants') })
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [applied, setApplied] = useState({})
+  const query = new URLSearchParams(Object.entries(applied).filter(([, value]) => value)).toString()
+  const tenants = useQuery({ queryKey: [...TENANTS_KEY, 'search', query], queryFn: () => platformApi.get(query ? `platform/tenants?${query}` : 'platform/tenants') })
+  const set = (field) => (event) => setFilters((current) => ({ ...current, [field]: event.target.value }))
   const columns = [
     { key: 'name', label: t('platform.customers.columns.name'), render: (row) => <span className="text-ink">{row.name}</span> },
     { key: 'country', label: t('platform.customers.columns.country'), render: (row) => row.country },
@@ -44,6 +52,46 @@ export function TenantsList() {
   return (
     <>
       <PageHeader title={t('platform.customers.title')} description={t('platform.customers.description')} />
+      {/* ADM-01a: search by name or slug, owner email, country, plan, status and module. */}
+      <form
+        role="search"
+        aria-label={t('admin.tenants.search')}
+        className="grid gap-3 rounded-lg border border-border bg-surface-200 p-4 sm:grid-cols-3"
+        onSubmit={(event) => {
+          event.preventDefault()
+          setApplied({ ...filters, owner_email: filters.owner_email.trim(), search: filters.search.trim() })
+        }}
+      >
+        <TextField label={t('admin.tenants.nameOrSlug')} value={filters.search} onChange={set('search')} />
+        {can('platform.tenants.owner_search') ? <TextField type="email" label={t('admin.tenants.ownerEmail')} help={t('admin.tenants.ownerEmailHelp')} value={filters.owner_email} onChange={set('owner_email')} /> : null}
+        <Select
+          label={t('platform.customers.columns.country')}
+          value={filters.country}
+          onChange={set('country')}
+          options={[{ value: '', label: t('admin.any') }, { value: 'KE', label: t('admin.countries.KE') }, { value: 'CD', label: t('admin.countries.CD') }]}
+        />
+        <TextField label={t('admin.tenants.planKey')} help={t('admin.tenants.planKeyHelp')} value={filters.plan} onChange={set('plan')} />
+        <Select
+          label={t('platform.customers.columns.status')}
+          value={filters.status}
+          onChange={set('status')}
+          options={[{ value: '', label: t('admin.any') }, ...STATUSES.map((status) => ({ value: status, label: t(`subscription.status.${status}`) }))]}
+        />
+        <TextField label={t('admin.tenants.moduleKey')} help={t('admin.tenants.moduleKeyHelp')} value={filters.module} onChange={set('module')} />
+        <div className="flex justify-end gap-2 sm:col-span-3">
+          <Button
+            variant="ghost"
+            type="button"
+            onClick={() => {
+              setFilters(EMPTY_FILTERS)
+              setApplied({})
+            }}
+          >
+            {t('admin.tenants.clear')}
+          </Button>
+          <Button variant="primary" type="submit">{t('admin.tenants.searchButton')}</Button>
+        </div>
+      </form>
       {tenants.error ? <Alert tone="danger" title={errorMessage(tenants.error)} /> : null}
       <DataTable
         caption={t('platform.customers.title')}
@@ -53,7 +101,7 @@ export function TenantsList() {
         emptyText={t('platform.customers.empty')}
         onRowClick={(row) => navigate(`/platform/tenants/${row.tenant_id}`)}
       />
-      {can('tenants.create') ? <AwaitingHandover /> : null}
+      {can('platform.tenants.create') ? <AwaitingHandover /> : null}
     </>
   )
 }
@@ -113,33 +161,42 @@ function Reinvite({ tenantId, contact }) {
   )
 }
 
-function DateDialog({ open, onClose, tenantId }) {
+function DateDialog({ onClose, tenantId }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [date, setDate] = useState('')
-  const extend = useMutation({
-    mutationFn: () => platformApi.post(`platform/tenants/${tenantId}/trial`, { trial_ends_at: `${date}T23:59:59Z` }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['platform', 'tenants'] })
-      onClose()
-    },
-  })
-  const errors = formErrors(extend.error)
   return (
-    <Dialog
-      open={open}
+    <ReasonDialog
       title={t('platform.customers.extendTrial')}
+      confirmLabel={t('platform.customers.saveTrial')}
+      ready={Boolean(date)}
+      extra={<TextField type="date" label={t('platform.customers.trialEndsOn')} value={date} onChange={(event) => setDate(event.target.value)} />}
+      send={(reason) => platformApi.post(`platform/tenants/${tenantId}/trial`, { trial_ends_at: `${date}T23:59:59Z`, reason })}
+      onDone={async () => {
+        await queryClient.invalidateQueries({ queryKey: TENANTS_KEY })
+        onClose()
+      }}
       onClose={onClose}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>{t('subscription.pay.cancel')}</Button>
-          <Button variant="primary" loading={extend.isPending} disabled={!date} onClick={() => extend.mutate()}>{t('platform.customers.saveTrial')}</Button>
-        </>
-      }
-    >
-      <TextField type="date" label={t('platform.customers.trialEndsOn')} value={date} error={errors.trial_ends_at} onChange={(event) => setDate(event.target.value)} />
-      {extend.error && !errors.trial_ends_at ? <Alert tone="danger" title={errorMessage(extend.error)} /> : null}
-    </Dialog>
+    />
+  )
+}
+
+/** ADM-01c: suspend or reactivate, with a reason; the tenant's Owners are told. */
+function StatusDialog({ action, tenantId, onClose }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  return (
+    <ReasonDialog
+      title={t(`admin.tenants.${action}Title`)}
+      description={t(`admin.tenants.${action}Text`)}
+      confirmLabel={t(`admin.tenants.${action}`)}
+      send={(reason) => platformApi.post(`platform/tenants/${tenantId}/${action}`, { reason })}
+      onDone={async () => {
+        await queryClient.invalidateQueries({ queryKey: TENANTS_KEY })
+        onClose()
+      }}
+      onClose={onClose}
+    />
   )
 }
 
@@ -211,7 +268,8 @@ export function TenantDetail() {
   const locale = useLocale()
   const { tenantId } = useParams()
   const { can } = usePlatformAuth()
-  const manage = can('billing.manage')
+  const manage = can('platform.billing.manage')
+  const tenantsManage = can('platform.tenants.manage')
   const names = useCatalogueKeyNames()
   const [dialog, setDialog] = useState(null)
   const [paying, setPaying] = useState(null)
@@ -252,12 +310,14 @@ export function TenantDetail() {
           <Card
             title={t('platform.customers.subscription')}
             actions={
-              manage ? (
+              manage || tenantsManage ? (
                 <div className="flex flex-wrap gap-2">
-                  {data.subscription?.status === 'trial' && !data.subscription.current_period_start ? (
+                  {tenantsManage && data.subscription?.status === 'trial' && !data.subscription.current_period_start ? (
                     <Button onClick={() => setDialog('trial')}>{t('platform.customers.extendTrial')}</Button>
                   ) : null}
-                  <Button onClick={() => setDialog('grace')}>{t('platform.customers.grace')}</Button>
+                  {manage ? <Button onClick={() => setDialog('grace')}>{t('platform.customers.grace')}</Button> : null}
+                  {tenantsManage && data.status === 'suspended' ? <Button onClick={() => setDialog('reactivate')}>{t('admin.tenants.reactivate')}</Button> : null}
+                  {tenantsManage && data.status && data.status !== 'suspended' ? <Button variant="ghost" onClick={() => setDialog('suspend')}>{t('admin.tenants.suspend')}</Button> : null}
                 </div>
               ) : null
             }
@@ -288,7 +348,7 @@ export function TenantDetail() {
                 <dd>{data.grace_days == null ? t('platform.customers.gracePlatform') : t('platform.customers.graceValue', { count: data.grace_days })}</dd>
               </div>
             </dl>
-            {data.assisted && !data.assisted.handed_over_at && can('tenants.create') ? <Reinvite tenantId={tenantId} contact={data.assisted.contact} /> : null}
+            {data.assisted && !data.assisted.handed_over_at && can('platform.tenants.create') ? <Reinvite tenantId={tenantId} contact={data.assisted.contact} /> : null}
             {data.account.alerts?.length ? (
               <div className="px-5 pb-4">
                 <Alert tone="danger" title={t('platform.customers.overpaymentText', { invoices: data.account.alerts.map((alert) => alert.invoice).join(', ') })} />
@@ -300,15 +360,211 @@ export function TenantDetail() {
               </div>
             ) : null}
           </Card>
+          <Overview data={data} names={names} />
+          {can('platform.billing.view') ? <Deals tenantId={tenantId} currency={data.account.mrr.currency} /> : null}
+          {can('platform.support.request') ? <SupportRequest tenantId={tenantId} /> : null}
           <section className="flex flex-col gap-3">
             <h2 className="text-h2 text-ink">{t('subscription.invoices.title')}</h2>
             <DataTable caption={t('subscription.invoices.title')} columns={columns} rows={data.invoices} emptyText={t('subscription.invoices.empty')} />
           </section>
-          {dialog === 'trial' ? <DateDialog open onClose={() => setDialog(null)} tenantId={tenantId} /> : null}
+          {dialog === 'trial' ? <DateDialog onClose={() => setDialog(null)} tenantId={tenantId} /> : null}
+          {dialog === 'suspend' || dialog === 'reactivate' ? <StatusDialog action={dialog} tenantId={tenantId} onClose={() => setDialog(null)} /> : null}
           {dialog === 'grace' ? <GraceDialog open onClose={() => setDialog(null)} tenantId={tenantId} current={data.grace_days} /> : null}
           {paying ? <MarkPaidDialog invoice={paying} onClose={() => setPaying(null)} /> : null}
         </>
       ) : null}
     </>
+  )
+}
+
+/** ADM-01b: modules, usage and health, read in the tenant's context: counts and times only. */
+function Overview({ data, names }) {
+  const { t } = useTranslation()
+  const locale = useLocale()
+  const health = data.health ?? {}
+  const when = (value) => (value ? formatCalendarDate(value, locale) : t('admin.tenants.never'))
+  const lag = health.sync_lag_seconds == null ? t('admin.tenants.noDevices') : t('admin.tenants.lagHours', { count: Math.floor(health.sync_lag_seconds / 3600) })
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card title={t('admin.tenants.modulesAndUsage')}>
+        <dl className="grid gap-4 px-5 py-4 sm:grid-cols-2">
+          <Detail label={t('admin.tenants.status')}>
+            <StatusBadge tone={data.status === 'suspended' ? 'danger' : 'success'}>{t(`admin.tenants.statuses.${data.status ?? 'active'}`)}</StatusBadge>
+          </Detail>
+          <Detail label={t('admin.tenants.modules')}>{names ? names.list(data.modules ?? []) : ''}</Detail>
+          {(data.usage?.units ?? []).map((unit) => (
+            <Detail key={unit.unit} label={t(`admin.units.${unit.unit}`, { defaultValue: unit.unit })}>
+              <span className="tabular-nums">{unit.allowed == null ? t('admin.tenants.usageUnlimited', { count: unit.count }) : t('admin.tenants.usageOf', { count: unit.count, allowed: unit.allowed })}</span>
+            </Detail>
+          ))}
+        </dl>
+      </Card>
+      <Card title={t('admin.tenants.health')} subtitle={t('admin.tenants.healthHelp')}>
+        <dl className="grid gap-4 px-5 py-4 sm:grid-cols-2">
+          <Detail label={t('admin.tenants.lastActivity')}>{when(health.last_activity_at)}</Detail>
+          <Detail label={t('admin.tenants.devices')}>
+            <span className="tabular-nums">{health.devices ?? 0}</span>
+          </Detail>
+          <Detail label={t('admin.tenants.syncLag')}>{lag}</Detail>
+          <Detail label={t('admin.tenants.failedJobs')}>
+            <span className="tabular-nums">{health.failed_jobs ?? 0}</span>
+          </Detail>
+          {health.posting_exceptions != null ? (
+            <Detail label={t('admin.tenants.postingExceptions')}>
+              <span className="tabular-nums">{health.posting_exceptions}</span>
+            </Detail>
+          ) : null}
+        </dl>
+      </Card>
+    </div>
+  )
+}
+
+/** "2500.50" to minor units, or null when it is not a positive decimal of the currency. */
+function toMinorOrNull(text, decimals) {
+  const value = String(text ?? '').trim()
+  const pattern = decimals === 0 ? /^\d+$/ : new RegExp(`^\\d+(\\.\\d{1,${decimals}})?$`)
+  return pattern.test(value) ? Number(decimalToMinor(value, decimals)) : null
+}
+
+const DEAL_TONES ={ pending: 'warning', approved: 'success', rejected: 'neutral', ended: 'neutral' }
+
+/** ADM-02: the tenant's custom Enterprise deals: drafted by sales or finance, approved by finance. */
+function Deals({ tenantId, currency }) {
+  const { t } = useTranslation()
+  const locale = useLocale()
+  const queryClient = useQueryClient()
+  const { can, user } = usePlatformAuth()
+  const [drafting, setDrafting] = useState(false)
+  const deals = useQuery({ queryKey: [...TENANTS_KEY, tenantId, 'deals'], queryFn: () => platformApi.get(`platform/tenants/${tenantId}/deals`) })
+  const decide = useMutation({
+    mutationFn: ({ id, action }) => platformApi.post(`platform/tenants/${tenantId}/deals/${id}/${action}`, {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: TENANTS_KEY }),
+  })
+  const day = (value) => (value ? formatCalendarDate(value, locale) : t('admin.deals.openEnded'))
+  const approver = can('platform.deals.approve')
+  const columns = [
+    { key: 'lines', label: t('admin.deals.lines'), render: (row) => row.lines.map((line) => line.key).join(', ') },
+    { key: 'price', label: t('admin.deals.price'), render: (row) => <Money amount={row.lines[0]?.amount ?? 0} currency={row.currency} /> },
+    { key: 'period', label: t('admin.deals.period'), render: (row) => t('subscription.overview.periodRange', { from: day(row.effective_from), to: day(row.effective_to) }) },
+    { key: 'status', label: t('admin.deals.status'), render: (row) => <StatusBadge tone={DEAL_TONES[row.status]}>{t(`admin.deals.statuses.${row.status}`)}</StatusBadge> },
+    { key: 'by', label: t('admin.deals.draftedBy'), render: (row) => row.created_by?.name ?? '' },
+    {
+      key: 'actions',
+      label: t('subscription.invoices.columns.actions'),
+      render: (row) =>
+        approver && row.status === 'pending' && row.created_by?.id !== user?.id ? (
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => decide.mutate({ id: row.id, action: 'approve' })}>{t('admin.deals.approve')}</Button>
+            <Button variant="ghost" onClick={() => decide.mutate({ id: row.id, action: 'reject' })}>{t('admin.deals.reject')}</Button>
+          </div>
+        ) : approver && row.status === 'approved' ? (
+          <Button variant="ghost" onClick={() => decide.mutate({ id: row.id, action: 'end' })}>{t('admin.deals.end')}</Button>
+        ) : null,
+    },
+  ]
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-h2 text-ink">{t('admin.deals.title')}</h2>
+          <p className="text-body text-ink-muted">{t('admin.deals.description')}</p>
+        </div>
+        {can('platform.deals.manage') ? <Button onClick={() => setDrafting(true)}>{t('admin.deals.draft')}</Button> : null}
+      </div>
+      {deals.error ? <Alert tone="danger" title={errorMessage(deals.error)} /> : null}
+      {decide.error ? <Alert tone="danger" title={errorMessage(decide.error)} /> : null}
+      <DataTable caption={t('admin.deals.title')} columns={columns} rows={deals.data?.data ?? []} loading={deals.isPending} emptyText={t('admin.deals.empty')} />
+      {drafting ? <DealDialog tenantId={tenantId} currency={currency} onClose={() => setDrafting(false)} /> : null}
+    </section>
+  )
+}
+
+/** ADM-02b: one negotiated monthly price for a module or bundle (Enterprise included), effective-dated. */
+function DealDialog({ tenantId, currency, onClose }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [values, setValues] = useState(() => ({ type: 'bundle', key: 'enterprise', amount: '', extra: '', from: new Date().toISOString().slice(0, 10), to: '' }))
+  const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
+  const decimals = currency === 'CDF' ? 0 : 2
+  const amount = toMinorOrNull(values.amount, decimals)
+  return (
+    <ReasonDialog
+      title={t('admin.deals.draftTitle')}
+      description={t('admin.deals.draftText')}
+      confirmLabel={t('admin.deals.submit')}
+      ready={amount != null && values.key.trim() !== ''}
+      extra={
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select
+            label={t('admin.deals.itemType')}
+            value={values.type}
+            onChange={set('type')}
+            options={[
+              { value: 'bundle', label: t('admin.deals.types.bundle') },
+              { value: 'module', label: t('admin.deals.types.module') },
+            ]}
+          />
+          <TextField label={t('admin.deals.itemKey')} help={t('admin.deals.itemKeyHelp')} value={values.key} onChange={set('key')} />
+          <TextField label={t('admin.deals.monthlyPrice')} prefix={currency} inputMode="decimal" value={values.amount} onChange={set('amount')} />
+          <TextField label={t('admin.deals.extraOutlet')} prefix={currency} inputMode="decimal" value={values.extra} onChange={set('extra')} />
+          <TextField type="date" label={t('admin.deals.from')} value={values.from} onChange={set('from')} />
+          <TextField type="date" label={t('admin.deals.to')} help={t('admin.deals.toHelp')} value={values.to} onChange={set('to')} />
+        </div>
+      }
+      send={(reason) => {
+        const extra = toMinorOrNull(values.extra, decimals)
+        return platformApi.post(`platform/tenants/${tenantId}/deals`, {
+          bundle: values.type === 'bundle' ? values.key.trim() : null,
+          lines: [{ type: values.type, key: values.key.trim(), amount, ...(extra == null ? {} : { extra_outlet_amount: extra }) }],
+          effective_from: values.from,
+          effective_to: values.to || null,
+          reason,
+        })
+      }}
+      onDone={async () => {
+        await queryClient.invalidateQueries({ queryKey: TENANTS_KEY })
+        onClose()
+      }}
+      onClose={onClose}
+    />
+  )
+}
+
+/** RBAC-13a: ask the tenant for time-limited access; nothing opens until it approves. */
+function SupportRequest({ tenantId }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [mode, setMode] = useState('read')
+  const [hours, setHours] = useState('4')
+  return (
+    <Card title={t('admin.support.askTitle')} subtitle={t('admin.support.askText')} actions={<Button onClick={() => setOpen(true)}>{t('admin.support.ask')}</Button>}>
+      {open ? (
+        <ReasonDialog
+          title={t('admin.support.askTitle')}
+          description={t('admin.support.askDialogText')}
+          confirmLabel={t('admin.support.send')}
+          ready={Number(hours) >= 1 && Number(hours) <= 72}
+          extra={
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Select
+                label={t('admin.support.mode')}
+                value={mode}
+                onChange={(event) => setMode(event.target.value)}
+                options={[
+                  { value: 'read', label: t('admin.support.modes.read') },
+                  { value: 'write', label: t('admin.support.modes.write') },
+                ]}
+              />
+              <TextField type="number" min={1} max={72} label={t('admin.support.hours')} help={t('admin.support.hoursHelp')} value={hours} onChange={(event) => setHours(event.target.value)} />
+            </div>
+          }
+          send={(reason) => platformApi.post(`platform/tenants/${tenantId}/support-requests`, { reason, mode, hours: Number(hours) })}
+          onDone={() => navigate('/platform/support')}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </Card>
   )
 }

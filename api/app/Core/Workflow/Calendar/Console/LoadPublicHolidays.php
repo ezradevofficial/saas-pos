@@ -2,6 +2,7 @@
 
 namespace App\Core\Workflow\Calendar\Console;
 
+use App\Core\CountryPacks\PackDocuments;
 use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Workflow\Calendar\BusinessCalendar;
 use App\Core\Workflow\Calendar\HolidayFile;
@@ -29,7 +30,9 @@ class LoadPublicHolidays extends Command
         $code = strtoupper((string) $this->argument('code'));
 
         try {
-            $file = HolidayFile::read($this->option('file') ?: HolidayFile::path($code));
+            // ADM-04d (ADR 022): a published release in force is the pack; the shipped file otherwise.
+            $release = $this->option('file') ? null : app(PackDocuments::class)->content($code, 'holidays');
+            $file = $release !== null ? HolidayFile::fromArray($release) : HolidayFile::read($this->option('file') ?: HolidayFile::path($code));
         } catch (InvalidArgumentException $e) {
             $this->components->error($e->getMessage());
 

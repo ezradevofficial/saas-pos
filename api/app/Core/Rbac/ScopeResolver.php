@@ -4,6 +4,7 @@ namespace App\Core\Rbac;
 
 use App\Core\Api\ApiScopes;
 use App\Core\Identity\Models\User;
+use App\Core\Platform\SupportAccess\SupportAccess;
 use App\Core\Rbac\Models\Permission;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Tenancy\Models\Branch;
@@ -50,6 +51,11 @@ class ScopeResolver
     /** True when $user holds $permission at $target, or anywhere when $target is null. */
     public function can(User $user, string $permission, ?Scope $target = null): bool
     {
+        // RBAC-13: a support principal holds what its grant allows, tenant-wide.
+        if ($user->support_grant_id !== null) {
+            return $this->supportPermits($user, $permission) && ($target === null || $this->chain($target) !== null);
+        }
+
         $assignments = $this->assignmentsWith($user, $permission);
 
         if ($assignments->isEmpty()) {
@@ -123,7 +129,8 @@ class ScopeResolver
      */
     public function roleIds(User $user, ?Scope $target = null): array
     {
-        if (! $this->eligible($user)) {
+        // RBAC-13: a support principal holds no role (so no field or limit rules).
+        if (! $this->eligible($user) || $user->support_grant_id !== null) {
             return [];
         }
 
@@ -145,6 +152,10 @@ class ScopeResolver
      */
     public function visibleIds(User $user, string $permission): VisibleScope
     {
+        if ($user->support_grant_id !== null) {
+            return $this->supportPermits($user, $permission) ? new VisibleScope(all: true) : new VisibleScope(false, [], [], []);
+        }
+
         $assignments = $this->assignmentsWith($user, $permission);
 
         if ($assignments->contains('scope_type', Scope::TENANT)) {
@@ -178,6 +189,14 @@ class ScopeResolver
     {
         if (! $this->eligible($user)) {
             return [];
+        }
+
+        if ($user->support_grant_id !== null) {
+            $tenant = ['type' => Scope::TENANT, 'id' => $this->tenants->id()];
+            $names = $this->catalogue->all()->map(fn ($p) => is_string($p) ? $p : $p['name'])
+                ->filter(fn (string $name) => $this->supportPermits($user, $name))->sort()->values();
+
+            return $names->map(fn (string $name) => ['name' => $name, 'scopes' => [$tenant]])->all();
         }
 
         $assignments = $this->assignments($user)->groupBy('role_id');
@@ -273,6 +292,18 @@ class ScopeResolver
         }
 
         return $found === null ? [] : $found->roles->modelKeys();
+    }
+
+    /**
+     * RBAC-13d: what a support principal's grant allows (SupportAccess),
+     * for a permission of an active module, while the principal is an
+     * active member of the tenant in context.
+     */
+    private function supportPermits(User $user, string $permission): bool
+    {
+        return $this->eligible($user)
+            && $this->modules->permissionActive($permission)
+            && app(SupportAccess::class)->permits($user, $permission);
     }
 
     /** Active, and a member of the tenant in context. */

@@ -149,6 +149,18 @@ class DueTenants
         return $this->ids('app_tenants_with_expired_ecom_reservations(?::timestamptz)', [$at->toIso8601String()]);
     }
 
+    /** @return list<string> RBAC-13f: support access grants approved and past their end at $at. */
+    public function withExpiredSupportGrants(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_expired_support_grants(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
+    /** @return list<string> ADM-04 (review H3): every tenant that is not closed, suspended ones included, for country pack updates. */
+    public function forPackUpdates(): array
+    {
+        return $this->ids('app_tenants_for_pack_updates()');
+    }
+
     /** @return list<string> HOOK-01: webhook deliveries left behind since before $staleBefore, or created before $pruneBefore (migration 2026_11_29_000100). */
     public function withWebhookWork(CarbonInterface $staleBefore, CarbonInterface $pruneBefore): array
     {

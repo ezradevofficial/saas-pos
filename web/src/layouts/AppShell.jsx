@@ -8,6 +8,7 @@ import { TrialBanner } from '@/components/onboarding/TrialBanner'
 import { NotificationBell } from './NotificationBell'
 import { LogoMark, Sidebar } from './Sidebar'
 import { SubscriptionBanner } from './SubscriptionBanner'
+import { SupportBanners } from './SupportBanners'
 import { UsageBanner } from './UsageBanner'
 
 /**
@@ -64,6 +65,8 @@ export function AppShell() {
           <NotificationBell />
         </header>
 
+        {/* RBAC-13c: "Support session" for staff, "Support access active" for the tenant. */}
+        <SupportBanners />
         <SubscriptionBanner />
         <TrialBanner />
         <main className="min-w-0 flex-1 px-4 py-6 md:p-10">

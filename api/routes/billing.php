@@ -4,6 +4,7 @@
 
 use App\Core\Billing\Http\Controllers\BillingInvoiceController;
 use App\Core\Billing\Http\Controllers\BillingPaymentMethodController;
+use App\Core\Billing\Http\Controllers\PlatformDealController;
 use App\Core\Billing\Http\Controllers\PlatformTenantController;
 use App\Core\Billing\Http\Controllers\SubscriptionController;
 use App\Core\Billing\Models\BillingInvoice;
@@ -51,7 +52,16 @@ Route::middleware(['auth:platform', EnsurePlatformAccess::class])->prefix('platf
     Route::get('tenants', [PlatformTenantController::class, 'index']);
     Route::get('tenants/{tenant}', [PlatformTenantController::class, 'show'])->whereUuid('tenant');
     Route::post('tenants/{tenant}/trial', [PlatformTenantController::class, 'extendTrial'])->whereUuid('tenant');
+    // ADM-01c: suspend and reactivate, with a reason.
+    Route::post('tenants/{tenant}/suspend', [PlatformTenantController::class, 'suspend'])->whereUuid('tenant');
+    Route::post('tenants/{tenant}/reactivate', [PlatformTenantController::class, 'reactivate'])->whereUuid('tenant');
     Route::post('tenants/{tenant}/grace', [PlatformTenantController::class, 'grace'])->whereUuid('tenant');
+    // ADM-02: custom Enterprise deals (sales and finance draft, finance decides).
+    Route::get('tenants/{tenant}/deals', [PlatformDealController::class, 'index'])->whereUuid('tenant');
+    Route::post('tenants/{tenant}/deals', [PlatformDealController::class, 'store'])->whereUuid('tenant');
+    Route::post('tenants/{tenant}/deals/{deal}/approve', [PlatformDealController::class, 'approve'])->whereUuid(['tenant', 'deal']);
+    Route::post('tenants/{tenant}/deals/{deal}/reject', [PlatformDealController::class, 'reject'])->whereUuid(['tenant', 'deal']);
+    Route::post('tenants/{tenant}/deals/{deal}/end', [PlatformDealController::class, 'end'])->whereUuid(['tenant', 'deal']);
     Route::post('invoices/{operator_invoice}/mark-paid', [PlatformTenantController::class, 'markPaid'])->whereUuid('operator_invoice');
     Route::get('billing-settings', [PlatformTenantController::class, 'settings']);
     Route::put('billing-settings', [PlatformTenantController::class, 'updateSettings']);

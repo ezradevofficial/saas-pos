@@ -2,6 +2,7 @@
 
 namespace Modules\HR\Support;
 
+use App\Core\CountryPacks\PackDocuments;
 use Carbon\CarbonImmutable;
 
 /**
@@ -19,17 +20,23 @@ class HrPack
     public function of(?string $country): array
     {
         $code = strtoupper((string) $country);
+        $valid = $code !== '' && preg_match('/^[A-Z]{2}\z/', $code) === 1;
+        // ADM-04d (ADR 022): a published release in force replaces the shipped file.
+        $release = $valid ? app(PackDocuments::class)->release($code, 'hr') : null;
+        $cacheKey = $code.'|'.($release?->id ?? 'file');
 
-        if (isset($this->packs[$code])) {
-            return $this->packs[$code];
+        if (isset($this->packs[$cacheKey])) {
+            return $this->packs[$cacheKey];
         }
 
         $file = base_path("country-packs/{$code}/hr.json");
-        $pack = $code !== '' && preg_match('/^[A-Z]{2}\z/', $code) === 1 && is_file($file)
-            ? json_decode((string) file_get_contents($file), true, 16, JSON_THROW_ON_ERROR)
-            : [];
+        $pack = match (true) {
+            $release !== null => $release->content,
+            $valid && is_file($file) => json_decode((string) file_get_contents($file), true, 16, JSON_THROW_ON_ERROR),
+            default => [],
+        };
 
-        return $this->packs[$code] = [
+        return $this->packs[$cacheKey] = [
             'identifier_types' => $pack['identifier_types'] ?? [],
             'statutory_leave_types' => $pack['statutory_leave_types'] ?? [],
         ];

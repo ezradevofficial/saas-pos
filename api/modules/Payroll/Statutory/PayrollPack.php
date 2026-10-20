@@ -2,7 +2,9 @@
 
 namespace Modules\Payroll\Statutory;
 
+use App\Core\CountryPacks\PackDocuments;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 
 /**
  * CP-01, CP-02, PAY-07: Payroll's country-pack data
@@ -33,25 +35,25 @@ class PayrollPack
     private array $fakes = [];
 
     /** The pack of $country, or null when the country has none. */
-    public function of(?string $country): ?array
+    public function of(?string $country, ?CarbonInterface $on = null): ?array
     {
-        return $this->load($country)['pack'];
+        return $this->load($country, $on)['pack'];
     }
 
     /**
      * Review fix 5: where $country's pack was read from (`shipped`,
-     * `override` or `test`), its file and the sha256 of its content, stamped
+     * `override`, `release` (ADM-04) or `test`), its file and the sha256 of its content, stamped
      * on each run it calculates.
      *
      * @return array{country: string, source: string, file: ?string, sha256: ?string}
      */
-    public function source(?string $country): array
+    public function source(?string $country, ?CarbonInterface $on = null): array
     {
-        return $this->load($country)['source'];
+        return $this->load($country, $on)['source'];
     }
 
     /** @return array{pack: ?array<string, mixed>, source: array<string, ?string>} */
-    private function load(?string $country): array
+    private function load(?string $country, ?CarbonInterface $on = null): array
     {
         $code = strtoupper((string) $country);
 
@@ -63,6 +65,24 @@ class PayrollPack
 
         $override = config('payroll.pack_dir');
         $overridden = is_string($override) && $override !== '' && app()->environment(self::OVERRIDE_ENVIRONMENTS);
+
+        // ADM-04d (ADR 022): a published release in force replaces the shipped file; a run
+        // (re)calculated for a past period reads the release in force on its pay date (review L7).
+        $release = $overridden || preg_match('/^[A-Z]{2}\z/', $code) !== 1 ? null : app(PackDocuments::class)->release($code, 'payroll', $on);
+
+        if ($release !== null) {
+            $key = 'release|'.$release->id;
+
+            if (($this->packs[$code]['key'] ?? null) === $key) {
+                return $this->packs[$code];
+            }
+
+            return $this->packs[$code] = [
+                'key' => $key,
+                'pack' => $release->content,
+                'source' => ['country' => $code, 'source' => 'release', 'file' => null, 'sha256' => $release->content_hash, 'version' => $release->version],
+            ];
+        }
         $dir = $overridden ? rtrim($override, '/') : base_path('country-packs');
         $file = preg_match('/^[A-Z]{2}\z/', $code) === 1 ? "{$dir}/{$code}/payroll.json" : null;
 

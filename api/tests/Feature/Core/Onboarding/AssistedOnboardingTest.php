@@ -124,7 +124,7 @@ class AssistedOnboardingTest extends TestCase
 
     public function test_only_owner_and_support_staff_may_create_tenants_and_tenant_tokens_are_refused(): void
     {
-        $this->create($this->staff(PlatformUser::ROLE_BILLING))->assertForbidden();
+        $this->create($this->staff(PlatformUser::ROLE_FINANCE))->assertForbidden();
 
         $tenantUser = $this->createUser();
         $this->postJson('/api/v1/platform/tenants', [], $this->bearer($this->tokenFor($tenantUser)))->assertUnauthorized();

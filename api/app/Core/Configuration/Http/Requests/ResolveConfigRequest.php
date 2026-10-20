@@ -41,7 +41,8 @@ class ResolveConfigRequest extends ConfigKindRequest
             $this->place = Place::from($this->query('company'), $this->query('branch'), $this->query('location'));
 
             if ($this->place === false
-                || ($this->place !== null && app(ScopeResolver::class)->roleIds($this->user(), $this->place->scope()) === [])) {
+                // RBAC-13: a support principal holds no role and reaches the whole tenant (its grant).
+                || ($this->place !== null && $this->user()->support_grant_id === null && app(ScopeResolver::class)->roleIds($this->user(), $this->place->scope()) === [])) {
                 $validator->errors()->add('location', __('config.errors.place_out_of_scope'));
             }
         }];

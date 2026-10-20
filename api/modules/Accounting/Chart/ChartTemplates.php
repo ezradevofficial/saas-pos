@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Chart;
 
+use App\Core\CountryPacks\PackDocuments;
 use InvalidArgumentException;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\AccountingSettings;
@@ -29,6 +30,8 @@ class ChartTemplates
             $codes[] = basename(dirname($file));
         }
 
+        // ADM-04d (ADR 022): countries with a published chart release.
+        $codes = array_values(array_unique([...$codes, ...app(PackDocuments::class)->countries('accounts')]));
         sort($codes);
 
         return $codes;
@@ -36,7 +39,7 @@ class ChartTemplates
 
     public function exists(string $code): bool
     {
-        return preg_match('/^[A-Z]{2}\z/', $code) === 1 && is_file($this->path($code));
+        return preg_match('/^[A-Z]{2}\z/', $code) === 1 && (is_file($this->path($code)) || app(PackDocuments::class)->release($code, 'accounts') !== null);
     }
 
     /**
@@ -48,7 +51,25 @@ class ChartTemplates
             throw new InvalidArgumentException("No chart template for [{$code}].");
         }
 
+        // ADM-04d (ADR 022): a published release in force replaces the shipped file.
+        $release = app(PackDocuments::class)->release($code, 'accounts');
+
+        if ($release !== null) {
+            return $this->read[$code.'|'.$release->id] ??= $this->validate($code, $release->content);
+        }
+
         return $this->read[$code] ??= $this->validate($code, json_decode((string) file_get_contents($this->path($code)), true, flags: JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * ADM-04b: check a chart template document (a pack release) without
+     * reading a file; throws InvalidArgumentException with the reason.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function check(string $code, array $data): void
+    {
+        $this->validate($code, $data);
     }
 
     /** The account's name in $locale from the translation files (the code when missing). */

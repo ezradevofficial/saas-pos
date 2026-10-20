@@ -32,5 +32,7 @@ final class ModuleOffer
         public readonly array $includes = [],
         public readonly ?string $requires = null,
         public readonly ?string $priceId = null,
+        // ADM-02: priced by the tenant's Enterprise deal, not the catalogue.
+        public readonly bool $deal = false,
     ) {}
 }

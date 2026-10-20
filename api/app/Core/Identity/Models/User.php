@@ -5,6 +5,7 @@ namespace App\Core\Identity\Models;
 use App\Core\Audit\Audited;
 use App\Core\Identity\Policies\UserPolicy;
 use App\Core\Notifications\Models\InAppNotification;
+use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Tenancy\BelongsToTenant;
 use Database\Factories\UserFactory;
@@ -12,6 +13,7 @@ use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\RoutesNotifications;
@@ -73,6 +75,18 @@ class User extends Authenticatable implements HasLocalePreference
         ];
     }
 
+    /** RBAC-13: the grant a support principal acts under (null for people). */
+    public function supportGrant(): BelongsTo
+    {
+        return $this->belongsTo(SupportAccessGrant::class, 'support_grant_id');
+    }
+
+    /** RBAC-13: a support session's principal, not a person. */
+    public function isSupportPrincipal(): bool
+    {
+        return $this->support_grant_id !== null;
+    }
+
     protected static function newFactory(): UserFactory
     {
         return UserFactory::new();
@@ -112,10 +126,13 @@ class User extends Authenticatable implements HasLocalePreference
         return $this->status === self::STATUS_ACTIVE || $this->status === self::STATUS_SERVICE;
     }
 
-    /** A person (any status), not an API key's service principal (ADR 020): for checks meant for people. */
+    /**
+     * A person (any status): neither an API key's service principal (ADR
+     * 020) nor a support session's principal (RBAC-13). For checks meant for people.
+     */
     public function isPerson(): bool
     {
-        return ! $this->isServicePrincipal();
+        return ! $this->isServicePrincipal() && ! $this->isSupportPrincipal();
     }
 
     /** API-02: an API key's service principal (ADR 020). */

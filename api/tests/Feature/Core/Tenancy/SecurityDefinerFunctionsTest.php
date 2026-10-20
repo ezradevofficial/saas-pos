@@ -15,7 +15,7 @@ class SecurityDefinerFunctionsTest extends TestCase
     use RefreshTenantDatabase;
 
     /** Functions that return something other than tenant ids, each explained in ADR 002. */
-    private const RESULT_EXCEPTIONS = ['app_public_branding', 'app_prune_api_idempotency_keys'];
+    private const RESULT_EXCEPTIONS = ['app_public_branding', 'app_platform_usage_totals', 'app_prune_api_idempotency_keys'];
 
     /** @return list<object{name: string, result: string, config: ?string, public_execute: bool}> */
     private function functions(): array
@@ -42,6 +42,14 @@ class SecurityDefinerFunctionsTest extends TestCase
                 $this->assertContains($function->result, ['uuid', 'SETOF uuid'], "{$function->name} returns tenant ids only");
             }
         }
+    }
+
+    /** ADM-06: the usage aggregate answers totals per unit only: no tenant id, no row. */
+    public function test_the_platform_usage_aggregate_returns_totals_only(): void
+    {
+        $function = collect($this->functions())->firstWhere('name', 'app_platform_usage_totals');
+        $this->assertNotNull($function);
+        $this->assertSame('TABLE(unit text, tenants bigint, total bigint)', $function->result);
     }
 
     public function test_adr_002_lists_every_security_definer_function(): void
