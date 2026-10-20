@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Alert, StatusBadge } from '@/components/ds'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 /**
  * CP-01: shown wherever a run, tax line or leave record used a country
@@ -41,13 +43,14 @@ const host = (url) => {
  */
 export function ResearchStatus({ status, confidence, researchedOn, source = [], assumed = [] }) {
   const { t } = useTranslation()
+  const locale = useLocale()
   if (status === 'researched') {
     return (
       <span className="flex flex-col gap-1">
         <StatusBadge tone="warning">{t('packs.status.researched')}</StatusBadge>
         <span className="text-caption text-ink-muted">
           {t('packs.confidence', { level: t(`packs.confidenceLevels.${confidence}`, { defaultValue: confidence ?? '' }) })}
-          {researchedOn ? ` · ${t('packs.researchedOn', { date: researchedOn })}` : null}
+          {researchedOn ? ` · ${t('packs.researchedOn', { date: formatCalendarDate(researchedOn, locale) })}` : null}
         </span>
         {assumed.length ? <span className="text-caption text-ink-muted">{t('packs.assumed', { fields: assumed.join(', ') })}</span> : null}
         {source.length ? (

@@ -262,7 +262,7 @@ describe('Payroll screens', () => {
     const table = await screen.findByRole('table', { name: 'Statutory rates in force' })
     const ipr = within(table).getByRole('row', { name: /IPR/ })
     expect(within(ipr).getByText('Researched')).toBeInTheDocument()
-    expect(within(ipr).getByText('Medium confidence · researched 2026-10-17')).toBeInTheDocument()
+    expect(within(ipr).getByText('Medium confidence · researched 17 Oct 2026')).toBeInTheDocument()
     expect(within(ipr).getByRole('link', { name: 'business.monrespro.cd' })).toHaveAttribute('href', 'https://business.monrespro.cd/blog/ipr')
     expect(within(ipr).getByText('Assumed until confirmed: rounding rule')).toBeInTheDocument()
     expect(screen.getByText('Values from public research')).toBeInTheDocument()

@@ -10402,7 +10402,7 @@
     "statutory": {
       "title": "Statutory rates in force",
       "help": "From the country pack. Each value is confirmed, taken from public research (with its sources and confidence) or still needed; nothing is guessed.",
-      "readyTitle": "Every statutory value is confirmed",
+      "readyTitle": "Every statutory value a run needs is in place",
       "readyHelp": "Runs for this company can be calculated.",
       "notReadyTitle": "Statutory rates are not confirmed yet",
       "notReadyHelp": "Runs for this company are refused until the platform team confirms the missing values in the country pack.",

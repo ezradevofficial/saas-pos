@@ -10402,7 +10402,7 @@
     "statutory": {
       "title": "Taux légaux en vigueur",
       "help": "Issus du pack pays. Chaque valeur est confirmée, issue de recherches publiques (avec ses sources et son niveau de confiance) ou encore à confirmer ; rien n’est deviné.",
-      "readyTitle": "Toutes les valeurs légales sont confirmées",
+      "readyTitle": "Toutes les valeurs légales nécessaires aux paies sont en place",
       "readyHelp": "Les paies de cette société peuvent être calculées.",
       "notReadyTitle": "Les taux légaux ne sont pas encore confirmés",
       "notReadyHelp": "Les paies de cette société sont refusées tant que l’équipe de la plateforme n’a pas confirmé les valeurs manquantes dans le pack pays.",
