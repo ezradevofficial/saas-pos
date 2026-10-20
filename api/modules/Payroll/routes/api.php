@@ -37,6 +37,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('settings/{company}', [SetupController::class, 'settings'])->name('settings.show');
     Route::put('settings/{company}', [SetupController::class, 'updateSettings'])->name('settings.update');
     Route::get('statutory/{company}', [SetupController::class, 'statutory'])->name('statutory');
+    // CP-01: a pack component the company does not owe (only those the pack allows), audited.
+    Route::post('statutory/{company}/not-applicable', [SetupController::class, 'markNotApplicable'])->name('statutory.not-applicable');
+    Route::delete('statutory/{company}/not-applicable/{component}', [SetupController::class, 'clearNotApplicable'])->where('component', '[a-z][a-z0-9_]{0,39}')->name('statutory.applicable');
 
     // PAY-03, PAY-04.
     Route::get('pay-groups', [SetupController::class, 'payGroups'])->name('pay-groups.index');

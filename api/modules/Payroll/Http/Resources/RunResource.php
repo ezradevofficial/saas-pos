@@ -47,6 +47,14 @@ class RunResource extends JsonResource
             ],
             // Review fix 5: the statutory pack the run was calculated from.
             'pack' => $run->inputs['pack'] ?? null,
+            // CP-01: researched pack values the run used (the web app shows the notice), components left out
+            // while unconfirmed and those the company marked not applicable.
+            'statutory' => [
+                'researched' => $run->inputs['statutory']['researched'] ?? [],
+                'not_applied' => $run->inputs['statutory']['not_applied'] ?? [],
+                'not_applicable' => $run->inputs['statutory']['not_applicable'] ?? [],
+            ],
+            'uses_researched_values' => ($run->inputs['statutory']['researched'] ?? []) !== [],
             // Decisions 29, 33, 40: open attendance periods, late HR changes since the last run, employees without a pay group.
             'review' => [
                 'attendance_open' => $run->inputs['review']['attendance_open'] ?? [],

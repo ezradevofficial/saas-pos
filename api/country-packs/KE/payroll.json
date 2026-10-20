@@ -1,21 +1,20 @@
 {
     "code": "KE",
-    "notes": "Payroll statutory structure for Kenyan companies (docs/modules/payroll.md, PAY-07, PAY-08, PAY-20, PAY-21). Structure only: no figure is entered until it is confirmed from an official source with its legal reference and effective date. A value that is null is 'rate needed' and blocks payroll runs; a value that is absent does not apply (remove a value, e.g. a ceiling, to say it does not exist). Every money figure is per month in minor units of the pack currency (KES cents) as a digit string; rates are percentages as strings ('12.5' = 12.5 %). effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. rounding is {mode: half_up|down|up, unit_minor: digits} applied once to the component's result. Labels live in lang/{locale}/payroll.php (pack.*).",
-    "sources": [],
+    "notes": "Payroll statutory structure and values for Kenyan companies (docs/modules/payroll.md, PAY-07, PAY-08, PAY-20, PAY-21). Each period has a status (ResearchStatus): 'researched' values come from public research (docs/country-packs-research-2026-10.md) with their confidence (high or medium; a period takes the lowest of its values), research date and sources; they are used, and every run that uses one records it and shows the 'from public research' notice until the owner confirms the value through a pack release (ADM-04). A value that is null is 'rate needed' and blocks payroll runs; a value that is absent does not apply. Low-confidence research is never entered. Every money figure is per month in minor units of the pack currency (KES cents) as a digit string; rates are percentages as strings ('12.5' = 12.5 %). effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect (the NSSF year 3 period ends on 2026-01-31; year 4 starts on 2026-02-01). rounding is {mode: half_up|down|up, unit_minor: digits} applied once to the component's result. A deduction_limit component caps the pre-tax deductions of its category (pay items marked with that pre-tax category, plus the employee shares of the components it includes) before PAYE. Labels live in lang/{locale}/payroll.php (pack.*).",
+    "sources": [
+        "https://cmadvocates.com/blog/understanding-the-updated-nssf-contributions-in-kenya-effective-february-2026/",
+        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/",
+        "https://helloduty.com/blogs/pay-as-you-earn-paye-kra-the-ultimate-guide",
+        "https://www.ey.com/en_gl/technical/tax-alerts/kenya-gazettes-statute-law-miscellaneous-amendments-act-2024-with-several-tax-related-changes",
+        "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024"
+    ],
     "todo": [
-        "paye: the monthly PAYE bands (each band's upper limit in KES and its rate), with the Income Tax Act reference and effective date.",
-        "paye: the rounding rule of PAYE (mode and unit).",
-        "personal_relief: the monthly personal relief amount, with its reference and effective date.",
-        "insurance_relief: the insurance relief rate and its monthly cap; used only when an employee has insurance premium deductions.",
-        "nssf: the NSSF tiers (lower and upper earnings limits) with the employee and employer rates of each tier, under the NSSF Act 2013 and the phase in force on the pay date.",
-        "nssf: whether the employee's NSSF contribution reduces taxable pay, and its rounding rule.",
-        "shif: the SHIF employee rate, the minimum monthly contribution, whether there is a maximum (add employee_max_minor) and whether there is an employer share (add employer_rate).",
-        "shif: whether SHIF reduces taxable pay, and its rounding rule.",
-        "ahl: the Affordable Housing Levy employee and employer rates, whether the employee's levy reduces taxable pay (or gives a relief instead), and its rounding rule.",
-        "nita: the NITA employer levy per employee per month, and its rounding rule.",
-        "Bases: confirm that NSSF, SHIF and the housing levy are on contributory gross pay (the earnings the company marks contributory), and NITA per employee.",
+        "Confirm (accountant) every researched value, then publish it as confirmed through a pack release (ADM-04): PAYE bands, personal relief, insurance relief, the pension / post-retirement medical / mortgage interest limits, NSSF years 3 and 4, SHIF, the housing levy, NITA and the rounding rule.",
+        "insurance_relief: sources disagree on whether SHIF qualifies; SHIF is treated as a pre-tax deduction, not an insurance-relief item. Confirm.",
+        "personal_relief: applies to resident employees only; residency is not recorded yet, so every employee gets it. Confirm and add residency if needed.",
+        "nssf: litigation on the NSSF Act 2013 is noted in some sources; check the phase in force before each February.",
         "non_monthly: how the monthly figures apply to weekly and bi-weekly pay ('pro_rata' or another method); until then only monthly runs are calculated.",
-        "Other statutory deductions not modelled yet (e.g. pension relief limits, mortgage interest relief, disability exemption): confirm which apply.",
+        "Other statutory items not modelled yet (e.g. the disability exemption): confirm which apply.",
         "returns: the iTax P10 (PAYE), NSSF, SHIF (SHA), housing levy and NITA return layouts and the P9 certificate layout; until then return files are placeholders.",
         "payment_formats.mpesa_b2c_bulk: the current Safaricom bulk payment file layout (columns and their order)."
     ],
@@ -29,7 +28,45 @@
             "base": "taxable_pay",
             "required": true,
             "periods": [
-                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "bands": null, "rounding": null}
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "medium",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024",
+                        "https://helloduty.com/blogs/pay-as-you-earn-paye-kra-the-ultimate-guide",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "bands": [
+                        {
+                            "up_to_minor": "2400000",
+                            "rate": "10"
+                        },
+                        {
+                            "up_to_minor": "3233300",
+                            "rate": "25"
+                        },
+                        {
+                            "up_to_minor": "50000000",
+                            "rate": "30"
+                        },
+                        {
+                            "up_to_minor": "80000000",
+                            "rate": "32.5"
+                        },
+                        {
+                            "up_to_minor": null,
+                            "rate": "35"
+                        }
+                    ],
+                    "rounding": {
+                        "mode": "half_up",
+                        "unit_minor": "1"
+                    }
+                }
             ]
         },
         {
@@ -39,7 +76,20 @@
             "applies_to": "paye",
             "required": true,
             "periods": [
-                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "amount_minor": null}
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "high",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024",
+                        "https://helloduty.com/blogs/pay-as-you-earn-paye-kra-the-ultimate-guide",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "amount_minor": "240000"
+                }
             ]
         },
         {
@@ -51,7 +101,97 @@
             "when": "insurance_premiums",
             "required": false,
             "periods": [
-                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "rate": null, "cap_minor": null}
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "medium",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024",
+                        "https://helloduty.com/blogs/pay-as-you-earn-paye-kra-the-ultimate-guide"
+                    ],
+                    "needs_confirmation": false,
+                    "rate": "15",
+                    "cap_minor": "500000"
+                }
+            ]
+        },
+        {
+            "code": "pension_deduction",
+            "kind": "deduction_limit",
+            "method": "deduction_cap",
+            "category": "pension",
+            "includes": [
+                "nssf"
+            ],
+            "applies_to": "paye",
+            "when": "pension",
+            "required": false,
+            "periods": [
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "high",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "cap_minor": "3000000"
+                }
+            ]
+        },
+        {
+            "code": "post_retirement_medical_deduction",
+            "kind": "deduction_limit",
+            "method": "deduction_cap",
+            "category": "post_retirement_medical",
+            "includes": [],
+            "applies_to": "paye",
+            "when": "post_retirement_medical",
+            "required": false,
+            "periods": [
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "high",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "cap_minor": "1500000"
+                }
+            ]
+        },
+        {
+            "code": "mortgage_interest_deduction",
+            "kind": "deduction_limit",
+            "method": "deduction_cap",
+            "category": "mortgage_interest",
+            "includes": [],
+            "applies_to": "paye",
+            "when": "mortgage_interest",
+            "required": false,
+            "periods": [
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "high",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "cap_minor": "3000000"
+                }
             ]
         },
         {
@@ -61,7 +201,64 @@
             "base": "contributory_gross",
             "required": true,
             "periods": [
-                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "tiers": null, "reduces_taxable": null, "rounding": null}
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": "2026-01-31",
+                    "status": "researched",
+                    "confidence": "medium",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://cmadvocates.com/blog/understanding-the-updated-nssf-contributions-in-kenya-effective-february-2026/",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "tiers": [
+                        {
+                            "up_to_minor": "800000",
+                            "employee_rate": "6",
+                            "employer_rate": "6"
+                        },
+                        {
+                            "up_to_minor": "7200000",
+                            "employee_rate": "6",
+                            "employer_rate": "6"
+                        }
+                    ],
+                    "reduces_taxable": true,
+                    "rounding": {
+                        "mode": "half_up",
+                        "unit_minor": "1"
+                    }
+                },
+                {
+                    "effective_from": "2026-02-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "medium",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://cmadvocates.com/blog/understanding-the-updated-nssf-contributions-in-kenya-effective-february-2026/",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "tiers": [
+                        {
+                            "up_to_minor": "900000",
+                            "employee_rate": "6",
+                            "employer_rate": "6"
+                        },
+                        {
+                            "up_to_minor": "10800000",
+                            "employee_rate": "6",
+                            "employer_rate": "6"
+                        }
+                    ],
+                    "reduces_taxable": true,
+                    "rounding": {
+                        "mode": "half_up",
+                        "unit_minor": "1"
+                    }
+                }
             ]
         },
         {
@@ -71,7 +268,25 @@
             "base": "contributory_gross",
             "required": true,
             "periods": [
-                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employee_rate": null, "employee_min_minor": null, "reduces_taxable": null, "rounding": null}
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "medium",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "employee_rate": "2.75",
+                    "employee_min_minor": "30000",
+                    "reduces_taxable": true,
+                    "rounding": {
+                        "mode": "half_up",
+                        "unit_minor": "1"
+                    }
+                }
             ]
         },
         {
@@ -81,7 +296,25 @@
             "base": "contributory_gross",
             "required": true,
             "periods": [
-                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employee_rate": null, "employer_rate": null, "reduces_taxable": null, "rounding": null}
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "medium",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "employee_rate": "1.5",
+                    "employer_rate": "1.5",
+                    "reduces_taxable": true,
+                    "rounding": {
+                        "mode": "half_up",
+                        "unit_minor": "1"
+                    }
+                }
             ]
         },
         {
@@ -91,19 +324,110 @@
             "base": "gross",
             "required": true,
             "periods": [
-                {"effective_from": "2026-01-01", "effective_to": null, "needs_confirmation": true, "employer_minor": null, "rounding": null}
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "medium",
+                    "researched_on": "2026-10-17",
+                    "source": [
+                        "https://www.ey.com/en_gl/technical/tax-alerts/kenya-gazettes-statute-law-miscellaneous-amendments-act-2024-with-several-tax-related-changes",
+                        "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
+                    ],
+                    "needs_confirmation": false,
+                    "employer_minor": "5000",
+                    "rounding": {
+                        "mode": "half_up",
+                        "unit_minor": "1"
+                    }
+                }
             ]
         }
     ],
     "returns": [
-        {"key": "paye", "period": "month", "components": ["paye"], "identifiers": ["kra_pin"], "layout": null, "needs_confirmation": true},
-        {"key": "nssf", "period": "month", "components": ["nssf"], "identifiers": ["national_id", "kra_pin"], "layout": null, "needs_confirmation": true},
-        {"key": "shif", "period": "month", "components": ["shif"], "identifiers": ["national_id", "kra_pin"], "layout": null, "needs_confirmation": true},
-        {"key": "ahl", "period": "month", "components": ["ahl"], "identifiers": ["national_id", "kra_pin"], "layout": null, "needs_confirmation": true},
-        {"key": "nita", "period": "month", "components": ["nita"], "identifiers": [], "layout": null, "needs_confirmation": true},
-        {"key": "p9", "period": "year", "components": ["paye", "personal_relief", "insurance_relief", "nssf", "shif", "ahl"], "identifiers": ["kra_pin"], "layout": null, "needs_confirmation": true}
+        {
+            "key": "paye",
+            "period": "month",
+            "components": [
+                "paye"
+            ],
+            "identifiers": [
+                "kra_pin"
+            ],
+            "layout": null,
+            "needs_confirmation": true
+        },
+        {
+            "key": "nssf",
+            "period": "month",
+            "components": [
+                "nssf"
+            ],
+            "identifiers": [
+                "national_id",
+                "kra_pin"
+            ],
+            "layout": null,
+            "needs_confirmation": true
+        },
+        {
+            "key": "shif",
+            "period": "month",
+            "components": [
+                "shif"
+            ],
+            "identifiers": [
+                "national_id",
+                "kra_pin"
+            ],
+            "layout": null,
+            "needs_confirmation": true
+        },
+        {
+            "key": "ahl",
+            "period": "month",
+            "components": [
+                "ahl"
+            ],
+            "identifiers": [
+                "national_id",
+                "kra_pin"
+            ],
+            "layout": null,
+            "needs_confirmation": true
+        },
+        {
+            "key": "nita",
+            "period": "month",
+            "components": [
+                "nita"
+            ],
+            "identifiers": [],
+            "layout": null,
+            "needs_confirmation": true
+        },
+        {
+            "key": "p9",
+            "period": "year",
+            "components": [
+                "paye",
+                "personal_relief",
+                "insurance_relief",
+                "nssf",
+                "shif",
+                "ahl"
+            ],
+            "identifiers": [
+                "kra_pin"
+            ],
+            "layout": null,
+            "needs_confirmation": true
+        }
     ],
     "payment_formats": {
-        "mpesa_b2c_bulk": {"columns": null, "needs_confirmation": true}
+        "mpesa_b2c_bulk": {
+            "columns": null,
+            "needs_confirmation": true
+        }
     }
 }

@@ -73,10 +73,10 @@ class StatutoryEngineTest extends TestCase
         // Tiers: 25 000 + 36 728.35 = 61 728.35, to whole hundreds.
         $this->assertSame('61700', $this->compute(FixturePacks::ke(), $input)['by']['nssf']['employee_minor']);
 
-        $pack = FixturePacks::ke(['nssf' => ['tiers' => FixturePacks::ke()['components'][3]['periods'][0]['tiers'], 'reduces_taxable' => true, 'rounding' => ['mode' => 'up', 'unit_minor' => '100']]]);
+        $pack = FixturePacks::ke(['nssf' => ['tiers' => collect(FixturePacks::ke()['components'])->firstWhere('code', 'nssf')['periods'][0]['tiers'], 'reduces_taxable' => true, 'rounding' => ['mode' => 'up', 'unit_minor' => '100']]]);
         $this->assertSame('61800', $this->compute($pack, $input)['by']['nssf']['employee_minor']);
 
-        $pack = FixturePacks::ke(['nssf' => ['tiers' => FixturePacks::ke()['components'][3]['periods'][0]['tiers'], 'reduces_taxable' => true, 'rounding' => ['mode' => 'down', 'unit_minor' => '1']]]);
+        $pack = FixturePacks::ke(['nssf' => ['tiers' => collect(FixturePacks::ke()['components'])->firstWhere('code', 'nssf')['periods'][0]['tiers'], 'reduces_taxable' => true, 'rounding' => ['mode' => 'down', 'unit_minor' => '1']]]);
         $this->assertSame('61728', $this->compute($pack, $input)['by']['nssf']['employee_minor']);
     }
 
@@ -95,7 +95,8 @@ class StatutoryEngineTest extends TestCase
         $this->assertSame('100000', $by['cnss_family']['employer_minor']);
         // INPP: headcount 10 is in the first bracket (2 %), on gross with the allowance.
         $this->assertSame('40600', $by['inpp']['employer_minor']);
-        $this->assertSame('10150', $by['onem']['employer_minor']);
+        // ONEM on the taxable base (the allowance is not taxable in the fixture): 2 000 000 × 0.5 %.
+        $this->assertSame('10000', $by['onem']['employer_minor']);
         // IPR: 0 + 135 000 + 276 000 = 411 000, less 2 × 2 % = 394 560 (below the 25 % cap).
         $this->assertSame('1920000', $r['result']->taxablePay);
         $this->assertSame('394560', $by['ipr']['employee_minor']);
@@ -116,28 +117,39 @@ class StatutoryEngineTest extends TestCase
         $this->assertSame('1154', $r['by']['nita']['employer_minor']);
     }
 
-    public function test_shipped_packs_have_every_value_missing_and_block_runs(): void
+    public function test_shipped_packs_are_researched_or_still_block(): void
     {
-        foreach (['KE', 'CD'] as $country) {
+        $on = CarbonImmutable::parse('2026-10-31');
+        $all = ['insurance_premiums' => true, 'dependants' => true, 'children' => true, 'pension' => true, 'post_retirement_medical' => true, 'mortgage_interest' => true];
+
+        // CP-01: KE is complete from researched values; CD still lacks the low-confidence INPP and the family allowance
+        // (dependants are left out while unconfirmed, never blocking).
+        foreach (['KE' => [], 'CD' => ['inpp', 'family_allowance']] as $country => $expected) {
             $pack = app(PayrollPack::class)->of($country);
             $this->assertNotNull($pack);
-            $missing = MissingValues::check($pack, CarbonImmutable::parse('2026-10-31'), 'monthly', ['insurance_premiums' => true, 'dependants' => true, 'children' => true]);
-            $components = array_column($missing, 'component');
-            $expected = array_column($pack['components'], 'code');
-            $this->assertSame($expected, $components, "{$country}: every component is missing values");
+            $missing = MissingValues::check($pack, $on, 'monthly', $all);
+            $this->assertSame($expected, array_column($missing, 'component'), "{$country}: what still blocks runs");
 
             foreach ($missing as $m) {
                 $this->assertContains('needs_confirmation', $m['fields']);
             }
 
-            // Nothing is shipped: every value of every period is null.
+            // Every entered value is researched (with sources) or confirmed; an unconfirmed period ships no figure.
             foreach ($pack['components'] as $component) {
                 foreach ($component['periods'] as $period) {
-                    foreach ($period as $key => $value) {
-                        if (! in_array($key, ['effective_from', 'effective_to', 'needs_confirmation'], true)) {
-                            $this->assertNull($value, "{$country} {$component['code']}.{$key} ships a value");
+                    if ($period['needs_confirmation']) {
+                        foreach ($period as $key => $value) {
+                            if (! in_array($key, ['effective_from', 'effective_to', 'needs_confirmation', 'confidence', 'source'], true)) {
+                                $this->assertNull($value, "{$country} {$component['code']}.{$key} ships an unconfirmed value");
+                            }
                         }
+
+                        continue;
                     }
+
+                    $this->assertSame('researched', $period['status'], "{$country} {$component['code']}");
+                    $this->assertContains($period['confidence'], ['high', 'medium']);
+                    $this->assertNotEmpty($period['source']);
                 }
             }
 

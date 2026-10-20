@@ -14,9 +14,10 @@ use InvalidArgumentException;
  *
  * Order: allowances (added to gross) → contributions and levies on their
  * base → taxable pay (taxable gross − pre-tax deductions − employee
- * contributions that reduce taxable pay) → income tax by bands → the
- * reduction per dependant → the `max_rate` cap → fixed and rate reliefs →
- * floored at zero. Every component is computed exactly and rounded once,
+ * contributions that reduce taxable pay, + what exceeds a category's
+ * deduction limit) → income tax by bands → the reduction per dependant →
+ * the `max_rate` cap → the `min_minor` minimum (on positive taxable pay,
+ * at most that pay) → fixed and rate reliefs → floored at zero. Every component is computed exactly and rounded once,
  * by its own pack rounding rule. A conditional component (`when`) whose
  * condition is not met is skipped.
  *
@@ -40,7 +41,13 @@ final class StatutoryEngine
             'insurance_premiums' => BigDecimal::of($input->insurancePremiums),
         ];
         $conditions = ['insurance_premiums' => $bases['insurance_premiums']->isPositive(), 'dependants' => $input->dependants > 0, 'children' => $input->children > 0];
-        $active = array_values(array_filter($components, fn (array $c) => $c['values'] !== null && ($c['when'] === null || ($conditions[$c['when']] ?? false))));
+
+        foreach ($input->preTaxByCategory as $category => $minor) {
+            $conditions[$category] = BigDecimal::of($minor)->isPositive();
+        }
+
+        // CP-01: a component left out while unconfirmed (`unconfirmed: not_applied`) never computes.
+        $active = array_values(array_filter($components, fn (array $c) => $c['values'] !== null && ! PayrollPack::notApplied($c) && ($c['when'] === null || ($conditions[$c['when']] ?? false))));
         $results = [];
 
         // 1. Statutory allowances, paid to the employee.
@@ -66,6 +73,7 @@ final class StatutoryEngine
 
         // 2. Contributions and levies.
         $deductible = BigDecimal::zero();
+        $deducted = [];
 
         foreach ($active as $c) {
             if (! in_array($c['kind'], ['contribution', 'levy'], true)) {
@@ -78,13 +86,35 @@ final class StatutoryEngine
 
             if (($c['values']['reduces_taxable'] ?? false) === true) {
                 $deductible = $deductible->plus($employee);
+                $deducted[$c['code']] = $employee;
             }
 
             $results[] = self::result($c, (string) $base->toScale(0, RoundingMode::HalfUp), (string) $employee, (string) $employer, $trace);
         }
 
-        // 3. Taxable pay.
-        $taxable = BigDecimal::max($bases['taxable_gross']->minus($input->preTax)->minus($deductible), 0);
+        // 3. Taxable pay, with the limits of pre-tax deductions by category (KE: pension with NSSF 30,000,
+        //    post-retirement medical fund 15,000, mortgage interest 30,000 a month): the excess is not deducted.
+        $limits = [];
+        $excess = BigDecimal::zero();
+
+        foreach ($active as $c) {
+            if ($c['kind'] !== 'deduction_limit') {
+                continue;
+            }
+
+            $claimed = BigDecimal::of($input->preTaxByCategory[$c['category']] ?? '0');
+
+            foreach ($c['includes'] ?? [] as $code) {
+                $claimed = $claimed->plus($deducted[$code] ?? BigDecimal::zero());
+            }
+
+            $cap = BigDecimal::of($c['values']['cap_minor'])->multipliedBy($scale);
+            $over = BigDecimal::max($claimed->minus($cap), 0);
+            $excess = $excess->plus($over);
+            $limits[] = ['code' => $c['code'], 'claimed_minor' => (string) $claimed->toScale(0, RoundingMode::HalfUp), 'cap_minor' => (string) $cap->toScale(0, RoundingMode::HalfUp), 'not_deducted_minor' => (string) $over->toScale(0, RoundingMode::HalfUp)];
+        }
+
+        $taxable = BigDecimal::max($bases['taxable_gross']->minus($input->preTax)->minus($deductible)->plus($excess), 0);
         $bases['taxable_pay'] = $taxable;
 
         // 4. Income tax, its reductions, cap and reliefs.
@@ -95,7 +125,7 @@ final class StatutoryEngine
 
             $base = $bases[$c['base'] ?? 'taxable_pay'] ?? throw new InvalidArgumentException("Unknown base [{$c['base']}] of [{$c['code']}].");
             $tax = self::bands($c['values']['bands'], $base, $scale);
-            $trace = ['bands_minor' => (string) $tax->toScale(2, RoundingMode::HalfUp)];
+            $trace = ['bands_minor' => (string) $tax->toScale(2, RoundingMode::HalfUp), ...($limits === [] ? [] : ['limits' => $limits])];
             $reliefs = [];
 
             foreach ($active as $r) {
@@ -113,6 +143,16 @@ final class StatutoryEngine
                 if ($tax->isGreaterThan($cap)) {
                     $trace['capped_minor'] = (string) $cap->toScale(2, RoundingMode::HalfUp);
                     $tax = $cap;
+                }
+            }
+
+            // CD: a minimum tax on positive taxable pay, never more than the taxable pay itself.
+            if (isset($c['values']['min_minor']) && $base->isPositive()) {
+                $minimum = BigDecimal::min(BigDecimal::of($c['values']['min_minor'])->multipliedBy($scale), $base);
+
+                if ($tax->isLessThan($minimum)) {
+                    $trace['minimum_minor'] = (string) $minimum->toScale(2, RoundingMode::HalfUp);
+                    $tax = $minimum;
                 }
             }
 

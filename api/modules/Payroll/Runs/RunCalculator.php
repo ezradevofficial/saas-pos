@@ -109,10 +109,16 @@ class RunCalculator
                 $used['insurance_premiums'] = $used['insurance_premiums'] || $p['insurance_minor'] > 0;
                 $used['dependants'] = $used['dependants'] || $employees[$id]->dependants > 0;
                 $used['children'] = $used['children'] || $employees[$id]->children > 0;
+
+                foreach ($p['pre_tax_by_category'] as $category => $minor) {
+                    $used[$category] = ($used[$category] ?? false) || BigInteger::of($minor)->isPositive();
+                }
             }
         }
 
-        $missing = array_filter($prepared) === [] ? [] : MissingValues::check($pack, $run->pay_date, $group->frequency, $used);
+        // CP-01: components the company marked not applicable (audited, payroll settings).
+        $notApplicable = (array) ($context->settings?->not_applicable ?? []);
+        $missing = array_filter($prepared) === [] ? [] : MissingValues::check($pack, $run->pay_date, $group->frequency, $used, array_keys($notApplicable));
 
         if ($missing !== []) {
             $run->fill(['missing' => $missing])->save();
@@ -120,7 +126,8 @@ class RunCalculator
             throw Errors::make(422, 'statutory_rates_missing', ['country' => (string) $company->country, 'missing' => MissingValues::describe($missing)], extra: ['missing' => $missing]);
         }
 
-        $components = PayrollPack::inForce($pack, $run->pay_date);
+        $inForce = PayrollPack::inForce($pack, $run->pay_date);
+        $components = PayrollPack::applicable($inForce, array_keys($notApplicable));
         $headcount = $this->headcount($company->id, $run->period_end);
         $lines = [];
 
@@ -147,6 +154,8 @@ class RunCalculator
         // Review fix 5: what the run was calculated from (the pack's source and hash); decisions 29, 33, 40: what the reviewer should know.
         $run->fill(['missing' => null, 'totals' => $this->totals($run, $lines, $previous, $employees), 'inputs' => [
             'pack' => $this->packs->source($company->country),
+            // CP-01: researched values used, components left out while unconfirmed, and those marked not applicable.
+            'statutory' => PayrollPack::notices($inForce, $used, $notApplicable),
             'review' => $this->review($run, $group, $previous),
         ]])->save();
     }
@@ -541,7 +550,7 @@ class RunCalculator
             if ($item->kind === Item::EARNING) {
                 $earnings[] = [...$row, 'taxable' => $item->taxable, 'contributory' => $item->contributory];
             } else {
-                $deductions[] = [...$row, 'pre_tax' => $item->pre_tax, 'insurance_premium' => $item->insurance_premium];
+                $deductions[] = [...$row, 'pre_tax' => $item->pre_tax, 'insurance_premium' => $item->insurance_premium, 'pre_tax_category' => $item->pre_tax ? $item->pre_tax_category : null];
             }
         }
 
@@ -582,6 +591,7 @@ class RunCalculator
             'contributory_minor' => $sum($earnings, 'contributory'),
             'pre_tax_minor' => $sum($deductions, 'pre_tax'),
             'insurance_minor' => (int) $sum($deductions, 'insurance_premium'),
+            'pre_tax_by_category' => self::byCategory($deductions),
             'fx' => $fx,
             'errors' => $errors,
             'warnings' => $warnings,
@@ -616,6 +626,7 @@ class RunCalculator
             basic: $in($p['basic_minor']),
             preTax: $in($p['pre_tax_minor']),
             insurancePremiums: $in((string) $p['insurance_minor']),
+            preTaxByCategory: array_map($in, $p['pre_tax_by_category']),
             dependants: $employee->dependants,
             children: $employee->children,
             headcount: $headcount,
@@ -841,6 +852,26 @@ class RunCalculator
     }
 
     /** Rows with the same $key summed (amounts as digit strings). */
+    /**
+     * PAY-07: pre-tax deductions by statutory category (the pack limits each).
+     *
+     * @return array<string, string>
+     */
+    private static function byCategory(array $deductions): array
+    {
+        $byCategory = [];
+
+        foreach ($deductions as $row) {
+            if (($row['pre_tax'] ?? false) && ($row['pre_tax_category'] ?? null) !== null) {
+                $byCategory[$row['pre_tax_category']] = (string) BigInteger::of($byCategory[$row['pre_tax_category']] ?? '0')->plus($row['amount_minor']);
+            }
+        }
+
+        ksort($byCategory);
+
+        return $byCategory;
+    }
+
     private static function merge(array $rows, string $key): array
     {
         $merged = [];

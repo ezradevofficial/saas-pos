@@ -17,6 +17,8 @@ return [
         'pay_group_other_company' => 'Choisissez un groupe de paie de la société de l’employé.',
         'item_other_company' => 'Choisissez une rubrique de la société de l’employé.',
         'item_flag_kind' => 'Le réglage :flag ne s’applique pas à ce type de rubrique. Laissez-le désactivé.',
+        'pre_tax_category_needs_pre_tax' => 'Une catégorie avant impôt ne s’applique qu’à une retenue prise avant l’impôt. Activez « Avant impôt » ou retirez la catégorie.',
+        'component_always_applies' => ':component ne peut pas être marqué non applicable : toutes les entreprises de ce pays en sont redevables.',
         'item_paid' => 'Cette rubrique ponctuelle a été payée par une paie comptabilisée et ne peut plus changer. Ajoutez-en une nouvelle.',
         'currency_mismatch' => 'Utilisez la devise de paie de l’employé.',
         'instalment_above_principal' => 'La mensualité ne peut pas dépasser le montant prêté.',
@@ -148,6 +150,9 @@ return [
             'inpp' => 'INPP',
             'onem' => 'ONEM',
             'family_allowance' => 'Allocations familiales',
+            'pension_deduction' => 'Plafond de déduction retraite et NSSF',
+            'post_retirement_medical_deduction' => 'Plafond de déduction du fonds médical de retraite',
+            'mortgage_interest_deduction' => 'Plafond de déduction des intérêts hypothécaires',
         ],
         'fields' => [
             'period' => 'aucune période en vigueur',
@@ -174,6 +179,8 @@ return [
             'max_dependants' => 'nombre maximal de personnes à charge',
             'taxable' => 'imposabilité',
             'contributory' => 'assujettissement aux cotisations',
+            'min_minor' => 'impôt minimum',
+            'category' => 'catégorie avant impôt',
         ],
         'returns' => [
             'paye' => 'Déclaration PAYE (P10)',

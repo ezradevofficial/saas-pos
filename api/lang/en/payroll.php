@@ -16,6 +16,8 @@ return [
         'pay_group_other_company' => 'Choose a pay group of the employee’s company.',
         'item_other_company' => 'Choose a pay item of the employee’s company.',
         'item_flag_kind' => 'The setting :flag doesn’t apply to this kind of item. Leave it off.',
+        'pre_tax_category_needs_pre_tax' => 'A pre-tax category applies only to a deduction taken before tax. Turn on "Before tax" or clear the category.',
+        'component_always_applies' => ':component can’t be marked not applicable: every company of this country owes it.',
         'item_paid' => 'This one-off item was paid by a posted run, so it can’t change. Add a new item instead.',
         'currency_mismatch' => 'Use the employee’s pay currency.',
         'instalment_above_principal' => 'The instalment can’t be more than the amount lent.',
@@ -147,6 +149,9 @@ return [
             'inpp' => 'INPP',
             'onem' => 'ONEM',
             'family_allowance' => 'Family allowance',
+            'pension_deduction' => 'Pension and NSSF deduction limit',
+            'post_retirement_medical_deduction' => 'Post-retirement medical fund deduction limit',
+            'mortgage_interest_deduction' => 'Mortgage interest deduction limit',
         ],
         'fields' => [
             'period' => 'no period in force',
@@ -173,6 +178,8 @@ return [
             'max_dependants' => 'maximum dependants',
             'taxable' => 'whether it is taxable',
             'contributory' => 'whether contributions apply',
+            'min_minor' => 'minimum tax',
+            'category' => 'pre-tax category',
         ],
         'returns' => [
             'paye' => 'PAYE return (P10)',

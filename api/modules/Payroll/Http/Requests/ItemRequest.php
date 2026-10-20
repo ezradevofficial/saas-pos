@@ -25,6 +25,7 @@ class ItemRequest extends PayrollRequest
             'contributory' => ['sometimes', 'boolean'],
             'pre_tax' => ['sometimes', 'boolean'],
             'insurance_premium' => ['sometimes', 'boolean'],
+            'pre_tax_category' => ['sometimes', 'nullable', 'string', Rule::in(Item::PRE_TAX_CATEGORIES)],
         ];
     }
 

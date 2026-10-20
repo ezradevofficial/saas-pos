@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $contributory
  * @property bool $pre_tax
  * @property bool $insurance_premium
+ * @property ?string $pre_tax_category the pack limit that applies to a pre-tax deduction (PRE_TAX_CATEGORIES)
  */
 class Item extends Model implements HasScope
 {
@@ -33,6 +34,9 @@ class Item extends Model implements HasScope
     public const EARNING = 'earning';
 
     public const DEDUCTION = 'deduction';
+
+    /** PAY-07: statutory categories of pre-tax deductions whose limits the pack sets (KE). */
+    public const PRE_TAX_CATEGORIES = ['pension', 'post_retirement_medical', 'mortgage_interest'];
 
     protected $table = 'payroll_items';
 
