@@ -73,18 +73,24 @@ trait BuildsUsageLimits
     }
 
     /**
-     * Three active devices against an allowance of two, metered at 06:00 on
-     * 2026-10-12, then 7 days later: adding devices is refused from now on.
+     * Three active devices against an allowance of two, metered 7 days ago,
+     * then now: adding devices is refused from now on (LIM-03).
+     *
+     * The window ends at the real time, not at a fixed date: pairing codes
+     * are checked against the database clock (auth_tenant_for_pairing), which
+     * travelTo cannot move, so a code issued at a travelled time in the past
+     * would already have expired there (TEN-05).
      *
      * @return list<Device>
      */
     protected function blockDevices(): array
     {
-        $this->travelTo(CarbonImmutable::parse('2026-10-12T06:00:00Z'));
+        $now = CarbonImmutable::now()->startOfSecond();
+        $this->travelTo($now->subDays(7));
         $this->allow([Units::DEVICE => 2]);
         $devices = $this->devices(3);
         $this->meter();
-        $this->travelTo(CarbonImmutable::parse('2026-10-19T06:00:00Z'));
+        $this->travelTo($now);
         $this->meter();
 
         return $devices;
