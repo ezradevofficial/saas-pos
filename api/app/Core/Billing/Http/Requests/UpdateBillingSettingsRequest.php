@@ -8,7 +8,7 @@ use App\Core\Platform\Http\Requests\PlatformRequest;
 /** SUB-05, ONB-04: the platform's grace period, POS window and trial length (owner, billing). */
 class UpdateBillingSettingsRequest extends PlatformRequest
 {
-    protected ?string $ability = 'billing.manage';
+    protected ?string $ability = 'platform.billing.manage';
 
     public function rules(): array
     {

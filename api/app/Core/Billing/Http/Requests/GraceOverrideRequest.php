@@ -7,7 +7,7 @@ use App\Core\Platform\Http\Requests\PlatformRequest;
 /** SUB-05: staff (owner, billing) give one tenant its own grace period in days, or null for the platform's. */
 class GraceOverrideRequest extends PlatformRequest
 {
-    protected ?string $ability = 'billing.manage';
+    protected ?string $ability = 'platform.billing.manage';
 
     public function rules(): array
     {

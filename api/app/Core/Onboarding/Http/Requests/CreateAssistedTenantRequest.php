@@ -18,7 +18,7 @@ use Illuminate\Validation\Rule;
  */
 class CreateAssistedTenantRequest extends PlatformRequest
 {
-    protected ?string $ability = 'tenants.create';
+    protected ?string $ability = 'platform.tenants.create';
 
     protected function prepareForValidation(): void
     {

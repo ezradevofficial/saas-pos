@@ -2,6 +2,7 @@
 
 namespace Modules\FixedAssets;
 
+use App\Core\CountryPacks\PackSchemas;
 use App\Core\Currency\CurrencyUsage;
 use App\Core\CustomFields\CustomFieldEntities;
 use App\Core\DocumentTemplates\DataSources;
@@ -40,6 +41,7 @@ use Modules\FixedAssets\Models\ItemCategory;
 use Modules\FixedAssets\Postings\Postings;
 use Modules\FixedAssets\Support\FaError;
 use Modules\FixedAssets\Support\Numbers;
+use Modules\FixedAssets\TaxBook\FixedAssetsPackSchema;
 use Modules\FixedAssets\TaxBook\TaxClasses;
 use Modules\Procurement\Events\GoodsReceiptCancelled;
 use Modules\Procurement\Events\GoodsReceiptPosted;
@@ -107,6 +109,8 @@ class FixedAssetsServiceProvider extends ServiceProvider
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // ADM-04b: the fixed assets pack release schema (ADR 022).
+        FixedAssetsPackSchema::register($this->app->make(PackSchemas::class));
         // ACC-29: what the module raised to the ledger, raised again for the Accounting backfill.
         $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(Postings::class)->replay($from, $to, $emit));
 

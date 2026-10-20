@@ -3,6 +3,7 @@
 namespace App\Core\DocumentTemplates;
 
 use App\Core\Configuration\Models\ConfigDocument;
+use App\Core\CountryPacks\PackDocuments;
 use App\Core\CountryPacks\PackFile;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
@@ -33,7 +34,9 @@ class FiscalRules
 
         if (! array_key_exists($country, $this->packs)) {
             try {
-                $this->packs[$country] = PackFile::read(PackFile::path($country))->fiscalDocuments();
+                // ADM-04d (ADR 022): a published tax release in force replaces the shipped file.
+                $content = app(PackDocuments::class)->content($country, 'tax');
+                $this->packs[$country] = ($content === null ? PackFile::read(PackFile::path($country)) : PackFile::fromArray($content))->fiscalDocuments();
             } catch (InvalidArgumentException) {
                 $this->packs[$country] = null;
             }

@@ -150,4 +150,13 @@ return [
             'sms' => '{app_name}: payment of {amount} received for invoice {number}.',
         ],
     ],
+    // ADM-02: custom Enterprise deals.
+    'deals' => [
+        'unknown_item' => 'This module or bundle isn’t in the catalogue. Pick one the catalogue sells.',
+        'duplicate_line' => 'This item is in the deal twice. Keep one line per item.',
+        'overlaps' => 'Another approved deal covers some of these dates. End it first, or change the dates.',
+        'not_pending' => 'This deal was already decided.',
+        'not_approved' => 'Only an approved deal can be ended.',
+        'own_draft' => 'You drafted this deal, so someone else in finance must approve or reject it.',
+    ],
 ];

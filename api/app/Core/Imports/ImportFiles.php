@@ -2,11 +2,11 @@
 
 namespace App\Core\Imports;
 
+use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use RuntimeException;
 
 /**
@@ -103,6 +103,6 @@ class ImportFiles
             ]);
         }
 
-        return URL::temporarySignedRoute('imports.file', $expires, ['path' => $path, 'user' => $user->id]);
+        return SignedUrls::temporary('imports.file', $expires, ['path' => $path, 'user' => $user->id]);
     }
 }

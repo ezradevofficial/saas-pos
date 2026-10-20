@@ -24,5 +24,7 @@ final class BundleOffer
         public readonly ?int $extraOutletAmount = null,
         public readonly int $includedOutlets = 1,
         public readonly ?string $priceId = null,
+        // ADM-02: priced by the tenant's Enterprise deal (a quoted bundle becomes priced).
+        public readonly bool $deal = false,
     ) {}
 }
