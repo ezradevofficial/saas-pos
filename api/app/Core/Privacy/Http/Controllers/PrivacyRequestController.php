@@ -31,8 +31,16 @@ class PrivacyRequestController
             })
             ->orderBy('due_at')->orderBy('id')->limit(200)->get();
 
+        // One query per subject type for the names, never one per row (NFR-02).
+        $names = [];
+        foreach ($items->groupBy('subject_type') as $type => $group) {
+            if (in_array($type, $this->requests->subjects()->types(), true)) {
+                $names += app(SubjectData::class)->displayMany((string) $type, $group->pluck('subject_id')->all());
+            }
+        }
+
         return response()->json([
-            'data' => $items->map(fn (PrivacyRequest $r) => $this->requests->present($r, $request->user()))->values(),
+            'data' => $items->map(fn (PrivacyRequest $r) => $this->requests->present($r, $request->user(), $names))->values(),
             'meta' => ['subject_types' => $this->requests->subjects()->types(), 'correctable' => $this->correctable()],
         ]);
     }

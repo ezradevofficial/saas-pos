@@ -56,6 +56,26 @@ class SubjectData
         return $row === null ? null : trim(implode(' ', array_filter(array_map('strval', (array) $row))));
     }
 
+    /**
+     * Display names of many subjects of one type, in one query (lists).
+     *
+     * @param  list<string>  $ids
+     * @return array<string, string>
+     */
+    public function displayMany(string $type, array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $primary = $this->subjects->primary($type);
+        $columns = array_values(array_unique([$primary->match, ...($primary->display ?: ['id'])]));
+
+        return $this->db()->table($primary->table)->whereIn($primary->match, array_values(array_unique($ids)))->get($columns)
+            ->mapWithKeys(fn ($row) => [(string) $row->{$primary->match} => trim(implode(' ', array_filter(array_map(fn ($c) => (string) ($row->{$c} ?? ''), $primary->display ?: ['id']))))])
+            ->all();
+    }
+
     /** The subject's company's country (deadlines), or null. */
     public function country(string $type, string $id): ?string
     {

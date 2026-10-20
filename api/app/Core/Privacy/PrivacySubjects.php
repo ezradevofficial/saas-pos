@@ -17,6 +17,14 @@ class PrivacySubjects
     /** @var array<string, list<SubjectSource>> */
     private array $sources = [];
 
+    /** @var array<string, bool> tables installed, read once per process */
+    private array $installed = [];
+
+    private function installed(string $table): bool
+    {
+        return $this->installed[$table] ??= Schema::hasTable($table);
+    }
+
     public function register(SubjectSource $source): void
     {
         if ($source->primary && $this->primaryOrNull($source->subjectType) !== null) {
@@ -40,7 +48,7 @@ class PrivacySubjects
     /** @return list<SubjectSource> installed sources, the primary first */
     public function sources(string $type): array
     {
-        $sources = array_values(array_filter($this->sources[$type] ?? [], fn (SubjectSource $s) => Schema::hasTable($s->table)));
+        $sources = array_values(array_filter($this->sources[$type] ?? [], fn (SubjectSource $s) => $this->installed($s->table)));
         usort($sources, fn (SubjectSource $a, SubjectSource $b) => $b->primary <=> $a->primary);
 
         return $sources;
@@ -49,7 +57,7 @@ class PrivacySubjects
     private function primaryOrNull(string $type): ?SubjectSource
     {
         foreach ($this->sources[$type] ?? [] as $source) {
-            if ($source->primary && Schema::hasTable($source->table)) {
+            if ($source->primary && $this->installed($source->table)) {
                 return $source;
             }
         }

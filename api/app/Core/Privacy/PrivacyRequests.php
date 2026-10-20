@@ -180,14 +180,17 @@ class PrivacyRequests
         }
     }
 
-    /** @return array<string, mixed> */
-    public function present(PrivacyRequest $request, User $viewer): array
+    /**
+     * @param  array<string, string>|null  $names  subject names by id, prefetched for a list (SubjectData::displayMany)
+     * @return array<string, mixed>
+     */
+    public function present(PrivacyRequest $request, User $viewer, ?array $names = null): array
     {
         return [
             'id' => $request->id,
             'subject_type' => $request->subject_type,
             'subject_id' => $request->subject_id,
-            'subject_name' => $request->result['label'] ?? $this->data->display($request->subject_type, $request->subject_id),
+            'subject_name' => $request->result['label'] ?? ($names !== null ? ($names[$request->subject_id] ?? null) : $this->data->display($request->subject_type, $request->subject_id)),
             'kind' => $request->kind,
             'status' => $request->status,
             'note' => $request->note,
