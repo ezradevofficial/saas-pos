@@ -81,6 +81,7 @@ return [
                 'tenant' => 'Full data export',
                 'subscription' => 'Subscription and billing',
                 'support_access' => 'Support access',
+                'webhook' => 'Webhooks',
             ],
             'pos' => [
                 'sale' => 'Sales',

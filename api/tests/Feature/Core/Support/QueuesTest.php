@@ -12,6 +12,9 @@ use App\Core\MasterData\CreditLimits\ApplyCreditLimitChange;
 use App\Core\MasterData\CreditLimits\Listeners\SettleCreditLimitChange;
 use App\Core\Notifications\Jobs\SendDelivery;
 use App\Core\Notifications\Jobs\SendDigests;
+use App\Core\Webhooks\Jobs\FanOutWebhookEvent;
+use App\Core\Webhooks\Jobs\SendWebhook;
+use App\Core\Webhooks\Jobs\SweepWebhooks;
 use App\Core\Workflow\Jobs\ProcessStageTimers;
 use App\Core\Workflow\Listeners\SendWorkflowNotification;
 use Illuminate\Support\Facades\Queue;
@@ -62,7 +65,7 @@ class QueuesTest extends TestCase
     {
         $supervisors = config('horizon.defaults');
         $queues = collect($supervisors)->flatMap(fn ($s) => $s['queue'])->all();
-        $this->assertEqualsCanonicalizing(['default', 'notifications', 'automation', 'payments', 'fiscal', 'exports', 'imports'], $queues);
+        $this->assertEqualsCanonicalizing(['default', 'notifications', 'automation', 'payments', 'fiscal', 'exports', 'imports', 'webhooks'], $queues);
 
         $webhook = config('automation.webhook_timeout') + config('automation.dns_timeout');
 
@@ -91,6 +94,32 @@ class QueuesTest extends TestCase
         RunImport::dispatch((string) Str::uuid7(), (string) Str::uuid7(), RunImport::IMPORT, (string) Str::uuid7());
         Queue::assertPushedOn('imports', RunImport::class);
         Queue::assertPushed(RunImport::class, fn (RunImport $job) => $job->timeout === config('imports.timeout') && $job->tries === 1);
+    }
+
+    public function test_webhooks_run_on_their_own_queue_supervisor_and_connection(): void
+    {
+        // HOOK-01: a slow receiver never delays notifications, automation or fiscal work.
+        $this->assertSame('webhooks', config('webhooks.queue'));
+        $this->assertSame('redis-webhooks', config('horizon.defaults.supervisor-webhooks.connection'));
+        $this->assertSame(['webhooks'], config('horizon.defaults.supervisor-webhooks.queue'));
+        $this->assertSame('webhooks', config('queue.connections.redis-webhooks.queue'));
+        $this->assertGreaterThan(config('webhooks.timeout') + config('automation.dns_timeout'), config('horizon.defaults.supervisor-webhooks.timeout'));
+
+        foreach (config('horizon.defaults') as $name => $supervisor) {
+            if ($name !== 'supervisor-webhooks') {
+                $this->assertNotContains('webhooks', $supervisor['queue'], "{$name} never works the webhooks queue");
+            }
+        }
+
+        Queue::fake();
+        $tenant = (string) Str::uuid7();
+        FanOutWebhookEvent::dispatch($tenant, 'sale.completed.v1', (string) Str::uuid7(), now()->toIso8601ZuluString(), ['data' => []]);
+        SendWebhook::dispatch($tenant, (string) Str::uuid7());
+        SweepWebhooks::dispatch($tenant, now()->toIso8601String());
+
+        foreach ([FanOutWebhookEvent::class, SendWebhook::class, SweepWebhooks::class] as $job) {
+            Queue::assertPushedOn('webhooks', $job);
+        }
     }
 
     public function test_the_horizon_dashboard_is_refused_outside_local(): void

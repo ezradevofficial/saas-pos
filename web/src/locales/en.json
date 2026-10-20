@@ -491,7 +491,8 @@
     "ecommerceRiders": "Riders",
     "ecommerceReports": "Online reports",
     "ecommerceSettings": "Store settings",
-    "supportAccess": "Support access"
+    "supportAccess": "Support access",
+    "webhooks": "Webhooks"
   },
   "shell": {
     "account": "Account menu",
@@ -12315,6 +12316,200 @@
       "title": "Support session",
       "opening": "Opening the support session…",
       "missing": "This link has no session code. Open the session again from the console."
+    }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "description": "Send events to your other systems as they happen, signed so they can check each one came from here.",
+    "tabs": {
+      "webhooks": "Endpoints",
+      "deliveries": "Delivery log",
+      "guide": "Developer guide"
+    },
+    "add": "Add webhook",
+    "empty": "No webhooks yet. Add one to send events to another system.",
+    "listLabel": "Webhooks",
+    "status": {
+      "active": "On",
+      "off": "Off",
+      "failing": "Switched off after failures"
+    },
+    "row": {
+      "events_one": "{{count}} event",
+      "events_other": "{{count}} events",
+      "lastDelivery": "Last delivered {{when}}",
+      "never": "Nothing delivered yet",
+      "failures_one": "{{count}} failure in a row",
+      "failures_other": "{{count}} failures in a row",
+      "open": "Open webhook {{url}}"
+    },
+    "fields": {
+      "url": "Endpoint URL",
+      "urlHelp": "A public https:// address. Its query string is kept secret and never shown again.",
+      "urlKeep": "Leave empty to keep the current URL ({{url}}).",
+      "description": "Description",
+      "descriptionHelp": "What receives these events, for your team.",
+      "events": "Events",
+      "eventsHelp": "Only events of the modules you use are listed. Events are sent only for records you can see.",
+      "filter": "Send events of",
+      "filterAll": "The whole organisation",
+      "filterCompany": "One company",
+      "filterBranch": "One branch",
+      "company": "Company",
+      "branch": "Branch",
+      "active": "Send events"
+    },
+    "form": {
+      "createTitle": "Add webhook",
+      "editTitle": "Edit webhook",
+      "create": "Add webhook",
+      "save": "Save changes",
+      "noEvents": "Choose at least one event.",
+      "pickCompany": "Choose the company.",
+      "pickBranch": "Choose the branch.",
+      "locked": "This webhook sends as {{name}}. Only they can change its URL, events or filter; you can change its description or switch it on or off."
+    },
+    "secret": {
+      "title": "Signing secret",
+      "onceTitle": "Copy this secret now",
+      "onceBody": "It is shown only once. Your endpoint uses it to check the signature of every event.",
+      "copy": "Copy secret",
+      "copied": "Secret copied.",
+      "copyFailed": "The secret couldn’t be copied. Select it and copy it by hand.",
+      "done": "I saved the secret",
+      "rotate": "Rotate secret",
+      "rotateTitle": "Rotate the signing secret?",
+      "rotateBody": "A new secret is made now. The old one keeps signing for {{hours}} hours, so you can update your endpoint without missing events.",
+      "rotateNow": "Rotate secret",
+      "rotatedAt": "Last rotated {{when}}.",
+      "overlapUntil": "The previous secret also signs until {{when}}."
+    },
+    "detail": {
+      "back": "All webhooks",
+      "edit": "Edit",
+      "test": "Send test event",
+      "testSent": "Test event sent. Its answer is in the delivery log below.",
+      "archive": "Archive",
+      "archiveTitle": "Archive this webhook?",
+      "archiveBody": "No more events are sent to it. Its delivery log is kept for 30 days.",
+      "archiveNow": "Archive webhook",
+      "switchOn": "Switch on",
+      "switchOff": "Switch off",
+      "disabledTitle_one": "Switched off after {{count}} failed delivery",
+      "disabledTitle_other": "Switched off after {{count}} failed deliveries in a row",
+      "disabledBody": "Check that the receiving system is running, then switch the webhook on again. Failed deliveries can be replayed from the log.",
+      "principalInactive": "The user this webhook sends as is no longer active, so nothing is sent. Add the webhook again as an active user.",
+      "events": "Events",
+      "filter": "Sends events of",
+      "sendsAs": "Sends as",
+      "notFound": "This webhook doesn’t exist or was archived.",
+      "settings": "Settings",
+      "takeOver": "Take over",
+      "takeOverTitle": "Take over this webhook?",
+      "takeOverBody": "It sends as {{name}} now. After taking it over it sends as you, with what you can see, and only you can change its URL, events or filter."
+    },
+    "deliveries": {
+      "title": "Delivery log",
+      "empty": "No deliveries yet.",
+      "emptyFiltered": "No deliveries match these filters.",
+      "retention": "Deliveries are kept {{days}} days.",
+      "columns": {
+        "created": "Time",
+        "event": "Event",
+        "webhook": "Endpoint",
+        "status": "Status",
+        "response": "Answer",
+        "attempts": "Attempts"
+      },
+      "filters": {
+        "status": "Status",
+        "allStatuses": "All statuses",
+        "type": "Event",
+        "allTypes": "All events"
+      },
+      "statuses": {
+        "pending": "Waiting",
+        "sending": "Sending",
+        "retrying": "Will retry",
+        "delivered": "Delivered",
+        "failed": "Failed"
+      },
+      "noAnswer": "No answer",
+      "pageOf": "Page {{page}} of {{last}}",
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "delivery": {
+      "title": "Delivery",
+      "eventId": "Event id",
+      "eventType": "Event",
+      "status": "Status",
+      "attempts": "Attempts",
+      "response": "Answer",
+      "duration": "{{ms}} ms",
+      "responseBody": "Answer body (first 1 KB)",
+      "payload": "Body sent",
+      "payloadHidden": "You can’t see this event’s records, so its body is hidden.",
+      "nextAttempt": "Next try {{when}}",
+      "replay": "Replay delivery",
+      "replayed": "Delivery queued again with the same event id.",
+      "replayOf": "A replay of an earlier delivery.",
+      "problem": "Problem",
+      "when": "Created"
+    },
+    "errors": {
+      "unreachable": "The endpoint couldn’t be reached.",
+      "status": "The endpoint answered with an error status.",
+      "disabled": "The webhook was switched off or archived before this was sent.",
+      "principal": "The user this webhook sends as is no longer active.",
+      "refused": {
+        "invalid": "The URL isn’t a valid web address.",
+        "not_https": "The URL doesn’t use https://.",
+        "credentials": "The URL contains a user name or password.",
+        "private_address": "The URL points to a private or internal network.",
+        "unresolved": "The endpoint’s host name couldn’t be found."
+      }
+    },
+    "events": {
+      "sale_completed_v1": "Sale completed",
+      "sale_voided_v1": "Sale voided",
+      "sale_refunded_v1": "Sale refunded",
+      "stock_low_v1": "Stock low",
+      "invoice_posted_v1": "Invoice posted",
+      "credit_note_posted_v1": "Credit note posted",
+      "supplier_invoice_approved_v1": "Supplier invoice approved",
+      "purchase_order_approved_v1": "Purchase order approved",
+      "payroll_approved_v1": "Payroll approved",
+      "order_placed_v1": "Online order placed",
+      "order_paid_v1": "Online order paid",
+      "order_status_changed_v1": "Online order status changed",
+      "order_completed_v1": "Online order delivered",
+      "document_stage_changed_v1": "Document moved to a stage",
+      "webhook_test_v1": "Test event"
+    },
+    "modules": {
+      "core": "Platform",
+      "pos": "Point of sale",
+      "inventory": "Inventory",
+      "accounting": "Accounting",
+      "procurement": "Procurement",
+      "payroll": "Payroll",
+      "ecommerce": "E-commerce"
+    },
+    "guide": {
+      "title": "Receiving webhooks",
+      "intro": "Each event is an HTTPS POST with a JSON body: id, type, occurred_at and data. Answer with any 2xx status within 10 seconds, and do slow work after answering.",
+      "signingTitle": "Check the signature",
+      "signing": "Every request carries the headers Webhook-Id, Webhook-Timestamp and Webhook-Signature, as the Standard Webhooks specification defines, so its libraries can verify them. To check by hand, compute HMAC-SHA256 of “id.timestamp.body” with your secret (the part after whsec_, base64-decoded), encode it in base64, and compare it with each “v1,” value of Webhook-Signature. Refuse timestamps more than 5 minutes old.",
+      "rotation": "After you rotate the secret, requests carry two signatures for {{hours}} hours. Accept either until you have switched to the new secret.",
+      "retriesTitle": "Retries",
+      "retries": "If your endpoint doesn’t answer 2xx, the delivery is tried again after 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours and 24 hours, then marked failed. After {{count}} failed deliveries in a row the webhook is switched off and its owners are told. Redirects are never followed.",
+      "orderTitle": "Duplicates and order",
+      "order": "An event can arrive more than once, and events can arrive in any order. Use the event id to ignore repeats, and occurred_at or the record itself to decide what is newest.",
+      "dataTitle": "What is sent",
+      "data": "Only ids and a few documented fields, never contact details or secrets, and only records the webhook’s user may see. A versioned type (.v1) never changes shape: a new version is added instead.",
+      "catalogueTitle": "Events you can subscribe to",
+      "fields": "Fields"
     }
   }
 }

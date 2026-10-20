@@ -81,6 +81,7 @@ return [
                 'tenant' => 'Export complet des données',
                 'subscription' => 'Abonnement et facturation',
                 'support_access' => 'Accès du support',
+                'webhook' => 'Webhooks',
             ],
             'pos' => [
                 'sale' => 'Ventes',

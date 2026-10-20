@@ -16,6 +16,7 @@ use App\Core\Platform\Tenants\TenantHealthProbes;
 use App\Core\Rbac\Events\ModuleActivated;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
@@ -43,6 +44,7 @@ use Modules\Accounting\Listeners\SeedModuleRules;
 use Modules\Accounting\Listeners\SettleJournal;
 use Modules\Accounting\Models\PostingException;
 use Modules\Accounting\Payments\Payments;
+use Modules\Accounting\Webhooks\AccountingWebhookEvents;
 use Modules\CRM\Events\QuoteConverted;
 use Modules\Ecommerce\Events\EcommercePosting;
 use Modules\FixedAssets\Events\AssetCapitalised;
@@ -136,6 +138,9 @@ class AccountingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // HOOK-01: the module's public webhook events (sent only while it is active).
+        AccountingWebhookEvents::register($this->app->make(WebhookCatalogue::class));
+
         $modules = $this->app->make(ModuleRegistry::class);
         $modules->register(self::MODULE);
         $modules->register(self::PRO);

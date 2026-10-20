@@ -97,6 +97,8 @@ class PermissionRegistry
         // RBAC-13: see support access requests and sessions (view); approve,
         // deny and revoke them (manage). Owner and Admin templates.
         'support_access' => ['view', 'manage'],
+        // HOOK-01: webhook subscriptions, their secrets, test events, the delivery log and replays (tenant scope; Owner, Admin).
+        'webhook' => ['manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

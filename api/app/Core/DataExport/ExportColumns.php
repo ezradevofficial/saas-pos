@@ -42,6 +42,10 @@ final class ExportColumns
         'company_fiscal_settings.credentials' => 'tax authority credentials (encrypted)',
         'automation_rules.webhook_secret' => 'webhook signing secret (AUTO-03, encrypted)',
         'automation_webhook_deliveries.url' => 'the webhook URL called, which may carry a token (AUTO-03, encrypted)',
+        // HOOK-01: webhook URLs carry secrets (the Phase 6 rule); signing secrets are shown once.
+        'webhook_subscriptions.url' => 'a webhook subscription\'s endpoint URL, which may carry a token (HOOK-01, encrypted)',
+        'webhook_subscriptions.secret' => 'a webhook subscription\'s signing secret (HOOK-01, encrypted)',
+        'webhook_subscriptions.previous_secret' => 'a webhook subscription\'s previous signing secret during a rotation (HOOK-01, encrypted)',
         // Denied rather than decrypted: the app only ever shows it masked, and
         // decrypting would put the application key in the export path.
         'payment_intents.phone' => 'the payer\'s phone number, shown only masked (encrypted)',
@@ -99,6 +103,8 @@ final class ExportColumns
 
     /** `table.column` => why it is not a secret although its name looks like one. */
     public const ALLOWED = [
+        'webhook_subscriptions.secret_rotated_at' => 'when a webhook\'s signing secret was last rotated, not the secret (HOOK-01)',
+        'webhook_subscriptions.previous_secret_expires_at' => 'until when a webhook\'s previous signing secret still signs, not the secret (HOOK-01)',
         'crm_lead_forms.token_rotated_at' => 'when the lead form link was last rotated, not the token (CRM-06)',
         'procurement_tender_bidders.token_expires_at' => 'when a bidder\'s portal link stops working (PRC-07): a date, not the token',
         'loyalty_gift_cards.code_hash' => 'H(H(code)) of a 16-character random gift card code (about 79 bits): not reversible, and not the H(code) proof a till must present to redeem; every till of the company holds it to find cards offline (LOY-20, LOY-22, M8)',
