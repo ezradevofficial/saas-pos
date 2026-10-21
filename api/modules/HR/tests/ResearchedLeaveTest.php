@@ -15,6 +15,7 @@ use Modules\HR\Leave\Accruals;
 use Modules\HR\Leave\LeaveLedger;
 use Modules\HR\Leave\LeaveRequests;
 use Modules\HR\Models\Employee;
+use Modules\HR\Models\EmployeeIdentifier;
 use Modules\HR\Models\LeaveEntry;
 use Modules\HR\Models\LeaveType;
 use Modules\HR\Tests\Concerns\BuildsHr;
@@ -193,9 +194,10 @@ class ResearchedLeaveTest extends TestCase
                 ->assertUnprocessable()->assertJsonPath('code', 'identifier_format');
         }
 
-        // National ID: 7 to 9 digits.
-        $this->putJson($url, ['identifiers' => [['type' => 'national_id', 'value' => '1234567']]], $this->headersFor($this->hrOfficer))->assertOk();
-        $this->putJson($url, ['identifiers' => [['type' => 'national_id', 'value' => '123456']]], $this->headersFor($this->hrOfficer))->assertUnprocessable()->assertJsonPath('code', 'identifier_format');
-        $this->putJson($url, ['identifiers' => [['type' => 'national_id', 'value' => '1234567890']]], $this->headersFor($this->hrOfficer))->assertUnprocessable();
+        // National ID: 7 to 9 digits is only a hint (no authoritative source): another value is kept, with a warning.
+        $this->putJson($url, ['identifiers' => [['type' => 'national_id', 'value' => '1234567']]], $this->headersFor($this->hrOfficer))->assertOk()->assertJsonPath('meta.warnings', []);
+        $this->putJson($url, ['identifiers' => [['type' => 'national_id', 'value' => 'MN1234567890']]], $this->headersFor($this->hrOfficer))->assertOk()
+            ->assertJsonPath('meta.warnings.0.code', 'identifier_format_unusual')->assertJsonPath('meta.warnings.0.field', 'identifiers.0.value');
+        $this->assertSame(['MN1234567890'], $this->inTenant(fn () => EmployeeIdentifier::query()->where('employee_id', $employee->id)->where('type', 'national_id')->get()->map(fn ($i) => $i->value)->all()));
     }
 }

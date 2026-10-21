@@ -37,9 +37,12 @@ class Identifiers
      * the person changed).
      *
      * @param  list<array{type: string, value?: ?string, remove?: bool}>  $identifiers
+     * @return list<array{field: string, code: string, message: string}> warnings (a value outside a format that only warns, CP-01)
      */
-    public function put(Employee $employee, array $identifiers): void
+    public function put(Employee $employee, array $identifiers): array
     {
+        $warnings = [];
+
         $types = $this->typesFor($employee->company_id);
 
         foreach ($identifiers as $index => $identifier) {
@@ -47,6 +50,13 @@ class Identifiers
             $value = trim((string) ($identifier['value'] ?? ''));
 
             if (($identifier['remove'] ?? false) !== true && $value !== '' && $type['pattern'] !== null && preg_match('/'.$type['pattern'].'/u', Digest::normalise($value)) !== 1) {
+                // CP-01: an unconfirmed format (KE national ID: older numbers, Maisha Namba) only warns.
+                if (($type['enforce'] ?? 'reject') === 'warn') {
+                    $warnings[] = ['field' => "identifiers.{$index}.value", 'code' => 'identifier_format_unusual', 'message' => __('hr.errors.identifier_format_unusual', ['type' => HrPack::label('identifiers', $type['key'])])];
+
+                    continue;
+                }
+
                 throw Errors::make(422, 'identifier_format', ['type' => HrPack::label('identifiers', $type['key'])], "identifiers.{$index}.value");
             }
         }
@@ -102,5 +112,7 @@ class Identifiers
                 $this->auditor->record('hr.employee.sensitive_update', $employee, null, ['fields' => ['identifiers'], 'types' => array_values(array_unique($changed))]);
             }
         });
+
+        return $warnings;
     }
 }

@@ -371,7 +371,11 @@ function EditIdentifiers({ employee, types, onClose }) {
   const changes = types
     .filter((type) => values[type.type] !== initial[type.type])
     .map((type) => (values[type.type].trim() === '' ? { type: type.type, remove: true } : { type: type.type, value: values[type.type].trim() }))
-  const save = useHrMutation((body) => api.put(`hr/employees/${employee.id}/identifiers`, body), { success: t('hr.identity.saved'), onDone: onClose })
+  // CP-01: a value outside a format that only warns (KE national ID) is saved; the warning says to check it.
+  const save = useHrMutation((body) => api.put(`hr/employees/${employee.id}/identifiers`, body), {
+    success: (response) => [t('hr.identity.saved'), ...(response?.meta?.warnings ?? []).map((warning) => warning.message)].join(' '),
+    onDone: onClose,
+  })
   const sent = changes.map((change) => change.type)
   const raw = save.errors(sent.map((_, index) => `identifiers.${index}.value`))
   const errors = { ...raw, fields: Object.fromEntries(types.map((type, index) => [`identifiers.${index}.value`, raw.fields[`identifiers.${sent.indexOf(type.type)}.value`]])) }

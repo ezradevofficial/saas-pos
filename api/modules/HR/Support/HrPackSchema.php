@@ -31,6 +31,7 @@ final class HrPackSchema
             'identifier_types.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/', 'distinct'],
             'identifier_types.*.required' => ['required', 'boolean'],
             'identifier_types.*.pattern' => ['present', 'nullable', 'string', 'max:200'],
+            'identifier_types.*.enforce' => ['sometimes', 'string', 'in:reject,warn'],
             'statutory_leave_types' => ['present', 'array'],
             'statutory_leave_types.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/'],
             'statutory_leave_types.*.days' => ['present', 'nullable', 'integer', 'min:0', 'max:366'],

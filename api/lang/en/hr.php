@@ -29,6 +29,7 @@ return [
         'rehire_before_termination' => 'The new hire date must be after the termination date.',
         'identifier_type_unknown' => 'The identifier type :type isn’t used in the company’s country.',
         'identifier_format' => 'The :type doesn’t have the expected format. Check it and try again.',
+        'identifier_format_unusual' => 'This :type doesn’t look like the usual format. It was saved; check it if it was a typing mistake.',
         'identifier_taken' => 'Another employee of this company has this :type.',
         'contract_overlap' => 'Another contract is in force on these dates. End it first.',
         'contract_end_required' => 'A fixed-term contract needs an end date.',
