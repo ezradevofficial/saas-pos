@@ -117,6 +117,10 @@ class OAuthAuthenticator
             return null;
         }
 
+        // A token asked for fewer scopes than consented acts with those only (never more: the key holds the consent).
+        $granted = array_values(array_filter((array) $validated->getAttribute('oauth_scopes'), 'is_string'));
+        $key->setAttribute('scopes', array_values(array_intersect($key->scopeList(), $granted)));
+
         return [$principal, $key, $installation];
     }
 }

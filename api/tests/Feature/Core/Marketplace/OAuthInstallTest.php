@@ -112,6 +112,20 @@ class OAuthInstallTest extends TestCase
         });
     }
 
+    public function test_a_token_asked_for_fewer_scopes_acts_with_those_only(): void
+    {
+        $pkce = $this->pkce();
+        $approved = $this->postJson('/api/v1/oauth/authorize', [
+            ...$this->authorizeQuery($this->listed['client_id'], $pkce['challenge'], ['scope' => 'core.item.read']),
+            'decision' => 'approve', 'role_id' => $this->roles->get('admin')->id, 'scope_type' => 'tenant',
+        ], $this->headersFor())->assertOk();
+        $tokens = $this->exchange(self::codeFrom($approved->json('data.redirect_to')), $pkce['verifier'], $this->listed)->assertOk();
+        $headers = ['Authorization' => 'Bearer '.$tokens->json('access_token'), 'Accept' => 'application/json'];
+
+        $this->getJson('/api/v1/items', $headers)->assertOk();
+        $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Amani', 'roles' => ['customer']], $headers)->assertForbidden()->assertJsonPath('code', 'api_scope_missing');
+    }
+
     public function test_the_token_response_names_the_install_and_tokens_are_stored_hashed(): void
     {
         $pkce = $this->pkce();

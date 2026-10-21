@@ -99,6 +99,25 @@ Link: <https://app.example.com/developers/changelog#items-v1>; rel="deprecation"
   -H "Authorization: Bearer sk_test_<id>_<secret>"`,
   },
   { id: 'webhooks', paragraphs: ['p1', 'p2'] }, // HOOK-01: Settings, Webhooks.
+  {
+    // MKT-01, MKT-02, API-02 (OAuth): building a marketplace app.
+    id: 'apps',
+    paragraphs: ['p1', 'p2', 'p3', 'p4'],
+    code: `# 1. Send the user to the consent screen (PKCE, S256):
+https://app.example.com/oauth/authorize?client_id=<client id>&redirect_uri=https%3A%2F%2Fyour.app%2Fcallback
+  &response_type=code&state=<random>&code_challenge=<BASE64URL(SHA256(verifier))>&code_challenge_method=S256
+
+# 2. Exchange the code (form-encoded):
+curl -X POST "https://api.example.com/api/v1/oauth/token" \\
+  -d grant_type=authorization_code -d client_id=<client id> -d client_secret=<client secret> \\
+  -d redirect_uri=https://your.app/callback -d code=<code> -d code_verifier=<verifier>
+
+{"token_type":"Bearer","expires_in":3600,"access_token":"eyJ…","refresh_token":"def5…","installation_id":"0193…"}
+
+# 3. Refresh before it expires; each refresh token works once:
+curl -X POST "https://api.example.com/api/v1/oauth/token" \\
+  -d grant_type=refresh_token -d client_id=<client id> -d client_secret=<client secret> -d refresh_token=<refresh token>`,
+  },
 ]
 
 export const guideById = (id) => GUIDES.find((guide) => guide.id === id) ?? null

@@ -42,6 +42,7 @@ Accepted risk: the runtime role can read every client's secret hash and every li
 - **Lifetimes**: access tokens 60 minutes, refresh tokens 30 days, codes 10 minutes (`config/marketplace.php`).
 - **Keys**: `PASSPORT_PRIVATE_KEY` and `PASSPORT_PUBLIC_KEY`, or `php artisan passport:keys` files. Without them the OAuth endpoints answer 503 `oauth_not_configured` and no app token is accepted. The test suite makes a key pair per process; none is committed.
 - **The token response** also names the install (`installation_id`).
+- **A token never exceeds the consent**: it acts with the install's consented scopes, narrowed to the token's own scopes when the app asked for fewer (`scope` parameter).
 
 ### An install is an API key in all but name
 

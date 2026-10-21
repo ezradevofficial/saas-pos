@@ -12825,6 +12825,14 @@
         "summary": "Events sent to your systems as they happen.",
         "p1": "Webhooks send signed events, such as a completed sale or a document moving to another stage, to a URL you choose, with retries and a delivery log.",
         "p2": "Set them up in Settings, Webhooks: choose the events, copy the signing secret once, and check each request’s signature and timestamp before you trust it."
+      },
+      "apps": {
+        "title": "Marketplace apps",
+        "summary": "Register as a developer, get your app reviewed, and connect with OAuth.",
+        "p1": "Register as a developer in Settings, Developer apps, from a sandbox or your own organisation. Create an app to get its client id, client secret and webhook signing secret; the secrets are shown once. Describe the app, choose the permissions it needs, its redirect URIs, webhook events and price, then submit the version for review. Only approved versions are listed.",
+        "p2": "An organisation installs your app through the authorization code flow with PKCE (S256 only). Your app sends the user to the consent screen; they see what it asks for in plain words and choose the role it acts as. Your app can never do more than that role allows, nor more than its permissions.",
+        "p3": "Exchange the code for an access token (one hour) and a refresh token (30 days, used once: each refresh gives a new one). Use the access token exactly like an API key on the public endpoints. A refresh token used twice revokes every token of that install.",
+        "p4": "Webhook events go to your webhook URL with installation=<id> added, signed with your app’s webhook secret. A new version that asks for more permissions or events waits for each organisation’s consent; until then your app keeps what it was given. Uninstalling revokes its tokens at once."
       }
     },
     "errorCodes": {
