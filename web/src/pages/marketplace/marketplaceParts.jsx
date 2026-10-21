@@ -49,7 +49,6 @@ export function ScopeList({ scopes = [], emptyText }) {
             {items.map((scope) => (
               <li key={scope.scope} className="flex flex-wrap items-baseline gap-2 text-body text-ink">
                 <span>{scope.label}</span>
-                {scope.access === 'write' ? <span className="text-caption text-ink-muted">{t('marketplace.canChange')}</span> : null}
                 {scope.active === false ? <span className="text-caption text-ink-muted">{t('marketplace.moduleOff')}</span> : null}
               </li>
             ))}

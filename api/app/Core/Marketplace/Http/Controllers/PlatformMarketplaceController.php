@@ -128,7 +128,7 @@ class PlatformMarketplaceController
             'scopes' => $diff($submitted->scopeList(), $listed?->scopeList() ?? []),
             'webhook_events' => $diff($submitted->eventList(), $listed?->eventList() ?? []),
             'redirect_uris' => $diff($submitted->redirectList(), $listed?->redirectList() ?? []),
-            'pricing_changed' => $listed === null || $listed->pricing()->toArray() !== $submitted->pricing()->toArray(),
+            'pricing_changed' => $listed !== null && $listed->pricing()->toArray() !== $submitted->pricing()->toArray(),
             'needs_consent' => $listed !== null && (array_diff($submitted->scopeList(), $listed->scopeList()) !== [] || array_diff($submitted->eventList(), $listed->eventList()) !== []),
         ];
     }
