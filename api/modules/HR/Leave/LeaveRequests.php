@@ -3,6 +3,7 @@
 namespace Modules\HR\Leave;
 
 use App\Core\Identity\Models\User;
+use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Models\DocumentWorkflow;
 use App\Core\Workflow\Runtime\WorkflowEngine;
@@ -153,7 +154,8 @@ class LeaveRequests
     {
         return Errors::transaction(function () use ($request, $by, $reason) {
             $request = LeaveRequest::query()->whereKey($request->id)->lockForUpdate()->firstOrFail();
-            $today = CarbonImmutable::now()->toDateString();
+            // HR-14: "before it ends" is the request's branch's (or company's) day, not UTC's.
+            $today = CompanyClock::today($request->company_id, $request->branch_id);
 
             if ($request->status === LeaveRequest::PENDING) {
                 $workflow = $this->engine->current(LeaveRequestType::KEY, $request->id);

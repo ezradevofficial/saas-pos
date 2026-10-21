@@ -2,6 +2,7 @@
 
 namespace Modules\HR\Leave;
 
+use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
@@ -82,7 +83,7 @@ class LeaveTypes
         $this->assertCodeFree($data['company_id'], $data['code'], null);
         $fields = array_intersect_key($data, array_flip(['company_id', ...self::FIELDS]));
         $fields['needs_confirmation'] = false;
-        $fields['accrues_from'] ??= CarbonImmutable::now()->toDateString();
+        $fields['accrues_from'] ??= CompanyClock::today($data['company_id']);
 
         if (($fields['accrual'] ?? 'none') !== 'none' && ($fields['entitlement_days'] ?? null) === null) {
             throw Errors::make(422, 'entitlement_required', field: 'entitlement_days');
@@ -113,7 +114,7 @@ class LeaveTypes
                 }
 
                 $type->needs_confirmation = false;
-                $type->accrues_from ??= CarbonImmutable::now()->toDateString();
+                $type->accrues_from ??= CompanyClock::today($type->company_id);
             }
 
             if (! $type->needs_confirmation && $type->accrual !== 'none' && $type->entitlement_days === null) {
