@@ -38,8 +38,10 @@ class TaxRates
             $day = $from->toDateString();
             $latest = TaxRate::query()->where('tax_code_id', $code->id)->orderByDesc('effective_from')->first();
 
-            if ($latest !== null && $latest->effective_from->toDateString() === $day && $latest->isNeeded()) {
-                $latest->fill(['rate' => $rate, 'needs_confirmation' => false, 'source' => TaxRate::SOURCE_TENANT])->save();
+            // A needed rate, or (CP-01) a researched one the tenant corrects or confirms, is replaced on its own
+            // start date; documents keep the rate they used on their lines, and the change is audited.
+            if ($latest !== null && $latest->effective_from->toDateString() === $day && ($latest->isNeeded() || $latest->isResearched())) {
+                $latest->fill(['rate' => $rate, 'needs_confirmation' => false, 'source' => TaxRate::SOURCE_TENANT, 'research' => null])->save();
 
                 return $latest;
             }

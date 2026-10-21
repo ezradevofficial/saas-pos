@@ -203,6 +203,22 @@ class TaxCodeApiTest extends TestCase
             ->assertUnprocessable()->assertJsonPath('code', 'tax_rate_overlap');
     }
 
+    public function test_a_researched_rate_can_be_replaced_from_its_own_start_date(): void
+    {
+        $this->applyPack();
+        $std = $this->codeId('VAT_STD');
+
+        // CP-01: the researched 16% turns out wrong for this tenant (a synthetic correction): replaced in place, the tenant's own.
+        $rates = $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '15', 'effective_from' => '2026-01-01'], $this->headersFor())
+            ->assertCreated()->assertJsonPath('data.rate_researched', false)->json('data.rates');
+        $this->assertSame([['15.0000', '2026-01-01', null, 'tenant', null]], array_map(fn ($r) => [$r['rate'], $r['effective_from'], $r['effective_to'], $r['source'], $r['research']], $rates));
+        $this->inTenant(fn () => $this->assertSame(1, AuditEntry::where('action', 'core.tax_rate.update')->where('after->rate', '15.0000')->count()));
+
+        // Once the tenant's own, the same date is history: refused.
+        $this->postJson("/api/v1/tax-codes/{$std}/rates", ['rate' => '14', 'effective_from' => '2026-01-01'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'tax_rate_overlap');
+    }
+
     public function test_an_archived_code_takes_no_new_rate(): void
     {
         $this->applyPack();
