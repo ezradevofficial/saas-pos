@@ -3,6 +3,7 @@
 namespace Modules\FixedAssets\Support;
 
 use App\Core\Identity\Models\User;
+use App\Core\Tenancy\CompanyClock;
 use Carbon\CarbonImmutable;
 use Modules\FixedAssets\Models\Asset;
 use Modules\FixedAssets\Models\AssetEvent;
@@ -20,7 +21,8 @@ class History
         return AssetEvent::query()->create([
             'asset_id' => $asset->id,
             'kind' => $kind,
-            'happened_on' => $on instanceof CarbonImmutable ? $on->toDateString() : ($on ?? CarbonImmutable::now()->toDateString()),
+            // Without a date, today in the asset's company's time zone (not UTC's day).
+            'happened_on' => $on instanceof CarbonImmutable ? $on->toDateString() : ($on ?? CompanyClock::today($asset->company_id)),
             'before' => $before,
             'after' => $after,
             'document_type' => $documentType,

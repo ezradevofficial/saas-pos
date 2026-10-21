@@ -77,6 +77,18 @@ class DueTenants
         return $this->ids('app_tenants_with_domain_checks_due(?::timestamptz)', [$at->toIso8601String()]);
     }
 
+    /** @return list<string> AUTH-11: active tenants with SAML metadata fetched by URL (sso:refresh-metadata). */
+    public function withSsoMetadataUrls(): array
+    {
+        return $this->ids('app_tenants_with_sso_metadata_urls()');
+    }
+
+    /** @return list<string> AUTH-11: active tenants with SSO email domains to check, re-check or archive at $at (as above). */
+    public function withSsoDomainChecksDue(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_sso_domain_checks_due(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
     /** @return list<string> SUB-03, SUB-05: subscriptions with a trial or period ending within 7 days of $at, past due or read-only. */
     public function withBillingDue(CarbonInterface $at): array
     {

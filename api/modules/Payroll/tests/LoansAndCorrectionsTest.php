@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
 use Modules\Payroll\Models\Loan;
 use Modules\Payroll\Models\LoanEntry;
@@ -156,6 +157,42 @@ class LoansAndCorrectionsTest extends TestCase
         // Only posted runs are corrected.
         $draft = $this->createRun('2026-11-15')->json('data.id');
         $this->postJson("/api/v1/payroll/runs/{$draft}/corrections", ['mode' => 'reverse'], $this->headersFor($this->officer))->assertUnprocessable()->assertJsonPath('code', 'run_not_posted');
+    }
+
+    public function test_a_settlement_outside_payroll_is_dated_on_the_companys_day_not_utcs(): void
+    {
+        // PAY-13: 00:30 on Tuesday 20 October 2026 in Nairobi; still Monday 19 October in UTC.
+        $this->travelTo(CarbonImmutable::parse('2026-10-19T21:30:00Z'));
+        $advance = $this->loan($this->payrollEmployee('5000000')->id, ['kind' => 'advance', 'reference' => 'A-1']);
+        $this->postJson("/api/v1/payroll/loans/{$advance['id']}/settle", ['method' => 'external', 'note' => 'Cash'], $this->headersFor($this->officer))->assertOk();
+        $this->assertSame(['2026-09-20', '2026-10-20'], $this->entryDates($advance['id']));
+    }
+
+    public function test_a_cancellation_is_dated_on_the_companys_day_not_utcs(): void
+    {
+        // PAY-13: 00:30 on Tuesday 20 October 2026 in Nairobi; still Monday 19 October in UTC.
+        $this->travelTo(CarbonImmutable::parse('2026-10-19T21:30:00Z'));
+        $mistake = $this->loan($this->payrollEmployee('5000000')->id, ['reference' => 'L-2']);
+        $this->postJson("/api/v1/payroll/loans/{$mistake['id']}/cancel", ['reason' => 'Typed twice'], $this->headersFor($this->officer))->assertOk();
+        $this->assertSame(['2026-09-20', '2026-10-20'], $this->entryDates($mistake['id']));
+    }
+
+    public function test_a_correction_is_paid_on_the_companys_day_by_default_not_utcs(): void
+    {
+        // PAY-18: 00:30 on Tuesday 20 October 2026 in Nairobi; still Monday 19 October in UTC.
+        $this->travelTo(CarbonImmutable::parse('2026-10-19T21:30:00Z'));
+        $this->payrollEmployee('5000000');
+        $october = $this->postedRun();
+        $this->postJson("/api/v1/payroll/runs/{$october}/corrections", ['mode' => 'recalculate'], $this->headersFor($this->officer))->assertCreated()->assertJsonPath('data.pay_date', '2026-10-20');
+    }
+
+    /** @return list<string> */
+    private function entryDates(string $loanId): array
+    {
+        $dates = array_column($this->getJson("/api/v1/payroll/loans/{$loanId}", $this->headersFor($this->officer))->assertOk()->json('data.entries'), 'entry_date');
+        sort($dates);
+
+        return $dates;
     }
 
     public function test_a_recalculation_correction_carries_the_difference(): void

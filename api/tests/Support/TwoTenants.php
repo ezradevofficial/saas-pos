@@ -35,6 +35,8 @@ use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Sso\Models\SsoConnection;
+use App\Core\Sso\Models\SsoIdentity;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
@@ -76,6 +78,7 @@ use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Configuration\TestLayoutKind;
 use Tests\Support\Fiscal\TestFiscalSource;
 use Tests\Support\Limits\FixedAllowances;
+use Tests\Support\Sso\FakeSamlIdp;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestOrderType;
 use Tests\Support\Workflow\TestRequestType;
@@ -342,13 +345,29 @@ final class TwoTenants
         self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/publish", ['revision' => $configDraft['draft']['revision']], $owner));
         self::ok($test->putJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/draft", ['payload' => ['columns' => [['id' => 'code']]]], $owner));
 
-        // TPL-01: a template preview the owner made (its PDF is kept for a few minutes).
+        // TPL-01: a template preview the owner made. Its PDF is kept for 10 minutes in
+        // production; the isolation walk can outlast that, so the fixture keeps it a day.
+        config(['document_templates.preview_minutes' => 24 * 60]);
         $templatePreview = basename(dirname((string) parse_url(self::ok($test->postJson('/api/v1/templates/preview', [
             'type' => 'sales.quote', 'payload' => DefaultTemplates::for('sales.quote'),
         ], $owner))->json('data.pdf_url'), PHP_URL_PATH)));
         // BR-02, BR-05: a brand asset (a logo) and a custom domain, still pending.
         $brandAsset = self::ok($test->post('/api/v1/branding/assets', ['kind' => 'logo', 'file' => UploadedFile::fake()->image('logo.png', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201)->json('data.id');
         $tenantDomain = self::ok($test->postJson('/api/v1/branding/domains', ['host' => "erp-{$key}.example.org"], $owner), 201)->json('data.id');
+        // AUTH-11: an SSO email domain (pending), an Entra connection and the owner linked to an IdP subject.
+        $ssoDomain = self::ok($test->postJson('/api/v1/sso/domains', ['domain' => "staff-{$key}.example.org"], $owner), 201)->json('data.id');
+        $ssoConnection = self::ok($test->postJson('/api/v1/sso/connections', [
+            'provider' => 'entra', 'name' => "Entra {$upper}", 'client_id' => (string) Str::uuid(), 'client_secret' => "secret-{$key}", 'directory_id' => (string) Str::uuid(),
+        ], $owner), 201)->json('data.id');
+        $ssoIdentity = app(TenantContext::class)->run($tenantId, fn () => SsoIdentity::create([
+            'user_id' => $ownerId, 'connection_id' => $ssoConnection, 'subject' => "subject-{$key}", 'email' => "owner-{$key}@staff-{$key}.example.org",
+        ])->id);
+        // AUTH-11: an enabled SAML connection (no network to start a sign-in) for linking one's own account.
+        $ssoLive = self::ok($test->postJson('/api/v1/sso/connections', [
+            'provider' => 'saml', 'name' => "SAML {$upper}", 'idp_entity_id' => "https://idp-{$key}.example.org", 'idp_sso_url' => "https://idp-{$key}.example.org/sso",
+            'idp_certificates' => [FakeSamlIdp::pair()['cert']],
+        ], $owner), 201)->json('data.id');
+        app(TenantContext::class)->run($tenantId, fn () => SsoConnection::query()->whereKey($ssoLive)->update(['enabled' => true, 'tested_at' => now()]));
 
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
@@ -715,6 +734,10 @@ final class TwoTenants
                 'config_document' => $configDocument,
                 'template_preview' => $templatePreview,
                 'tenant_domain' => $tenantDomain,
+                'sso_domain' => $ssoDomain,
+                'sso_connection' => $ssoConnection,
+                'sso_identity' => $ssoIdentity,
+                'sso_live_connection' => $ssoLive,
                 'brand_asset' => $brandAsset,
                 'billing_invoice' => $billingInvoice,
                 'billing_payment' => $billingPayment,

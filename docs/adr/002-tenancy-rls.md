@@ -92,6 +92,8 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `oauth_token_tenant(p_kind text, p_id_hash text)` | `oauth_auth_codes`, `oauth_access_tokens` or `oauth_refresh_tokens` by the sha256 of a marketplace app's code or token identifier (ADR 024) |
 | `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | the active tenant whose slug or verified custom domain the storefront's host names and that has a live, not archived store with that handle (ECOM-06) |
 | `ecom_whatsapp_tenant(p_token_hash text)` | `ecom_stores` by WhatsApp webhook token hash, archived stores included (the controller refuses them; ECOM-24) |
+| `sso_tenant_for_email_domain(p_domain text)` | `sso_domains`: the active tenant with that verified, not archived email domain (AUTH-11 email discovery and sign-up's enforced-domain check; ADR 023) |
+| `sso_tenant_for_host(p_slug text, p_host text)` | the active tenant whose subdomain slug or verified custom domain the sign-in page's host names (AUTH-11 on the tenant's host; ADR 023) |
 
 Each function is `language sql stable security definer`:
 
@@ -115,6 +117,8 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `credit-limits:reconcile` (WF-10, WF-11) | a pending credit limit change whose flow completed or was cancelled before `p_before` |
 | `app_tenants_with_pending_domains()` | `DueTenants::withPendingDomains()` (BR-05) | active tenants with a custom domain waiting for its TXT record |
 | `app_tenants_with_domain_checks_due(p_at timestamptz)` | `domains:verify` (BR-05) | active tenants with a pending claim, a verified domain due for its daily re-check, or a claim failed for 7 days |
+| `app_tenants_with_sso_domain_checks_due(p_at timestamptz)` | `domains:verify` (AUTH-11, ADR 023) | the same, for SSO email domains (`sso_domains`) |
+| `app_tenants_with_sso_metadata_urls()` | `sso:refresh-metadata` (AUTH-11, ADR 023) | active tenants with a SAML connection whose metadata was fetched by URL |
 | `app_tenants_with_billing_due(p_at timestamptz)` | `billing:cycle` (SUB-03, SUB-05, ADR 016) | active customers whose trial or period ends within 7 days, or that are past due or read-only, or have an open invoice already due |
 | `app_tenants_with_modules_to_purge(p_before timestamptz)` | `billing:purge-report` (SUB-07) | switched-off modules, switched off before `p_before`, not yet flagged for purge |
 | `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `webhooks:sweep` (HOOK-01, ADR 021) | webhook deliveries left pending or sending, or overdue for a retry, since before `p_stale_before`, or created before `p_prune_before` (30-day retention) |
@@ -158,6 +162,8 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `ecom_whatsapp_tenant(p_token_hash text)` | `uuid` | a store's inbound WhatsApp webhook (ECOM-24) |
 | `payment_tenant_for_callback_token(p_token_hash text)` | `uuid` | a payment provider's callback (M-Pesa) |
 | `procurement_portal_tenant(p_kind text, p_token_hash text)` | `uuid` | the supplier portal's link, session or notice token (PRC-07, PRC-08) |
+| `sso_tenant_for_email_domain(p_domain text)` | `setof uuid` | single sign-on by email domain (AUTH-11) |
+| `sso_tenant_for_host(p_slug text, p_host text)` | `setof uuid` | single sign-on on the tenant's host (AUTH-11) |
 | `app_assisted_tenant_for_contact(p_contact text)` | `setof uuid` | assisted onboarding by contact (ONB-) |
 | `app_tenant_for_verified_domain(p_host text)` | `setof uuid` | a verified custom domain (BR-05) |
 | `app_public_branding(p_slug text, p_host text)` | a table of public fields | the sign-in page's look (BR-04); documented exception |
@@ -171,6 +177,8 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_pending_verification(p_before timestamptz)` | `setof uuid` | sign-ups waiting for verification |
 | `app_tenants_with_billing_due(p_at timestamptz)` | `setof uuid` | `billing:cycle` |
 | `app_tenants_with_domain_checks_due(p_at timestamptz)` | `setof uuid` | `domains:verify` |
+| `app_tenants_with_sso_domain_checks_due(p_at timestamptz)` | `setof uuid` | `domains:verify`, SSO email domains (AUTH-11) |
+| `app_tenants_with_sso_metadata_urls()` | `setof uuid` | `sso:refresh-metadata` (AUTH-11) |
 | `app_tenants_with_due_approval_timers(p_at timestamptz)` | `setof uuid` | `approvals:process-timers` |
 | `app_tenants_with_due_crm_reminders(p_at timestamptz)` | `setof uuid` | `crm:remind` |
 | `app_tenants_with_expired_ecom_reservations(p_at timestamptz)` | `setof uuid` | `ecommerce:expire` |

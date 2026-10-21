@@ -5,6 +5,7 @@ namespace Modules\Payroll\Runs;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\Runtime\WorkflowEngine;
@@ -110,7 +111,7 @@ class Runs
             'correction_employee_ids' => $data['employee_ids'] ?? null,
             'period_start' => $run->period_start->toDateString(),
             'period_end' => $run->period_end->toDateString(),
-            'pay_date' => $data['pay_date'] ?? CarbonImmutable::now()->toDateString(),
+            'pay_date' => $data['pay_date'] ?? CompanyClock::today($run->company_id),
             'status' => Run::DRAFT,
             'note' => $data['note'] ?? null,
             'created_by' => $by->id,

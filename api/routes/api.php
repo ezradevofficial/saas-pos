@@ -112,6 +112,15 @@ use App\Core\Rbac\Http\Controllers\MyCompaniesController;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
 use App\Core\Rbac\Http\Controllers\PermissionCatalogueController;
 use App\Core\Rbac\Http\Controllers\RoleController;
+use App\Core\Sso\Http\Controllers\SsoAuthController;
+use App\Core\Sso\Http\Controllers\SsoConnectionController;
+use App\Core\Sso\Http\Controllers\SsoController;
+use App\Core\Sso\Http\Controllers\SsoDomainController;
+use App\Core\Sso\Http\Controllers\SsoIdentityController;
+use App\Core\Sso\Models\SsoConnection;
+use App\Core\Sso\Models\SsoDomain;
+use App\Core\Sso\Models\SsoIdentity;
+use App\Core\Sso\SsoServiceProvider;
 use App\Core\Sync\Http\Controllers\SyncBrandAssetController;
 use App\Core\Sync\Http\Controllers\SyncController;
 use App\Core\Sync\Http\Controllers\SyncMediaController;
@@ -158,6 +167,9 @@ Route::model('payment_receipt', PaymentReceipt::class);
 Route::model('fiscal_submission', FiscalSubmission::class);
 Route::model('config_document', ConfigDocument::class);
 Route::model('tenant_domain', TenantDomain::class);
+Route::model('sso_connection', SsoConnection::class);
+Route::model('sso_domain', SsoDomain::class);
+Route::model('sso_identity', SsoIdentity::class);
 Route::model('tenant_export', TenantExport::class);
 Route::model('custom_field', CustomFieldDefinition::class);
 Route::model('custom_form_type', CustomFormType::class);
@@ -196,6 +208,16 @@ Route::prefix('auth')->group(function () {
     // AUTH-05: an invitee sees whose invitation it is, then accepts it.
     Route::get('invitations/{token}', [AcceptInvitationController::class, 'show'])->middleware('throttle:auth-ip')->where('token', '[A-Za-z0-9]{40}');
     Route::post('invitations/{token}/accept', [AcceptInvitationController::class, 'accept'])->middleware('throttle:auth-ip')->where('token', '[A-Za-z0-9]{40}');
+
+    // AUTH-11, ADR 023: single sign-on. Start by email or host; the IdP
+    // returns to a callback (a redirect to the web app with a ticket in the
+    // fragment); the web app completes with the ticket and its binding.
+    Route::middleware('throttle:'.SsoServiceProvider::LIMITER)->group(function () {
+        Route::post('sso/start', [SsoAuthController::class, 'start']);
+        Route::get('sso/oidc/callback', [SsoAuthController::class, 'oidcCallback']);
+        Route::post('sso/saml/{connection}/acs', [SsoAuthController::class, 'samlAcs'])->whereUuid('connection');
+        Route::post('sso/complete', [SsoAuthController::class, 'complete']);
+    });
 });
 
 // MD-02: an item image behind a temporary signed URL (ItemImages::url). The
@@ -637,6 +659,25 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('branding/domains', [DomainController::class, 'store']);
     Route::post('branding/domains/{tenant_domain}/check', [DomainController::class, 'check']);
     Route::post('branding/domains/{tenant_domain}/archive', [DomainController::class, 'archive']);
+
+    // AUTH-11, ADR 023: single sign-on (core.sso.manage, tenant scope; Owner template).
+    Route::get('sso', [SsoController::class, 'show']);
+    Route::put('sso/settings', [SsoController::class, 'update']);
+    Route::post('sso/connections', [SsoConnectionController::class, 'store']);
+    Route::patch('sso/connections/{sso_connection}', [SsoConnectionController::class, 'update']);
+    Route::post('sso/connections/{sso_connection}/enable', [SsoConnectionController::class, 'enable']);
+    Route::post('sso/connections/{sso_connection}/disable', [SsoConnectionController::class, 'disable']);
+    Route::post('sso/connections/{sso_connection}/archive', [SsoConnectionController::class, 'archive']);
+    Route::post('sso/connections/{sso_connection}/test', [SsoConnectionController::class, 'test']);
+    Route::post('sso/domains', [SsoDomainController::class, 'store']);
+    Route::post('sso/domains/{sso_domain}/check', [SsoDomainController::class, 'check']);
+    Route::post('sso/domains/{sso_domain}/archive', [SsoDomainController::class, 'archive']);
+    // AUTH-11, ADR 023: SSO links: one's own (Settings, Security), and a user's as an SSO manager sees them.
+    Route::get('me/sso', [SsoIdentityController::class, 'mine']);
+    Route::post('me/sso/link', [SsoIdentityController::class, 'link']);
+    Route::post('me/sso/identities/{sso_identity}/archive', [SsoIdentityController::class, 'unlinkMine']);
+    Route::get('users/{user}/sso-identities', [SsoIdentityController::class, 'ofUser']);
+    Route::post('users/{user}/sso-identities/{sso_identity}/archive', [SsoIdentityController::class, 'unlink']);
 
     // EXP-02: full tenant data exports (Owners only, core.tenant.export at tenant scope).
     Route::get('tenant-exports', [TenantExportController::class, 'index']);

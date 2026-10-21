@@ -18,6 +18,7 @@ import { useServerList } from '@/lib/useServerList'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { ConfirmDialog } from './ConfirmDialog'
 import { UserPinCard } from './pin/UserPinCard'
+import { UserSsoLinks } from './sso/SsoLinks'
 import { AssignmentFields } from './users/AssignmentFields'
 import { assignmentBody, emptyAssignment, offeredRow, USER_TONES, useGrantOptions } from './users/assignments'
 
@@ -228,7 +229,7 @@ export default function UserDetail() {
   const { userId } = useParams()
   const queryClient = useQueryClient()
   const { user: me } = useAuth()
-  const { can, hasModule } = usePermissions()
+  const { can, hasModule, tenantWide } = usePermissions()
   const [confirm, setConfirm] = useState(null) // 'deactivate' | 'reactivate' | 'signOut'
   const [signedOut, setSignedOut] = useState(false)
   const [params, setParams] = useSearchParams()
@@ -331,6 +332,8 @@ export default function UserDetail() {
           <RolesCard user={user} canAssign={can('core.role.assign')} />
           {/* AUTH-06: only while the POS module is on (RBAC-08). */}
           {hasModule('pos') ? <UserPinCard user={user} self={self} canEdit={can('core.user.edit') && !deactivated} /> : null}
+          {/* AUTH-11: the user's single sign-on links (SSO managers, the Owner's). */}
+          {tenantWide('core.sso.manage') ? <UserSsoLinks userId={user.id} /> : null}
         </div>
       ) : (
         <Card>
