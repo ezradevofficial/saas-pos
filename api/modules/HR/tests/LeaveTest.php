@@ -67,7 +67,8 @@ class LeaveTest extends TestCase
 
         $this->request($annual, '2026-10-19', '2026-10-20')->assertUnprocessable()->assertJsonPath('code', 'leave_days_needed');
         $run = $this->postJson('/api/v1/hr/leave-accruals/run', ['company_id' => $this->acme->id, 'as_of' => '2026-10-14'], $this->headersFor($this->hrOfficer))->assertOk()->json('data');
-        $this->assertSame(0, $run['posted']);
+        // Nothing for the type whose days are needed (the researched sick leave may accrue).
+        $this->assertSame(0, $this->inTenant(fn () => LeaveEntry::query()->where('leave_type_id', $annual->id)->count()));
         $this->assertContains('ANNUAL', array_column($run['skipped_types'], 'code'));
 
         // Applying the pack again copies nothing twice, and fills a type still needed with the pack's researched days (CP-01).
@@ -81,7 +82,8 @@ class LeaveTest extends TestCase
             ->assertUnprocessable()->assertJsonPath('code', 'entitlement_required');
         $this->patchJson("/api/v1/hr/leave-types/{$annual->id}", ['entitlement_days' => '21', 'confirm' => true, 'accrues_from' => '2026-01-01'], $this->headersFor($this->hrOfficer))
             ->assertOk()->assertJsonPath('data.days_needed', false)->assertJsonPath('data.entitlement_days', '21.00')->assertJsonPath('data.researched', false);
-        $this->assertSame(2, $this->postJson('/api/v1/hr/leave-accruals/run', ['company_id' => $this->acme->id, 'as_of' => '2026-10-14'], $this->headersFor($this->hrOfficer))->json('data.posted'));
+        $this->postJson('/api/v1/hr/leave-accruals/run', ['company_id' => $this->acme->id, 'as_of' => '2026-10-14'], $this->headersFor($this->hrOfficer))->assertOk();
+        $this->assertSame(2, $this->inTenant(fn () => LeaveEntry::query()->where('leave_type_id', $annual->id)->where('kind', 'accrual')->count()));
     }
 
     public function test_annual_accrual_is_pro_rated_idempotent_and_expires_above_the_carry_over_cap(): void
