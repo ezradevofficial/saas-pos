@@ -56,6 +56,20 @@ class PerformanceAndRolesTest extends TestCase
         $this->assertSame([], $this->api('GET', 'procurement/supplier-performance?from=2026-10-01&to=2026-10-31', [], $this->userWith('procurement_officer', Scope::branch($this->branchB->id)))->json('data'));
     }
 
+    public function test_the_default_period_ends_on_the_companys_today(): void
+    {
+        // 21:30 UTC on the 19th is 00:30 on the 20th in Nairobi: an order placed now is in the default period.
+        $this->clockTo('2026-10-19T21:30:00Z');
+        $order = $this->approvedOrder([], [['item_id' => $this->soap->id, 'qty' => '1', 'unit_price_minor' => '10000']]);
+        $this->postedReceipt($order, [['order_line_id' => $order['lines'][0]['id'], 'received_qty' => '1']]);
+
+        $response = $this->api('GET', 'procurement/supplier-performance')->assertOk();
+        $this->assertSame('2026-10-20', $response->json('meta.to'));
+        $this->assertCount(1, $response->json('data'));
+        $company = $this->api('GET', "procurement/supplier-performance?company={$this->acme->id}")->assertOk();
+        $this->assertSame('2026-10-20', $company->json('meta.to'));
+    }
+
     public function test_company_tolerances_are_read_and_set_with_their_permissions(): void
     {
         $uri = "procurement/companies/{$this->acme->id}/settings";
