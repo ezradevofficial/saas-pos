@@ -49,6 +49,37 @@ class MetricsEndpointTest extends TestCase
         $this->withServerVariables(['REMOTE_ADDR' => '192.168.130.4'])->get('/metrics')->assertOk();
     }
 
+    /**
+     * Review M1: a request through the load balancer (or any trusted proxy)
+     * comes from the internet, whatever the allow-list or token says.
+     */
+    public function test_requests_through_the_load_balancer_or_a_proxy_are_refused(): void
+    {
+        config(['observability.metrics.allow' => ['192.168.128.0/17'], 'observability.metrics.token' => self::TOKEN]);
+
+        // The NodeBalancer's backend range is inside the Linode private network.
+        $this->withServerVariables(['REMOTE_ADDR' => '192.168.255.7'])->get('/metrics')->assertNotFound();
+        $this->withServerVariables(['REMOTE_ADDR' => '192.168.255.7'])->get('/metrics', ['Authorization' => 'Bearer '.self::TOKEN])->assertNotFound();
+
+        config(['observability.metrics.trusted_proxies' => ['10.0.0.5']]);
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.5'])->get('/metrics', ['Authorization' => 'Bearer '.self::TOKEN])->assertNotFound();
+
+        // A scraper on the private network itself still reads it.
+        $this->withServerVariables(['REMOTE_ADDR' => '192.168.140.25'])->get('/metrics')->assertOk();
+    }
+
+    public function test_unknown_http_methods_are_one_label(): void
+    {
+        config(['observability.metrics.token' => self::TOKEN]);
+
+        $this->call('PURGE', '/api/v1/me');
+        $this->call('BREW', '/api/v1/me');
+
+        $body = $this->get('/metrics', ['Authorization' => 'Bearer '.self::TOKEN])->getContent();
+        $this->assertStringNotContainsString('method="BREW"', $body);
+        $this->assertStringContainsString('method="OTHER"', $body);
+    }
+
     public function test_it_reports_requests_queues_horizon_and_the_database(): void
     {
         config(['observability.metrics.token' => self::TOKEN]);

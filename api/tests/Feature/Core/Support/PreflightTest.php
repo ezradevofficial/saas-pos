@@ -58,6 +58,21 @@ class PreflightTest extends TestCase
         $this->assertStringContainsString('Ready.', $output);
     }
 
+    /** Review M1: in production, /metrics behind an address allow-list alone is not enough. */
+    public function test_a_metrics_allow_list_without_a_token_fails_in_production(): void
+    {
+        $this->production(['observability.metrics.allow' => ['192.168.140.25/32'], 'observability.metrics.token' => null]);
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(1, $code, $output);
+        $this->assertMatchesRegularExpression('/Metrics access.*METRICS_TOKEN.*FAIL/s', $output);
+
+        $this->production(['observability.metrics.allow' => ['192.168.140.25/32'], 'observability.metrics.token' => 'a-long-random-scrape-token']);
+        [$code, $output] = $this->preflight();
+        $this->assertSame(0, $code, $output);
+    }
+
     public function test_development_drivers_debug_and_a_missing_key_fail_in_production(): void
     {
         $this->production([

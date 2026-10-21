@@ -1,5 +1,7 @@
 <?php
 
+use App\Core\Support\TrustedProxies;
+
 /**
  * NFR-01, NFR-07, NFR-10: health checks, metrics and the status snapshot.
  * See docs/observability.md.
@@ -13,6 +15,14 @@ return [
         // endpoint is 404 for everyone. Never public.
         'token' => env('METRICS_TOKEN'),
         'allow' => array_values(array_filter(array_map('trim', explode(',', (string) env('METRICS_ALLOW', ''))))),
+
+        // Review M1: a request that reached the API through the load balancer
+        // or another trusted proxy came from the internet, so it is refused
+        // whatever its token or forwarded address. The NodeBalancer's backend
+        // range (192.168.255.0/24) is inside Linode's private network, so it is
+        // always refused, as is every TRUSTED_PROXIES entry.
+        'trusted_proxies' => TrustedProxies::parse(env('TRUSTED_PROXIES')),
+        'refused_ranges' => ['192.168.255.0/24'],
 
         // Where request counts and latency histograms are kept between
         // scrapes: `redis` (shared by every API host) or `array` (this
@@ -33,6 +43,9 @@ return [
         // the API out of rotation unless this is true (it still shows in
         // /metrics and the status snapshot).
         'require_horizon' => (bool) env('HEALTH_REQUIRE_HORIZON', false),
+
+        // GET /health/ready answers from a cache this long (seconds; 0: never cached).
+        'cache_seconds' => (int) env('HEALTH_CACHE_SECONDS', 5),
     ],
 
     'status' => [

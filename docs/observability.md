@@ -37,7 +37,7 @@ Tracing is off (`SENTRY_TRACES_SAMPLE_RATE` unset). Start at `0.05` once the pla
 
 ## Metrics: `GET /metrics`
 
-Prometheus text format. **Never public**: the endpoint answers 404 unless the caller sends `Authorization: Bearer $METRICS_TOKEN` or comes from an address in `METRICS_ALLOW` (comma-separated CIDRs, for example the Linode private network `192.168.128.0/17`). With neither set nobody can read it. Block `/metrics` at the public web server as well (docs/security.md).
+Prometheus text format. **Never public**: the endpoint answers 404 unless the caller sends `Authorization: Bearer $METRICS_TOKEN` or comes from an address in `METRICS_ALLOW` (comma-separated CIDRs: name the scraper's own private address, for example `192.168.140.25/32`, never the whole Linode private range `192.168.128.0/17`, which contains the NodeBalancer's backend range). Whatever the token or allow-list, a request whose address is in `TRUSTED_PROXIES` or the NodeBalancer's range `192.168.255.0/24` is refused: it came through the load balancer, from the internet. In production `app:preflight` fails when `METRICS_ALLOW` is set without `METRICS_TOKEN`. With neither set nobody can read it. Block `/metrics` at the public web server as well (`location ~ ^/(index\.php/)?metrics/?$ { deny all; }`, docs/security.md).
 
 | Metric | Type | Labels | Source |
 | --- | --- | --- | --- |

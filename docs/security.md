@@ -78,7 +78,8 @@ server {
 
     # Never public: scraped on the private network (docs/observability.md), and the TLS ask
     # endpoint for custom domains (docs/integrations.md).
-    location = /metrics { deny all; }
+    # Also catches /index.php/metrics and a trailing slash, which reach the same route.
+    location ~ ^/(index\.php/)?metrics/?$ { deny all; }
     location = /api/v1/tls/ask { deny all; }
 
     location / { try_files $uri /index.php?$query_string; }

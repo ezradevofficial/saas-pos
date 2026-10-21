@@ -66,6 +66,14 @@ final class MetricsController
 
     public static function allows(Request $request, Repository $config): bool
     {
+        // Review M1: never through the load balancer or a proxy (the internet).
+        $refused = [...(array) $config->get('observability.metrics.refused_ranges', []), ...(array) $config->get('observability.metrics.trusted_proxies', [])];
+        foreach (array_filter([$request->server('REMOTE_ADDR'), $request->ip()]) as $address) {
+            if ($refused !== [] && IpUtils::checkIp((string) $address, $refused)) {
+                return false;
+            }
+        }
+
         $token = (string) $config->get('observability.metrics.token');
         if ($token !== '' && is_string($request->bearerToken()) && hash_equals($token, $request->bearerToken())) {
             return true;

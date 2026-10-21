@@ -11,8 +11,12 @@ class HttpMetrics
     /** @param list<float> $buckets */
     public function __construct(private readonly MetricsStore $store, private readonly array $buckets) {}
 
+    /** Methods kept as labels; anything else is OTHER, so a client cannot invent label values. */
+    private const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+
     public function record(string $method, string $route, int $status, float $seconds): void
     {
+        $method = in_array(strtoupper($method), self::METHODS, true) ? strtoupper($method) : 'OTHER';
         $labels = sprintf('method="%s",route="%s"', self::escape($method), self::escape($route));
         $increments = [
             sprintf('http_requests_total{%s,status="%dxx"}', $labels, intdiv($status, 100)) => 1,

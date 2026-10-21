@@ -63,7 +63,7 @@ Observability (warned by `app:preflight` when missing, never fatal):
 | `LOG_STACK` | `json` (file) or `json_stderr` (journal); `LOG_LEVEL=info` |
 | `SENTRY_LARAVEL_DSN` | the API project's DSN (owner) |
 | `SENTRY_TRACES_SAMPLE_RATE` | unset, or e.g. `0.05` |
-| `METRICS_TOKEN` and/or `METRICS_ALLOW` | a random token for the scraper, and/or the private network CIDR |
+| `METRICS_TOKEN` (required in production) and `METRICS_ALLOW` | a random token for the scraper, and the scraper's own private address (e.g. `192.168.140.25/32`; never `192.168.128.0/17`, which contains the NodeBalancer range). Requests through the NodeBalancer or `TRUSTED_PROXIES` are always refused |
 | `HEALTH_REQUIRE_HORIZON` | `true` only where Horizon runs on the same host and should gate readiness |
 | `STATUS_DISK`, `STATUS_PATH` | where `health:status` writes `status.json` (default the local disk) |
 | `PRIVACY_DEADLINE_DAYS_KE`, `_CD` | once counsel confirms them (docs/privacy.md) |

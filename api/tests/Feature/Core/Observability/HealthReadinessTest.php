@@ -89,6 +89,19 @@ class HealthReadinessTest extends TestCase
         $response->assertStatus(503)->assertJsonPath('checks.horizon.status', 'fail');
     }
 
+    /** Review (low): probes from many monitors cost one round of checks every few seconds. */
+    public function test_readiness_is_cached_for_a_few_seconds(): void
+    {
+        $this->getJson('/health/ready')->assertOk();
+
+        // Broken now, but the answer of a moment ago still stands.
+        config(['observability.health.storage_disk' => 'no-such-disk']);
+        $this->getJson('/health/ready')->assertOk();
+
+        $this->travel(11)->seconds();
+        $this->getJson('/health/ready')->assertStatus(503);
+    }
+
     public function test_failure_details_never_reach_the_response(): void
     {
         config(['observability.health.storage_disk' => 'no-such-disk']);

@@ -96,6 +96,8 @@ class Preflight extends Command
         };
         $checks['Metrics access'] = fn () => match (true) {
             $development => ['skip', 'not needed here'],
+            // Review M1: an address allow-list alone can be bypassed by a misrouted proxy.
+            $this->laravel->environment('production') && ! filled($config->get('observability.metrics.token')) && $config->get('observability.metrics.allow') !== [] => ['fail', 'METRICS_ALLOW is set without METRICS_TOKEN: set a scrape token in production'],
             filled($config->get('observability.metrics.token')) || $config->get('observability.metrics.allow') !== [] => ['ok', null],
             default => ['warn', 'METRICS_TOKEN and METRICS_ALLOW not set: /metrics answers nobody'],
         };
