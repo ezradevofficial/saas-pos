@@ -7,6 +7,7 @@ use App\Core\Currency\Money;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\TenantContext;
 use Brick\Math\BigInteger;
 use Brick\Math\RoundingMode;
@@ -482,7 +483,8 @@ class PosSales
             }
         }
 
-        if ($card->isExpired($sale->sold_at->format('Y-m-d'))) {
+        // The sale's day at its branch, not UTC's.
+        if ($card->isExpired($sale->sold_at->setTimezone(CompanyClock::timezone($sale->company_id, $sale->branch_id))->format('Y-m-d'))) {
             $note('gift_card_expired', ['card' => $card->last4]);
         }
 

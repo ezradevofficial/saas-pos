@@ -344,6 +344,8 @@ export const NAV_GROUPS = [
       { to: '/settings/users', icon: 'users', label: (t) => t('nav.users'), permission: 'core.user.view', module: 'core' },
       { to: '/settings/roles', icon: 'roles', label: (t) => t('nav.roles'), permission: 'core.role.view', module: 'core' },
       { to: '/settings/security', icon: 'security', label: (t) => t('nav.security'), permission: 'core.settings.edit', tenantWide: true, module: 'core' },
+      // AUTH-11: single sign-on (Owners).
+      { to: '/settings/sso', icon: 'key', label: (t) => t('nav.sso'), permission: 'core.sso.manage', tenantWide: true, module: 'core' },
       // RBAC-13: who may see the organisation from our support team, and what they did.
       { to: '/settings/security/support-access', icon: 'lock', label: (t) => t('nav.supportAccess'), permission: 'core.support_access.view', tenantWide: true, module: 'core' },
       { to: '/settings/numbering', icon: 'numbering', label: (t) => t('nav.numbering'), permission: NUMBERING_VIEW, module: 'core' },
@@ -359,6 +361,8 @@ export const NAV_GROUPS = [
       // LAY-05: the tills' sell screen, while the POS module is active.
       { to: '/settings/pos-layout', icon: 'device', label: (t) => t('nav.posLayout'), permission: POS_LAYOUT_VIEW, module: 'pos' },
       { to: '/settings/domains', icon: 'domains', label: (t) => t('nav.domains'), permission: 'core.domain.manage', tenantWide: true, module: 'core' },
+      // API-02: API keys for integrations; the developer portal links from the page.
+      { to: '/settings/api-keys', icon: 'developers', label: (t) => t('nav.apiKeys'), permission: 'core.api_key.manage', tenantWide: true, module: 'core' },
       // SUB-02..SUB-06: the subscription (Owner, Admin).
       { to: '/settings/subscription', icon: 'subscription', label: (t) => t('nav.subscription'), permission: 'core.subscription.view', tenantWide: true, module: 'core' },
       // LIM-01, LIM-02: usage against the plan (Owners only).

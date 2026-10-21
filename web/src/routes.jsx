@@ -85,10 +85,12 @@ import { platformRoutes } from './platform/routes'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import SignIn from './pages/auth/SignIn'
+import SsoComplete from './pages/auth/SsoComplete'
 import SignUp from './pages/auth/SignUp'
 import TwoFactor from './pages/auth/TwoFactor'
 import Verify from './pages/auth/Verify'
 import Welcome from './pages/onboarding/Welcome'
+import { DevelopersLayout } from './pages/developers/DevelopersLayout'
 
 // NFR-02: every page is its own chunk, loaded when its route is first opened.
 // The layouts (eager, above) render each page inside a Suspense boundary.
@@ -311,6 +313,12 @@ const DataExport = lazy(() => import('./pages/settings/DataExport'))
 const WebhookDetail = lazy(() => import('./pages/settings/webhooks/WebhookDetail'))
 const Webhooks = lazy(() => import('./pages/settings/webhooks/Webhooks'))
 const Privacy = lazy(() => import('./pages/settings/privacy/Privacy'))
+const SingleSignOn = lazy(() => import('./pages/settings/SingleSignOn'))
+const ApiKeys = lazy(() => import('./pages/settings/ApiKeys'))
+const ApiReference = lazy(() => import('./pages/developers/ApiReference').then((m) => ({ default: m.ApiReference })))
+const Changelog = lazy(() => import('./pages/developers/DeveloperPages').then((m) => ({ default: m.Changelog })))
+const DevelopersHome = lazy(() => import('./pages/developers/DeveloperPages').then((m) => ({ default: m.DevelopersHome })))
+const Guide = lazy(() => import('./pages/developers/DeveloperPages').then((m) => ({ default: m.Guide })))
 const SupportAccess = lazy(() => import('./pages/settings/SupportAccess'))
 const SupportEnter = lazy(() => import('./pages/auth/SupportEnter'))
 const Subscription = lazy(() => import('./pages/settings/Subscription'))
@@ -375,6 +383,8 @@ export const routes = [
       { path: '/sign-up', element: <SignUp /> },
       { path: '/verify', element: <Verify /> },
       { path: '/two-factor', element: <TwoFactor /> },
+      // AUTH-11: the identity provider's callback lands here with a ticket in the fragment.
+      { path: '/sso/complete', element: <SsoComplete /> },
       { path: '/forgot-password', element: <ForgotPassword /> },
       { path: '/reset-password', element: <ResetPassword /> },
     ],
@@ -391,6 +401,18 @@ export const routes = [
     ],
   },
   // ECOM-05: the storefront, open to everyone on the tenant's host; it never uses a tenant user's sign-in.
+  // API-04: the developer portal, public (signed in or not).
+  {
+    path: '/developers',
+    element: <DevelopersLayout />,
+    children: [
+      { index: true, element: <DevelopersHome /> },
+      { path: 'guides/:guide', element: <Guide /> },
+      { path: 'reference', element: <ApiReference /> },
+      { path: 'errors', element: <Guide id="errors" /> },
+      { path: 'changelog', element: <Changelog /> },
+    ],
+  },
   {
     path: '/shop/:store',
     element: <ShopLayout />,
@@ -758,6 +780,15 @@ export const routes = [
           </RequirePermission>
         ),
       },
+      // AUTH-11: single sign-on (the Owner's, core.sso.manage).
+      {
+        path: '/settings/sso',
+        element: (
+          <RequirePermission permission="core.sso.manage" tenantWide>
+            <SingleSignOn />
+          </RequirePermission>
+        ),
+      },
       // RBAC-13b: support requests, active sessions and their history (Owner, Admin).
       {
         path: '/settings/security/support-access',
@@ -830,6 +861,8 @@ export const routes = [
       // LAY-05: the API answers 404 for the kind without the POS module (RBAC-08).
       { path: '/settings/pos-layout', handle: { wide: true }, element: <RequirePermission permission={POS_LAYOUT_VIEW}><PosLayout /></RequirePermission> },
       { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
+      // API-02, API-03, API-05: API keys, their usage and the sandbox reset.
+      { path: '/settings/api-keys', element: <RequirePermission permission="core.api_key.manage" tenantWide><ApiKeys /></RequirePermission> },
       // EXP-02: the full data export (Owners only; the API also checks the Owner role).
       // SUB-02..SUB-06: the plan, invoices and payment methods.
       { path: '/settings/subscription', element: <RequirePermission permission="core.subscription.view" tenantWide><Subscription /></RequirePermission> },

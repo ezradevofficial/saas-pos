@@ -2,6 +2,7 @@
 
 namespace App\Core\DocumentTemplates;
 
+use App\Core\Api\Sandbox\Sandbox;
 use Throwable;
 
 /**
@@ -73,6 +74,7 @@ final class TemplateRenderer
         $blocks = array_values(array_filter((array) ($template['blocks'] ?? []), 'is_array'));
 
         $blocks = self::withLockedBlocks($blocks, $fiscalRequired);
+        $blocks = self::withSandboxStamp($blocks, $this->language);
 
         $margins = self::margins($template['margins'] ?? null);
         $title = self::escape(trim($this->label('numbers.'.self::typeKey($type)).' '.($data['document']['number'] ?? '')));
@@ -654,6 +656,23 @@ final class TemplateRenderer
         }
 
         return array_values($blocks);
+    }
+
+    /**
+     * API-05 (review): in a developer sandbox, every document and receipt
+     * starts with "SANDBOX – not a fiscal receipt", whatever its template.
+     * The till gets the same block in its synced templates (TemplateSource).
+     */
+    public static function withSandboxStamp(array $blocks, string $language): array
+    {
+        if (! app(Sandbox::class)->active() || (($blocks[0]['id'] ?? null) === 'sandbox-stamp')) {
+            return $blocks;
+        }
+
+        return [
+            ['id' => 'sandbox-stamp', 'type' => 'text', 'text' => __('templates.sandbox_stamp', [], $language), 'align' => 'center', 'size' => 'large', 'weight' => 'medium'],
+            ...$blocks,
+        ];
     }
 
     public static function hasFiscal(array $blocks): bool

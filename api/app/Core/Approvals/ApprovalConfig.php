@@ -203,7 +203,8 @@ class ApprovalConfig
 
     public static function knownUser(mixed $id): bool
     {
-        return is_string($id) && Str::isUuid($id) && User::query()->whereKey($id)->exists();
+        // ADR 020: an API key's principal is never an approver; nor is a deactivated user.
+        return is_string($id) && Str::isUuid($id) && User::query()->whereKey($id)->where('status', User::STATUS_ACTIVE)->exists();
     }
 
     /** @return array{amount: int, unit: string}|null */

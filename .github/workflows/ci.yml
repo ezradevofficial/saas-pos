@@ -29,17 +29,21 @@ jobs:
       fail-fast: false
       matrix:
         suite:
-          # Unit + Feature in three shards (phpunit.xml ShardCoreA, ShardCoreB,
-          # ShardModules) so no job nears the time limit as modules are added.
+          # Unit + Feature in four shards (phpunit.xml ShardCoreA, ShardCoreB,
+          # ShardModulesA, ShardModulesB) so no job nears the time limit as
+          # modules are added. A new module's tests go in one of the module shards.
           - name: core a
             pint: true
             command: php artisan test --testsuite=ShardCoreA --exclude-group=slow
           - name: core b
             pint: false
             command: php artisan test --testsuite=ShardCoreB --exclude-group=slow
-          - name: modules
+          - name: modules a
             pint: false
-            command: php artisan test --testsuite=ShardModules --exclude-group=slow
+            command: php artisan test --testsuite=ShardModulesA --exclude-group=slow
+          - name: modules b
+            pint: false
+            command: php artisan test --testsuite=ShardModulesB --exclude-group=slow
           # TEN-01 in seven shards: every isolation test builds the full
           # two-tenant fixture, and the export, ID-probe, list and table tests
           # walk every table, route or export, so together they outgrow one
@@ -98,6 +102,9 @@ jobs:
         working-directory: api
     steps:
       - uses: actions/checkout@v5
+        with:
+          # API-04: the OpenAPI check compares with HEAD~1 on pushes to main.
+          fetch-depth: 2
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -152,6 +159,31 @@ jobs:
       - name: Pint
         if: matrix.suite.pint
         run: vendor/bin/pint --test
+
+      # API-04 (ADR 020): every public route documented in English and French,
+      # the committed OpenAPI document current, and no operation or parameter
+      # removed without a deprecation entry. Needs the migrated schema (Scramble
+      # reads models' column types).
+      - name: OpenAPI document
+        if: matrix.suite.pint
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          php artisan api:docs --check
+          # The base's document: the target branch for a pull request, the previous commit on a push.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_REF"
+            BASE="origin/$BASE_REF"
+          else
+            BASE="HEAD~1"
+          fi
+          if git cat-file -e "$BASE:api/resources/openapi/v1.json" 2>/dev/null; then
+            git show "$BASE:api/resources/openapi/v1.json" > "$RUNNER_TEMP/openapi-base.json"
+            php artisan api:docs --against="$RUNNER_TEMP/openapi-base.json"
+          else
+            echo "No OpenAPI document at $BASE yet: nothing to compare."
+          fi
 
       - name: Tests (${{ matrix.suite.name }})
         run: ${{ matrix.suite.command }}

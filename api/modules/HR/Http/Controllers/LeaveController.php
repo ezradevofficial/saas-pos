@@ -4,6 +4,7 @@ namespace Modules\HR\Http\Controllers;
 
 use App\Core\Audit\Auditor;
 use App\Core\Exports\ListExport;
+use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\Models\Company;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -77,7 +78,12 @@ class LeaveController
 
     public function balances(LeaveBalancesRequest $request): JsonResponse
     {
-        $asOf = CarbonImmutable::parse($request->validated('as_of', CarbonImmutable::now()->toDateString()));
+        // HR-15: without `as_of`, each employee's balance is as of today at their place (branch, else company), not UTC's day.
+        $given = $request->validated('as_of');
+        $days = [];
+        $asOfFor = function (Employee $employee) use ($given, &$days): CarbonImmutable {
+            return CarbonImmutable::parse($given ?? ($days[$employee->company_id.'|'.$employee->branch_id] ??= CompanyClock::today($employee->company_id, $employee->branch_id)));
+        };
         $query = Employee::query()->where('status', Employee::ACTIVE);
         $this->access->limit($query, $request->user(), 'hr.leave.view');
 
@@ -104,11 +110,13 @@ class LeaveController
                 'leave_type' => Refs::coded($type),
                 'days_needed' => $type->needs_confirmation,
                 'tracked' => $type->accrual !== 'none',
-                ...$this->ledger->summary($employee->id, $type, $asOf),
+                ...$this->ledger->summary($employee->id, $type, $asOfFor($employee)),
             ])->values()->all(),
         ])->values()->all();
+        $asOf = $given ?? ($request->filled('company') ? CompanyClock::today($request->validated('company'), $request->validated('branch')) : null)
+            ?? ($page->getCollection()->isEmpty() ? CompanyClock::today(null) : $asOfFor($page->getCollection()->first())->toDateString());
 
-        return new JsonResponse(['data' => $rows, 'meta' => ['as_of' => $asOf->toDateString(), 'current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'per_page' => $page->perPage(), 'total' => $page->total()]]);
+        return new JsonResponse(['data' => $rows, 'meta' => ['as_of' => $asOf, 'current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'per_page' => $page->perPage(), 'total' => $page->total()]]);
     }
 
     public function adjust(LeaveAdjustmentRequest $request): JsonResponse
@@ -120,8 +128,10 @@ class LeaveController
             throw Errors::make(422, 'leave_type_other_company', field: 'leave_type_id');
         }
 
-        $entry = Errors::transaction(function () use ($request, $employee, $type) {
-            $entry = $this->ledger->post($employee->id, $type->id, 'adjustment', (string) $request->validated('days'), $request->validated('effective_on', CarbonImmutable::now()->toDateString()),
+        // HR-15: an adjustment takes effect today at the employee's place by default, not on UTC's day.
+        $today = CompanyClock::today($employee->company_id, $employee->branch_id);
+        $entry = Errors::transaction(function () use ($request, $employee, $type, $today) {
+            $entry = $this->ledger->post($employee->id, $type->id, 'adjustment', (string) $request->validated('days'), $request->validated('effective_on', $today),
                 'adjustment:'.str()->uuid7(), null, (string) $request->validated('reason'), $request->user()->id);
             app(Auditor::class)->record('hr.leave.adjust', $employee, null, ['leave_type_id' => $type->id, 'days' => (string) $request->validated('days'), 'reason' => $request->validated('reason')]);
 
@@ -130,13 +140,13 @@ class LeaveController
 
         return new JsonResponse(['data' => [
             'id' => $entry->id, 'days' => (string) $entry->days, 'effective_on' => $entry->effective_on->toDateString(),
-            ...$this->ledger->summary($employee->id, $type, CarbonImmutable::now()),
+            ...$this->ledger->summary($employee->id, $type, CarbonImmutable::parse($today)),
         ]], 201);
     }
 
     public function runAccruals(RunAccrualsRequest $request, Accruals $accruals): JsonResponse
     {
-        $asOf = CarbonImmutable::parse($request->validated('as_of', CarbonImmutable::now()->toDateString()));
+        $asOf = CarbonImmutable::parse($request->validated('as_of', CompanyClock::today((string) $request->validated('company_id'))));
 
         return new JsonResponse(['data' => $accruals->run($asOf, (string) $request->validated('company_id'))]);
     }
@@ -174,7 +184,8 @@ class LeaveController
 
     public function calendar(LeaveCalendarRequest $request): JsonResponse
     {
-        $from = CarbonImmutable::parse($request->validated('from', CarbonImmutable::now()->startOfMonth()->toDateString()));
+        $zone = CompanyClock::timezone($request->validated('company'), $request->validated('branch'));
+        $from = CarbonImmutable::parse($request->validated('from', CarbonImmutable::now($zone)->startOfMonth()->toDateString()));
         $to = CarbonImmutable::parse($request->validated('to', $from->endOfMonth()->toDateString()));
 
         if ($to->lessThan($from) || $from->diffInDays($to) > 92) {

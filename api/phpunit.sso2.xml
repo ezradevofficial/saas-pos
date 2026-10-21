@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+            <!-- Each business module keeps its own tests (CLAUDE.md layout). -->
+            <directory>modules/*/tests</directory>
+            <!-- Runs only in its own suite (CI job `api (isolation)`). -->
+            <exclude>tests/Feature/Isolation</exclude>
+        </testsuite>
+        <!-- CI shards of the Feature and Unit suites (NFR-12): together they cover
+             exactly what Unit + Feature cover, so each test runs once. -->
+        <testsuite name="ShardCoreA">
+            <directory>tests/Unit</directory>
+            <directory>tests/Feature/Core/Identity</directory>
+            <directory>tests/Feature/Core/MasterData</directory>
+            <directory>tests/Feature/Core/Currency</directory>
+            <directory>tests/Feature/Core/Automation</directory>
+            <directory>tests/Feature/Core/Tenancy</directory>
+            <directory>tests/Feature/Core/Rbac</directory>
+        </testsuite>
+        <testsuite name="ShardCoreB">
+            <directory>tests/Feature</directory>
+            <exclude>tests/Feature/Isolation</exclude>
+            <exclude>tests/Feature/Core/Identity</exclude>
+            <exclude>tests/Feature/Core/MasterData</exclude>
+            <exclude>tests/Feature/Core/Currency</exclude>
+            <exclude>tests/Feature/Core/Automation</exclude>
+            <exclude>tests/Feature/Core/Tenancy</exclude>
+            <exclude>tests/Feature/Core/Rbac</exclude>
+        </testsuite>
+        <testsuite name="ShardModules">
+            <directory>modules/*/tests</directory>
+        </testsuite>
+        <!-- TEN-01: the CI isolation job (php artisan test with testsuite Isolation). -->
+        <testsuite name="Isolation">
+            <directory>tests/Feature/Isolation</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="DB_DATABASE" value="app_test_sso2" force="true"/>
+        <env name="HR_DIGEST_KEY" value="sso-test-digest-key-0123456789abcdef" force="true"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_DATABASE" value="app_test"/>
+        <env name="DB_USERNAME" value="app"/>
+        <env name="DB_PASSWORD" value="app"/>
+        <env name="DB_OWNER_USERNAME" value="app_owner"/>
+        <env name="DB_OWNER_PASSWORD" value="app_owner"/>
+        <env name="DB_PLATFORM_USERNAME" value="app_platform"/>
+        <env name="DB_PLATFORM_PASSWORD" value="app_platform"/>
+        <env name="DB_URL" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- ECOM-24: the fake WhatsApp driver signs with this in tests only (no default anywhere). -->
+        <env name="ECOMMERCE_WHATSAPP_FAKE_SECRET" value="test-only-whatsapp-secret"/>
+        <!-- NFR-05: snapshot caching is tested on its own (SyncPullTest). -->
+        <env name="SYNC_SNAPSHOT_TTL" value="0"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

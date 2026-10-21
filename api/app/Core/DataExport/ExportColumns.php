@@ -41,6 +41,7 @@ final class ExportColumns
         'payment_methods.callback_token_hash' => 'payment provider callback token hash',
         'company_fiscal_settings.credentials' => 'tax authority credentials (encrypted)',
         'automation_rules.webhook_secret' => 'webhook signing secret (AUTO-03, encrypted)',
+        'sso_connections.client_secret' => 'an identity provider\'s OIDC client secret (AUTH-11, encrypted)',
         'automation_webhook_deliveries.url' => 'the webhook URL called, which may carry a token (AUTO-03, encrypted)',
         // HOOK-01: webhook URLs carry secrets (the Phase 6 rule); signing secrets are shown once.
         'webhook_subscriptions.url' => 'a webhook subscription\'s endpoint URL, which may carry a token (HOOK-01, encrypted)',
@@ -78,6 +79,11 @@ final class ExportColumns
         'procurement_tender_bidders.token_hash' => 'a bidder\'s portal link token hash (PRC-07)',
         'procurement_portal_sessions.token_hash' => 'a supplier portal session token hash (PRC-07)',
         'procurement_bids.sealed_payload' => 'a sealed bid\'s ciphertext (PRC-09): its content is exported in plain columns once the tender is opened',
+        // API-02 (ADR 020): API keys' secrets are kept only as hashes, and never exported.
+        'api_keys.secret_hash' => 'an API key\'s secret hash (API-02)',
+        'api_keys.previous_secret_hash' => 'an API key\'s previous secret hash, during a rotation overlap (API-02)',
+        'sandbox_outbox.body' => 'a message a developer sandbox would have sent, which may hold a one-time link or code (API-05)',
+        'api_idempotency_keys.body' => 'a stored response replayed to an API key for 24 hours (API-01): a cache, not a record; the records it shows are exported themselves',
     ];
 
     /**
@@ -127,6 +133,7 @@ final class ExportColumns
         'pos_sales.payload_hash' => 'idempotency fingerprint of an uploaded record (NFR-04)',
         'roles.requires_two_factor' => 'a role\'s policy flag',
         'tenant_domains.verification_token' => 'the public value of a DNS TXT record (BR-05)',
+        'sso_domains.verification_token' => 'the public value of a DNS TXT record (AUTH-11)',
         'user_pins.pin_iterations' => 'a hashing parameter, not the PIN',
         'user_pins.pin_digits' => 'the PIN\'s length',
         'user_pins.pin_set_at' => 'when the PIN was set',
@@ -134,6 +141,9 @@ final class ExportColumns
         'hr_clock_pins.pin_digits' => 'the clock-in PIN\'s length',
         'users.two_factor_confirmed_at' => 'when two-step sign-in was turned on',
         'users.two_factor_method' => 'which two-step method the user chose',
+        'api_key_usage_days.api_key_id' => 'the id of an API key row, not the key (API-03)',
+        'api_idempotency_keys.api_key_id' => 'the id of an API key row, not the key (API-01)',
+        'api_idempotency_keys.request_hash' => 'idempotency fingerprint of a key\'s POST (API-01)',
     ];
 
     /** @return list<string> the denied columns of $table */

@@ -30,6 +30,7 @@ use Illuminate\Support\Str;
  */
 class DocumentTemplateController
 {
+    /** How long a preview's PDF is kept; tests that run long may raise `document_templates.preview_minutes`. */
     public const PREVIEW_MINUTES = 10;
 
     public function __construct(
@@ -102,7 +103,7 @@ class DocumentTemplateController
         $template = $this->variant($payload, $request->validated('variant'));
 
         $key = Str::random(40);
-        Cache::put($this->cacheKey($request, $key), compact('type', 'template', 'data', 'required'), now()->addMinutes(self::PREVIEW_MINUTES));
+        Cache::put($this->cacheKey($request, $key), compact('type', 'template', 'data', 'required'), now()->addMinutes((int) config('document_templates.preview_minutes', self::PREVIEW_MINUTES)));
 
         return new JsonResponse(['data' => [
             'html' => app(TemplateRenderer::class)->html($type, $template, $data, $required),

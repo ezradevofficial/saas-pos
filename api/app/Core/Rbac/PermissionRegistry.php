@@ -72,6 +72,9 @@ class PermissionRegistry
         // BR-04..BR-06: the tenant's subdomain, custom domains and the
         // email sender and SMS sender ID (tenant scope; Owner, Admin).
         'domain' => ['manage'],
+        // AUTH-11, ADR 023: single sign-on connections, email domains,
+        // enforcement and JIT provisioning (tenant scope; Owner template only).
+        'sso' => ['manage'],
         // LAY-01, LAY-02, LAY-04: dashboards, navigation and list views of
         // the tenant and its roles (personal ones need no permission).
         'layout' => ['view', 'edit', 'publish'],
@@ -94,6 +97,8 @@ class PermissionRegistry
         // edit: tenant scope; Owner, Admin); the business type and the
         // modules the trial covers (modules: the subscription, Owner only).
         'onboarding' => ['view', 'edit', 'modules'],
+        // API-02, API-05 (ADR 020): the tenant's API keys and its developer sandbox's reset (Owner, Admin).
+        'api_key' => ['manage'],
         // RBAC-13: see support access requests and sessions (view); approve,
         // deny and revoke them (manage). Owner and Admin templates.
         'support_access' => ['view', 'manage'],

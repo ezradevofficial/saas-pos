@@ -79,7 +79,7 @@ class Assets
             $this->customFields->fill(AssetEntity::KEY, $asset, $data['custom'] ?? null, creating: true);
             $asset->save();
             $this->customFields->saved(AssetEntity::KEY, $asset);
-            $this->history->record($asset, 'created', CarbonImmutable::now(), null, ['number' => $asset->number, 'source' => $asset->source], by: $by);
+            $this->history->record($asset, 'created', null, null, ['number' => $asset->number, 'source' => $asset->source], by: $by);
 
             return $asset->refresh();
         });
@@ -208,7 +208,7 @@ class Assets
             }
 
             $asset->fill(['archived_at' => CarbonImmutable::now(), 'archived_by' => $by->id, 'archive_reason' => $reason])->save();
-            $this->history->record($asset, 'cancelled', CarbonImmutable::now(), note: $reason, by: $by);
+            $this->history->record($asset, 'cancelled', null, note: $reason, by: $by);
 
             return $asset->refresh();
         });
@@ -234,7 +234,7 @@ class Assets
             }
 
             $asset->save();
-            $this->history->record($asset, 'estimate_changed', CarbonImmutable::now(), $before, History::terms($asset), note: $data['reason'], by: $by);
+            $this->history->record($asset, 'estimate_changed', null, $before, History::terms($asset), note: $data['reason'], by: $by);
 
             return $asset->refresh();
         });

@@ -74,3 +74,6 @@ Schedule::command('onboarding:handover-report')->dailyAt('07:00')->withoutOverla
 
 // HR-13, HR-25: leave accrual and yesterday's timesheet days (absences), daily.
 Schedule::command('hr:daily')->dailyAt('02:30')->withoutOverlapping()->onOneServer();
+
+// AUTH-11, ADR 023: re-read SAML metadata fetched by URL; keep a rotated signing certificate.
+Schedule::command('sso:refresh-metadata')->dailyAt('03:40')->withoutOverlapping()->onOneServer();

@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Api\ApiServiceProvider;
 use App\Core\Approvals\ApprovalsServiceProvider;
 use App\Core\Automation\AutomationServiceProvider;
 use App\Core\Billing\BillingServiceProvider;
@@ -26,6 +27,7 @@ use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Platform\PlatformServiceProvider;
 use App\Core\Privacy\PrivacyServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
+use App\Core\Sso\SsoServiceProvider;
 use App\Core\Sync\SyncServiceProvider;
 use App\Core\Webhooks\WebhooksServiceProvider;
 use App\Core\Workflow\WorkflowServiceProvider;
@@ -60,6 +62,7 @@ return [
     ConfigurationServiceProvider::class,
     DocumentTemplatesServiceProvider::class,
     BrandingServiceProvider::class,
+    SsoServiceProvider::class,
     LayoutsServiceProvider::class,
     NotificationsServiceProvider::class,
     AutomationServiceProvider::class,
@@ -89,5 +92,7 @@ return [
     CrmServiceProvider::class,
     EcommerceServiceProvider::class,
     PayrollServiceProvider::class,
+    // API-01..API-05: last, so the sandbox's set-up runs after every other sign-up listener.
+    ApiServiceProvider::class,
     HorizonServiceProvider::class,
 ];

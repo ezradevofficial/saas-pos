@@ -2,6 +2,7 @@
 
 namespace App\Core\Payments;
 
+use App\Core\Api\Sandbox\Sandbox;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\MasterData\PaymentMethods\PaymentProviders;
 use App\Core\Payments\Contracts\PaymentProvider;
@@ -24,6 +25,9 @@ use RuntimeException;
  * A method without a provider (cash, credit, voucher, ...) uses `cash`.
  * Modules may register more adapters (an aggregator) in their provider's
  * boot().
+ *
+ * API-05: in a developer sandbox every method with a provider uses the
+ * fake driver, in any environment: no money moves there (ADR 020).
  */
 class PaymentProviderRegistry
 {
@@ -43,6 +47,7 @@ class PaymentProviderRegistry
     public function __construct(
         private readonly Container $container,
         private readonly PaymentProviders $providers,
+        private readonly Sandbox $sandbox,
     ) {}
 
     /** @param class-string<PaymentProvider> $class */
@@ -53,6 +58,10 @@ class PaymentProviderRegistry
 
     public function driverName(PaymentMethod $method): string
     {
+        if ($method->provider !== null && $this->sandbox->active()) {
+            return 'fake';
+        }
+
         $override = $method->provider === null ? null : config("payments.drivers.{$method->provider}");
 
         return is_string($override) && $override !== '' ? $override : $this->providers->driverOf($method->provider);
@@ -68,7 +77,7 @@ class PaymentProviderRegistry
         $class = $this->drivers[$name] ?? throw new InvalidArgumentException("Unknown payment driver [{$name}].");
 
         // NFR-06: the fake driver confirms money that never moved.
-        if ($name === 'fake' && ! config('payments.allow_fake')) {
+        if ($name === 'fake' && ! config('payments.allow_fake') && ! $this->sandbox->active()) {
             throw new RuntimeException('The fake payment driver is only available in local and testing.');
         }
 

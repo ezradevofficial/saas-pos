@@ -5,6 +5,7 @@ namespace Modules\FixedAssets\Tests;
 use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -103,6 +104,17 @@ class AssetsTest extends TestCase
         $this->assertSame(['estimate_changed', 'activated', 'created'], array_column($history, 'kind'));
         $this->assertSame(60, $history[0]['before']['useful_life_months']);
         $this->assertSame(48, $history[0]['after']['useful_life_months']);
+    }
+
+    public function test_history_without_a_date_is_dated_on_the_companys_day_not_utcs(): void
+    {
+        // FA-26: 00:30 on Tuesday 20 October 2026 in Nairobi; still Monday 19 October in UTC.
+        $this->travelTo(CarbonImmutable::parse('2026-10-19T21:30:00Z'));
+        $asset = $this->active();
+        $this->api('POST', "assets/{$asset['id']}/estimates", ['useful_life_months' => 48, 'residual_minor' => 0, 'reason' => 'Heavier use'])->assertOk();
+
+        $history = collect($this->api('GET', "assets/{$asset['id']}/history")->assertOk()->json('data'))->keyBy('kind');
+        $this->assertSame(['2026-10-20', '2026-10-20'], [$history['created']['happened_on'], $history['estimate_changed']['happened_on']]);
     }
 
     public function test_meter_readings_never_go_down(): void

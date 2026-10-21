@@ -293,4 +293,18 @@ class TemplateApiTest extends TestCase
         $this->postJson(self::URL, ['key' => 'pos.receipt', 'scope_type' => 'company', 'scope_id' => $this->acme->id, 'payload' => $this->receipt()], $this->headersFor($other['user']))
             ->assertUnprocessable()->assertJsonValidationErrors('scope_id');
     }
+
+    public function test_a_preview_pdf_expires_after_ten_minutes_unless_a_test_keeps_it_longer(): void
+    {
+        $path = fn () => parse_url($this->postJson('/api/v1/templates/preview', ['type' => 'pos.receipt', 'payload' => $this->receipt()], $this->headersFor())->json('data.pdf_url'), PHP_URL_PATH);
+
+        $default = $path();
+        // The isolation fixture keeps its preview for a long walk (production keeps 10 minutes).
+        config(['document_templates.preview_minutes' => 24 * 60]);
+        $long = $path();
+
+        $this->travel(11)->minutes();
+        $this->getJson($default, $this->headersFor())->assertNotFound()->assertJsonPath('code', 'preview_expired');
+        $this->get($long, $this->headersFor())->assertOk();
+    }
 }

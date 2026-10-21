@@ -54,16 +54,20 @@ class TwoFactor
         return $roleIds !== [] && Role::whereKey($roleIds)->where('requires_two_factor', true)->exists();
     }
 
-    /** Signed in by password alone but required to have a second factor: the token may only enrol. */
-    public function mustEnrol(User $user): bool
+    /**
+     * Signed in by password alone but required to have a second factor: the
+     * token may only enrol. AUTH-11, ADR 023: a single sign-on whose IdP
+     * asserted MFA ($idpMfa) has proven a second factor already.
+     */
+    public function mustEnrol(User $user, bool $idpMfa = false): bool
     {
-        return ! $user->hasTwoFactor() && $this->required($user);
+        return ! $idpMfa && ! $user->hasTwoFactor() && $this->required($user);
     }
 
     /** @return list<string> the abilities of a new token for $user */
-    public function tokenAbilities(User $user): array
+    public function tokenAbilities(User $user, bool $idpMfa = false): array
     {
-        return $this->mustEnrol($user) ? [self::ENROL_ABILITY] : ['*'];
+        return $this->mustEnrol($user, $idpMfa) ? [self::ENROL_ABILITY] : ['*'];
     }
 
     /**

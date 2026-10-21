@@ -14,12 +14,13 @@ use Illuminate\Http\Request;
  */
 final class TokenResponse
 {
-    public static function make(string $token, User $user, Request $request): JsonResponse
+    /** $idpMfa: a single sign-on whose IdP asserted MFA (AUTH-11, ADR 023). */
+    public static function make(string $token, User $user, Request $request, bool $idpMfa = false): JsonResponse
     {
         return response()->json([
             'token' => $token,
             'user' => UserResource::make($user)->resolve($request),
-            'two_factor_enrollment_required' => app(TwoFactor::class)->mustEnrol($user),
+            'two_factor_enrollment_required' => app(TwoFactor::class)->mustEnrol($user, $idpMfa),
         ]);
     }
 }

@@ -133,7 +133,7 @@ class ActorProofVerifier
             return ActorProofResult::failed(self::FAIL_USER_UNKNOWN);
         }
 
-        if (! $user->isActive()) {
+        if (! $user->isActive() || ! $user->isPerson()) {
             return ActorProofResult::failed(self::FAIL_USER_INACTIVE);
         }
 
