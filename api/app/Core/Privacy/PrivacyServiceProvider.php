@@ -2,8 +2,10 @@
 
 namespace App\Core\Privacy;
 
+use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\OwnerGuard;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -11,7 +13,7 @@ use Illuminate\Support\Str;
 
 /**
  * NFR-08: data subject requests and consent records (docs/privacy.md).
- * Registers core's own subjects (customers are parties; users), the
+ * Registers core's own tables about customers (parties) and users, the
  * routes, and the registry modules add their tables to
  * (`$this->callAfterResolving(PrivacySubjects::class, ...)`).
  */
@@ -23,7 +25,8 @@ class PrivacyServiceProvider extends ServiceProvider
             $subjects = new PrivacySubjects;
 
             // MD-03: a customer is a party. Fiscal documents keep their own
-            // copies of what was printed; the party's tax id is cleared.
+            // copies; while the POS still needs the party's tax identity it
+            // keeps it (review M3, a retention rule in the POS module).
             $subjects->register(new SubjectSource(
                 subjectType: 'customer',
                 table: 'parties',
@@ -48,9 +51,12 @@ class PrivacyServiceProvider extends ServiceProvider
                 ],
                 display: ['name'],
             ));
+            // WF-01: credit limit changes asked for this customer.
+            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'credit_limit_changes', match: 'party_id', related: true));
 
             // AUTH-13, RBAC-10: a user is anonymised and deactivated, every
-            // session ended; never the last active Owner.
+            // session ended, audited as a deactivation; never the last active
+            // Owner, and only by someone who may deactivate them (review M4).
             $subjects->register(new SubjectSource(
                 subjectType: 'user',
                 table: 'users',
@@ -65,15 +71,32 @@ class PrivacyServiceProvider extends ServiceProvider
                 after: function (string $userId): array {
                     $user = User::query()->findOrFail($userId);
                     app(OwnerGuard::class)->assertNotLastOwner($user);
+                    $before = $user->status;
                     $user->forceFill([
                         'status' => User::STATUS_DEACTIVATED,
                         'password' => Hash::make(Str::random(64)),
                     ])->saveQuietly();
                     $user->tokens()->delete();
+                    // As UserController::deactivate records it (AUTH-13).
+                    if ($before !== User::STATUS_DEACTIVATED) {
+                        app(Auditor::class)->record('core.user.deactivate', $user, ['status' => $before], ['status' => $user->status]);
+                    }
 
                     return ['user_deactivated', 'sessions_revoked'];
                 },
             ));
+            // Review M5: sign-in history keeps no address or browser; one-time
+            // code destinations go (a global table, confined to the tenant).
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'login_events', match: 'user_id', personal: ['ip' => 'null', 'user_agent' => 'null']));
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'verification_challenges', match: 'user_id', personal: ['destination' => 'null'], report: false));
+            // RBAC-04: the user's own role assignments and till sign-ins.
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'role_assignments', match: 'user_id', related: true));
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'till_sign_ins', match: 'user_id', related: true));
+            $subjects->guardDeletion('user', function (User $actor, string $userId): bool {
+                $target = User::query()->find($userId);
+
+                return $target !== null && Gate::forUser($actor)->allows('deactivate', $target);
+            });
 
             return $subjects;
         });

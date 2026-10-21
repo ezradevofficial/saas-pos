@@ -54,6 +54,7 @@ use Modules\HR\Support\Access;
 use Modules\HR\Support\HrPack;
 use Modules\HR\Support\HrPackSchema;
 use Modules\HR\Support\Numbers;
+use Modules\HR\Support\PrivacyMasks;
 use Modules\HR\Support\Sensitive;
 use Modules\HR\Sync\ClockStaffSource;
 
@@ -147,6 +148,20 @@ class HrServiceProvider extends ServiceProvider
                 ],
                 display: ['first_name', 'last_name', 'number'],
             ));
+            // Review H1: only rows about the employee (employee_id), never rows they
+            // wrote about others (an appraisal they reviewed, someone else's swap).
+            foreach (['hr_employee_identifiers', 'hr_employee_places', 'hr_attendance_days', 'hr_checklists', 'hr_contracts', 'hr_disciplinary_cases',
+                'hr_documents', 'hr_leave_entries', 'hr_leave_requests', 'hr_pay_accounts', 'hr_punches', 'hr_roster_members', 'hr_roster_shifts',
+                'hr_shift_swaps', 'hr_appraisals'] as $table) {
+                $subjects->register(new SubjectSource(subjectType: 'employee', table: $table, match: 'employee_id', related: true));
+            }
+            // A user's own employee record (HR-01), masked like any other.
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'hr_employees', match: 'user_id', related: true));
+            // Review H2: sensitive groups the downloader may not see are masked; groups shown are audited.
+            $masks = $this->app->make(PrivacyMasks::class);
+            foreach (['hr_employees', 'hr_employee_identifiers', 'hr_pay_accounts', 'hr_contracts', 'hr_disciplinary_cases', 'hr_documents'] as $table) {
+                $subjects->mask($table, $masks->forTable($table));
+            }
         });
     }
 

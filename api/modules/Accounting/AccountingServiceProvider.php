@@ -13,6 +13,8 @@ use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
 use App\Core\Platform\Tenants\TenantHealthProbes;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\Events\ModuleActivated;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
@@ -134,6 +136,12 @@ class AccountingServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/accounting.php', 'accounting');
+        // NFR-08: invoices and payments of the customer (party_id) in their access report.
+        $this->callAfterResolving(PrivacySubjects::class, function (PrivacySubjects $subjects) {
+            foreach (['acc_documents', 'acc_payments'] as $table) {
+                $subjects->register(new SubjectSource(subjectType: 'customer', table: $table, match: 'party_id', related: true));
+            }
+        });
     }
 
     public function boot(): void

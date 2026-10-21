@@ -39,6 +39,11 @@ class PrivacyRequests
             throw new ApiException(422, 'subject_not_found', __('privacy.errors.subject_not_found'), ['subject_id' => [__('privacy.errors.subject_not_found')]]);
         }
 
+        // Review M4: deleting a user is user management; the requester must be allowed to deactivate them.
+        if ($kind === PrivacyRequest::DELETION && ! $this->subjects->mayDelete($type, $by, $subjectId)) {
+            throw new ApiException(403, 'deletion_not_allowed', __('privacy.errors.deletion_not_allowed'));
+        }
+
         $received = CarbonImmutable::now();
         $country = $this->data->country($type, $subjectId);
         $days = (int) (config("privacy.deadline_days.{$country}") ?? config('privacy.default_deadline_days', 7));
@@ -67,9 +72,10 @@ class PrivacyRequests
 
     public function approve(PrivacyRequest $request, User $by): PrivacyRequest
     {
-        $this->assertDecidable($request, $by);
-
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($request, $by) {
+            // Locked and checked again: two approvers (or an approver and a rejecter) never both win.
+            $request = $this->locked($request);
+            $this->assertDecidable($request, $by);
             $request->forceFill(['status' => PrivacyRequest::APPROVED, 'approved_by' => $by->id, 'approved_at' => CarbonImmutable::now()])->save();
             $this->auditor->record('core.privacy_request.approve', $request, ['status' => PrivacyRequest::RECEIVED], ['status' => PrivacyRequest::APPROVED]);
 
@@ -79,14 +85,15 @@ class PrivacyRequests
 
     public function reject(PrivacyRequest $request, User $by, string $reason): PrivacyRequest
     {
-        $this->assertDecidable($request, $by);
-
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($request, $by, $reason) {
+            $request = $this->locked($request);
+            $this->assertDecidable($request, $by);
             $request->forceFill([
                 'status' => PrivacyRequest::REJECTED, 'rejected_by' => $by->id,
                 'rejected_at' => CarbonImmutable::now(), 'rejection_reason' => $reason,
             ])->save();
-            $this->auditor->record('core.privacy_request.reject', $request, ['status' => PrivacyRequest::RECEIVED], ['status' => PrivacyRequest::REJECTED, 'reason' => $reason]);
+            // Review M5: the reason is free text (it may name the person): kept on the request, never in the audit log.
+            $this->auditor->record('core.privacy_request.reject', $request, ['status' => PrivacyRequest::RECEIVED], ['status' => PrivacyRequest::REJECTED]);
 
             return $request;
         });
@@ -94,15 +101,22 @@ class PrivacyRequests
 
     public function execute(PrivacyRequest $request, User $by): PrivacyRequest
     {
-        if ($request->status !== PrivacyRequest::APPROVED) {
-            throw new ApiException(422, 'not_approved', __('privacy.errors.not_approved'));
-        }
-
-        if (! $this->data->exists($request->subject_type, $request->subject_id)) {
-            throw new ApiException(422, 'subject_not_found', __('privacy.errors.subject_not_found'));
-        }
-
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($request, $by) {
+            $request = $this->locked($request);
+
+            if ($request->status !== PrivacyRequest::APPROVED) {
+                throw new ApiException(422, 'not_approved', __('privacy.errors.not_approved'));
+            }
+
+            if (! $this->data->exists($request->subject_type, $request->subject_id)) {
+                throw new ApiException(422, 'subject_not_found', __('privacy.errors.subject_not_found'));
+            }
+
+            // Review M4: whoever carries out a user's deletion must be allowed to deactivate them.
+            if ($request->kind === PrivacyRequest::DELETION && ! $this->subjects->mayDelete($request->subject_type, $by, $request->subject_id)) {
+                throw new ApiException(403, 'deletion_not_allowed', __('privacy.errors.deletion_not_allowed'));
+            }
+
             $type = $request->subject_type;
             $id = $request->subject_id;
 
@@ -115,7 +129,12 @@ class PrivacyRequests
             $request->forceFill([
                 'status' => PrivacyRequest::COMPLETED, 'completed_by' => $by->id,
                 'completed_at' => CarbonImmutable::now(), 'result' => $result,
-            ])->save();
+            ]);
+            // Review M5: once a deletion is done, the request's own free text about the person goes too.
+            if ($request->kind === PrivacyRequest::DELETION) {
+                $request->forceFill(['note' => null, 'corrections' => null, 'rejection_reason' => null]);
+            }
+            $request->save();
 
             $this->auditor->record('core.privacy_request.execute', $request, $before, $after ?? ['result' => $result], [
                 'subject_type' => $type, 'subject_id' => $id, 'kind' => $request->kind,
@@ -132,7 +151,7 @@ class PrivacyRequests
             throw new ApiException(422, 'report_unavailable', __('privacy.errors.report_unavailable'));
         }
 
-        $report = $this->data->report($request->subject_type, $request->subject_id);
+        $report = $this->data->report($request->subject_type, $request->subject_id, $by);
         $this->auditor->record('core.privacy_request.download', $request, null, [
             'tables' => array_keys($report['records']), 'related' => array_keys($report['related']), 'by' => $by->id,
         ]);
@@ -161,12 +180,22 @@ class PrivacyRequests
             'anonymised' => $done['changed'],
             'archived' => $done['archived'],
             'retained' => $retained,
+            'retained_for_legal_obligation' => $done['kept'],
             'notes' => $done['notes'],
             'label' => $label,
         ];
 
         // Fields only: the old values must not survive in the audit log.
-        return [$result, null, ['anonymised' => $done['changed'], 'archived' => $done['archived'], 'retained' => $retained]];
+        return [$result, null, ['anonymised' => $done['changed'], 'archived' => $done['archived'], 'retained' => $retained, 'retained_for_legal_obligation' => $done['kept']]];
+    }
+
+    /** The request re-read under a row lock, in the current transaction. */
+    private function locked(PrivacyRequest $request): PrivacyRequest
+    {
+        $fresh = PrivacyRequest::query()->lockForUpdate()->findOrFail($request->getKey());
+        $request->setRawAttributes($fresh->getAttributes(), true);
+
+        return $request;
     }
 
     private function assertDecidable(PrivacyRequest $request, User $by): void

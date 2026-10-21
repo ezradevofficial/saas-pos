@@ -14,6 +14,8 @@ use App\Core\MasterData\Items\ItemTypeGuards;
 use App\Core\MasterData\RecordUsage;
 use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberTypes;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
@@ -103,6 +105,8 @@ class FixedAssetsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TaxClasses::class);
+        // NFR-08: assets sold to the customer (party_id); never custody of a user.
+        $this->callAfterResolving(PrivacySubjects::class, fn (PrivacySubjects $subjects) => $subjects->register(new SubjectSource(subjectType: 'customer', table: 'fa_disposals', match: 'party_id', related: true)));
     }
 
     public function boot(): void

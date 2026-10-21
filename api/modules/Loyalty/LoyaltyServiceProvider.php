@@ -12,6 +12,8 @@ use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
 use App\Core\Payments\Tenders\TenderProviders;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
@@ -71,6 +73,12 @@ class LoyaltyServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/loyalty.php', 'loyalty');
+        // NFR-08: the customer's loyalty records (party_id) in their access report.
+        $this->callAfterResolving(PrivacySubjects::class, function (PrivacySubjects $subjects) {
+            foreach (['loyalty_accounts', 'loyalty_points_entries', 'loyalty_credit_entries', 'loyalty_gift_cards', 'loyalty_sales', 'loyalty_statements'] as $table) {
+                $subjects->register(new SubjectSource(subjectType: 'customer', table: $table, match: 'party_id', related: true));
+            }
+        });
         // Per request or job: it keeps the categories it read (Promotions::categoryParents).
         $this->app->scoped(Promotions::class);
     }

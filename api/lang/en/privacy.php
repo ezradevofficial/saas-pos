@@ -10,5 +10,7 @@ return [
         'already_decided' => 'This request was already decided. Reload the page to see its status.',
         'own_request' => 'You logged this request, so someone else must approve or reject it.',
         'report_unavailable' => 'The report is ready once an access request is carried out.',
+        'deletion_not_allowed' => 'You cannot deactivate this user, so you cannot ask for or carry out their deletion. Ask someone who manages their account.',
+        'fiscal_pending' => 'This customer still has receipts or refunds being sent to the tax authority. Try again once they are accepted.',
     ],
 ];

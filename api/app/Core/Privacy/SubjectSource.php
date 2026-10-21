@@ -3,21 +3,31 @@
 namespace App\Core\Privacy;
 
 use Closure;
+use Illuminate\Database\Query\Builder;
 
 /**
- * NFR-08: where one kind of data subject's personal data lives in one
- * table, declared by the module that owns the table (PrivacySubjects).
+ * NFR-08: one table that holds rows about a data subject, declared by the
+ * module that owns the table (PrivacySubjects). Only declared tables are
+ * ever read or changed: nothing is found by following foreign keys, so a
+ * row about someone else (a sale the subject rang up as cashier, a lead
+ * they own, an appraisal they wrote) never enters their report (review H1).
  *
- * - `match`: the column holding the subject's id (`id` on the subject's
- *   own row; a foreign key such as `party_id` elsewhere).
+ * - `match`: the column naming the subject (`id` on the subject's own row,
+ *   `party_id`, `customer_id`, `employee_id`, `user_id`...). With
+ *   `through` = [table, column, key], rows whose `match` is the `key` of a
+ *   `table` row whose `column` is the subject (a storefront account's
+ *   addresses through the account). `matcher` filters the query itself
+ *   when neither fits.
  * - `primary`: the subject's own row (exactly one per subject type).
- * - `personal`: column => how anonymisation replaces it: `label` (the
- *   anonymised name), `null`, `empty_array`, `empty_object`, `empty_string`,
- *   `anon_email` (a unique address under the reserved `.invalid` domain).
+ * - `related`: business records about the subject (purchases, leave,
+ *   payslips): in the access report, never anonymised, listed as retained.
+ * - `personal`: column => how anonymisation replaces it: `label`, `null`,
+ *   `empty_array`, `empty_object`, `empty_string`, `anon_email`.
  * - `correctable`: column => validation rules, on the primary source only
  *   (nested rules such as `phones.*.number` are allowed).
  * - `display`: columns that name the subject in lists and pickers.
  * - `after`: run after anonymising (revoke a user's sessions); returns notes.
+ * - `report`: false for tables that hold only credentials or codes.
  */
 final class SubjectSource
 {
@@ -26,18 +36,43 @@ final class SubjectSource
      * @param  array<string, list<mixed>>  $correctable
      * @param  list<string>  $display
      * @param  (Closure(string $subjectId): list<string>)|null  $after
+     * @param  array{0: string, 1: string, 2?: string}|null  $through
+     * @param  (Closure(Builder $query, string $subjectId): void)|null  $matcher
      */
     public function __construct(
         public readonly string $subjectType,
         public readonly string $table,
         public readonly string $match,
-        public readonly array $personal,
+        public readonly array $personal = [],
         public readonly bool $primary = false,
         public readonly array $correctable = [],
         public readonly array $display = [],
         public readonly ?Closure $after = null,
         public readonly ?string $companyColumn = 'company_id',
+        public readonly bool $related = false,
+        public readonly ?array $through = null,
+        public readonly ?Closure $matcher = null,
+        public readonly bool $report = true,
     ) {}
+
+    /** Limit $query (on this source's table) to the rows about $subjectId. */
+    public function scope(Builder $query, string $subjectId): Builder
+    {
+        if ($this->matcher !== null) {
+            ($this->matcher)($query, $subjectId);
+
+            return $query;
+        }
+
+        if ($this->through !== null) {
+            [$table, $column] = $this->through;
+            $key = $this->through[2] ?? 'id';
+
+            return $query->whereIn($this->match, fn (Builder $sub) => $sub->from($table)->where($column, $subjectId)->select($key));
+        }
+
+        return $query->where($this->match, $subjectId);
+    }
 
     /** @return list<string> the top-level fields a correction may change */
     public function correctableFields(): array

@@ -10,5 +10,7 @@ return [
         'already_decided' => 'Cette demande a déjà été traitée. Rechargez la page pour voir son statut.',
         'own_request' => 'Vous avez enregistré cette demande : une autre personne doit l’approuver ou la rejeter.',
         'report_unavailable' => 'Le rapport est disponible une fois la demande d’accès exécutée.',
+        'deletion_not_allowed' => 'Vous ne pouvez pas désactiver cet utilisateur : vous ne pouvez donc ni demander ni exécuter son effacement. Demandez à une personne qui gère son compte.',
+        'fiscal_pending' => 'Des reçus ou remboursements de ce client sont encore en cours d’envoi à l’administration fiscale. Réessayez une fois qu’ils sont acceptés.',
     ],
 ];

@@ -109,8 +109,8 @@ class DataSubjectRequestTest extends TestCase
         $this->assertSame('Amina Otieno', $report['records']['parties'][0]['name']);
         $this->assertCount(1, $report['records']['parties']);
         $this->assertSame('Amina O.', $report['records']['crm_leads'][0]['name']);
-        $this->assertSame(1, $report['related']['loyalty_accounts.party_id']['count']);
-        $this->assertSame($this->amina->id, $report['related']['loyalty_accounts.party_id']['rows'][0]['party_id']);
+        $this->assertSame(1, $report['related']['loyalty_accounts']['count']);
+        $this->assertSame($this->amina->id, $report['related']['loyalty_accounts']['rows'][0]['party_id']);
         $this->assertStringNotContainsString('Baraka', json_encode($report));
         $this->assertStringNotContainsString($this->baraka->id, json_encode($report));
 
@@ -194,10 +194,109 @@ class DataSubjectRequestTest extends TestCase
             $this->assertSame(0, $user->tokens()->count());
         });
 
-        $last = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $this->owner->id, 'kind' => 'deletion'], $this->headersFor($this->admin))->assertCreated()->json('data.id');
-        $this->postJson("/api/v1/privacy/requests/{$last}/approve", [], $this->headersFor())->assertOk();
-        $this->postJson("/api/v1/privacy/requests/{$last}/execute", [], $this->headersFor($this->admin))->assertStatus(422)->assertJsonPath('code', 'last_owner');
+        // Deactivation is audited as user management does it (review M4).
+        $this->inTenant(fn () => $this->assertTrue(AuditEntry::query()->where('action', 'core.user.deactivate')->where('auditable_id', $clerk->id)->exists()));
+
+        // The last Owner asks about themself; the admin approves; it is still refused.
+        $last = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $this->owner->id, 'kind' => 'deletion'], $this->headersFor())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/privacy/requests/{$last}/approve", [], $this->headersFor($this->admin))->assertOk();
+        $this->postJson("/api/v1/privacy/requests/{$last}/execute", [], $this->headersFor())->assertStatus(422)->assertJsonPath('code', 'last_owner');
         $this->inTenant(fn () => $this->assertSame('approved', PrivacyRequest::query()->findOrFail($last)->status));
+    }
+
+    /** Review M4: a user's deletion is user management: only someone who may deactivate them asks for or carries it out. */
+    public function test_only_someone_who_may_deactivate_the_user_asks_for_or_carries_out_their_deletion(): void
+    {
+        // An Admin cannot manage an Owner (RBAC-10), so cannot ask to delete one.
+        $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $this->owner->id, 'kind' => 'deletion'], $this->headersFor($this->admin))
+            ->assertForbidden()->assertJsonPath('code', 'deletion_not_allowed');
+
+        // Logged by the owner about a second owner, approved by the admin: the admin cannot carry it out.
+        $second = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->roles->get('owner'), Scope::tenant());
+
+            return $user;
+        });
+        $id = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $second->id, 'kind' => 'deletion'], $this->headersFor())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/privacy/requests/{$id}/approve", [], $this->headersFor($this->admin))->assertOk();
+        $this->postJson("/api/v1/privacy/requests/{$id}/execute", [], $this->headersFor($this->admin))->assertForbidden()->assertJsonPath('code', 'deletion_not_allowed');
+        $this->inTenant(fn () => $this->assertSame(User::STATUS_ACTIVE, User::query()->findOrFail($second->id)->status));
+    }
+
+    /**
+     * Review H1: a user's access report holds rows about them only: never the
+     * leads they own, sales they rang up as cashier or anything else they
+     * merely touched for someone else.
+     */
+    public function test_a_users_report_never_holds_rows_about_other_people(): void
+    {
+        $clerk = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $this->inTenant(fn () => DB::table('crm_leads')->insert([
+            'id' => (string) Str::uuid7(), 'company_id' => $this->acme->id, 'branch_id' => $this->branchA->id, 'status' => 'new',
+            'channel' => 'manual', 'name' => 'Other Person', 'email' => 'other.person@example.com', 'owner_id' => $clerk->id,
+        ]));
+
+        $id = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $clerk->id, 'kind' => 'access'], $this->headersFor())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/privacy/requests/{$id}/approve", [], $this->headersFor($this->admin))->assertOk();
+        $this->postJson("/api/v1/privacy/requests/{$id}/execute", [], $this->headersFor())->assertOk();
+        $report = $this->getJson("/api/v1/privacy/requests/{$id}/report", $this->headersFor())->assertOk()->json();
+
+        $this->assertSame($clerk->id, $report['records']['users'][0]['id']);
+        $tables = [...array_keys($report['records']), ...array_keys($report['related'])];
+        $this->assertSame([], array_values(array_diff($tables, ['users', 'login_events', 'role_assignments', 'till_sign_ins', 'hr_employees'])), json_encode($tables));
+        $this->assertStringNotContainsString('Other Person', json_encode($report));
+        $this->assertStringNotContainsString('other.person@example.com', json_encode($report));
+        $this->assertStringNotContainsString('Amina Otieno', json_encode($report));
+    }
+
+    /** Review M5: sign-in history, code destinations and the request's own free text go with a deletion. */
+    public function test_a_deletion_clears_sign_in_history_code_destinations_and_the_requests_own_text(): void
+    {
+        $clerk = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $this->inTenant(function () use ($clerk) {
+            DB::table('login_events')->insert(['id' => (string) Str::uuid7(), 'user_id' => $clerk->id, 'ip' => '197.248.1.1', 'user_agent' => 'Chrome on Android', 'fingerprint' => str_repeat('f', 64), 'succeeded' => true, 'created_at' => now()]);
+            DB::table('verification_challenges')->insert(['id' => (string) Str::uuid7(), 'tenant_id' => $clerk->tenant_id, 'user_id' => $clerk->id, 'purpose' => 'two_factor', 'channel' => 'sms', 'destination' => '+254712000111', 'code_hash' => str_repeat('a', 64), 'attempts' => 0, 'expires_at' => now()->addMinutes(5), 'created_at' => now()]);
+        });
+
+        $id = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $clerk->id, 'kind' => 'deletion', 'note' => 'Asked by Mary Wambui on 0712000111'], $this->headersFor())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/privacy/requests/{$id}/approve", [], $this->headersFor($this->admin))->assertOk();
+        $this->postJson("/api/v1/privacy/requests/{$id}/execute", [], $this->headersFor())->assertOk()->assertJsonPath('data.note', null);
+
+        $this->inTenant(function () use ($clerk, $id) {
+            $event = DB::table('login_events')->where('user_id', $clerk->id)->first();
+            $this->assertNull($event->ip);
+            $this->assertNull($event->user_agent);
+            $this->assertNull(DB::table('verification_challenges')->where('user_id', $clerk->id)->value('destination'));
+            $this->assertNull(DB::table('privacy_requests')->where('id', $id)->value('note'));
+        });
+    }
+
+    /** Review M5: a rejection's free-text reason stays on the request, never in the audit log. */
+    public function test_a_rejection_reason_is_not_written_to_the_audit_log(): void
+    {
+        $id = $this->create('access');
+        $this->postJson("/api/v1/privacy/requests/{$id}/reject", ['reason' => 'Caller could not confirm Amina\'s date of birth'], $this->headersFor($this->admin))->assertOk();
+
+        $this->inTenant(function () use ($id) {
+            $entry = AuditEntry::query()->where('action', 'core.privacy_request.reject')->where('auditable_id', $id)->firstOrFail();
+            $this->assertStringNotContainsString('date of birth', json_encode([$entry->before, $entry->after]));
+            $this->assertSame('Caller could not confirm Amina\'s date of birth', DB::table('privacy_requests')->where('id', $id)->value('rejection_reason'));
+        });
+    }
+
+    /** Review (low): someone who reads consent only finds customers, never users or employees. */
+    public function test_consent_readers_find_customers_only(): void
+    {
+        $reader = $this->inTenant(function () {
+            $user = $this->colleague($this->owner);
+            $this->assign($user, $this->role('Consent reader', ['core.consent.view']), Scope::tenant());
+
+            return $user;
+        });
+
+        $this->getJson('/api/v1/privacy/subjects?type=customer&search=amina', $this->headersFor($reader))->assertOk()->assertJsonPath('data.0.id', $this->amina->id);
+        $this->getJson('/api/v1/privacy/subjects?type=user', $this->headersFor($reader))->assertStatus(422);
     }
 
     public function test_the_requester_cannot_approve_and_only_approved_requests_run(): void

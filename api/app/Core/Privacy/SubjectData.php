@@ -3,30 +3,33 @@
 namespace App\Core\Privacy;
 
 use App\Core\DataExport\TenantTables;
+use App\Core\Http\ApiException;
+use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
  * NFR-08: reads and changes one data subject's personal data, always on
- * the runtime connection under row-level security (TEN-01), through the
- * sources modules registered (PrivacySubjects).
+ * the runtime connection under row-level security (TEN-01), and only in
+ * the tables modules declared about that kind of subject (PrivacySubjects).
+ * Every query also names the current tenant, so a table without row-level
+ * security (verification challenges) is just as confined.
  *
- * - report(): the access report. The subject's rows in every source, and
- *   the rows of tables that reference the subject's own row by a foreign
- *   key (their purchases, leave, payslips...), with the tenant export's
- *   column rules (TenantTables::exported: no secrets, password or PIN
- *   material, tokens). "Who did it" columns (`*_by`) and references from
- *   the subject's own table (an employee's reports) are left out: those
- *   rows are about other people.
+ * - report(): the access report: the subject's rows in each declared
+ *   table, with the tenant export's column rules (TenantTables::exported:
+ *   no secrets, password or PIN material, tokens) and each table's mask for
+ *   the downloader (HR's sensitive groups, review H2). Nothing is found by
+ *   following foreign keys, so other people's rows never appear (review H1).
  * - correct(): the approved new values of correctable fields.
- * - anonymise(): personal columns replaced in every source, the subject's
- *   row archived. Query-builder updates on purpose: an audited model
- *   update would copy the old personal values into the audit log, which
- *   would undo the anonymisation. PrivacyRequests audits the change with
- *   the columns only.
+ * - anonymise(): personal columns replaced in every declared table, except
+ *   what a retention rule keeps for a legal obligation (review M3); the
+ *   subject's row archived. Query-builder updates on purpose: an audited
+ *   model update would copy the old personal values into the audit log.
+ *   PrivacyRequests audits the change with the columns only.
  */
 class SubjectData
 {
@@ -40,18 +43,27 @@ class SubjectData
         return DB::connection(TenantContext::CONNECTION);
     }
 
+    /** The rows of $source about $subjectId, in this tenant. */
+    private function query(SubjectSource $source, string $subjectId): Builder
+    {
+        $query = $this->db()->table($source->table);
+        if (Schema::hasColumn($source->table, 'tenant_id')) {
+            $query->where($source->table.'.tenant_id', app(TenantContext::class)->require());
+        }
+
+        return $source->scope($query, $subjectId);
+    }
+
     public function exists(string $type, string $id): bool
     {
-        $primary = $this->subjects->primary($type);
-
-        return $this->db()->table($primary->table)->where($primary->match, $id)->exists();
+        return $this->query($this->subjects->primary($type), $id)->exists();
     }
 
     /** A short name for lists: the display columns joined. */
     public function display(string $type, string $id): ?string
     {
         $primary = $this->subjects->primary($type);
-        $row = $this->db()->table($primary->table)->where($primary->match, $id)->first($primary->display ?: ['id']);
+        $row = $this->query($primary, $id)->first($primary->display ?: ['id']);
 
         return $row === null ? null : trim(implode(' ', array_filter(array_map('strval', (array) $row))));
     }
@@ -84,7 +96,7 @@ class SubjectData
             return null;
         }
 
-        $companyId = $this->db()->table($primary->table)->where($primary->match, $id)->value($primary->companyColumn);
+        $companyId = $this->query($primary, $id)->value($primary->companyColumn);
 
         return $companyId === null ? null : $this->db()->table('companies')->where('id', $companyId)->value('country');
     }
@@ -111,28 +123,28 @@ class SubjectData
     }
 
     /** @return array<string, mixed> */
-    public function report(string $type, string $id): array
+    public function report(string $type, string $id, User $downloader): array
     {
         $limit = (int) config('privacy.report_rows_per_table', 500);
         $records = [];
-        $seen = [];
+        $related = [];
 
         foreach ($this->subjects->sources($type) as $source) {
-            $records[$source->table] = $this->rows($source->table, $source->match, $id, $limit);
-            $seen[$source->table.'.'.$source->match] = true;
-        }
+            if (! $source->report) {
+                continue;
+            }
 
-        $primary = $this->subjects->primary($type);
-        $related = [];
-        foreach ($this->references($primary->table) as [$table, $column]) {
-            if (isset($seen["{$table}.{$column}"])) {
+            $count = (int) $this->query($source, $id)->count();
+            if ($count === 0 && ! $source->primary) {
                 continue;
             }
-            $count = (int) $this->db()->table($table)->where($column, $id)->count();
-            if ($count === 0) {
-                continue;
+
+            $rows = $this->subjects->masked($source->table, $this->rows($source, $id, $limit), $downloader);
+            if ($source->related) {
+                $related[$source->table] = ['count' => $count, 'rows' => $rows];
+            } else {
+                $records[$source->table] = $rows;
             }
-            $related[$table.'.'.$column] = ['count' => $count, 'rows' => $this->rows($table, $column, $id, $limit)];
         }
 
         return [
@@ -140,6 +152,7 @@ class SubjectData
             'generated_at' => CarbonImmutable::now()->utc()->toIso8601String(),
             'records' => $records,
             'related' => $related,
+            'retained_for_legal_obligation' => $this->retainedFor($type, $id),
             'notes' => [
                 'Secrets (password and PIN material, tokens, keys) are never included.',
                 'Related tables show at most '.$limit.' rows each; counts are complete.',
@@ -155,7 +168,7 @@ class SubjectData
     {
         $primary = $this->subjects->primary($type);
         $values = array_intersect_key($values, array_flip($primary->correctableFields()));
-        $before = (array) $this->db()->table($primary->table)->where($primary->match, $id)->first(array_keys($values));
+        $before = (array) $this->query($primary, $id)->first(array_keys($values));
 
         $update = $values;
         foreach ($update as $column => $value) {
@@ -166,29 +179,52 @@ class SubjectData
         if (Schema::hasColumn($primary->table, 'updated_at')) {
             $update['updated_at'] = CarbonImmutable::now();
         }
-        $this->db()->table($primary->table)->where($primary->match, $id)->update($update);
+        $this->query($primary, $id)->update($update);
 
         return ['before' => $before, 'after' => $values];
     }
 
+    /** Refuse (422) when a module's retention rule says anonymisation must wait. */
+    public function assertMayAnonymise(string $type, string $id): void
+    {
+        foreach ($this->subjects->retentions($type, $id) as $retention) {
+            if ($retention->blockedBy !== null) {
+                throw new ApiException(422, $retention->blockedBy, __("privacy.errors.{$retention->blockedBy}"));
+            }
+        }
+    }
+
     /**
-     * @return array{changed: array<string, list<string>>, archived: list<string>, notes: list<string>}
+     * @return array{changed: array<string, list<string>>, archived: list<string>, kept: list<array{table: string, columns: list<string>, reason: string}>, notes: list<string>}
      */
     public function anonymise(string $type, string $id, string $label): array
     {
+        $this->assertMayAnonymise($type, $id);
+
+        $retentions = $this->subjects->retentions($type, $id);
         $changed = [];
         $archived = [];
         $notes = [];
         $now = CarbonImmutable::now();
 
         foreach ($this->subjects->sources($type) as $source) {
-            $columns = array_filter($source->personal, fn (string $column) => Schema::hasColumn($source->table, $column), ARRAY_FILTER_USE_KEY);
-            if ($columns === []) {
-                continue;
+            $keep = [];
+            foreach ($retentions as $retention) {
+                $keep += $retention->keep[$source->table] ?? [];
             }
 
+            $columns = array_filter($source->personal, fn (string $column) => Schema::hasColumn($source->table, $column), ARRAY_FILTER_USE_KEY);
             $update = [];
             foreach ($columns as $column => $how) {
+                $rule = $keep[$column] ?? null;
+                if ($rule === 'keep') {
+                    continue;
+                }
+                if (is_string($rule) && str_starts_with($rule, 'copy:')) {
+                    $update[$column] = DB::raw($this->db()->getQueryGrammar()->wrap(substr($rule, 5)));
+
+                    continue;
+                }
                 $update[$column] = match ($how) {
                     'label' => $label,
                     'empty_array' => DB::raw("'[]'::jsonb"),
@@ -199,20 +235,19 @@ class SubjectData
                     default => null,
                 };
             }
-            if (Schema::hasColumn($source->table, 'updated_at')) {
-                $update['updated_at'] = $now;
-            }
 
-            $rows = $this->db()->table($source->table)->where($source->match, $id)->update($update);
-            if ($rows > 0) {
-                $changed[$source->table] = array_keys($columns);
-            }
-
-            if (Schema::hasColumn($source->table, 'archived_at')) {
-                $done = $this->db()->table($source->table)->where($source->match, $id)->whereNull('archived_at')->update(['archived_at' => $now]);
-                if ($done > 0) {
-                    $archived[] = $source->table;
+            if ($update !== []) {
+                if (Schema::hasColumn($source->table, 'updated_at')) {
+                    $update['updated_at'] = $now;
                 }
+                if ($this->query($source, $id)->update($update) > 0) {
+                    $changed[$source->table] = array_values(array_diff(array_keys($update), ['updated_at']));
+                }
+            }
+
+            if (! $source->related && Schema::hasColumn($source->table, 'archived_at')
+                && $this->query($source, $id)->whereNull('archived_at')->update(['archived_at' => $now]) > 0) {
+                $archived[] = $source->table;
             }
 
             if ($source->after !== null) {
@@ -220,69 +255,54 @@ class SubjectData
             }
         }
 
-        return ['changed' => $changed, 'archived' => $archived, 'notes' => $notes];
+        return ['changed' => $changed, 'archived' => $archived, 'kept' => $this->retainedFor($type, $id, $retentions), 'notes' => $notes];
     }
 
-    /** @return list<string> tables referencing the subject's row, kept as business records */
+    /** @return list<string> declared tables of business records about the subject, kept (TEN-06) */
     public function retained(string $type, string $id): array
     {
-        $primary = $this->subjects->primary($type);
-        $sourceTables = array_map(fn (SubjectSource $s) => $s->table, $this->subjects->sources($type));
         $kept = [];
-
-        foreach ($this->references($primary->table) as [$table, $column]) {
-            if (! in_array($table, $sourceTables, true) && $this->db()->table($table)->where($column, $id)->exists()) {
-                $kept[] = $table;
+        foreach ($this->subjects->sources($type) as $source) {
+            if ($source->related && $this->query($source, $id)->exists()) {
+                $kept[] = $source->table;
             }
         }
 
-        return array_values(array_unique($kept));
+        return $kept;
+    }
+
+    /**
+     * @param  list<Retention>|null  $retentions
+     * @return list<array{table: string, columns: list<string>, reason: string}>
+     */
+    private function retainedFor(string $type, string $id, ?array $retentions = null): array
+    {
+        $out = [];
+        foreach ($retentions ?? $this->subjects->retentions($type, $id) as $retention) {
+            foreach ($retention->keep as $table => $columns) {
+                $out[] = ['table' => $table, 'columns' => array_keys($columns), 'reason' => $retention->reason];
+            }
+        }
+
+        return $out;
     }
 
     /** @return list<array<string, mixed>> */
-    private function rows(string $table, string $column, string $id, int $limit): array
+    private function rows(SubjectSource $source, string $id, int $limit): array
     {
+        $table = $source->table;
         $exported = array_values(array_filter($this->tables->columns($table), fn (string $c) => $this->tables->exported($table, $c)));
         if ($exported === []) {
             return [];
         }
 
-        $q = fn (string $name) => '"'.str_replace('"', '""', $name).'"';
-        $select = implode(', ', array_map(fn ($c) => 't.'.$q($c), $exported));
-        $order = in_array('id', $exported, true) ? ' order by t."id"' : '';
-        $sql = "select row_to_json(x)::text as line from (select {$select} from public.{$q($table)} t where t.{$q($column)} = ?{$order} limit {$limit}) x";
-
-        return array_map(fn ($row) => json_decode($row->line, true), $this->db()->select($sql, [$id]));
-    }
-
-    /**
-     * Tenant tables whose single-column foreign key (besides tenant_id)
-     * points at $table: [table, column]. Skips actor columns and $table itself.
-     *
-     * @return list<array{0: string, 1: string}>
-     */
-    private function references(string $table): array
-    {
-        $exportable = array_flip(array_map(fn ($t) => $t['name'], $this->tables->all()));
-        $rows = $this->db()->select(<<<'SQL'
-            select c.conrelid::regclass::text as tbl,
-                   array_to_json(array(select a.attname from unnest(c.conkey) k(attnum)
-                       join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum)) as cols
-            from pg_constraint c
-            where c.contype = 'f' and c.confrelid = ('public.' || quote_ident(?))::regclass
-            order by 1
-            SQL, [$table]);
-
-        $out = [];
-        foreach ($rows as $row) {
-            $cols = array_values(array_diff(json_decode($row->cols, true), ['tenant_id']));
-            $tbl = (string) $row->tbl;
-            if (count($cols) !== 1 || $tbl === $table || ! isset($exportable[$tbl]) || str_ends_with($cols[0], '_by')) {
-                continue;
-            }
-            $out[] = [$tbl, $cols[0]];
+        $query = $this->query($source, $id)->select(array_map(fn ($c) => $table.'.'.$c, $exported))->limit($limit);
+        if (in_array('id', $exported, true)) {
+            $query->orderBy($table.'.id');
         }
 
-        return $out;
+        $sql = 'select row_to_json(x)::text as line from ('.$query->toSql().') x';
+
+        return array_map(fn ($row) => json_decode($row->line, true), $this->db()->select($sql, $query->getBindings()));
     }
 }
