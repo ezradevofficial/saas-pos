@@ -25,13 +25,22 @@ export function advisories(report) {
 }
 
 /** What fails the check: advisories not allowed, and allow-list entries expired or no longer needed. */
+/** The last day an exception may name as its review date: 90 days from `today` (YYYY-MM-DD). */
+export function latestReview(today) {
+  const date = new Date(`${today}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + 90)
+  return date.toISOString().slice(0, 10)
+}
+
 export function evaluate(report, allowlist, today) {
-  const live = new Map(allowlist.filter((entry) => entry.review_by >= today).map((entry) => [entry.id, entry]))
+  const latest = latestReview(today)
+  const live = new Map(allowlist.filter((entry) => entry.review_by >= today && entry.review_by <= latest).map((entry) => [entry.id, entry]))
+  const tooFar = allowlist.filter((entry) => entry.review_by > latest).map((entry) => entry.id)
   const found = advisories(report)
   const failing = found.filter((advisory) => !live.has(advisory.id))
   const unused = allowlist.filter((entry) => !found.some((advisory) => advisory.id === entry.id)).map((entry) => entry.id)
   const expired = allowlist.filter((entry) => entry.review_by < today).map((entry) => entry.id)
-  return { failing, unused, expired, allowed: found.filter((advisory) => live.has(advisory.id)) }
+  return { failing, unused, expired, tooFar, allowed: found.filter((advisory) => live.has(advisory.id)) }
 }
 
 const run = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
@@ -47,11 +56,12 @@ if (run) {
   }
   const allowlist = JSON.parse(readFileSync(join(root, 'scripts/npm-audit-allowlist.json'), 'utf8')).entries
   const today = new Date().toISOString().slice(0, 10)
-  const { failing, unused, expired, allowed } = evaluate(JSON.parse(output), allowlist, today)
+  const { failing, unused, expired, tooFar, allowed } = evaluate(JSON.parse(output), allowlist, today)
 
   for (const a of allowed) console.log(`allowed until review: ${a.id} ${a.package} (${a.severity}) ${a.title}`)
   for (const id of unused) console.log(`::notice::npm-audit-allowlist entry ${id} is no longer needed; remove it`)
   for (const id of expired) console.log(`::warning::npm-audit-allowlist entry ${id} is past its review_by date`)
+  for (const id of tooFar) console.log(`::warning::npm-audit-allowlist entry ${id} has a review_by more than 90 days out; it does not count until shortened`)
   if (failing.length > 0) {
     for (const a of failing) console.error(`${a.severity}: ${a.package}: ${a.title} ${a.url}`)
     console.error('Upgrade the package, or add a reviewed entry with a reason and review_by date to scripts/npm-audit-allowlist.json.')

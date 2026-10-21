@@ -27,6 +27,13 @@ test('fails on advisories not allowed, passes allowed ones until their review da
   assert.deepEqual(later.expired, ['GHSA-aaaa'])
 })
 
+test('ignores an exception reviewed more than 90 days out (review low)', () => {
+  const result = evaluate(report, [{ id: 'GHSA-aaaa', review_by: '2027-06-01' }], '2026-10-21')
+  assert.deepEqual(result.failing.map((a) => a.id), ['GHSA-aaaa', 'GHSA-cccc'])
+  assert.deepEqual(result.tooFar, ['GHSA-aaaa'])
+  assert.deepEqual(evaluate(report, [{ id: 'GHSA-aaaa', review_by: '2027-01-19' }], '2026-10-21').failing.map((a) => a.id), ['GHSA-cccc'])
+})
+
 test('reports allow-list entries that are no longer needed', () => {
   assert.deepEqual(evaluate({ vulnerabilities: {} }, [{ id: 'GHSA-old', review_by: '2027-01-01' }], '2026-10-17').unused, ['GHSA-old'])
 })
