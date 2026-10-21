@@ -18,6 +18,7 @@ return [
         'item_flag_kind' => 'The setting :flag doesn’t apply to this kind of item. Leave it off.',
         'pre_tax_category_needs_pre_tax' => 'A pre-tax category applies only to a deduction taken before tax. Turn on "Before tax" or clear the category.',
         'component_always_applies' => ':component can’t be marked not applicable: every company of this country owes it.',
+        'component_confirmed' => ':component has a confirmed or researched value now, so it applies. There is nothing to mark.',
         'item_paid' => 'This one-off item was paid by a posted run, so it can’t change. Add a new item instead.',
         'currency_mismatch' => 'Use the employee’s pay currency.',
         'instalment_above_principal' => 'The instalment can’t be more than the amount lent.',

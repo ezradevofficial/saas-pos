@@ -31,6 +31,7 @@ use Modules\Payroll\Models\Run;
 use Modules\Payroll\Models\RunLine;
 use Modules\Payroll\Models\Settings;
 use Modules\Payroll\Statutory\MissingValues;
+use Modules\Payroll\Statutory\NotApplicableMarks;
 use Modules\Payroll\Statutory\PayrollPack;
 use Modules\Payroll\Statutory\StatutoryEngine;
 use Modules\Payroll\Statutory\StatutoryInput;
@@ -67,6 +68,7 @@ class RunCalculator
         private readonly ExchangeRates $rates,
         private readonly CurrencyDecimals $decimals,
         private readonly AttendanceRecords $attendanceRecords,
+        private readonly NotApplicableMarks $marks,
     ) {}
 
     /** @var array<string, ?FxSnapshot> rates read in this calculation, by "from/to" (one query per pair, not per line) */
@@ -116,8 +118,9 @@ class RunCalculator
             }
         }
 
-        // CP-01: components the company marked not applicable (audited, payroll settings).
-        $notApplicable = (array) ($context->settings?->not_applicable ?? []);
+        // CP-01: components the company marked not applicable (audited), for the period in force on the pay date;
+        // marks whose period became usable are voided (audited) first.
+        $notApplicable = NotApplicableMarks::inEffect($pack, $this->marks->refresh($company->id, $pack), $run->pay_date);
         $missing = array_filter($prepared) === [] ? [] : MissingValues::check($pack, $run->pay_date, $group->frequency, $used, array_keys($notApplicable));
 
         if ($missing !== []) {

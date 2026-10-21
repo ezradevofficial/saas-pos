@@ -138,6 +138,7 @@ return [
                 'payslip' => 'Bulletins de paie',
                 'payment' => 'Fichiers de paiement',
                 'return' => 'Déclarations sociales et fiscales',
+                'statutory' => 'Composantes légales',
             ],
             'procurement' => [
                 'requisition' => 'Demandes d’achat',
@@ -201,6 +202,7 @@ return [
             'prepare' => 'Préparer',
             'post' => 'Comptabiliser',
             'generate' => 'Générer',
+            'exempt' => 'Marquer non applicable',
         ],
     ],
 

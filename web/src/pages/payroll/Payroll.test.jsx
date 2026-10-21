@@ -256,7 +256,7 @@ describe('Payroll screens', () => {
       todo: [],
       returns: [],
     }
-    setup([['payroll/statutory/c-1', { data: pack }], ['payroll/settings/c-1', { data: { company_id: 'c-1', premiums_taxable: true, premiums_contributory: true, not_applicable: {} } }]], [PERM.settingsView, PERM.settingsManage])
+    setup([['payroll/statutory/c-1', { data: pack }], ['payroll/settings/c-1', { data: { company_id: 'c-1', premiums_taxable: true, premiums_contributory: true, not_applicable: {} } }]], [PERM.settingsView, PERM.statutoryExempt])
     api.post.mockResolvedValue({ data: { company_id: 'c-1', not_applicable: { inpp: { reason: 'Exempted' } } } })
     renderApp('/payroll/settings?tab=statutory')
     const table = await screen.findByRole('table', { name: 'Statutory rates in force' })

@@ -385,7 +385,7 @@ function ItemDialog({ company, row, onClose }) {
 function StatutoryPack({ query, company }) {
   const { t } = useTranslation()
   const { can } = usePermissions()
-  const manage = can(PERM.settingsManage)
+  const manage = can(PERM.statutoryExempt)
   const [marking, setMarking] = useState(null)
   const mark = usePayrollMutation((body) => api.post(`payroll/statutory/${company}/not-applicable`, body), { success: t('payroll.statutory.markedNotApplicable'), onDone: () => setMarking(null) })
   const clear = usePayrollMutation((code) => api.delete(`payroll/statutory/${company}/not-applicable/${code}`), { success: t('payroll.statutory.markedApplicable') })

@@ -138,6 +138,7 @@ return [
                 'payslip' => 'Payslips',
                 'payment' => 'Payment files',
                 'return' => 'Statutory returns',
+                'statutory' => 'Statutory components',
             ],
             'procurement' => [
                 'requisition' => 'Purchase requisitions',
@@ -201,6 +202,7 @@ return [
             'prepare' => 'Prepare',
             'post' => 'Post',
             'generate' => 'Generate',
+            'exempt' => 'Mark not applicable',
         ],
     ],
 

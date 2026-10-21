@@ -21,6 +21,7 @@ use Modules\Payroll\Models\PayGroup;
 use Modules\Payroll\Models\Run;
 use Modules\Payroll\Models\Settings;
 use Modules\Payroll\Statutory\MissingValues;
+use Modules\Payroll\Statutory\NotApplicableMarks;
 use Modules\Payroll\Statutory\PayrollPack;
 use Modules\Payroll\Support\Errors;
 
@@ -42,7 +43,7 @@ class SetupController
     }
 
     /** PAY-08: the company's pack in force today: its components with labels, what is missing, and the pack's own list of values to confirm. */
-    public function statutory(SettingsRequest $request, Company $company, PayrollPack $packs): JsonResponse
+    public function statutory(SettingsRequest $request, Company $company, PayrollPack $packs, NotApplicableMarks $marks): JsonResponse
     {
         $pack = $packs->of($company->country);
 
@@ -51,11 +52,8 @@ class SetupController
         }
 
         $today = CarbonImmutable::now($company->timezone ?: 'UTC')->startOfDay();
-        $notApplicable = (array) (Settings::query()->where('company_id', $company->id)->value('not_applicable') ?? []);
-
-        if (is_string($notApplicable)) {
-            $notApplicable = (array) json_decode($notApplicable, true);
-        }
+        // CP-01: marks whose period became usable are voided (audited); those of today's periods apply.
+        $notApplicable = NotApplicableMarks::inEffect($pack, $marks->refresh($company->id, $pack), $today);
 
         $used = ['insurance_premiums' => true, 'dependants' => true, 'children' => true, ...array_fill_keys(Item::PRE_TAX_CATEGORIES, true)];
         $missing = MissingValues::check($pack, $today, 'monthly', $used, array_keys($notApplicable));
@@ -95,8 +93,12 @@ class SetupController
     /**
      * CP-01: mark a pack component the company does not owe "not
      * applicable" (only components the pack allows, e.g. CD INPP), with
-     * the reason; audited as `payroll.statutory.not_applicable`. Its
-     * missing values then no longer block runs, and runs record it.
+     * the reason (`payroll.statutory.exempt`); audited as
+     * `payroll.statutory.not_applicable`. The mark is made against the
+     * component's period in force today and only while that period is
+     * unconfirmed: once it becomes usable the mark is voided
+     * (NotApplicableMarks). Its missing values then no longer block runs,
+     * and runs record it.
      */
     public function markNotApplicable(NotApplicableRequest $request, Company $company, PayrollPack $packs, Auditor $auditor): JsonResponse
     {
@@ -107,11 +109,19 @@ class SetupController
             throw Errors::make(422, 'component_always_applies', ['component' => PayrollPack::label('components', $code)], 'component');
         }
 
-        $settings = Errors::transaction(function () use ($company, $code, $request, $auditor) {
+        $today = CarbonImmutable::now($company->timezone ?: 'UTC')->startOfDay();
+        $period = collect(PayrollPack::inForce($packs->of($company->country), $today))->firstWhere('code', $code)['values'] ?? null;
+
+        // Only an unconfirmed period can be marked: a usable one applies.
+        if ($period === null || ResearchStatus::usable($period)) {
+            throw Errors::make(422, 'component_confirmed', ['component' => PayrollPack::label('components', $code)], 'component');
+        }
+
+        $settings = Errors::transaction(function () use ($company, $code, $request, $auditor, $period) {
             $settings = Settings::query()->where('company_id', $company->id)->lockForUpdate()->first()
                 ?? Settings::query()->create(['company_id' => $company->id, 'premiums_taxable' => true, 'premiums_contributory' => true]);
             $before = $settings->not_applicable ?? [];
-            $mark = ['reason' => (string) $request->validated('reason'), 'marked_by' => $request->user()?->id, 'marked_at' => CarbonImmutable::now()->toIso8601String()];
+            $mark = ['reason' => (string) $request->validated('reason'), 'marked_by' => $request->user()?->id, 'marked_at' => CarbonImmutable::now()->toIso8601String(), 'period_from' => $period['effective_from']];
             $settings->not_applicable = [...$before, $code => $mark];
             $settings->save();
             $auditor->record('payroll.statutory.not_applicable', $settings, ['component' => $code, 'not_applicable' => $before[$code] ?? null], ['component' => $code, 'country' => $company->country, ...$mark]);
@@ -123,7 +133,7 @@ class SetupController
     }
 
     /** CP-01: undo a "not applicable" mark: the component applies (and blocks runs while unconfirmed) again; audited. */
-    public function clearNotApplicable(SettingsRequest $request, Company $company, string $component, Auditor $auditor): JsonResponse
+    public function clearNotApplicable(NotApplicableRequest $request, Company $company, string $component, Auditor $auditor): JsonResponse
     {
         $settings = Errors::transaction(function () use ($company, $component, $auditor) {
             $settings = Settings::query()->where('company_id', $company->id)->lockForUpdate()->first();

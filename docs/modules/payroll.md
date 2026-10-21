@@ -117,10 +117,20 @@ confidence and sources.
 **Not applicable (CP-01).** A component with `may_not_apply` (CD INPP)
 blocks runs while unconfirmed, but the company may mark it not applicable
 in Payroll settings (`POST payroll/statutory/{company}/not-applicable`
-with a reason, `payroll.settings.manage`; `DELETE …/{component}` undoes
-it). The mark (reason, who, when) is kept in `payroll_settings.not_applicable`,
-audited as `payroll.statutory.not_applicable` / `applicable`, and recorded
-on each run. **Not applied while unconfirmed:** a component with
+with a reason; `DELETE …/{component}` undoes it). Both need
+`payroll.statutory.exempt`, held by the Owner and Admin templates only
+(the Payroll Officer's `payroll.*` excludes it). The mark (reason, who,
+when, and `period_from`, the pack period it was made against) is kept in
+`payroll_settings.not_applicable`, audited as
+`payroll.statutory.not_applicable` / `applicable`, and recorded on each
+run. A mark holds only while its period is unconfirmed: once that period
+becomes usable (confirmed or researched) or leaves the pack, the mark is
+voided before the next run or statutory page, audited as
+`payroll.statutory.not_applicable_voided`, and runs block again until it
+is marked again. A usable period cannot be marked (`component_confirmed`).
+`PayrollPackSchema` refuses `may_not_apply` on a required contribution,
+income tax or levy outside its allow-list (`MAY_NOT_APPLY`: CD `inpp`),
+and `unconfirmed: not_applied` on a required component. **Not applied while unconfirmed:** a component with
 `unconfirmed: not_applied` (CD IPR dependants) is left out of runs instead
 of blocking them until its value is usable.
 

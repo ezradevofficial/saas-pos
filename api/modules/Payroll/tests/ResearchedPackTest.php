@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\Notification;
 use Modules\Payroll\Models\Settings;
 use Modules\Payroll\Statutory\MissingValues;
 use Modules\Payroll\Statutory\PayrollPack;
+use Modules\Payroll\Statutory\PayrollPackSchema;
 use Modules\Payroll\Statutory\StatutoryEngine;
 use Modules\Payroll\Statutory\StatutoryInput;
 use Modules\Payroll\Tests\Concerns\BuildsPayroll;
+use Modules\Payroll\Tests\Concerns\FixturePacks;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -197,12 +199,72 @@ class ResearchedPackTest extends TestCase
         $this->postJson("/api/v1/payroll/runs/{$id}/calculate", [], $this->headersFor($this->officer))->assertUnprocessable()->assertJsonPath('code', 'statutory_rates_missing');
     }
 
-    public function test_only_payroll_managers_mark_not_applicable(): void
+    public function test_only_holders_of_payroll_statutory_exempt_mark_not_applicable(): void
     {
         $this->congo();
+        $url = "/api/v1/payroll/statutory/{$this->acme->id}/not-applicable";
         $viewer = $this->userWith('read_only_auditor', Scope::company($this->acme->id));
-        $this->postJson("/api/v1/payroll/statutory/{$this->acme->id}/not-applicable", ['component' => 'inpp', 'reason' => 'Not owed'], $this->headersFor($viewer))->assertForbidden();
+        $this->postJson($url, ['component' => 'inpp', 'reason' => 'Not owed'], $this->headersFor($viewer))->assertForbidden();
+        // The Payroll Officer manages payroll settings but does not exempt the company (Owner and Admin only).
+        $this->postJson($url, ['component' => 'inpp', 'reason' => 'Not owed'], $this->headersFor($this->officer))->assertForbidden();
+        $this->deleteJson("{$url}/inpp", [], $this->headersFor($this->officer))->assertForbidden();
         $this->inTenant(fn () => $this->assertSame(0, AuditEntry::query()->where('action', 'payroll.statutory.not_applicable')->count()));
+
+        $admin = $this->userWith('admin', Scope::tenant());
+        $this->postJson($url, ['component' => 'inpp', 'reason' => 'Not owed'], $this->headersFor($admin))->assertOk()
+            ->assertJsonPath('data.not_applicable.inpp.period_from', '2026-01-01');
+    }
+
+    public function test_a_mark_is_voided_and_audited_once_its_period_becomes_usable(): void
+    {
+        $this->congo();
+        $this->payrollEmployee('1000000', ['first_name' => 'Joseph'], 'CDF');
+        $this->postJson("/api/v1/payroll/statutory/{$this->acme->id}/not-applicable", ['component' => 'inpp', 'reason' => 'Exempt'], $this->headersFor())->assertOk();
+        $id = $this->calculatedRun();
+
+        // The owner confirms INPP's rates for the period the mark was made against: the mark no longer holds.
+        app(PayrollPack::class)->fake('CD', FixturePacks::cd());
+        $this->postJson("/api/v1/payroll/runs/{$id}/calculate", [], $this->headersFor($this->officer))->assertOk();
+        $this->assertTrue(collect(collect($this->lines($id))->first()['statutory_lines'])->contains('code', 'inpp'));
+        $this->inTenant(function () {
+            $this->assertNull(Settings::query()->where('company_id', $this->acme->id)->value('not_applicable'));
+            $entry = AuditEntry::query()->where('action', 'payroll.statutory.not_applicable_voided')->sole();
+            $this->assertSame(['inpp', 'period_confirmed'], [$entry->after['component'], $entry->after['reason']]);
+            $this->assertSame('Exempt', $entry->before['not_applicable']['reason']);
+        });
+
+        // Unconfirmed again (a later correction): the run blocks until someone marks it again.
+        app(PayrollPack::class)->fake('CD', self::shipped('CD'));
+        $this->postJson("/api/v1/payroll/runs/{$id}/calculate", [], $this->headersFor($this->officer))->assertUnprocessable()
+            ->assertJsonPath('code', 'statutory_rates_missing');
+        // A usable period cannot be marked.
+        app(PayrollPack::class)->fake('CD', FixturePacks::cd());
+        $this->postJson("/api/v1/payroll/statutory/{$this->acme->id}/not-applicable", ['component' => 'inpp', 'reason' => 'Exempt'], $this->headersFor())
+            ->assertUnprocessable()->assertJsonPath('code', 'component_confirmed');
+    }
+
+    public function test_the_pack_schema_limits_may_not_apply_and_not_applied(): void
+    {
+        foreach (['KE', 'CD'] as $country) {
+            PayrollPackSchema::check(self::shipped($country));
+        }
+
+        $cd = self::shipped('CD');
+        $cnss = array_search('cnss', array_column($cd['components'], 'code'), true);
+        $cd['components'][$cnss]['may_not_apply'] = true;
+
+        try {
+            PayrollPackSchema::check($cd);
+            $this->fail('may_not_apply on a required contribution outside the allow-list was accepted');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('cnss', $e->getMessage());
+        }
+
+        $cd = self::shipped('CD');
+        $ipr = array_search('ipr', array_column($cd['components'], 'code'), true);
+        $cd['components'][$ipr]['unconfirmed'] = 'not_applied';
+        $this->expectException(\InvalidArgumentException::class);
+        PayrollPackSchema::check($cd);
     }
 
     public function test_congo_cap_and_minimum_and_low_confidence_blocks(): void
