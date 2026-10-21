@@ -128,8 +128,54 @@ class Grants
             return;
         }
 
+        if (array_diff($needed, $this->held($actor, $scope)) !== []) {
+            throw self::cannotGrant();
+        }
+    }
+
+    /**
+     * Ids of the active roles $actor may grant at $scope, by the same rules
+     * as assertCanGrant (or assertCanInvite), so role pickers offer exactly
+     * what the API accepts (security review 5): a permission of an inactive
+     * module that the actor's roles hold counts as held. With a null scope
+     * (no place chosen yet), the roles the actor could grant somewhere.
+     * Empty where the actor may not grant at all; 404 for a scope out of reach.
+     *
+     * @return list<string>
+     */
+    public function grantableRoleIds(User $actor, ?Scope $scope, bool $invite = false): array
+    {
+        if ($scope !== null) {
+            try {
+                $this->assertManagesScope($actor, $scope, null);
+            } catch (ApiException) {
+                return [];
+            }
+
+            if ($invite && ! $this->resolver->can($actor, self::INVITE, $scope)) {
+                return [];
+            }
+        }
+
+        $held = $this->held($actor, $scope);
+        $isOwner = $this->owners->isOwner($actor);
+
+        return Role::query()->whereNull('archived_at')->with('permissions:id,name')->get()
+            ->filter(fn (Role $role) => (! $role->is_owner || $isOwner) && array_diff($role->permissions->pluck('name')->all(), $held) === [])
+            ->map(fn (Role $role) => (string) $role->id)->values()->all();
+    }
+
+    /**
+     * Names of the permissions linked to $actor's roles covering $scope (any
+     * scope when null), whatever the modules' state.
+     *
+     * @return list<string>
+     */
+    private function held(User $actor, ?Scope $scope): array
+    {
         $roleIds = $this->resolver->roleIds($actor, $scope);
-        $held = $roleIds === [] ? [] : DB::connection(TenantContext::CONNECTION)
+
+        return $roleIds === [] ? [] : DB::connection(TenantContext::CONNECTION)
             ->table(config('permission.table_names.role_has_permissions'))
             ->join(config('permission.table_names.permissions').' as p', 'p.id', '=', 'permission_id')
             ->whereIn('role_id', $roleIds)
@@ -137,10 +183,6 @@ class Grants
             ->distinct()
             ->pluck('p.name')
             ->all();
-
-        if (array_diff($needed, $held) !== []) {
-            throw self::cannotGrant();
-        }
     }
 
     /** @return list<string> */
@@ -149,7 +191,7 @@ class Grants
         return $role->permissions()->pluck('name')->all();
     }
 
-    private function assertManagesScope(User $actor, Scope $scope, Role $role): void
+    private function assertManagesScope(User $actor, Scope $scope, ?Role $role): void
     {
         if (! $scope->isTenant()) {
             $node = match ($scope->type) {
@@ -165,7 +207,7 @@ class Grants
             throw self::cannotGrant();
         }
 
-        if ($role->is_owner && ! $this->owners->isOwner($actor)) {
+        if ($role?->is_owner && ! $this->owners->isOwner($actor)) {
             throw self::cannotGrant();
         }
     }

@@ -34,10 +34,10 @@ export default function InviteUser() {
   const queryClient = useQueryClient()
   const formRef = useRef(null)
   const alertRef = useRef(null)
-  const options = useGrantOptions({ invite: true })
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
   const [rows, setRows] = useState(() => [emptyAssignment()])
+  const options = useGrantOptions({ invite: true, rows })
 
   // A row keeps a kind of place the user can offer once the lists have loaded.
   const effective = rows.map((row) => offeredRow(row, options))

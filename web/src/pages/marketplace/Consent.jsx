@@ -26,9 +26,9 @@ export default function Consent() {
   const [params] = useSearchParams()
   const oauth = Object.fromEntries(OAUTH_PARAMS.filter((key) => params.get(key)).map((key) => [key, params.get(key)]))
   const query = useQuery({ queryKey: ['oauth', 'authorize', params.toString(), i18n.resolvedLanguage], queryFn: () => api.get(`oauth/authorize?${new URLSearchParams(oauth)}`), retry: false })
-  const grants = useGrantOptions()
-  const options = { ...grants, rolesFor: (row) => grants.rolesFor(row).filter((role) => !role.is_owner) }
   const [row, setRow] = useState(() => emptyAssignment())
+  const grants = useGrantOptions({ rows: [row] })
+  const options = { ...grants, rolesFor: (value) => grants.rolesFor(value).filter((role) => !role.is_owner) }
   const shownRow = offeredRow(row, options)
   const decide = useMutation({
     mutationFn: (decision) =>

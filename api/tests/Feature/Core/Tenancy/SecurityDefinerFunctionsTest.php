@@ -15,7 +15,9 @@ class SecurityDefinerFunctionsTest extends TestCase
     use RefreshTenantDatabase;
 
     /** Functions that return something other than tenant ids, each explained in ADR 002. */
-    private const RESULT_EXCEPTIONS = ['app_public_branding', 'app_platform_usage_totals', 'app_prune_api_idempotency_keys'];
+    private const RESULT_EXCEPTIONS = ['app_public_branding', 'app_platform_usage_totals', 'app_prune_api_idempotency_keys',
+        // ADR 024 (security review): the marketplace's secrets, never returned as stored.
+        'oauth_client_secret_ok', 'app_install_webhook_key', 'marketplace_store_app_secrets', 'marketplace_developer_active'];
 
     /** @return list<object{name: string, result: string, config: ?string, public_execute: bool}> */
     private function functions(): array
@@ -50,6 +52,18 @@ class SecurityDefinerFunctionsTest extends TestCase
         $function = collect($this->functions())->firstWhere('name', 'app_platform_usage_totals');
         $this->assertNotNull($function);
         $this->assertSame('TABLE(unit text, tenants bigint, total bigint)', $function->result);
+    }
+
+    /** ADR 024: the marketplace's secret functions answer a yes or no, one install's derived key, or a count. */
+    public function test_the_marketplace_secret_functions_return_no_stored_secret(): void
+    {
+        $results = collect($this->functions())->pluck('result', 'name');
+
+        $this->assertSame('boolean', $results['oauth_client_secret_ok']);
+        $this->assertSame('text', $results['app_install_webhook_key']);
+        $this->assertSame('integer', $results['marketplace_store_app_secrets']);
+        $this->assertSame('boolean', $results['marketplace_developer_active']);
+        $this->assertArrayNotHasKey('marketplace_hmac_sha256', $results->all(), 'the HMAC helper runs as its caller');
     }
 
     public function test_adr_002_lists_every_security_definer_function(): void

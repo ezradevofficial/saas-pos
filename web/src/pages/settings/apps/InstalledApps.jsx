@@ -84,9 +84,9 @@ export default function InstalledApps() {
 function ConsentDialog({ installation, onClose }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const grants = useGrantOptions()
-  const options = { ...grants, rolesFor: (row) => grants.rolesFor(row).filter((role) => !role.is_owner) }
   const [row, setRow] = useState({ role_id: installation.role?.id ?? '', scope_type: installation.scope?.type ?? 'location', scope_id: installation.scope?.type === 'tenant' ? '' : (installation.scope?.id ?? '') })
+  const grants = useGrantOptions({ rows: [row] })
+  const options = { ...grants, rolesFor: (value) => grants.rolesFor(value).filter((role) => !role.is_owner) }
   const shownRow = offeredRow(row, options)
   const consent = useMutation({
     mutationFn: () =>

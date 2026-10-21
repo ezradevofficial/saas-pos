@@ -206,7 +206,8 @@ export default function DeveloperApp() {
   const profile = useQuery({ queryKey: [...DEVELOPER, 'profile'], queryFn: () => api.get('developer') })
   const invalidate = () => queryClient.invalidateQueries({ queryKey: DEVELOPER })
   const action = useMutation({
-    mutationFn: (path) => api.post(`developer/apps/${appId}/${path}`),
+    // `[path, body]` for an action with options (a webhook secret that ends the old one at once).
+    mutationFn: (path) => (Array.isArray(path) ? api.post(`developer/apps/${appId}/${path[0]}`, path[1]) : api.post(`developer/apps/${appId}/${path}`)),
     onSuccess: async (response) => {
       await invalidate()
       if (response?.secrets) setSecrets(response.secrets)
@@ -255,6 +256,7 @@ export default function DeveloperApp() {
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => action.mutate('client-secret')}>{t('developerApps.credentials.rotateClient')}</Button>
             <Button onClick={() => action.mutate('webhook-secret')}>{t('developerApps.credentials.rotateWebhook')}</Button>
+            <Button variant="ghost" onClick={() => action.mutate(['webhook-secret', { immediate: true }])}>{t('developerApps.credentials.rotateWebhookNow')}</Button>
           </div>
         </Card>
       </div>

@@ -1,9 +1,8 @@
 // RBAC-04: what a role assignment (role + scope) is offered from and how it
-// reads. Only grants the user may make are offered (useGrantOptions); the
-// API checks every one again.
-import { useQuery } from '@tanstack/react-query'
+// reads. Only grants the user may make are offered (useGrantOptions, from the
+// API's own answer); the API checks every one again.
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { api } from '@/api/client'
-import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
 
 /** StatusBadge tone per user status. */
@@ -56,28 +55,28 @@ export function chainOf(type, record, scopes) {
   return [{ type: 'company', id: branch?.company_id }, { type: 'branch', id: record.branch_id }, { type: 'location', id: record.id }]
 }
 
+/** The place a row names, as `?grantable_at=` reads it: `tenant`, `<type>:<id>`, or `any` until a place is chosen. */
+export function grantableKey(row) {
+  if (!row) return 'any'
+  if (row.scope_type === 'tenant') return 'tenant'
+  return row.scope_id ? `${row.scope_type}:${row.scope_id}` : 'any'
+}
+
 /**
- * What this user may grant (RBAC-04, no privilege escalation), mirroring the
- * API's Grants check so pickers never offer a refusal:
+ * What this user may grant (RBAC-04, no privilege escalation), so pickers
+ * never offer a refusal:
  * - places where they hold `core.role.assign` (and `core.user.invite` when
  *   inviting) at the place or above; the whole organisation only tenant-wide;
- * - roles whose every permission they hold at the chosen place (anywhere,
- *   until a place is chosen); Owner roles only for an Owner.
+ * - the roles the API says they may grant at the row's place (`GET
+ *   roles?grantable_at=`, by the grant's own rules: a permission of an
+ *   inactive module their roles hold counts; Owner roles only for an
+ *   Owner), or anywhere until a place is chosen.
+ * `rows` are the rows on screen, so their places' roles are fetched.
  * The API checks every grant again.
  */
-export function useGrantOptions({ invite = false } = {}) {
-  const { user } = useAuth()
-  const { can, canWithin, tenantWide, isLoading } = usePermissions()
-  const rolesQuery = useRoles()
+export function useGrantOptions({ invite = false, rows = [] } = {}) {
+  const { canWithin, tenantWide, isLoading } = usePermissions()
   const scopes = useScopes()
-  const canViewUsers = can('core.user.view')
-  // Whether the user holds an Owner role: from their own record (owners can see it).
-  const self = useQuery({
-    queryKey: ['users', 'detail', user?.id],
-    queryFn: () => api.get(`users/${user.id}`),
-    enabled: Boolean(user?.id) && canViewUsers,
-  })
-  const isOwner = (self.data?.data?.roles ?? []).some((assignment) => assignment.role?.is_owner)
 
   const needed = invite ? ['core.role.assign', 'core.user.invite'] : ['core.role.assign']
   const mayGrantAt = (chain) => needed.every((name) => canWithin(name, chain))
@@ -87,16 +86,25 @@ export function useGrantOptions({ invite = false } = {}) {
   const tenantOk = needed.every((name) => tenantWide(name))
   const scopeTypes = SCOPE_TYPES.filter((type) => (type === 'tenant' ? tenantOk : places[type].length > 0))
 
-  const rolesFor = (row) => {
-    const record = row.scope_type === 'tenant' ? null : places[row.scope_type]?.find((place) => place.id === row.scope_id)
-    const chain = record ? chainOf(row.scope_type, record, scopes) : null
-    const holds = (name) => (row.scope_type === 'tenant' ? tenantWide(name) : chain ? canWithin(name, chain) : can(name))
-    return rolesQuery.roles.filter((role) => (!role.is_owner || isOwner) && (role.permissions ?? []).every(holds))
-  }
+  // `any` always (a row whose place is cleared falls back to it), and the whole
+  // organisation when offered (a row may move to it once the places load).
+  const keys = [...new Set(['any', ...(tenantOk ? ['tenant'] : []), ...rows.filter(Boolean).map(grantableKey)])]
+  const purpose = invite ? 'invite' : 'assign'
+  const grantable = useQueries({
+    queries: keys.map((key) => ({
+      queryKey: ['roles', 'grantable', purpose, key],
+      queryFn: () => api.get(`roles?per_page=200&grantable_at=${encodeURIComponent(key)}&grantable_for=${purpose}`),
+    })),
+  })
+  const byKey = Object.fromEntries(keys.map((key, index) => [key, grantable[index]]))
+
+  // While a place's answer loads, the roles grantable somewhere stand in, so a chosen role is not cleared meanwhile.
+  const rolesFor = (row) => (byKey[grantableKey(row)]?.data ?? byKey.any?.data)?.data ?? []
+  const failed = grantable.find((query) => query.isError)
 
   return {
-    ready: !isLoading && !scopes.isPending && !rolesQuery.isPending && !(canViewUsers && self.isPending && Boolean(user?.id)),
-    rolesError: rolesQuery.isError ? rolesQuery.error : null,
+    ready: !isLoading && !scopes.isPending && !byKey.any.isPending,
+    rolesError: failed ? failed.error : null,
     scopeTypes,
     places,
     rolesFor,

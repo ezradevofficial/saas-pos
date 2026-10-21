@@ -52,7 +52,20 @@ describe('Marketplace console', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Approve' }))
     const approve = (await screen.findAllByRole('dialog')).at(-1)
     fireEvent.click(within(approve).getByRole('button', { name: 'Approve' }))
-    await waitFor(() => expect(platformApi.post).toHaveBeenCalledWith('platform/marketplace/versions/v-2/approve', { note: null }))
+    await waitFor(() => expect(platformApi.post).toHaveBeenCalledWith('platform/marketplace/versions/v-2/approve', { note: null, submitted_at: '2026-10-16T08:00:00Z' }))
+  })
+
+  it('says so when the version changed since the reviewer opened it', async () => {
+    mockConsole(REVIEWER, { 'platform/marketplace/apps?status=submitted': { data: [SUMMARY] }, 'platform/marketplace/apps/app-1': { data: DETAIL } })
+    platformApi.post.mockRejectedValue(apiError(409, 'version_changed', 'This version changed since you opened it. Review it again.'))
+    renderApp('/platform/marketplace')
+
+    fireEvent.click(await screen.findByText('Stock sync'))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Approve' }))
+    const approve = (await screen.findAllByRole('dialog')).at(-1)
+    fireEvent.click(within(approve).getByRole('button', { name: 'Approve' }))
+    expect(await within(approve).findByText('This version changed since you opened it. Review it again.')).toBeInTheDocument()
   })
 
   it('records a payout with its reference', async () => {

@@ -12833,7 +12833,7 @@
         "p1": "Inscrivez-vous comme développeur dans Paramètres, Applications développeur, depuis un bac à sable ou votre propre organisation. Créez une application pour obtenir son identifiant client, son secret client et son secret de signature des webhooks ; les secrets ne sont affichés qu’une fois. Décrivez l’application, choisissez les autorisations dont elle a besoin, ses URI de redirection, ses événements webhook et son prix, puis soumettez la version pour examen. Seules les versions approuvées sont publiées.",
         "p2": "Une organisation installe votre application par le flux du code d’autorisation avec PKCE (S256 uniquement). Votre application envoie l’utilisateur vers l’écran de consentement ; il voit ce qu’elle demande en termes simples et choisit le rôle sous lequel elle agit. Votre application ne peut jamais faire plus que ce rôle, ni plus que ses autorisations.",
         "p3": "Échangez le code contre un jeton d’accès (une heure) et un jeton d’actualisation (30 jours, à usage unique : chaque actualisation en donne un nouveau). Utilisez le jeton d’accès exactement comme une clé d’API sur les points d’accès publics. Un jeton d’actualisation utilisé deux fois révoque tous les jetons de cette installation.",
-        "p4": "Les événements webhook sont envoyés à votre URL de webhook avec installation=<id> ajouté, signés avec le secret webhook de votre application. Une nouvelle version qui demande plus d’autorisations ou d’événements attend l’accord de chaque organisation ; d’ici là, votre application garde ce qu’elle a reçu. La désinstallation révoque ses jetons immédiatement."
+        "p4": "Les événements webhook sont envoyés à votre URL de webhook avec installation=<id> ajouté. Chaque installation signe avec sa propre clé : HMAC-SHA256 de « install: » suivi de l’installation_id du corps signé, avec pour clé le secret webhook de votre application (décodé en base64, sans whsec_) ; vérifiez la signature avec cette clé, jamais avec l’URL seule. Une nouvelle version qui demande plus d’autorisations ou d’événements attend l’accord de chaque organisation ; d’ici là, votre application garde ce qu’elle a reçu. La désinstallation révoque ses jetons immédiatement."
       }
     },
     "errorCodes": {
@@ -13311,9 +13311,10 @@
     },
     "credentials": {
       "title": "Identifiants",
-      "text": "Un nouveau secret client arrête l’ancien immédiatement ; un nouveau secret webhook chevauche l’ancien pendant 24 heures.",
+      "text": "Un nouveau secret client arrête l’ancien immédiatement ; un nouveau secret webhook chevauche l’ancien pendant 24 heures, sauf si vous arrêtez l’ancien maintenant (pour un secret divulgué).",
       "rotateClient": "Nouveau secret client",
-      "rotateWebhook": "Nouveau secret webhook"
+      "rotateWebhook": "Nouveau secret webhook",
+      "rotateWebhookNow": "Nouveau secret webhook, arrêter l’ancien maintenant"
     },
     "draft": {
       "title": "Version {{version}} (brouillon)",

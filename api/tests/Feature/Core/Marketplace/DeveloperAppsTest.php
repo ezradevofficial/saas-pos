@@ -10,6 +10,7 @@ use App\Core\Rbac\Scope;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -133,6 +134,13 @@ class DeveloperAppsTest extends TestCase
         $this->assertNotSame($created->json('secrets.client_secret'), $rotated->json('secrets.client_secret'));
         $webhook = $this->postJson("/api/v1/developer/apps/{$id}/webhook-secret", [], $this->headersFor())->assertOk()->json('secrets.webhook_secret');
         $this->assertNotSame($created->json('secrets.webhook_secret'), $webhook);
+
+        // Security review 6: a leaked secret ends at once, with no overlap.
+        Queue::fake();
+        $now = $this->postJson("/api/v1/developer/apps/{$id}/webhook-secret", ['immediate' => true], $this->headersFor())->assertOk()->json('secrets.webhook_secret');
+        $this->assertNotSame($webhook, $now);
+        $this->inTenant(fn () => $this->assertTrue(AuditEntry::where('action', 'core.developer_app.rotate_webhook_secret')->get()->contains(fn ($entry) => ($entry->after['immediate'] ?? null) === true)));
+        $this->postJson("/api/v1/developer/apps/{$id}/webhook-secret", ['immediate' => 'soon'], $this->headersFor())->assertUnprocessable();
 
         $this->postJson("/api/v1/developer/apps/{$id}/archive", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'archived');
         $this->postJson("/api/v1/developer/apps/{$id}/restore", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'active');

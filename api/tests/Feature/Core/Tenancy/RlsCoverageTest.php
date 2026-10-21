@@ -108,6 +108,27 @@ class RlsCoverageTest extends TestCase
         $this->assertTrue($column($platform, 'marketplace_apps', 'listed_version_id'));
     }
 
+    /** ADR 024 (security review 2, 4): app secrets are out of every runtime role's reach; client redirect URIs are the platform's. */
+    public function test_app_secrets_are_reached_only_through_their_functions(): void
+    {
+        $runtime = config('database.connections.pgsql.username');
+        $platform = config('database.connections.pgsql_platform.username');
+
+        foreach ([$runtime, $platform] as $role) {
+            foreach (['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'] as $privilege) {
+                $this->assertFalse((bool) DB::selectOne('select has_table_privilege(?, ?, ?) as can', [$role, 'public.marketplace_app_secrets', $privilege])->can, "{$role} {$privilege} on marketplace_app_secrets");
+            }
+
+            $this->assertFalse((bool) DB::selectOne('select has_any_column_privilege(?, ?, ?) as can', [$role, 'public.marketplace_app_secrets', 'SELECT'])->can, "{$role} reads no column of marketplace_app_secrets");
+        }
+
+        $update = fn (string $role, string $col) => (bool) DB::selectOne('select has_column_privilege(?, ?, ?, ?) as can', [$role, 'public.oauth_clients', $col, 'UPDATE'])->can;
+        $this->assertFalse($update($runtime, 'redirect_uris'));
+        $this->assertFalse($update($runtime, 'revoked'));
+        $this->assertFalse($update($runtime, 'secret'));
+        $this->assertTrue($update($platform, 'redirect_uris'));
+    }
+
     public function test_tenants_table_forces_row_level_security_keyed_on_id(): void
     {
         $table = DB::selectOne("

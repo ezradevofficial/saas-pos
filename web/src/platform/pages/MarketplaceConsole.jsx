@@ -37,7 +37,7 @@ function Diff({ label, diff }) {
 function ApproveDialog({ version, onDone, onClose }) {
   const { t } = useTranslation()
   const [note, setNote] = useState('')
-  const approve = useMutation({ mutationFn: () => platformApi.post(`platform/marketplace/versions/${version.id}/approve`, { note: note.trim() || null }), onSuccess: onDone })
+  const approve = useMutation({ mutationFn: () => platformApi.post(`platform/marketplace/versions/${version.id}/approve`, { note: note.trim() || null, submitted_at: version.submitted_at }), onSuccess: onDone })
   return (
     <Dialog
       open

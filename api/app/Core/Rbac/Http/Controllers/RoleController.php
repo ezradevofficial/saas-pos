@@ -3,6 +3,7 @@
 namespace App\Core\Rbac\Http\Controllers;
 
 use App\Core\Exports\ListExport;
+use App\Core\Rbac\Grants;
 use App\Core\Rbac\Http\Requests\CopyRoleRequest;
 use App\Core\Rbac\Http\Requests\ListRolesRequest;
 use App\Core\Rbac\Http\Requests\RoleActionRequest;
@@ -25,10 +26,16 @@ class RoleController
 {
     public function __construct(private readonly RoleManager $manager) {}
 
-    public function index(ListRolesRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
+    public function index(ListRolesRequest $request, ListExport $export, Grants $grants): AnonymousResourceCollection|StreamedResponse
     {
         $query = $request->applySearch($request->applyStatus(Role::query()), ['name' => 'name', 'description' => 'description']);
         $request->applySort($query);
+
+        $at = $request->grantableAt($grants);
+
+        if ($at !== false) {
+            $query->whereKey($grants->grantableRoleIds($request->user(), $at, $request->validated('grantable_for') === 'invite'));
+        }
 
         if ($request->wantsExport()) {
             return $export->download($request, $query);

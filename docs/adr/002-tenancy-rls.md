@@ -150,6 +150,15 @@ Two more functions answer for hosts, before any tenant is known:
 
 Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid`. The documented exceptions are `app_public_branding` (public fields of a sign-in page, above) and `app_platform_usage_totals` (ADM-06: totals per unit across tenants for the platform's reports, with no tenant id; the test pins its result type), and `app_prune_api_idempotency_keys` (ADR 020: deletes expired stored API responses of every tenant and returns only how many, below).
 
+The marketplace's secret functions are exceptions too (ADR 024, security review). An app's client-secret digest and webhook key live in `marketplace_app_secrets`, which neither the runtime nor the platform role can read; only these functions reach it, and none returns a stored secret:
+
+- `oauth_client_secret_ok` returns a `boolean`: whether the sha256 of a presented client secret matches. The digest never leaves the database.
+- `app_install_webhook_key` returns `text`: one install's own signing key, `HMAC-SHA256(app webhook key, 'install:' || install id)` as `whsec_` + base64, and only for an active install of the session's tenant (null for another tenant's install). It never returns the app's key, so one tenant holding its install's key learns nothing that signs for another install. The HMAC is computed by `marketplace_hmac_sha256(key, message)`, a plain (not security-definer) function on the built-in `sha256()`, since no crypto extension is installed; execute on it is revoked from `PUBLIC`.
+- `marketplace_store_app_secrets` returns an `integer` (how many rows changed): it sets an app's secret digest and/or webhook key, only from the app's developer tenant, or from the platform role for a first-party app.
+- `marketplace_developer_active` returns a `boolean`: whether a developer may serve (not suspended, its tenant not closed). It names nothing else.
+
+The test pins each one's result type. `app_tenants_with_app_installed` returns tenant ids, but only to the platform role (`session_user`) or to a session of the app's own developer tenant; any other tenant gets nothing, so a customer cannot list who else installed an app.
+
 | Function | Returns | Used for |
 | --- | --- | --- |
 | `auth_tenant_for_login(p_login text)` | `uuid` | sign-in by email or phone |
@@ -203,7 +212,11 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_with_expired_support_grants(p_at timestamptz)` | `setof uuid` | `support:expire`: support access approved and past its end (RBAC-13, docs/modules/platform-admin.md) |
 | `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `setof uuid` | `webhooks:sweep` (ADR 021) |
 | `oauth_token_tenant(p_kind text, p_id_hash text)` | `uuid` | the tenant of a marketplace app's authorization code, access or refresh token, by sha256 of its identifier (`auth_code`, `access_token`, `refresh_token`), for the token endpoint and the resource guard (API-02, MKT-02, ADR 024) |
-| `app_tenants_with_app_installed(p_app_id uuid)` | `setof uuid` | tenants (not closed) with an active install of an app: staff suspending or reinstating it audit each, and a rolled webhook secret reaches each (ADM-05, MKT-02, ADR 024) |
+| `app_tenants_with_app_installed(p_app_id uuid)` | `setof uuid` | tenants (not closed) with an active install of an app: staff suspending or reinstating it audit each, and a rolled webhook secret reaches each (ADM-05, MKT-02, ADR 024); answers only the platform role and the app's developer tenant |
+| `oauth_client_secret_ok(p_client_id uuid, p_secret_sha256 text)` | `boolean` | the token endpoint's client-secret check, without the digest leaving the database (API-02, ADR 024); documented exception |
+| `app_install_webhook_key(p_installation_id uuid)` | `text` | an install's derived signing key, for an active install of the session's tenant only (MKT-02, ADR 024); documented exception |
+| `marketplace_store_app_secrets(p_app_id uuid, p_client_secret_sha256 text, p_webhook_key bytea)` | `integer` | setting an app's secrets, by its developer tenant or the platform role for first-party apps; returns how many rows changed (MKT-01, ADR 024); documented exception |
+| `marketplace_developer_active(p_developer_id uuid)` | `boolean` | whether a developer's apps may serve (MKT-01, ADM-05, ADR 024); documented exception |
 
 ### Nobody but the owner creates objects in `public`
 
