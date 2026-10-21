@@ -28,13 +28,14 @@ trait BuildsMarketplace
      * A listed app with a confidential client.
      *
      * @param  array<string, mixed>  $version  overrides of the listed version
-     * @return array{app_id: string, client_id: string, client_secret: string, version_id: string, slug: string}
+     * @return array{app_id: string, client_id: string, client_secret: string, version_id: string, slug: string, webhook_secret: string}
      */
     protected function listedApp(array $version = [], ?string $secret = 'client-secret-for-tests-0123456789abcdef', bool $listed = true): array
     {
         $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
         $ids = ['app_id' => (string) Str::uuid7(), 'client_id' => (string) Str::uuid7(), 'version_id' => (string) Str::uuid7(), 'slug' => 'test-app-'.Str::lower(Str::random(8))];
         $now = now();
+        $ids['webhook_secret'] = 'whsec_'.base64_encode(random_bytes(32));
 
         $owner->transaction(function () use ($owner, $ids, $version, $secret, $now, $listed) {
             $owner->table('oauth_clients')->insert([
@@ -44,7 +45,7 @@ trait BuildsMarketplace
             ]);
             $owner->table('marketplace_apps')->insert([
                 'id' => $ids['app_id'], 'developer_id' => FirstParty::DEVELOPER, 'slug' => $ids['slug'], 'status' => 'active',
-                'client_id' => $ids['client_id'], 'webhook_secret' => encrypt('whsec_'.base64_encode(random_bytes(32)), false),
+                'client_id' => $ids['client_id'], 'webhook_secret' => encrypt($ids['webhook_secret'], false),
                 'created_at' => $now, 'updated_at' => $now,
             ]);
             $owner->table('marketplace_app_versions')->insert([

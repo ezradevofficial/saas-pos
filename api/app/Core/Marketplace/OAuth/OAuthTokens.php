@@ -71,6 +71,8 @@ class OAuthTokens
         $app = $installation === null ? null : MarketplaceApp::query()->find($installation->app_id);
 
         if ($app === null || $app->client_id !== $clientId || ! $app->serves()
+            // A revoked client (a connector set up again, or switched off) stops its tokens too.
+            || ! OAuthClient::query()->whereKey($clientId)->where('revoked', false)->exists()
             || Tenant::query()->whereKey($this->tenants->id())->value('status') !== 'active') {
             return null;
         }
