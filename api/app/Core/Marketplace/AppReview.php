@@ -44,7 +44,7 @@ class AppReview
         $this->assertSubmitted($version);
 
         PlatformDatabase::transaction(function () use ($staff, $version, $note) {
-            $app = MarketplaceApp::on(PlatformDatabase::CONNECTION)->lockForUpdate()->findOrFail($version->app_id);
+            $app = MarketplaceApp::on(PlatformDatabase::CONNECTION)->lock('for no key update')->findOrFail($version->app_id);
             $version->forceFill(['status' => MarketplaceAppVersion::APPROVED, 'reviewed_at' => CarbonImmutable::now(), 'reviewed_by' => $staff->id, 'review_note' => $note])->save();
             $app->forceFill(['listed_version_id' => $version->id])->save();
 

@@ -30,13 +30,13 @@ trait BuildsMarketplace
      * @param  array<string, mixed>  $version  overrides of the listed version
      * @return array{app_id: string, client_id: string, client_secret: string, version_id: string, slug: string}
      */
-    protected function listedApp(array $version = [], ?string $secret = 'client-secret-for-tests-0123456789abcdef'): array
+    protected function listedApp(array $version = [], ?string $secret = 'client-secret-for-tests-0123456789abcdef', bool $listed = true): array
     {
         $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
         $ids = ['app_id' => (string) Str::uuid7(), 'client_id' => (string) Str::uuid7(), 'version_id' => (string) Str::uuid7(), 'slug' => 'test-app-'.Str::lower(Str::random(8))];
         $now = now();
 
-        $owner->transaction(function () use ($owner, $ids, $version, $secret, $now) {
+        $owner->transaction(function () use ($owner, $ids, $version, $secret, $now, $listed) {
             $owner->table('oauth_clients')->insert([
                 'id' => $ids['client_id'], 'name' => 'Test app', 'secret' => $secret === null ? null : Hash::make($secret),
                 'redirect_uris' => json_encode([self::REDIRECT]), 'grant_types' => json_encode(['authorization_code', 'refresh_token']),
@@ -58,8 +58,11 @@ trait BuildsMarketplace
                 'created_at' => $now, 'updated_at' => $now,
             ]);
             $owner->table('marketplace_app_versions')->where('id', $ids['version_id'])->update(['status' => 'submitted', 'submitted_at' => $now]);
-            $owner->table('marketplace_app_versions')->where('id', $ids['version_id'])->update(['status' => 'approved', 'reviewed_at' => $now]);
-            $owner->table('marketplace_apps')->where('id', $ids['app_id'])->update(['listed_version_id' => $ids['version_id']]);
+
+            if ($listed) {
+                $owner->table('marketplace_app_versions')->where('id', $ids['version_id'])->update(['status' => 'approved', 'reviewed_at' => $now]);
+                $owner->table('marketplace_apps')->where('id', $ids['app_id'])->update(['listed_version_id' => $ids['version_id']]);
+            }
         });
 
         $this->forgetMarketplaceApp($ids['app_id'], $ids['client_id']);

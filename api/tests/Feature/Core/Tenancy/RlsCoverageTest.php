@@ -75,6 +75,39 @@ class RlsCoverageTest extends TestCase
         }
     }
 
+    /** ADR 024: marketplace tables are global, under forced RLS keyed on the developer tenant; nobody deletes. */
+    public function test_marketplace_tables_are_global_under_developer_policies(): void
+    {
+        $runtime = config('database.connections.pgsql.username');
+        $platform = config('database.connections.pgsql_platform.username');
+        $can = fn (string $role, string $table, string $privilege) => (bool) DB::selectOne('select has_table_privilege(?, ?, ?) as can', [$role, "public.{$table}", $privilege])->can;
+
+        foreach (array_keys(GlobalTables::MARKETPLACE) as $table) {
+            $row = DB::selectOne("select c.relrowsecurity, c.relforcerowsecurity, (select count(*) from pg_policies p where p.tablename = c.relname) as policies,
+                exists(select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'tenant_id' and not a.attisdropped) as has_tenant
+                from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = ?", [$table]);
+            $this->assertNotNull($row, "{$table} is missing");
+            $this->assertTrue($row->relrowsecurity && $row->relforcerowsecurity, "{$table} lacks forced RLS");
+            $this->assertGreaterThanOrEqual(4, (int) $row->policies, "{$table} lacks its policies");
+            $this->assertFalse($row->has_tenant, "{$table} must not hold a tenant_id");
+            $this->assertTrue($can($runtime, $table, 'SELECT') && $can($runtime, $table, 'INSERT'), "{$runtime} on {$table}");
+            $this->assertTrue($can($platform, $table, 'SELECT'), "{$platform} SELECT on {$table}");
+            foreach ([$runtime, $platform] as $role) {
+                foreach (['DELETE', 'TRUNCATE'] as $privilege) {
+                    $this->assertFalse($can($role, $table, $privilege), "{$role} {$privilege} on {$table}");
+                }
+            }
+            $this->assertFalse($can($platform, $table, 'INSERT'), "{$platform} INSERT on {$table}");
+        }
+
+        // Review fields are the platform's: the runtime role cannot list an app or approve a version.
+        $column = fn (string $role, string $table, string $col) => (bool) DB::selectOne('select has_column_privilege(?, ?, ?, ?) as can', [$role, "public.{$table}", $col, 'UPDATE'])->can;
+        $this->assertFalse($column($runtime, 'marketplace_apps', 'listed_version_id'));
+        $this->assertFalse($column($runtime, 'marketplace_app_versions', 'reviewed_by'));
+        $this->assertFalse($column($runtime, 'marketplace_developers', 'status'));
+        $this->assertTrue($column($platform, 'marketplace_apps', 'listed_version_id'));
+    }
+
     public function test_tenants_table_forces_row_level_security_keyed_on_id(): void
     {
         $table = DB::selectOne("
