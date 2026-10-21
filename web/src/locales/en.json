@@ -494,7 +494,10 @@
     "supportAccess": "Support access",
     "webhooks": "Webhooks",
     "apiKeys": "API keys",
-    "sso": "Single sign-on"
+    "sso": "Single sign-on",
+    "marketplace": "Marketplace",
+    "installedApps": "Installed apps",
+    "developerApps": "Developer apps"
   },
   "shell": {
     "account": "Account menu",
@@ -12046,7 +12049,9 @@
       "support": "Support",
       "packs": "Country packs",
       "reports": "Reports",
-      "staff": "Staff"
+      "staff": "Staff",
+      "marketplace": "Marketplace",
+      "payouts": "Payouts"
     },
     "tenants": {
       "search": "Search tenants",
@@ -12290,6 +12295,79 @@
       "lastSignIn": "Last sign-in",
       "deactivate": "Deactivate",
       "reactivate": "Reactivate"
+    },
+    "marketplace": {
+      "title": "Marketplace review",
+      "description": "Review submitted versions before they are listed, and suspend apps that misbehave.",
+      "tabs": {
+        "submitted": "To review",
+        "listed": "Listed",
+        "suspended": "Suspended",
+        "all": "All"
+      },
+      "empty": "Nothing here.",
+      "app": "App",
+      "developer": "Developer",
+      "status": "Status",
+      "latest": "Latest version",
+      "versionLabel": "Version {{version}}: {{status}}",
+      "appStatus": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "archived": "Archived"
+      },
+      "versionStatus": {
+        "draft": "Draft",
+        "submitted": "In review",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "client": "Client id",
+      "redirects": "Redirect URIs",
+      "none": "None",
+      "versions": "Versions",
+      "version": "Version",
+      "scopes": "Permissions",
+      "events": "Webhook events",
+      "submitted": "Submitted",
+      "webhookUrl": "Webhook URL",
+      "changesTitle": "What version {{version}} changes",
+      "needsConsent": "It asks for more than the listed version: installs keep what they had until each organisation approves.",
+      "pricingChanged": "The price changes.",
+      "added": "Added: {{entry}}",
+      "removed": "Removed: {{entry}}",
+      "approve": "Approve",
+      "approveTitle": "Approve version {{version}}",
+      "approveText": "It is listed at once and its redirect URIs take effect.",
+      "note": "Note for the developer",
+      "reject": "Reject",
+      "rejectTitle": "Reject this version",
+      "suspend": "Suspend",
+      "suspendTitle": "Suspend this app",
+      "suspendText": "Its tokens stop at once, it leaves the listing, and every organisation that installed it is told.",
+      "reinstate": "Reinstate",
+      "reinstateTitle": "Reinstate this app"
+    },
+    "payouts": {
+      "title": "Developer payouts",
+      "description": "What each developer is owed from paid apps, per currency. Payouts are made outside the platform and recorded here.",
+      "currency": "Currency",
+      "allCurrencies": "All currencies",
+      "empty": "No developer earnings yet.",
+      "developer": "Developer",
+      "earned": "Earned",
+      "paid": "Paid out",
+      "balance": "Owed",
+      "lastPayout": "Last payout",
+      "never": "Never",
+      "actions": "Actions",
+      "record": "Record payout",
+      "recordTitle": "Record a payout to {{name}}",
+      "recordText": "Record money already sent. It can never be more than what is owed.",
+      "amount": "Amount",
+      "reference": "Reference",
+      "referenceHelp": "The bank or mobile money reference",
+      "markPaid": "Mark paid"
     }
   },
   "supportAccess": {
@@ -12942,6 +13020,224 @@
       "lastUsed": "Last used {{when}}.",
       "unlink": "Unlink",
       "unlinkFor": "Unlink {{email}}"
+    }
+  },
+  "marketplace": {
+    "title": "Marketplace",
+    "description": "Apps that connect to your organisation through the public API. Each one asks for what it needs, and you choose the role it acts as.",
+    "installedLink": "Installed apps",
+    "search": "Search apps",
+    "category": "Category",
+    "allCategories": "All categories",
+    "categories": {
+      "accounting": "Accounting",
+      "analytics": "Analytics and reports",
+      "attendance": "Attendance",
+      "commerce": "Online selling",
+      "delivery": "Delivery",
+      "messaging": "Messaging",
+      "payments": "Payments",
+      "productivity": "Productivity",
+      "other": "Other"
+    },
+    "empty": "No apps match. Try another name or category.",
+    "installed": "Installed",
+    "notConfigured": "Not set up yet",
+    "byPlatform": "Made by the platform team",
+    "by": "By {{name}}",
+    "free": "Free",
+    "priceUnavailable": "Not sold in your billing currency",
+    "perMonth": "a month",
+    "canChange": "can change",
+    "moduleOff": "module not active here",
+    "noScopes": "This app asks for no access.",
+    "noEvents": "This app receives no events.",
+    "copy": "Copy",
+    "about": "About",
+    "permissions": "What it can do",
+    "permissionsText": "Never more than the role you choose for it allows.",
+    "events": "Events it receives",
+    "eventsText": "Sent to the app as they happen, signed.",
+    "price": "Price",
+    "billedWith": "Billed with your subscription, on the same invoice.",
+    "install": "Install",
+    "manageInstall": "Manage this app",
+    "notConfiguredTitle": "This connector is not set up yet",
+    "notConfiguredText": "The platform team still has to configure it. You can install it once it is ready.",
+    "installText": "Install starts in the app: it sends you back here to approve what it asks for.",
+    "openApp": "Open the app",
+    "missing": {
+      "connector_service": "The connector service is not set up.",
+      "courier_provider": "No courier has been chosen yet.",
+      "message_provider": "No SMS or WhatsApp provider is set up."
+    },
+    "support": "Support",
+    "website": "Website",
+    "supportEmail": "Support email",
+    "privacy": "Privacy policy",
+    "version": "Version",
+    "consent": {
+      "errorTitle": "This app cannot connect",
+      "title": "Connect {{name}}",
+      "installed": "This app is installed. Approving again records your consent to its current version.",
+      "wants": "It will be able to",
+      "events": "It will receive these events",
+      "actsAs": "It acts as",
+      "actsAsHelp": "Choose a role and where it applies. The app can never do more than this role allows, and you can only choose what you could give a person.",
+      "cannotInstall": "You cannot install apps. Ask an Owner or Admin.",
+      "cannotPay": "This app adds to your subscription. Ask someone who manages the subscription to install it.",
+      "deny": "Deny",
+      "approve": "Approve and install",
+      "approveAgain": "Approve"
+    }
+  },
+  "installedApps": {
+    "title": "Installed apps",
+    "description": "Apps this organisation installed, what each was given and the role it acts as.",
+    "browse": "Browse the marketplace",
+    "empty": "No apps installed yet.",
+    "noRole": "No role",
+    "version": "Version {{version}}",
+    "status": {
+      "active": "Active",
+      "needsConsent": "Needs your approval",
+      "suspended": "Suspended",
+      "uninstalled": "Uninstalled"
+    },
+    "fields": {
+      "app": "App",
+      "status": "Status",
+      "actsAs": "Acts as",
+      "installed": "Installed"
+    },
+    "given": "What it was given",
+    "details": "Details",
+    "installedBy": "{{when}} by {{name}}",
+    "usage": "API use",
+    "requests_one": "{{total}} request in the last 30 days",
+    "requests_other": "{{total}} requests in the last 30 days",
+    "suspendedTitle": "The platform suspended this app",
+    "suspendedText": "It cannot use your data or receive events until it is reinstated.",
+    "needsConsentTitle": "Version {{version}} asks for more",
+    "needsConsentText": "The app keeps what you approved until you approve the new version.",
+    "consent": {
+      "title": "Approve {{name}}",
+      "confirm": "Approve",
+      "newScopes": "It now also asks to",
+      "review": "Review and approve",
+      "changeRole": "Change its role"
+    },
+    "uninstall": {
+      "action": "Uninstall",
+      "title": "Uninstall {{name}}",
+      "confirm": "Uninstall",
+      "body": "Its access ends at once and it stops receiving events. What it already created stays. A paid app is not billed from the next renewal."
+    }
+  },
+  "developerApps": {
+    "title": "Developer apps",
+    "description": "Build apps for the marketplace. Each version is reviewed by the platform team before it is listed.",
+    "portal": "Developer portal",
+    "empty": "No apps yet. Create one to get its credentials.",
+    "version": "Version {{version}}: {{status}}",
+    "versions": "Versions",
+    "clientIdIs": "Client id {{id}}",
+    "inReview": "Version {{version}} is being reviewed.",
+    "suspendedTitle": "The platform suspended this app",
+    "appStatus": {
+      "listed": "Listed",
+      "unlisted": "Not listed",
+      "archived": "Archived",
+      "suspended": "Suspended"
+    },
+    "versionStatus": {
+      "draft": "Draft",
+      "submitted": "In review",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "register": {
+      "title": "Register as a developer",
+      "text": "Your public name appears on your apps. Paid apps are billed to the organisations that install them.",
+      "terms": "I accept the marketplace terms: developers receive {{share}} % of what paid apps earn, after discounts and tax.",
+      "submit": "Register"
+    },
+    "profile": {
+      "title": "Developer account",
+      "name": "Public name",
+      "nameHelp": "Shown on your apps",
+      "email": "Contact email",
+      "website": "Website",
+      "save": "Save"
+    },
+    "create": {
+      "action": "New app",
+      "title": "New app",
+      "submit": "Create app"
+    },
+    "secrets": {
+      "title": "Your app's credentials",
+      "once": "Copy these now. They are shown once.",
+      "done": "I have copied them"
+    },
+    "credentials": {
+      "title": "Credentials",
+      "text": "Rotating a client secret stops the old one at once; a new webhook secret overlaps the old one for 24 hours.",
+      "rotateClient": "New client secret",
+      "rotateWebhook": "New webhook secret"
+    },
+    "draft": {
+      "title": "Version {{version}} (draft)",
+      "text": "Write it once, in your own language. Submit it when it is complete.",
+      "save": "Save draft",
+      "submit": "Submit for review",
+      "saved": "Draft saved."
+    },
+    "actions": {
+      "newVersion": "New version",
+      "withdraw": "Withdraw from review",
+      "archive": "Archive",
+      "restore": "Restore"
+    },
+    "pricing": {
+      "free": "Free",
+      "paid": "Paid",
+      "help": "Monthly price per currency, and a yearly one if you want it. You receive {{share}} % after discounts and tax.",
+      "monthly": "Monthly price, {{currency}}",
+      "yearly": "Yearly price, {{currency}}",
+      "yearlyHelp": "Twelve months if left empty"
+    },
+    "fields": {
+      "name": "Name",
+      "slug": "Address name",
+      "slugHelp": "Lowercase letters, digits and dashes",
+      "category": "Category",
+      "description": "Description",
+      "descriptionHelp": "What the app does, in at least 40 characters",
+      "tagline": "Tagline",
+      "supportEmail": "Support email",
+      "website": "Website",
+      "privacy": "Privacy policy URL",
+      "logo": "Logo",
+      "logoHelp": "A square PNG, JPEG or WebP image, up to 512 KB",
+      "logoSet": "A logo is set. Choose a file to replace it.",
+      "redirectUris": "Redirect URIs",
+      "redirectHelp": "One per line. HTTPS, or HTTP to localhost.",
+      "scopes": "Permissions",
+      "scopesHelp": "Only what the app needs",
+      "webhookUrl": "Webhook URL",
+      "webhookEvents": "Webhook events",
+      "pricing": "Pricing",
+      "clientId": "Client id",
+      "clientSecret": "Client secret",
+      "webhookSecret": "Webhook signing secret",
+      "listing": "Listing",
+      "latest": "Latest version",
+      "created": "Created",
+      "version": "Version",
+      "status": "Status",
+      "submitted": "Submitted",
+      "reviewNote": "Reviewer's note"
     }
   }
 }

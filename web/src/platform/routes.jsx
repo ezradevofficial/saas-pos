@@ -3,6 +3,7 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { PlatformAuthProvider, RequirePlatformAccess } from './PlatformAuth'
 import { PlatformLayout } from './PlatformLayout'
 import CatalogueConsole from './pages/CatalogueConsole'
+import MarketplaceConsole, { PayoutsConsole } from './pages/MarketplaceConsole'
 import PacksConsole from './pages/PacksConsole'
 import ReportsConsole from './pages/ReportsConsole'
 import StaffConsole from './pages/StaffConsole'
@@ -53,6 +54,9 @@ export const platformRoutes = [
           { path: 'packs', element: <PacksConsole /> },
           { path: 'reports', element: <ReportsConsole /> },
           { path: 'staff', element: <StaffConsole /> },
+          // ADM-05, MKT-03: marketplace review and developers' payouts.
+          { path: 'marketplace', element: <MarketplaceConsole /> },
+          { path: 'payouts', element: <PayoutsConsole /> },
         ],
       },
     ],

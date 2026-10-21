@@ -363,6 +363,10 @@ export const NAV_GROUPS = [
       { to: '/settings/domains', icon: 'domains', label: (t) => t('nav.domains'), permission: 'core.domain.manage', tenantWide: true, module: 'core' },
       // API-02: API keys for integrations; the developer portal links from the page.
       { to: '/settings/api-keys', icon: 'developers', label: (t) => t('nav.apiKeys'), permission: 'core.api_key.manage', tenantWide: true, module: 'core' },
+      // MKT-01, MKT-02: the marketplace, the apps installed here and the organisation's own apps.
+      { to: '/marketplace', icon: 'marketplace', label: (t) => t('nav.marketplace'), permission: 'core.marketplace.view', tenantWide: true, module: 'core' },
+      { to: '/settings/apps', icon: 'apps', label: (t) => t('nav.installedApps'), permission: 'core.marketplace.view', tenantWide: true, module: 'core' },
+      { to: '/settings/developer-apps', icon: 'developers', label: (t) => t('nav.developerApps'), permission: 'core.developer.manage', tenantWide: true, module: 'core' },
       // SUB-02..SUB-06: the subscription (Owner, Admin).
       { to: '/settings/subscription', icon: 'subscription', label: (t) => t('nav.subscription'), permission: 'core.subscription.view', tenantWide: true, module: 'core' },
       // LIM-01, LIM-02: usage against the plan (Owners only).

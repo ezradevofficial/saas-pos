@@ -276,6 +276,11 @@ import PriceListDetail from './pages/settings/taxes/PriceListDetail'
 import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
 import ApiKeys from './pages/settings/ApiKeys'
+import DeveloperApp from './pages/settings/apps/DeveloperApp'
+import DeveloperApps from './pages/settings/apps/DeveloperApps'
+import InstalledApps, { InstalledApp } from './pages/settings/apps/InstalledApps'
+import Consent from './pages/marketplace/Consent'
+import Marketplace, { MarketplaceApp } from './pages/marketplace/Marketplace'
 import { ApiReference } from './pages/developers/ApiReference'
 import { Changelog, DevelopersHome, Guide } from './pages/developers/DeveloperPages'
 import { DevelopersLayout } from './pages/developers/DevelopersLayout'
@@ -375,6 +380,15 @@ export const routes = [
       </RequireAuth>
     ),
     children: [{ path: '/two-factor/enrol', element: <TwoFactorEnrol /> }],
+  },
+  // MKT-02, API-02: the OAuth consent screen an app sends the user to (signed in; outside the shell).
+  {
+    element: (
+      <RequireAuth>
+        <AuthLayout />
+      </RequireAuth>
+    ),
+    children: [{ path: '/oauth/authorize', element: <Consent /> }],
   },
   // ONB-02..ONB-05: onboarding screens, outside the app shell (OnboardBusiness, OnboardModules, OnboardSetup).
   {
@@ -797,6 +811,13 @@ export const routes = [
       { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
       // API-02, API-03, API-05: API keys, their usage and the sandbox reset.
       { path: '/settings/api-keys', element: <RequirePermission permission="core.api_key.manage" tenantWide><ApiKeys /></RequirePermission> },
+      // MKT-01, MKT-02: the marketplace, installed apps and the developer portal's apps.
+      { path: '/marketplace', element: <RequirePermission permission="core.marketplace.view" tenantWide><Marketplace /></RequirePermission> },
+      { path: '/marketplace/:appId', element: <RequirePermission permission="core.marketplace.view" tenantWide><MarketplaceApp /></RequirePermission> },
+      { path: '/settings/apps', element: <RequirePermission permission="core.marketplace.view" tenantWide><InstalledApps /></RequirePermission> },
+      { path: '/settings/apps/:installationId', element: <RequirePermission permission="core.marketplace.view" tenantWide><InstalledApp /></RequirePermission> },
+      { path: '/settings/developer-apps', element: <RequirePermission permission="core.developer.manage" tenantWide><DeveloperApps /></RequirePermission> },
+      { path: '/settings/developer-apps/:appId', element: <RequirePermission permission="core.developer.manage" tenantWide><DeveloperApp /></RequirePermission> },
       // EXP-02: the full data export (Owners only; the API also checks the Owner role).
       // SUB-02..SUB-06: the plan, invoices and payment methods.
       { path: '/settings/subscription', element: <RequirePermission permission="core.subscription.view" tenantWide><Subscription /></RequirePermission> },

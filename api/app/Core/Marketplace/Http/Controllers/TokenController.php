@@ -6,11 +6,10 @@ use App\Core\Marketplace\Http\Requests\OAuthTokenRequest;
 use App\Core\Marketplace\OAuth\OAuthKeys;
 use App\Core\Tenancy\TenantContext;
 use GuzzleHttp\Psr7\Response as PsrResponse;
+use Illuminate\Http\Response;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\Exception\OAuthServerException;
-use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
 use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
-use Symfony\Component\HttpFoundation\Response;
 
 /**
  * API-02 (OAuth): `POST /api/v1/oauth/token`, Passport's authorization
@@ -38,10 +37,10 @@ class TokenController
             $this->tenants->set(null);
         }
 
-        $response = (new HttpFoundationFactory)->createResponse($psr);
-        $response->headers->set('Cache-Control', 'no-store');
-        $response->headers->set('Pragma', 'no-cache');
-
-        return $response;
+        return new Response((string) $psr->getBody(), $psr->getStatusCode(), [
+            ...array_map(fn (array $values) => implode(', ', $values), $psr->getHeaders()),
+            'Cache-Control' => 'no-store',
+            'Pragma' => 'no-cache',
+        ]);
     }
 }
