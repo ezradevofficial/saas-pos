@@ -26,6 +26,9 @@ class LeaveTypes
 {
     public const FIELDS = ['code', 'name', 'paid', 'accrual', 'entitlement_days', 'count_basis', 'carry_over_max_days', 'allow_negative', 'requires_document', 'accrues_from', 'qualifying_months', 'half_pay_days', 'events'];
 
+    /** CP-01: what re-applying the pack fills in on a type still "Days needed" (with `accrual`). */
+    private const DAYS_FIELDS = ['entitlement_days', 'needs_confirmation', 'qualifying_months', 'half_pay_days', 'events', 'research', 'accrues_from'];
+
     /** Fields that come from the pack: changing one makes the days the company's own (no longer researched, CP-01). */
     private const PACK_FIELDS = ['paid', 'entitlement_days', 'count_basis', 'qualifying_months', 'half_pay_days', 'events'];
 
@@ -55,8 +58,18 @@ class LeaveTypes
                     // CP-01: a type still "Days needed" (nothing can have used it) takes the pack's usable days now.
                     $current = $existing[$type['key']];
 
+                    // Only the days and how they accrue are taken (the accrual too: an older copy may say `none`); fields
+                    // the company may have edited (name, count basis, carry-over, documents) are left as they are. A pay
+                    // the pack leaves unconfirmed (null) is taken too: nothing has used the type, and it blocks runs.
                     if ($current->needs_confirmation && $current->entitlement_days === null && self::usable($type)) {
-                        $current->fill(self::fromPack($type, $company->id))->save();
+                        $days = array_intersect_key(self::fromPack($type, $company->id), array_flip(self::DAYS_FIELDS));
+                        $days['accrual'] = $type['accrual'] ?? $current->accrual;
+
+                        if (array_key_exists('paid', $type) && $type['paid'] === null) {
+                            $days['paid'] = null;
+                        }
+
+                        $current->fill($days)->save();
                         $created[] = $current->refresh();
                     }
 

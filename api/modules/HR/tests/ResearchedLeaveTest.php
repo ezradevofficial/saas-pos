@@ -12,6 +12,7 @@ use Illuminate\Testing\TestResponse;
 use Modules\HR\Contracts\LeaveRecords;
 use Modules\HR\Events\LeaveApproved;
 use Modules\HR\Leave\Accruals;
+use Modules\HR\Leave\LeaveLedger;
 use Modules\HR\Leave\LeaveRequests;
 use Modules\HR\Models\Employee;
 use Modules\HR\Models\LeaveEntry;
@@ -148,6 +149,33 @@ class ResearchedLeaveTest extends TestCase
         $this->request($worker, $circumstantial, '2026-10-26', '2026-10-27', ['event' => 'funeral'])->assertUnprocessable()->assertJsonPath('code', 'leave_event_unknown');
         $this->request($worker, $circumstantial, '2026-10-26', '2026-10-27', ['event' => 'marriage'])->assertCreated()
             ->assertJsonPath('data.event', 'marriage')->assertJsonPath('data.event_label', 'Own marriage')->assertJsonPath('data.researched', true);
+    }
+
+    public function test_reapplying_the_pack_fills_a_types_days_and_accrual_without_touching_company_edits(): void
+    {
+        // An existing CD company copied its types before the pack had researched days: circumstantial leave
+        // with no accrual and no days; the company renamed it and asks for a document.
+        $this->inTenant(fn () => $this->acme->forceFill(['country' => 'CD', 'timezone' => 'Africa/Kinshasa'])->save());
+        $worker = $this->employee(['first_name' => 'Joseph']);
+        $circumstantial = $this->inTenant(function () {
+            $type = LeaveType::query()->where('company_id', $this->acme->id)->where('statutory_key', 'circumstantial')->sole();
+            $type->forceFill(['accrual' => 'none', 'entitlement_days' => null, 'needs_confirmation' => true, 'events' => null, 'research' => null,
+                'name' => 'Congé de circonstance', 'requires_document' => true, 'accrues_from' => null])->save();
+
+            return $type;
+        });
+
+        $this->postJson('/api/v1/hr/leave-types/apply-pack', ['company_id' => $this->acme->id], $this->headersFor($this->hrOfficer))->assertOk()
+            ->assertJsonPath('data.0.statutory_key', 'circumstantial');
+        $type = $this->inTenant(fn () => $circumstantial->refresh());
+        // A yearly cap of 10 days, with the events; the company's name and document rule are kept.
+        $this->assertSame(['annual', '10.00', false, 'Congé de circonstance', true], [$type->accrual, (string) $type->entitlement_days, $type->needs_confirmation, $type->name, $type->requires_document]);
+        $this->assertSame([['key' => 'marriage', 'days' => 2], ['key' => 'birth', 'days' => 2]], $type->events);
+
+        $this->patchJson("/api/v1/hr/leave-types/{$type->id}", ['accrues_from' => '2026-01-01'], $this->headersFor($this->hrOfficer))->assertOk();
+        $this->inTenant(fn () => app(Accruals::class)->run(CarbonImmutable::parse('2026-10-14'), $this->acme->id));
+        // The yearly cap accrues: 10 days × 361 ÷ 365 for a hire on 5 January.
+        $this->assertSame('9.89', $this->inTenant(fn () => app(LeaveLedger::class)->balance($worker->id, $type->id, CarbonImmutable::parse('2026-12-31'))));
     }
 
     public function test_kenya_identifier_formats(): void
