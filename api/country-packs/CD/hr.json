@@ -17,12 +17,16 @@
         {
             "key": "national_id",
             "required": false,
-            "pattern": null
+            "pattern": null,
+            "needs_confirmation": true,
+            "status": "needs_confirmation"
         },
         {
             "key": "cnss_number",
             "required": false,
-            "pattern": null
+            "pattern": null,
+            "needs_confirmation": true,
+            "status": "needs_confirmation"
         }
     ],
     "statutory_leave_types": [
@@ -39,7 +43,8 @@
                 "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
             ],
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         },
         {
             "key": "maternity",
@@ -66,7 +71,8 @@
             "days": null,
             "needs_confirmation": true,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         },
         {
             "key": "circumstantial",

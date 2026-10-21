@@ -87,6 +87,66 @@ class PackValidator
     }
 
     /**
+     * S2, CP-01: the value rows whose status changes against the pack in
+     * force ("X: researched → confirmed", "X: needs_confirmation →
+     * researched"), as warnings, so approvers see what they certify.
+     *
+     * @param  array<string, mixed>|null  $base
+     * @param  array<string, mixed>  $content
+     * @return list<string>
+     */
+    public function transitions(?array $base, array $content): array
+    {
+        $before = [];
+        $after = [];
+        self::statuses($base ?? [], '', $before);
+        self::statuses($content, '', $after);
+        $warnings = [];
+
+        foreach ($after as $path => $status) {
+            $from = $before[$path] ?? null;
+
+            if ($from !== null && $from !== $status) {
+                $warnings[] = __('country_packs.releases.status_change', [
+                    'path' => $path,
+                    'from' => __("country_packs.statuses.{$from}"),
+                    'to' => __("country_packs.statuses.{$status}"),
+                ]);
+            }
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * Each value row's status by path (code or key, then the period's start date).
+     *
+     * @param  array<string, string>  $out
+     */
+    private static function statuses(mixed $node, string $path, array &$out): void
+    {
+        if (! is_array($node)) {
+            return;
+        }
+
+        if (array_key_exists('needs_confirmation', $node)) {
+            $out[$path === '' ? '(top)' : $path] = ResearchStatus::of($node);
+        }
+
+        foreach ($node as $key => $child) {
+            if (is_array($child)) {
+                $label = isset($child['code']) || isset($child['key']) ? (string) ($child['code'] ?? $child['key']) : (isset($child['effective_from']) ? (string) $child['effective_from'] : (string) $key);
+
+                if ((isset($child['code']) || isset($child['key'])) && isset($child['effective_from'])) {
+                    $label .= '@'.$child['effective_from'];
+                }
+
+                self::statuses($child, $path === '' ? $label : "{$path}.{$label}", $out);
+            }
+        }
+    }
+
+    /**
      * @param  array<string, mixed>|null  $base  the pack in force (null: none)
      * @param  array<string, mixed>  $content
      * @return array{added: list<string>, removed: list<string>, changed: list<string>}

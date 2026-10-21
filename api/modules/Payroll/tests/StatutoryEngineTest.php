@@ -139,7 +139,7 @@ class StatutoryEngineTest extends TestCase
                 foreach ($component['periods'] as $period) {
                     if ($period['needs_confirmation']) {
                         foreach ($period as $key => $value) {
-                            if (! in_array($key, ['effective_from', 'effective_to', 'needs_confirmation', 'confidence', 'source'], true)) {
+                            if (! in_array($key, ['effective_from', 'effective_to', 'needs_confirmation', 'status', 'confidence', 'source'], true)) {
                                 $this->assertNull($value, "{$country} {$component['code']}.{$key} ships an unconfirmed value");
                             }
                         }

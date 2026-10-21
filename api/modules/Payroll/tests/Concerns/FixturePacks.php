@@ -56,6 +56,7 @@ final class FixturePacks
                 $period['needs_confirmation'] = false;
                 // Fixture values are fictional and confirmed: no research status (CP-01).
                 unset($period['status'], $period['confidence'], $period['researched_on'], $period['source'], $period['assumed']);
+                $period['status'] = 'confirmed';
 
                 foreach ($values[$component['code']] ?? [] as $key => $value) {
                     if ($value === '__absent__') {

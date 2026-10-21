@@ -20,8 +20,8 @@ use InvalidArgumentException;
  *   result is never entered: the row stays here, and may say
  *   `confidence: low` with its `source` for the reader.
  *
- * A row without `status` is read from `needs_confirmation` (packs written
- * before the status existed stay valid). A researched row may list in
+ * Validation (check) requires an explicit `status` on every row; at run
+ * time a row without one is read from `needs_confirmation`. A researched row may list in
  * `assumed` the fields whose value (or absence: CNSS `base_cap_minor`, no
  * ceiling) is a default pending confirmation, or a named assumption
  * (`residency`: KE personal relief for every employee); they are shown
@@ -98,8 +98,9 @@ final class ResearchStatus
         $status = $row['status'] ?? null;
         $needs = $row['needs_confirmation'] ?? null;
 
-        if ($status !== null && ! in_array($status, self::STATUSES, true)) {
-            throw new InvalidArgumentException("{$where}: status must be one of ".implode(', ', self::STATUSES).'.');
+        // S2: every value row says what it is; confirming is an explicit change approvers see (PackValidator).
+        if (! in_array($status, self::STATUSES, true)) {
+            throw new InvalidArgumentException("{$where}: status is required: ".implode(', ', self::STATUSES).'.');
         }
 
         if (array_key_exists('confidence', $row) && ! in_array($row['confidence'], self::CONFIDENCE, true)) {

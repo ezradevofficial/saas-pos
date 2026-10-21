@@ -49,6 +49,8 @@ class PackReleases
     {
         $base = $this->documents->current($country, $kind);
         $validation = $this->validator->validate($country, $kind, $content);
+        // S2: a status change (researched → confirmed) is a warning approvers see before certifying it.
+        $validation['warnings'] = [...$validation['warnings'], ...$this->validator->transitions($base['content'], $content)];
         $diff = [
             'base' => ['source' => $base['source'], 'version' => $base['version']],
             ...$this->validator->diff($kind, $base['content'], $content),

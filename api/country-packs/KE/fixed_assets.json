@@ -19,7 +19,8 @@
     ],
     "acquisition_rule": {
         "value": null,
-        "needs_confirmation": true
+        "needs_confirmation": true,
+        "status": "needs_confirmation"
     },
     "classes": [
         {
@@ -28,7 +29,8 @@
             "rate": null,
             "needs_confirmation": true,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         },
         {
             "key": "machinery",
@@ -36,7 +38,8 @@
             "rate": null,
             "needs_confirmation": true,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         },
         {
             "key": "motor_vehicles",
@@ -44,7 +47,8 @@
             "rate": null,
             "needs_confirmation": true,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         },
         {
             "key": "computers",
@@ -52,7 +56,8 @@
             "rate": null,
             "needs_confirmation": true,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         },
         {
             "key": "software",
@@ -60,7 +65,8 @@
             "rate": null,
             "needs_confirmation": true,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         },
         {
             "key": "furniture",
@@ -68,7 +74,8 @@
             "rate": null,
             "needs_confirmation": true,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         },
         {
             "key": "telecommunication",
@@ -76,7 +83,8 @@
             "rate": null,
             "needs_confirmation": true,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         },
         {
             "key": "other",
@@ -84,7 +92,8 @@
             "rate": null,
             "needs_confirmation": true,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "status": "needs_confirmation"
         }
     ]
 }

@@ -5,6 +5,10 @@ namespace Tests\Unit\CountryPacks;
 use App\Core\CountryPacks\PackFile;
 use App\Core\CountryPacks\ResearchStatus;
 use InvalidArgumentException;
+use Modules\FixedAssets\TaxBook\FixedAssetsPackSchema;
+use Modules\FixedAssets\TaxBook\TaxClasses;
+use Modules\HR\Support\HrPackSchema;
+use Modules\Payroll\Statutory\PayrollPackSchema;
 use Tests\TestCase;
 
 /**
@@ -24,6 +28,15 @@ class ResearchStatusTest extends TestCase
         $this->assertSame('researched', ResearchStatus::of(self::RESEARCHED));
 
         $this->assertTrue(ResearchStatus::usable(['needs_confirmation' => false]));
+        // S2: validation needs an explicit status; run time reads an older row from needs_confirmation.
+        foreach ([['needs_confirmation' => false], ['needs_confirmation' => true]] as $row) {
+            try {
+                ResearchStatus::check($row, 'no status');
+                $this->fail('a row without status was accepted');
+            } catch (InvalidArgumentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
         $this->assertTrue(ResearchStatus::usable(self::RESEARCHED));
         $this->assertTrue(ResearchStatus::usable(['confidence' => 'high'] + self::RESEARCHED));
         // Low confidence is never usable, even if someone marks it researched.
@@ -37,7 +50,7 @@ class ResearchStatusTest extends TestCase
     public function test_invalid_rows_are_refused(): void
     {
         ResearchStatus::check(self::RESEARCHED, 'ok');
-        ResearchStatus::check(['needs_confirmation' => true, 'confidence' => 'low', 'source' => ['https://example.org']], 'low kept for the reader');
+        ResearchStatus::check(['status' => 'needs_confirmation', 'needs_confirmation' => true, 'confidence' => 'low', 'source' => ['https://example.org']], 'low kept for the reader');
         ResearchStatus::check(['reduces_taxable' => false, 'assumed' => ['reduces_taxable']] + self::RESEARCHED, 'assumed');
         // S1: an absent optional field (no ceiling) or a named assumption can be listed.
         ResearchStatus::check(['assumed' => ['base_cap_minor', 'residency']] + self::RESEARCHED, 'assumed absent');
@@ -49,7 +62,7 @@ class ResearchStatusTest extends TestCase
             'needs confirmation' => ['needs_confirmation' => true] + self::RESEARCHED,
             'bad date' => ['researched_on' => '17/10/2026'] + self::RESEARCHED,
             'unknown status' => ['status' => 'guessed'] + self::RESEARCHED,
-            'low value entered' => ['needs_confirmation' => false, 'confidence' => 'low'],
+            'low value entered' => ['status' => 'confirmed', 'needs_confirmation' => false, 'confidence' => 'low'],
             'assumed bad name' => ['assumed' => ['Reduces taxable']] + self::RESEARCHED,
             'assumed on confirmed' => ['needs_confirmation' => false, 'status' => 'confirmed', 'rounding' => 1, 'assumed' => ['rounding']],
         ] as $case => $row) {
@@ -60,6 +73,16 @@ class ResearchStatusTest extends TestCase
                 $this->addToAssertionCount(1);
             }
         }
+    }
+
+    public function test_fixed_asset_classes_go_through_the_research_status(): void
+    {
+        $class = ['key' => 'computers', 'method' => 'reducing_balance', 'rate' => '25', 'needs_confirmation' => false];
+        $this->assertTrue(TaxClasses::confirmed(['status' => 'confirmed'] + $class));
+        $this->assertTrue(TaxClasses::confirmed(['status' => 'researched', 'confidence' => 'medium'] + $class));
+        // Low confidence is never computed from, even if a row says needs_confirmation false.
+        $this->assertFalse(TaxClasses::confirmed(['status' => 'researched', 'confidence' => 'low'] + $class));
+        $this->assertFalse(TaxClasses::confirmed(['needs_confirmation' => true] + $class));
     }
 
     public function test_a_tax_pack_with_a_researched_rate_is_validated(): void
@@ -97,6 +120,10 @@ class ResearchStatusTest extends TestCase
             }
 
             $assets = json_decode((string) file_get_contents(base_path("country-packs/{$country}/fixed_assets.json")), true, 16, JSON_THROW_ON_ERROR);
+
+            FixedAssetsPackSchema::check($assets);
+            PayrollPackSchema::check($payroll);
+            HrPackSchema::check($hr);
 
             foreach ($assets['classes'] as $row) {
                 ResearchStatus::check($row, "{$country} fixed assets {$row['key']}");

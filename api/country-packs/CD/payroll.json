@@ -86,7 +86,8 @@
                         "https://business.monrespro.cd/blog/ipr-impot-professionnel-remunerations-rdc"
                     ],
                     "rate": null,
-                    "max_dependants": null
+                    "max_dependants": null,
+                    "status": "needs_confirmation"
                 }
             ],
             "unconfirmed": "not_applied"
@@ -199,7 +200,8 @@
                         "https://africarrieres.com/rd-congo/pt/guide/employeur-entreprise/charges-employeur"
                     ],
                     "brackets": null,
-                    "rounding": null
+                    "rounding": null,
+                    "status": "needs_confirmation"
                 }
             ],
             "may_not_apply": true
@@ -247,7 +249,8 @@
                     "amount_minor": null,
                     "taxable": null,
                     "contributory": null,
-                    "rounding": null
+                    "rounding": null,
+                    "status": "needs_confirmation"
                 }
             ]
         }

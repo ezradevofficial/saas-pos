@@ -76,9 +76,13 @@ Each publish (changed or not, so a run that stopped half-way is completed by the
 - A pack row has a status (`ResearchStatus`): `confirmed`, `researched`
   (from public research: `confidence` high or medium, `researched_on`,
   https `source` URLs, `needs_confirmation: false`) or
-  `needs_confirmation`. Rows without `status` are read from
-  `needs_confirmation`, so earlier files stay valid. Low-confidence
-  research is never entered. `PackFile` validates the fields.
+  `needs_confirmation`. Every value row of every pack kind states its
+  `status` explicitly: `PackFile` (tax) and the release schemas (payroll,
+  HR, fixed assets) refuse a row without one; at run time an older row is
+  read from `needs_confirmation`. Low-confidence research is never
+  entered. A release that changes a row's status (researched → confirmed,
+  needs_confirmation → researched) shows a warning per row, so the
+  approver sees what they certify (`PackValidator::transitions`).
 - A researched rate is used. `country_pack_tax_codes.research` and
   `tax_rates.research` keep its research; `TaxCalculator` marks each
   `TaxAmount` `researched`; the API says `rate_researched`. Propagation
