@@ -36,7 +36,7 @@ return [
 
     'before_breadcrumb' => [SentryEvents::class, 'beforeBreadcrumb'],
 
-    'ignore_transactions' => ['/up', '/api/health/live', '/api/health/ready', '/metrics'],
+    'ignore_transactions' => ['/up', '/health/live', '/health/ready', '/metrics'],
 
     'breadcrumbs' => [
         'logs' => true,

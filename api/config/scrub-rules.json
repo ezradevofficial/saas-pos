@@ -1,18 +1,262 @@
 {
-  "_about": "NFR-10: one set of scrubbing rules for the API (App\\Core\\Observability\\Scrubber, reading its copy api/config/scrub-rules.json), the web app and the POS (@app/scrub). Edit here, then copy to api/config/scrub-rules.json; ScrubberTest fails when the copies differ. fixtures.json is run by both implementations.",
+  "_about": "NFR-10: one set of scrubbing rules for the API (App\\Core\\Observability\\Scrubber, reading its copy api/config/scrub-rules.json), the web app and the POS (@app/scrub). Edit here, then copy to api/config/scrub-rules.json; ScrubberTest fails when the copies differ. fixtures.json is run by both implementations. A key phrase starting with \"^\" matches only a key made of exactly those words (\"code\", not \"status_code\"). Integers of 9 or more digits are scrubbed as text.",
   "replacement": "[redacted]",
   "keys": [
-    ["password"], ["passwd"], ["passphrase"], ["pwd"],
-    ["secret"], ["secrets"], ["token"], ["tokens"], ["api", "key"], ["apikey"], ["access", "key"], ["private", "key"],
-    ["authorization"], ["auth"], ["cookie"], ["cookies"], ["set", "cookie"], ["session"], ["csrf"], ["xsrf"], ["signature"], ["sig"],
-    ["pin"], ["pins"], ["otp"], ["code", "hash"], ["two", "factor"], ["totp"], ["recovery", "codes"],
-    ["card"], ["card", "number"], ["pan"], ["cvv"], ["cvc"], ["expiry"],
-    ["iban"], ["swift"], ["account", "number"], ["bank", "account"], ["account", "no"],
-    ["email"], ["emails"], ["work", "email"], ["personal", "email"],
-    ["phone"], ["phones"], ["msisdn"], ["mobile"], ["telephone"], ["whatsapp"],
-    ["id", "number"], ["national", "id"], ["passport"], ["kra", "pin"], ["tax", "id"], ["nssf"], ["nhif"], ["shif"], ["identifiers"],
-    ["date", "of", "birth"], ["dob"], ["address"], ["addresses"], ["emergency", "contacts"], ["medical", "notes"],
-    ["ip"], ["ip", "address"], ["client", "ip"], ["x", "forwarded", "for"]
+    [
+      "password"
+    ],
+    [
+      "passwd"
+    ],
+    [
+      "passphrase"
+    ],
+    [
+      "pwd"
+    ],
+    [
+      "secret"
+    ],
+    [
+      "secrets"
+    ],
+    [
+      "token"
+    ],
+    [
+      "tokens"
+    ],
+    [
+      "api",
+      "key"
+    ],
+    [
+      "apikey"
+    ],
+    [
+      "access",
+      "key"
+    ],
+    [
+      "private",
+      "key"
+    ],
+    [
+      "authorization"
+    ],
+    [
+      "auth"
+    ],
+    [
+      "cookie"
+    ],
+    [
+      "cookies"
+    ],
+    [
+      "set",
+      "cookie"
+    ],
+    [
+      "session"
+    ],
+    [
+      "csrf"
+    ],
+    [
+      "xsrf"
+    ],
+    [
+      "signature"
+    ],
+    [
+      "sig"
+    ],
+    [
+      "pin"
+    ],
+    [
+      "pins"
+    ],
+    [
+      "otp"
+    ],
+    [
+      "code",
+      "hash"
+    ],
+    [
+      "two",
+      "factor"
+    ],
+    [
+      "totp"
+    ],
+    [
+      "recovery",
+      "codes"
+    ],
+    [
+      "card"
+    ],
+    [
+      "card",
+      "number"
+    ],
+    [
+      "pan"
+    ],
+    [
+      "cvv"
+    ],
+    [
+      "cvc"
+    ],
+    [
+      "expiry"
+    ],
+    [
+      "iban"
+    ],
+    [
+      "swift"
+    ],
+    [
+      "account",
+      "number"
+    ],
+    [
+      "bank",
+      "account"
+    ],
+    [
+      "account",
+      "no"
+    ],
+    [
+      "email"
+    ],
+    [
+      "emails"
+    ],
+    [
+      "work",
+      "email"
+    ],
+    [
+      "personal",
+      "email"
+    ],
+    [
+      "phone"
+    ],
+    [
+      "phones"
+    ],
+    [
+      "msisdn"
+    ],
+    [
+      "mobile"
+    ],
+    [
+      "telephone"
+    ],
+    [
+      "whatsapp"
+    ],
+    [
+      "id",
+      "number"
+    ],
+    [
+      "national",
+      "id"
+    ],
+    [
+      "passport"
+    ],
+    [
+      "kra",
+      "pin"
+    ],
+    [
+      "tax",
+      "id"
+    ],
+    [
+      "nssf"
+    ],
+    [
+      "nhif"
+    ],
+    [
+      "shif"
+    ],
+    [
+      "identifiers"
+    ],
+    [
+      "date",
+      "of",
+      "birth"
+    ],
+    [
+      "dob"
+    ],
+    [
+      "address"
+    ],
+    [
+      "addresses"
+    ],
+    [
+      "emergency",
+      "contacts"
+    ],
+    [
+      "medical",
+      "notes"
+    ],
+    [
+      "ip"
+    ],
+    [
+      "ip",
+      "address"
+    ],
+    [
+      "client",
+      "ip"
+    ],
+    [
+      "x",
+      "forwarded",
+      "for"
+    ],
+    [
+      "^",
+      "code"
+    ],
+    [
+      "recovery",
+      "code"
+    ],
+    [
+      "passkey"
+    ],
+    [
+      "consumer",
+      "key"
+    ],
+    [
+      "consumer",
+      "secret"
+    ],
+    [
+      "security",
+      "credential"
+    ]
   ],
   "values": [
     {
@@ -34,8 +278,14 @@
       "replace": "[token]"
     },
     {
+      "name": "path_token",
+      "pattern": "/(?![0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:[/?#\\s\"']|$))[A-Za-z0-9_-]{32,}(?=[/?#\\s\"']|$)",
+      "flags": "",
+      "replace": "/[redacted]"
+    },
+    {
       "name": "query_secret",
-      "pattern": "([?&](?:token|access_token|signature|key|api_key|code|password|secret|pin|otp)=)[^&#\\s\"']+",
+      "pattern": "((?:[?&]|^)(?:token|access_token|signature|key|api_key|code|password|secret|pin|otp)=)[^&#\\s\"']+",
       "flags": "i",
       "replace": "$1[redacted]"
     },
@@ -71,7 +321,22 @@
     }
   ],
   "keep": [
-    "event_id", "release", "dist", "environment", "platform", "timestamp", "start_timestamp",
-    "trace_id", "span_id", "parent_span_id", "fingerprint", "tenant_id", "request_id", "level", "logger", "sdk", "transaction"
+    "event_id",
+    "release",
+    "dist",
+    "environment",
+    "platform",
+    "timestamp",
+    "start_timestamp",
+    "trace_id",
+    "span_id",
+    "parent_span_id",
+    "fingerprint",
+    "tenant_id",
+    "request_id",
+    "level",
+    "logger",
+    "sdk",
+    "transaction"
   ]
 }

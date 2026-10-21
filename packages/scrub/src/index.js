@@ -28,6 +28,8 @@ function keyWords(key) {
 }
 
 function containsPhrase(words, phrase) {
+  // "^" first: the key is exactly these words ("code", never "status_code").
+  if (phrase[0] === '^') return words.length === phrase.length - 1 && phrase.slice(1).every((word, i) => words[i] === word)
   for (let i = 0; i + phrase.length <= words.length; i++) {
     let match = true
     for (let j = 0; j < phrase.length; j++) {
@@ -70,6 +72,11 @@ function scrub(value, key = null, depth = 0) {
   if (value === null || value === undefined || typeof value === 'boolean') return value
   if (key !== null && isSensitiveKey(key)) return rules.replacement
   if (typeof value === 'string') return scrubString(value)
+  // Long integers can be phone or account numbers (M-Pesa's PhoneNumber): scrubbed as text.
+  if (typeof value === 'number' && Number.isInteger(value) && Math.abs(value) >= 100000000) {
+    const text = scrubString(String(value))
+    return text === String(value) ? value : text
+  }
   if (typeof value !== 'object') return value
   if (depth >= MAX_DEPTH) return rules.replacement
   if (Array.isArray(value)) return value.map((item) => scrub(item, null, depth + 1))

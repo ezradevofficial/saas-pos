@@ -2,6 +2,7 @@
 
 namespace App\Core\Observability;
 
+use Illuminate\Database\QueryException;
 use JsonException;
 
 /**
@@ -74,6 +75,16 @@ final class Scrubber
         $found = false;
 
         foreach (self::rules()['keys'] as $phrase) {
+            // "^" first: the key is exactly these words ("code", never "status_code").
+            if (($phrase[0] ?? null) === '^') {
+                if (array_slice($phrase, 1) === $words) {
+                    $found = true;
+                    break;
+                }
+
+                continue;
+            }
+
             $length = count($phrase);
             for ($i = 0; $i + $length <= count($words); $i++) {
                 if (array_slice($words, $i, $length) === $phrase) {
@@ -118,6 +129,13 @@ final class Scrubber
             return self::scrubString($value);
         }
 
+        // Long integers can be phone or account numbers (M-Pesa's PhoneNumber): scrubbed as text.
+        if (is_int($value) && abs($value) >= 100000000) {
+            $text = self::scrubString((string) $value);
+
+            return $text === (string) $value ? $value : $text;
+        }
+
         if (is_int($value) || is_float($value)) {
             return $value;
         }
@@ -130,7 +148,7 @@ final class Scrubber
         if ($value instanceof \Throwable) {
             return [
                 'class' => $value::class,
-                'message' => self::scrubString($value->getMessage()),
+                'message' => self::scrubException($value::class, $value->getMessage()),
                 'code' => $value->getCode(),
                 'file' => $value->getFile().':'.$value->getLine(),
                 'trace' => self::scrubString($value->getTraceAsString()),
@@ -171,6 +189,19 @@ final class Scrubber
         }
 
         return self::$patterns;
+    }
+
+    /**
+     * An exception's message, scrubbed; a database error loses its SQL and
+     * bindings (Laravel appends "(Connection: …, SQL: …)" with the values).
+     */
+    public static function scrubException(string $class, string $message): string
+    {
+        if (is_a($class, QueryException::class, true)) {
+            $message = (string) preg_replace('/\s*\(Connection: .*$/s', '', $message);
+        }
+
+        return self::scrubString($message);
     }
 
     /** Forget the loaded rules (tests that swap the rules file). */

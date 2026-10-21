@@ -6,6 +6,7 @@ use App\Core\Observability\Logging\ScrubLogs;
 use App\Core\Observability\Logging\ScrubProcessor;
 use App\Core\Observability\Scrubber;
 use App\Core\Observability\SentryEvents;
+use Illuminate\Database\QueryException;
 use Monolog\Level;
 use Monolog\LogRecord;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -57,6 +58,31 @@ class ScrubberTest extends TestCase
         }
         foreach (self::fixtures()['plainKeys'] as $key) {
             $this->assertFalse(Scrubber::isSensitiveKey($key), $key);
+        }
+    }
+
+    /** Review M2: a database error never carries its SQL or bindings (customer values) to logs or Sentry. */
+    public function test_a_database_error_loses_its_sql_and_bindings(): void
+    {
+        $error = new QueryException('pgsql', 'insert into "parties" ("name", "tax_id") values (?, ?)', ['Amina Otieno', 'A012345678Z'], new \PDOException('SQLSTATE[23505]: Unique violation: 7 ERROR: duplicate key value'));
+
+        $out = Scrubber::scrub(['exception' => $error]);
+
+        $this->assertStringContainsString('Unique violation', $out['exception']['message']);
+        $this->assertStringNotContainsString('Amina', $out['exception']['message']);
+        $this->assertStringNotContainsString('A012345678Z', $out['exception']['message']);
+        $this->assertStringNotContainsString('insert into', $out['exception']['message']);
+
+        $event = Event::createEvent();
+        $event->setExceptions([new ExceptionDataBag($error)]);
+        $this->assertStringNotContainsString('Amina', SentryEvents::beforeSend($event)->getExceptions()[0]->getValue());
+    }
+
+    /** Review M2: the health probes and the scrape are never Sentry transactions. */
+    public function test_the_probe_routes_are_ignored_transactions(): void
+    {
+        foreach (['/up', '/health/live', '/health/ready', '/metrics'] as $path) {
+            $this->assertContains($path, config('sentry.ignore_transactions'));
         }
     }
 

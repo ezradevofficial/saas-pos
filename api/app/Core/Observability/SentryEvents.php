@@ -53,7 +53,7 @@ final class SentryEvents
         }
 
         foreach ($event->getExceptions() as $exception) {
-            $exception->setValue(Scrubber::scrubString($exception->getValue()));
+            $exception->setValue(Scrubber::scrubException($exception->getType(), $exception->getValue()));
 
             foreach ($exception->getStacktrace()?->getFrames() ?? [] as $frame) {
                 if ($frame->getVars() !== []) {
