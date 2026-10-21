@@ -3,6 +3,7 @@
 namespace App\Core\Branding\Console;
 
 use App\Core\Branding\Jobs\VerifyTenantDomains;
+use App\Core\Sso\Jobs\VerifyTenantSsoDomains;
 use App\Core\Tenancy\DueTenants;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -31,7 +32,15 @@ class VerifyDomainsCommand extends Command
             VerifyTenantDomains::dispatch($tenantId, $at);
         }
 
+        // AUTH-11, ADR 023: SSO email domains are proven and re-checked the same way.
+        $ssoTenantIds = $due->withSsoDomainChecksDue(CarbonImmutable::parse($at));
+
+        foreach ($ssoTenantIds as $tenantId) {
+            VerifyTenantSsoDomains::dispatch($tenantId, $at);
+        }
+
         $this->components->info(count($tenantIds).' tenant domain checks queued.');
+        $this->components->info(count($ssoTenantIds).' SSO email domain checks queued.');
 
         return self::SUCCESS;
     }

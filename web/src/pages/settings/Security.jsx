@@ -9,6 +9,7 @@ import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { MySsoLinks } from './sso/SsoLinks'
 
 const FIELDS = ['password_min_length', 'session_timeout_minutes', 'default_locale']
 
@@ -139,6 +140,16 @@ export default function Security() {
           <SettingsForm settings={settings.data.data} />
         </Card>
       ) : null}
+      {/* AUTH-11: single sign-on lives on its own page (the Owner's). */}
+      {tenantWide('core.sso.manage') ? (
+        <Card title={t('sso.securityCard.title')} subtitle={t('sso.securityCard.text')}>
+          <Link to="/settings/sso" className="text-label font-medium text-primary hover:text-primary-hover">
+            {t('sso.securityCard.open')}
+          </Link>
+        </Card>
+      ) : null}
+      {/* AUTH-11, ADR 023: link one's own account (how an Owner is linked). */}
+      <MySsoLinks />
       {/* RBAC-13: who may see the organisation from our support team. */}
       {tenantWide('core.support_access.view') ? (
         <Card title={t('supportAccess.title')} subtitle={t('supportAccess.cardText')} actions={<Link to="/settings/security/support-access" className="rounded-sm text-label text-primary underline-offset-2 hover:underline">{t('supportAccess.open')}</Link>} />

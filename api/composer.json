@@ -18,11 +18,14 @@
         "laravel/framework": "^13.17",
         "laravel/horizon": "^5.50",
         "laravel/sanctum": "^4.0",
+        "laravel/socialite": "^5.31",
         "laravel/tinker": "^3.0",
+        "onelogin/php-saml": "^4.3",
         "openspout/openspout": "^5.3",
         "picqer/php-barcode-generator": "^3.3",
         "pragmarx/google2fa": "^9.1",
         "predis/predis": "^3.6",
+        "socialiteproviders/microsoft": "^4.10",
         "spatie/laravel-permission": "^8.3"
     },
     "require-dev": {

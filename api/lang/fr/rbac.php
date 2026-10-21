@@ -84,6 +84,7 @@ return [
                 'config' => 'Mises en page, thèmes et modèles',
                 'theme' => 'Thème et image de marque',
                 'domain' => 'Domaines personnalisés et expéditeur des e-mails',
+                'sso' => 'Authentification unique (SSO)',
                 'layout' => 'Tableaux de bord, menus et vues de liste',
                 'custom_field' => 'Champs personnalisés',
                 'custom_form' => 'Formulaires personnalisés',

@@ -9,6 +9,7 @@ use App\Core\Identity\Models\LoginEvent;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Support\LoginIdentifier;
+use App\Core\Sso\SsoEnforcement;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +33,7 @@ class Authenticate
         private readonly LoginThrottle $throttle,
         private readonly Challenges $challenges,
         private readonly TwoFactor $twoFactor,
+        private readonly SsoEnforcement $sso,
     ) {}
 
     public function attempt(string $login, string $password, string $ip, string $userAgent, ?string $deviceName = null): SignInResult
@@ -84,31 +86,48 @@ class Authenticate
             return SignInResult::unverified($challenge->id);
         }
 
+        // AUTH-11, ADR 023: an enforcing tenant's staff sign in with SSO; Owners keep the password (break-glass).
+        if ($this->sso->refusesPassword($user)) {
+            $this->recordFailure($user, $ip, $userAgent, SignInResult::SSO_REQUIRED);
+
+            return SignInResult::ssoRequired();
+        }
+
         $user->forceFill(['failed_sign_ins' => 0, 'locked_until' => null])->saveQuietly();
 
         if ($user->hasTwoFactor()) {
-            // AUTH-03: the token is issued once the second factor passes
-            // (POST auth/two-factor/challenge). A TOTP challenge sends nothing.
-            [$channel, $destination] = match (true) {
-                $user->two_factor_method === TwoFactor::METHOD_SMS && $user->phone !== null => ['sms', $user->phone],
-                $user->two_factor_method === TwoFactor::METHOD_SMS => ['email', $user->email],
-                default => [null, null],
-            };
-            $challenge = $this->challenges->issue($user, VerificationChallenge::PURPOSE_TWO_FACTOR, $channel, $destination);
-
-            return SignInResult::twoFactorRequired($challenge->id);
+            return SignInResult::twoFactorRequired($this->twoFactorChallenge($user));
         }
 
         return SignInResult::ok($this->issueToken($user, $ip, $userAgent, $deviceName), $user);
     }
 
     /**
+     * AUTH-03: the challenge a sign-in must pass before its token is issued
+     * (POST auth/two-factor/challenge), by the user's method. A TOTP
+     * challenge sends nothing. Requires $user's tenant context.
+     *
+     * @return string the challenge id
+     */
+    public function twoFactorChallenge(User $user): string
+    {
+        [$channel, $destination] = match (true) {
+            $user->two_factor_method === TwoFactor::METHOD_SMS && $user->phone !== null => ['sms', $user->phone],
+            $user->two_factor_method === TwoFactor::METHOD_SMS => ['email', $user->email],
+            default => [null, null],
+        };
+
+        return $this->challenges->issue($user, VerificationChallenge::PURPOSE_TWO_FACTOR, $channel, $destination)->id;
+    }
+
+    /**
      * Sign $user in on a device: token, login event, audit entry, and an
      * alert when the device is new for a user who signed in before. A user
      * whose role requires two-factor but who has none gets a token that can
-     * only enrol (AUTH-03). Requires $user's tenant context.
+     * only enrol (AUTH-03), unless a single sign-on's IdP asserted MFA
+     * ($idpMfa, AUTH-11). Requires $user's tenant context.
      */
-    public function issueToken(User $user, string $ip, string $userAgent, ?string $deviceName = null): string
+    public function issueToken(User $user, string $ip, string $userAgent, ?string $deviceName = null, bool $idpMfa = false): string
     {
         // ONB-08: an assisted tenant's setup account never gets a token, whatever path asks.
         if ($user->is_platform_staff) {
@@ -119,11 +138,11 @@ class Authenticate
         $seen = LoginEvent::where('user_id', $user->id)->where('succeeded', true);
         $newDevice = (clone $seen)->exists() && ! (clone $seen)->where('fingerprint', $fingerprint)->exists();
 
-        $plain = DB::transaction(function () use ($user, $ip, $userAgent, $deviceName, $fingerprint) {
+        $plain = DB::transaction(function () use ($user, $ip, $userAgent, $deviceName, $fingerprint, $idpMfa) {
             $user->forceFill(['last_sign_in_at' => now()])->saveQuietly();
             $this->logEvent($user, $ip, $userAgent, $fingerprint, succeeded: true);
 
-            $token = $user->createDeviceToken($deviceName ?: ($userAgent ?: 'unknown'), $ip, $userAgent, $this->twoFactor->tokenAbilities($user));
+            $token = $user->createDeviceToken($deviceName ?: ($userAgent ?: 'unknown'), $ip, $userAgent, $this->twoFactor->tokenAbilities($user, $idpMfa));
 
             $this->auditor->record('auth.sign_in', $user, null, [
                 'token_id' => $token->accessToken->getKey(),

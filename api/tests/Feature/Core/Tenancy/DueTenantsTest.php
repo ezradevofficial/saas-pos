@@ -39,6 +39,9 @@ class DueTenantsTest extends TestCase
             'app_tenants_with_due_crm_reminders',
             // ECOM-14.
             'app_tenants_with_expired_ecom_reservations',
+            // AUTH-11: SSO email domains (domains:verify).
+            'app_tenants_with_sso_domain_checks_due',
+            'app_tenants_with_sso_metadata_urls',
             // RBAC-13f.
             'app_tenants_with_expired_support_grants',
             // ADM-04 (review H3).

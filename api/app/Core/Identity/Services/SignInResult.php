@@ -19,6 +19,9 @@ final class SignInResult
 
     public const DEACTIVATED = 'deactivated';
 
+    /** AUTH-11: the tenant enforces single sign-on for this user. */
+    public const SSO_REQUIRED = 'sso_required';
+
     private function __construct(
         public readonly string $status,
         public readonly ?string $token = null,
@@ -56,5 +59,10 @@ final class SignInResult
     public static function deactivated(): self
     {
         return new self(self::DEACTIVATED);
+    }
+
+    public static function ssoRequired(): self
+    {
+        return new self(self::SSO_REQUIRED);
     }
 }

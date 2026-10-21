@@ -41,6 +41,7 @@ final class ExportColumns
         'payment_methods.callback_token_hash' => 'payment provider callback token hash',
         'company_fiscal_settings.credentials' => 'tax authority credentials (encrypted)',
         'automation_rules.webhook_secret' => 'webhook signing secret (AUTO-03, encrypted)',
+        'sso_connections.client_secret' => 'an identity provider\'s OIDC client secret (AUTH-11, encrypted)',
         'automation_webhook_deliveries.url' => 'the webhook URL called, which may carry a token (AUTO-03, encrypted)',
         // HOOK-01: webhook URLs carry secrets (the Phase 6 rule); signing secrets are shown once.
         'webhook_subscriptions.url' => 'a webhook subscription\'s endpoint URL, which may carry a token (HOOK-01, encrypted)',
@@ -132,6 +133,7 @@ final class ExportColumns
         'pos_sales.payload_hash' => 'idempotency fingerprint of an uploaded record (NFR-04)',
         'roles.requires_two_factor' => 'a role\'s policy flag',
         'tenant_domains.verification_token' => 'the public value of a DNS TXT record (BR-05)',
+        'sso_domains.verification_token' => 'the public value of a DNS TXT record (AUTH-11)',
         'user_pins.pin_iterations' => 'a hashing parameter, not the PIN',
         'user_pins.pin_digits' => 'the PIN\'s length',
         'user_pins.pin_set_at' => 'when the PIN was set',
