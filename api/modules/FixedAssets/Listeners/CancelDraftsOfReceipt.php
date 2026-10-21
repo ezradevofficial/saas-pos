@@ -50,7 +50,7 @@ class CancelDraftsOfReceipt implements ShouldQueue
 
                 foreach ($drafts as $asset) {
                     $asset->fill(['archived_at' => CarbonImmutable::now(), 'archive_reason' => $reason])->save();
-                    $this->history->record($asset, 'cancelled', CarbonImmutable::now(), note: $reason);
+                    $this->history->record($asset, 'cancelled', null, note: $reason);
                 }
             });
         });
