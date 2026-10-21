@@ -173,6 +173,11 @@ class WebhookCatalogueTest extends TestCase
             {
                 return null;
             }
+
+            public function envelope(): array
+            {
+                return [];
+            }
         };
 
         $visible = $type->visibleData($hiding, $occurrence->data);

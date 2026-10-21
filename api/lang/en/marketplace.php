@@ -7,6 +7,8 @@ return [
         'write' => 'See and change :resource',
     ],
     'errors' => [
+        'not_your_app' => 'This app is not yours.',
+        'version_changed' => 'This version changed since you opened it. Review it again.',
         'not_installed' => 'This app is not installed here. Install it from the marketplace first.',
         'oauth_not_configured' => 'App sign-in is not set up on this server yet. Ask the platform team to add its signing keys.',
         'price_unavailable' => 'This app has no price in your billing currency, so it cannot be installed. Contact the developer.',

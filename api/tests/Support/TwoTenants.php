@@ -54,7 +54,6 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
@@ -1716,13 +1715,17 @@ final class TwoTenants
 
         $owner->transaction(function () use ($owner, $now) {
             $owner->table('oauth_clients')->insert([
-                'id' => self::MARKETPLACE_CLIENT, 'name' => 'Isolation app', 'secret' => Hash::make(self::MARKETPLACE_SECRET),
+                'id' => self::MARKETPLACE_CLIENT, 'name' => 'Isolation app', 'secret' => 'external',
                 'redirect_uris' => json_encode([self::MARKETPLACE_REDIRECT]), 'grant_types' => json_encode(['authorization_code', 'refresh_token']),
                 'revoked' => false, 'app_id' => self::MARKETPLACE_APP, 'created_at' => $now, 'updated_at' => $now,
             ]);
             $owner->table('marketplace_apps')->insert([
                 'id' => self::MARKETPLACE_APP, 'developer_id' => FirstParty::DEVELOPER, 'slug' => 'isolation-listed-app', 'status' => 'active',
-                'client_id' => self::MARKETPLACE_CLIENT, 'webhook_secret' => encrypt('whsec_'.base64_encode(random_bytes(32)), false), 'created_at' => $now, 'updated_at' => $now,
+                'client_id' => self::MARKETPLACE_CLIENT, 'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $owner->table('marketplace_app_secrets')->insert([
+                'app_id' => self::MARKETPLACE_APP, 'client_secret_sha256' => hash('sha256', self::MARKETPLACE_SECRET),
+                'webhook_key' => DB::raw("decode('".bin2hex(random_bytes(32))."', 'hex')"), 'created_at' => $now, 'updated_at' => $now,
             ]);
             $owner->table('marketplace_app_versions')->insert([
                 'id' => self::MARKETPLACE_VERSION, 'app_id' => self::MARKETPLACE_APP, 'version' => 1, 'status' => 'draft', 'name' => 'Isolation app',
@@ -1743,6 +1746,7 @@ final class TwoTenants
                 $owner->statement('alter table marketplace_apps disable trigger user');
                 $owner->table('marketplace_apps')->where('id', TwoTenants::MARKETPLACE_APP)->update(['listed_version_id' => null]);
                 $owner->table('marketplace_app_versions')->where('app_id', TwoTenants::MARKETPLACE_APP)->delete();
+                $owner->table('marketplace_app_secrets')->where('app_id', TwoTenants::MARKETPLACE_APP)->delete();
                 $owner->table('marketplace_apps')->where('id', TwoTenants::MARKETPLACE_APP)->delete();
                 $owner->table('oauth_clients')->where('id', TwoTenants::MARKETPLACE_CLIENT)->delete();
                 $owner->statement('alter table marketplace_app_versions enable trigger user');

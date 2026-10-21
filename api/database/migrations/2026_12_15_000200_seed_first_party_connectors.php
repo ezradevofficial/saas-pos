@@ -1,9 +1,7 @@
 <?php
 
 use App\Core\Marketplace\Connectors\FirstParty;
-use App\Core\Webhooks\Delivery\WebhookSignature;
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 
 // MKT-04 (docs/adr/024-marketplace.md): the first-party connectors,
@@ -53,10 +51,12 @@ return new class extends Migration
                 'slug' => $connector['slug'],
                 'status' => 'active',
                 'client_id' => $connector['client'],
-                'webhook_secret' => Crypt::encryptString(WebhookSignature::newSecret()),
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+
+            // Its webhook key, in the table no runtime role reads (security review, ADR 024).
+            DB::table('marketplace_app_secrets')->insert(['app_id' => $connector['app'], 'client_secret_sha256' => null, 'webhook_key' => DB::raw("decode('".bin2hex(random_bytes(32))."', 'hex')"), 'created_at' => $now, 'updated_at' => $now]);
 
             DB::table('marketplace_app_versions')->insert([
                 'id' => $connector['version'],
@@ -90,6 +90,7 @@ return new class extends Migration
         DB::statement('alter table marketplace_app_versions disable trigger marketplace_versions_guard');
         DB::table('marketplace_app_versions')->whereIn('app_id', $apps)->delete();
         DB::statement('alter table marketplace_app_versions enable trigger marketplace_versions_guard');
+        DB::table('marketplace_app_secrets')->whereIn('app_id', $apps)->delete();
         DB::table('marketplace_apps')->whereIn('id', $apps)->delete();
         DB::table('oauth_clients')->whereIn('id', array_column(FirstParty::CONNECTORS, 'client'))->delete();
         DB::table('marketplace_developers')->where('id', FirstParty::DEVELOPER)->delete();

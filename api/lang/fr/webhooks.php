@@ -20,6 +20,7 @@ return [
     ],
 
     'errors' => [
+        'app_owned' => 'Cet abonnement appartient à une application installée. Vous pouvez le désactiver ; désinstallez l’application pour le supprimer.',
         'too_many' => 'Vous pouvez avoir jusqu’à :count webhooks. Archivez-en un que vous n’utilisez plus, puis réessayez.',
         'event_not_visible' => 'Vous ne voyez pas ces enregistrements, vous ne pouvez donc pas vous abonner à cet événement. Demandez à un propriétaire de s’abonner.',
         'principal_inactive' => 'L’utilisateur au nom duquel ce webhook envoie n’est plus actif. Recréez le webhook avec un utilisateur actif.',

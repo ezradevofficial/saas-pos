@@ -8,6 +8,7 @@ use App\Core\Marketplace\Developers;
 use App\Core\Marketplace\Http\MarketplacePresenter;
 use App\Core\Marketplace\Http\Requests\DeveloperAppLogoRequest;
 use App\Core\Marketplace\Http\Requests\DeveloperRequest;
+use App\Core\Marketplace\Http\Requests\RotateWebhookSecretRequest;
 use App\Core\Marketplace\Http\Requests\StoreDeveloperAppRequest;
 use App\Core\Marketplace\Http\Requests\UpdateDraftRequest;
 use App\Core\Marketplace\Models\MarketplaceApp;
@@ -102,9 +103,9 @@ class DeveloperAppController
         return $this->withSecrets($developerApp, ['client_secret' => $this->apps->rotateClientSecret($developerApp)]);
     }
 
-    public function rotateWebhookSecret(DeveloperRequest $request, MarketplaceApp $developerApp): JsonResponse
+    public function rotateWebhookSecret(RotateWebhookSecretRequest $request, MarketplaceApp $developerApp): JsonResponse
     {
-        return $this->withSecrets($developerApp, ['webhook_secret' => $this->apps->rotateWebhookSecret($developerApp)]);
+        return $this->withSecrets($developerApp, ['webhook_secret' => $this->apps->rotateWebhookSecret($developerApp, $request->boolean('immediate'))]);
     }
 
     public function archive(DeveloperRequest $request, MarketplaceApp $developerApp): JsonResponse

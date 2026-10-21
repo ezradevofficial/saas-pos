@@ -2,6 +2,7 @@
 
 namespace App\Core\Marketplace\Console;
 
+use App\Core\Marketplace\AppSecrets;
 use App\Core\Marketplace\Connectors\FirstParty;
 use App\Core\Marketplace\Http\Requests\VersionContentRules;
 use App\Core\Marketplace\Jobs\RollAppWebhookSecret;
@@ -9,11 +10,8 @@ use App\Core\Marketplace\Models\MarketplaceApp;
 use App\Core\Marketplace\OAuth\OAuthClient;
 use App\Core\Platform\PlatformAuditor;
 use App\Core\Platform\PlatformDatabase;
-use App\Core\Tenancy\TenantContext;
-use App\Core\Webhooks\Delivery\WebhookSignature;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -30,7 +28,7 @@ class ConnectorCommand extends Command
 
     protected $description = 'Set up a first-party marketplace connector (MKT-04)';
 
-    public function handle(PlatformAuditor $audit): int
+    public function handle(PlatformAuditor $audit, AppSecrets $appSecrets): int
     {
         $key = (string) $this->argument('connector');
         $connector = FirstParty::CONNECTORS[$key] ?? null;
@@ -64,19 +62,21 @@ class ConnectorCommand extends Command
         $secrets = [];
 
         if ($fresh) {
+            $webhookKey = AppSecrets::newWebhookKey();
             $secrets['client_secret'] = Str::random(48);
-            $secrets['webhook_secret'] = WebhookSignature::newSecret();
+            $secrets['webhook_secret'] = $webhookKey['display'];
             $until = CarbonImmutable::now()->addHours((int) config('marketplace.apps.webhook_rotation_overlap_hours', 24));
-            $client->forceFill(['secret' => $secrets['client_secret']]);
-            $app->forceFill(['previous_webhook_secret' => $app->webhook_secret, 'previous_webhook_secret_expires_at' => $until, 'webhook_secret' => $secrets['webhook_secret']])->save();
+            // In the table no runtime role reads, through its function (the platform role, first-party apps only).
+            $appSecrets->store($app->id, $secrets['client_secret'], $webhookKey['raw'], PlatformDatabase::connection());
 
-            // Installs already made get the new secret on their subscription, each in its own tenant.
-            foreach (DB::connection(TenantContext::CONNECTION)->select('select t as id from public.app_tenants_with_app_installed(?) t', [$app->id]) as $row) {
-                RollAppWebhookSecret::dispatch((string) $row->id, $app->id, $until->toIso8601String());
+            // Installs already made get their new derived key, each in its own tenant.
+            foreach ($appSecrets->installedTenants($app->id) as $tenantId) {
+                RollAppWebhookSecret::dispatch($tenantId, $app->id, $until->toIso8601String());
             }
         }
 
-        $client->forceFill(['redirect_uris' => [$redirect], 'revoked' => false])->save();
+        // The client row holds only the marker of a confidential client, never the secret or its hash.
+        PlatformDatabase::connection()->table('oauth_clients')->where('id', $client->id)->update(['redirect_uris' => json_encode([$redirect]), 'revoked' => false, 'secret' => OAuthClient::CONFIDENTIAL, 'updated_at' => now()]);
         $audit->record('platform.marketplace.connector_setup', $app, null, ['connector' => $key, 'redirect_uri' => $redirect, 'new_secrets' => $fresh]);
 
         $this->info("The {$key} connector is configured. Client id: {$client->id}");

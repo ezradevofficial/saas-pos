@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Marketplace;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Marketplace\AppSecrets;
 use App\Core\Marketplace\Models\AppInstallation;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformDatabase;
@@ -32,6 +33,14 @@ class AppReviewTest extends TestCase
         $this->setUpOrganisation();
     }
 
+    /** What the console sends with a decision: the version's submitted_at as the reviewer saw it. */
+    private function seen(string $appId, string $versionId): array
+    {
+        $versions = $this->getJson("/api/v1/platform/marketplace/apps/{$appId}", $this->reviewer())->assertOk()->json('data.versions');
+
+        return ['submitted_at' => collect($versions)->firstWhere('id', $versionId)['submitted_at']];
+    }
+
     private function reviewer(): array
     {
         return $this->staffBearer($this->staff(PlatformUser::ROLE_COMPLIANCE));
@@ -47,12 +56,28 @@ class AppReviewTest extends TestCase
         $this->getJson("/api/v1/platform/marketplace/apps/{$app['app_id']}", $this->reviewer())->assertOk()
             ->assertJsonPath('data.changes.scopes.added', ['core.item.read', 'core.party.write']);
 
-        $this->postJson("/api/v1/platform/marketplace/versions/{$app['version_id']}/approve", ['note' => 'Reviewed'], $this->reviewer())->assertOk()
+        $this->postJson("/api/v1/platform/marketplace/versions/{$app['version_id']}/approve", ['note' => 'Reviewed', ...$this->seen($app['app_id'], $app['version_id'])], $this->reviewer())->assertOk()
             ->assertJsonPath('data.listed_version', 1);
 
         $this->getJson("/api/v1/marketplace/apps/{$app['app_id']}", $this->headersFor())->assertOk()->assertJsonPath('data.name', 'Stock sync');
         $this->assertSame(1, PlatformDatabase::connection()->table('platform_audit_logs')->where('action', 'platform.marketplace.approve')->count());
-        $this->postJson("/api/v1/platform/marketplace/versions/{$app['version_id']}/approve", [], $this->reviewer())->assertStatus(409);
+        $this->postJson("/api/v1/platform/marketplace/versions/{$app['version_id']}/approve", $this->seen($app['app_id'], $app['version_id']), $this->reviewer())->assertStatus(409);
+    }
+
+    /** Security review 3: a version withdrawn, edited and submitted again after the reviewer opened it is not approved. */
+    public function test_approving_a_version_that_changed_since_it_was_opened_is_refused(): void
+    {
+        $app = $this->listedApp(listed: false);
+        $seen = $this->seen($app['app_id'], $app['version_id']);
+
+        $this->postJson("/api/v1/platform/marketplace/versions/{$app['version_id']}/approve", [], $this->reviewer())->assertUnprocessable();
+        // The developer withdrew, changed and resubmitted it meanwhile.
+        $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
+        $owner->table('marketplace_app_versions')->where('id', $app['version_id'])->update(['status' => 'draft']);
+        $owner->table('marketplace_app_versions')->where('id', $app['version_id'])->update(['scopes' => json_encode(['core.item.write']), 'status' => 'submitted', 'submitted_at' => now()->addMinute()]);
+
+        $this->postJson("/api/v1/platform/marketplace/versions/{$app['version_id']}/approve", $seen, $this->reviewer())->assertStatus(409)->assertJsonPath('code', 'version_changed');
+        $this->getJson("/api/v1/marketplace/apps/{$app['app_id']}", $this->headersFor())->assertNotFound();
     }
 
     public function test_rejecting_needs_a_reason_and_keeps_the_app_unlisted(): void
@@ -76,10 +101,10 @@ class AppReviewTest extends TestCase
         $v2 = (string) Str::uuid7();
         $row = (array) $owner->table('marketplace_app_versions')->where('id', $app['version_id'])->first();
         $owner->table('marketplace_app_versions')->insert([...$row, 'id' => $v2, 'version' => 2, 'status' => 'draft', 'scopes' => json_encode(['core.item.read', 'core.party.write', 'inventory.stock.read'])]);
-        $owner->table('marketplace_app_versions')->where('id', $v2)->update(['status' => 'submitted']);
+        $owner->table('marketplace_app_versions')->where('id', $v2)->update(['status' => 'submitted', 'submitted_at' => now()]);
         $this->getJson("/api/v1/platform/marketplace/apps/{$app['app_id']}", $this->reviewer())->assertOk()
             ->assertJsonPath('data.changes.scopes.added', ['inventory.stock.read'])->assertJsonPath('data.changes.needs_consent', true);
-        $this->postJson("/api/v1/platform/marketplace/versions/{$v2}/approve", [], $this->reviewer())->assertOk();
+        $this->postJson("/api/v1/platform/marketplace/versions/{$v2}/approve", $this->seen($app['app_id'], $v2), $this->reviewer())->assertOk();
 
         // The install keeps its consented scopes until the tenant consents again.
         $shown = $this->getJson("/api/v1/apps/installed/{$installation}", $this->headersFor())->assertOk()
@@ -102,6 +127,9 @@ class AppReviewTest extends TestCase
         $approved = $this->approve($app['client_id'], $pkce['challenge'], $this->headersFor(), ['role' => $this->roles->get('admin')->id, 'scope_type' => 'tenant', 'scope_id' => null])->assertOk();
         $access = $this->exchange(self::codeFrom($approved->json('data.redirect_to')), $pkce['verifier'], $app)->assertOk()->json('access_token');
         $headers = ['Authorization' => 'Bearer '.$access, 'Accept' => 'application/json'];
+        // The platform role lists installs on its own connection, which cannot see this test's uncommitted install.
+        $tenant = $this->owner->tenant_id;
+        $this->partialMock(AppSecrets::class, fn ($mock) => $mock->shouldReceive('installedTenants')->with($app['app_id'])->andReturn([$tenant]));
 
         $this->postJson("/api/v1/platform/marketplace/apps/{$app['app_id']}/suspend", ['reason' => 'Sends data to an unknown host.'], $this->reviewer())->assertOk()->assertJsonPath('data.status', 'suspended');
         $this->getJson('/api/v1/items', $headers)->assertUnauthorized();

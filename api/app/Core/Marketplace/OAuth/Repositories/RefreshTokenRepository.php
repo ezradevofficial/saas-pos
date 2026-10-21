@@ -46,6 +46,14 @@ class RefreshTokenRepository implements RefreshTokenRepositoryInterface
             return true;
         }
 
+        // Claimed once: two refreshes racing for one token never both pass (security review).
+        $claimed = OAuthRefreshToken::query()->whereKey(OAuthTokens::hash($tokenId))->where('revoked', false)
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))->update(['revoked' => true]);
+
+        if ($claimed === 1) {
+            return false;
+        }
+
         $token = OAuthRefreshToken::query()->find(OAuthTokens::hash($tokenId));
 
         if ($token === null) {
@@ -62,6 +70,6 @@ class RefreshTokenRepository implements RefreshTokenRepositoryInterface
             return true;
         }
 
-        return ! $token->isUsable();
+        return true;
     }
 }

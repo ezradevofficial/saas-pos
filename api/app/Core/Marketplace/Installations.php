@@ -63,6 +63,7 @@ class Installations
         private readonly AppBilling $billing,
         private readonly Subscriptions $subscriptions,
         private readonly ApiScopes $scopes,
+        private readonly AppSecrets $secrets,
     ) {}
 
     public const INSTALL = 'core.marketplace.install';
@@ -234,6 +235,8 @@ class Installations
             $this->roles->createAssignment($principal, $role, $scope, $actor->id);
 
             if ($assignment !== null) {
+                // Moving the app needs the right to remove where it was, as for a person (security review).
+                $this->grants->assertCanRevoke($actor, $assignment->load('role'));
                 $this->roles->remove($assignment);
             }
         }
@@ -286,13 +289,15 @@ class Installations
         $values = ['url' => $target, 'events' => $events, 'company_id' => $companyId, 'branch_id' => $branchId, 'description' => mb_substr($version->name, 0, 200)];
 
         if ($subscription === null) {
-            $subscription = $this->webhooks->createForKey($key, $values, $actor, (string) $app->webhook_secret);
+            // Signed with the install's own key, derived in the database from the app's (ADR 024).
+            $secret = $this->secrets->installKey($installation->id) ?? throw self::unavailable();
+            $subscription = $this->webhooks->createForKey($key, $values, $actor, $secret);
             $installation->forceFill(['webhook_subscription_id' => $subscription->id])->save();
 
             return;
         }
 
-        $this->webhooks->update($subscription, [...$values, 'active' => true], $actor);
+        $this->webhooks->update($subscription, [...$values, 'active' => true], $actor, system: true);
     }
 
     /** @return array{0: ?string, 1: ?string} the company or branch filter matching the app's scope */

@@ -7,6 +7,8 @@ return [
         'write' => 'Voir et modifier : :resource',
     ],
     'errors' => [
+        'not_your_app' => 'Cette application ne vous appartient pas.',
+        'version_changed' => 'Cette version a changé depuis que vous l’avez ouverte. Examinez-la de nouveau.',
         'not_installed' => 'Cette application n’est pas installée ici. Installez-la d’abord depuis la place de marché.',
         'oauth_not_configured' => 'La connexion des applications n’est pas encore configurée sur ce serveur. Demandez à l’équipe de la plateforme d’ajouter ses clés de signature.',
         'price_unavailable' => 'Cette application n’a pas de prix dans votre devise de facturation : elle ne peut pas être installée. Contactez le développeur.',

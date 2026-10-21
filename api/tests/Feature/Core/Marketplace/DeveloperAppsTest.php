@@ -10,7 +10,6 @@ use App\Core\Rbac\Scope;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -83,8 +82,10 @@ class DeveloperAppsTest extends TestCase
 
         $this->inTenant(function () use ($id, $secret) {
             $client = OAuthClient::query()->where('app_id', $id)->sole();
-            $this->assertTrue(Hash::check($secret, $client->secret));
-            $this->assertNotSame($secret, DB::table('oauth_clients')->where('id', $client->id)->value('secret'));
+            // The client row holds only the confidential marker; the digest sits where only its function reads it.
+            $this->assertSame(OAuthClient::CONFIDENTIAL, DB::table('oauth_clients')->where('id', $client->id)->value('secret'));
+            $this->assertTrue((bool) DB::selectOne('select public.oauth_client_secret_ok(?, ?) as ok', [$client->id, hash('sha256', $secret)])->ok);
+            $this->assertFalse((bool) DB::selectOne('select public.oauth_client_secret_ok(?, ?) as ok', [$client->id, hash('sha256', 'wrong')])->ok);
         });
 
         $this->postJson('/api/v1/developer/apps', $this->appBody(), $this->headersFor())->assertUnprocessable()->assertJsonPath('code', 'slug_taken');

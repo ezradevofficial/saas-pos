@@ -5,7 +5,6 @@ namespace Tests\Concerns;
 use App\Core\Marketplace\Connectors\FirstParty;
 use App\Core\Rbac\Console\SyncPermissions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 
@@ -39,14 +38,18 @@ trait BuildsMarketplace
 
         $owner->transaction(function () use ($owner, $ids, $version, $secret, $now, $listed) {
             $owner->table('oauth_clients')->insert([
-                'id' => $ids['client_id'], 'name' => 'Test app', 'secret' => $secret === null ? null : Hash::make($secret),
+                'id' => $ids['client_id'], 'name' => 'Test app', 'secret' => $secret === null ? null : 'external',
                 'redirect_uris' => json_encode([self::REDIRECT]), 'grant_types' => json_encode(['authorization_code', 'refresh_token']),
                 'revoked' => false, 'app_id' => $ids['app_id'], 'created_at' => $now, 'updated_at' => $now,
             ]);
             $owner->table('marketplace_apps')->insert([
                 'id' => $ids['app_id'], 'developer_id' => FirstParty::DEVELOPER, 'slug' => $ids['slug'], 'status' => 'active',
-                'client_id' => $ids['client_id'], 'webhook_secret' => encrypt($ids['webhook_secret'], false),
+                'client_id' => $ids['client_id'],
                 'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $owner->table('marketplace_app_secrets')->insert([
+                'app_id' => $ids['app_id'], 'client_secret_sha256' => $secret === null ? null : hash('sha256', $secret),
+                'webhook_key' => DB::raw("decode('".bin2hex(base64_decode(substr($ids['webhook_secret'], 6)))."', 'hex')"), 'created_at' => $now, 'updated_at' => $now,
             ]);
             $owner->table('marketplace_app_versions')->insert([
                 'id' => $ids['version_id'], 'app_id' => $ids['app_id'], 'version' => 1, 'status' => 'draft',
@@ -104,6 +107,7 @@ trait BuildsMarketplace
                 $owner->statement('alter table marketplace_apps disable trigger user');
                 $owner->table('marketplace_apps')->where('id', $appId)->update(['listed_version_id' => null]);
                 $owner->table('marketplace_app_versions')->where('app_id', $appId)->delete();
+                $owner->table('marketplace_app_secrets')->where('app_id', $appId)->delete();
                 $owner->table('marketplace_apps')->where('id', $appId)->delete();
                 $owner->table('oauth_clients')->where('id', $clientId)->delete();
                 $owner->statement('alter table marketplace_app_versions enable trigger user');

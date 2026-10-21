@@ -153,21 +153,44 @@ class WebhookSubscriptions
      * MKT-02: the app's developer rolled its signing secret; the previous
      * one keeps signing for the overlap, as for a rotation here.
      */
-    public function rollSecret(WebhookSubscription $subscription, string $secret, CarbonImmutable $previousUntil): void
+    public function rollSecret(WebhookSubscription $subscription, string $secret, ?CarbonImmutable $previousUntil): void
     {
         $subscription->forceFill([
-            'previous_secret' => $subscription->secret,
+            // No overlap when the developer ended the previous key at once.
+            'previous_secret' => $previousUntil === null ? null : $subscription->secret,
             'previous_secret_expires_at' => $previousUntil,
             'secret' => $secret,
             'secret_rotated_at' => CarbonImmutable::now(),
         ])->save();
 
-        $this->auditor->record('core.webhook.rotate_secret', $subscription, null, ['previous_valid_until' => $previousUntil->toIso8601String(), 'by_app' => true]);
+        $this->auditor->record('core.webhook.rotate_secret', $subscription, null, ['previous_valid_until' => $previousUntil?->toIso8601String(), 'by_app' => true]);
     }
 
-    /** @param  array<string, mixed>  $values */
-    public function update(WebhookSubscription $subscription, array $values, User $by): WebhookSubscription
+    /**
+     * A marketplace install's subscription (security review, ADR 024): its
+     * URL, events, filter and key follow the install's consent and are
+     * changed only by the install itself. People may only switch it off.
+     */
+    public static function isAppOwned(WebhookSubscription $subscription): bool
     {
+        return $subscription->principal_type === self::KEY_PRINCIPAL;
+    }
+
+    private static function appOwned(): ApiException
+    {
+        return new ApiException(403, 'webhook_app_owned', __('webhooks.errors.app_owned'));
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     * @param  bool  $system  the install's own change (Installations), not a person's
+     */
+    public function update(WebhookSubscription $subscription, array $values, User $by, bool $system = false): WebhookSubscription
+    {
+        if (! $system && self::isAppOwned($subscription) && $values !== ['active' => false]) {
+            throw self::appOwned();
+        }
+
         $before = $this->audited($subscription);
 
         DB::connection(TenantContext::CONNECTION)->transaction(function () use ($subscription, $values, $by, $before) {
@@ -269,6 +292,10 @@ class WebhookSubscriptions
      */
     public function takeOver(WebhookSubscription $subscription, User $owner): WebhookSubscription
     {
+        if (self::isAppOwned($subscription)) {
+            throw self::appOwned();
+        }
+
         $principal = new UserPrincipal($owner);
 
         if ($this->invisibleEvents($principal, $subscription->events, self::scopeOf($subscription->company_id, $subscription->branch_id)) !== []) {
@@ -291,6 +318,10 @@ class WebhookSubscriptions
     /** @return array{0: WebhookSubscription, 1: string} the subscription and its new secret (shown once) */
     public function rotate(WebhookSubscription $subscription, User $by): array
     {
+        if (self::isAppOwned($subscription)) {
+            throw self::appOwned();
+        }
+
         $secret = WebhookSignature::newSecret();
         $now = CarbonImmutable::now();
 
@@ -311,6 +342,10 @@ class WebhookSubscriptions
 
     public function archive(WebhookSubscription $subscription, User $by): WebhookSubscription
     {
+        if (self::isAppOwned($subscription)) {
+            throw self::appOwned();
+        }
+
         DB::connection(TenantContext::CONNECTION)->transaction(function () use ($subscription, $by) {
             $before = $this->audited($subscription);
             $subscription->fill(['active' => false, 'archived_at' => CarbonImmutable::now(), 'updated_by' => $by->id])->save();

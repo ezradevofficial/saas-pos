@@ -69,7 +69,7 @@ class PlatformMarketplaceController
     public function approve(ReviewVersionRequest $request, string $version): JsonResponse
     {
         $model = MarketplaceAppVersion::on(PlatformDatabase::CONNECTION)->findOrFail($version);
-        $this->review->approve($request->staff(), $model, $request->validated('note'));
+        $this->review->approve($request->staff(), $model, $request->validated('note'), (string) $request->validated('submitted_at'));
 
         return $this->show(PlatformMarketplaceRequest::createFrom($request), $model->app_id);
     }

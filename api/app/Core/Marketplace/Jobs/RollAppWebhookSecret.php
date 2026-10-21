@@ -2,8 +2,8 @@
 
 namespace App\Core\Marketplace\Jobs;
 
+use App\Core\Marketplace\AppSecrets;
 use App\Core\Marketplace\Models\AppInstallation;
-use App\Core\Marketplace\Models\MarketplaceApp;
 use App\Core\Tenancy\Jobs\TenantAware;
 use App\Core\Webhooks\Models\WebhookSubscription;
 use App\Core\Webhooks\WebhookSubscriptions;
@@ -13,9 +13,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 
 /**
- * MKT-02: the developer rolled the app's webhook signing secret; the
- * install's subscription in this tenant signs with it from now on, and
- * with the previous one too until the overlap ends (two signatures).
+ * MKT-02: the developer rolled the app's webhook secret; the install's
+ * subscription in this tenant signs with its new derived key from now on,
+ * and with the previous one too until the overlap ends (none when the
+ * developer ended it at once).
  */
 class RollAppWebhookSecret implements ShouldQueue
 {
@@ -26,7 +27,7 @@ class RollAppWebhookSecret implements ShouldQueue
     public function __construct(
         public string $tenantId,
         public string $appId,
-        public string $previousUntil,
+        public ?string $previousUntil,
     ) {
         $this->onQueue(config('webhooks.queue', 'webhooks'));
     }
@@ -37,16 +38,16 @@ class RollAppWebhookSecret implements ShouldQueue
         return [new TenantAware];
     }
 
-    public function handle(WebhookSubscriptions $subscriptions): void
+    public function handle(WebhookSubscriptions $subscriptions, AppSecrets $secrets): void
     {
         $installation = AppInstallation::query()->where('app_id', $this->appId)->where('status', AppInstallation::ACTIVE)->first();
         $subscription = $installation?->webhook_subscription_id === null ? null : WebhookSubscription::query()->find($installation->webhook_subscription_id);
-        $app = MarketplaceApp::query()->find($this->appId);
+        $key = $installation === null ? null : $secrets->installKey($installation->id);
 
-        if ($subscription === null || $app === null || $subscription->secret === $app->webhook_secret) {
+        if ($subscription === null || $key === null || $subscription->secret === $key) {
             return;
         }
 
-        $subscriptions->rollSecret($subscription, (string) $app->webhook_secret, CarbonImmutable::parse($this->previousUntil));
+        $subscriptions->rollSecret($subscription, $key, $this->previousUntil === null ? null : CarbonImmutable::parse($this->previousUntil));
     }
 }

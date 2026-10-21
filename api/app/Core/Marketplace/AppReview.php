@@ -13,7 +13,6 @@ use App\Core\Platform\PlatformAuditor;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
 
 /**
  * ADM-05 (docs/adr/024-marketplace.md): platform staff review apps.
@@ -39,11 +38,23 @@ class AppReview
         private readonly TenantContext $tenants,
     ) {}
 
-    public function approve(PlatformUser $staff, MarketplaceAppVersion $version, ?string $note): MarketplaceAppVersion
+    /**
+     * $seenSubmittedAt is the version's `submitted_at` as the reviewer saw
+     * it: a version withdrawn, changed and submitted again since is refused
+     * (409 `version_changed`, security review), checked under the version's lock.
+     */
+    public function approve(PlatformUser $staff, MarketplaceAppVersion $version, ?string $note, string $seenSubmittedAt): MarketplaceAppVersion
     {
         $this->assertSubmitted($version);
 
-        PlatformDatabase::transaction(function () use ($staff, $version, $note) {
+        PlatformDatabase::transaction(function () use ($staff, &$version, $note, $seenSubmittedAt) {
+            $version = MarketplaceAppVersion::on(PlatformDatabase::CONNECTION)->lockForUpdate()->findOrFail($version->id);
+            $this->assertSubmitted($version);
+
+            if ($version->submitted_at === null || $version->submitted_at->getTimestamp() !== CarbonImmutable::parse($seenSubmittedAt)->getTimestamp()) {
+                throw new ApiException(409, 'version_changed', __('marketplace.errors.version_changed'));
+            }
+
             $app = MarketplaceApp::on(PlatformDatabase::CONNECTION)->lock('for no key update')->findOrFail($version->app_id);
             $version->forceFill(['status' => MarketplaceAppVersion::APPROVED, 'reviewed_at' => CarbonImmutable::now(), 'reviewed_by' => $staff->id, 'review_note' => $note])->save();
             $app->forceFill(['listed_version_id' => $version->id])->save();
@@ -99,10 +110,9 @@ class AppReview
     /** One job per tenant with an active install, each audited in that tenant's chain. */
     private function tellInstalls(MarketplaceApp $app, bool $suspended, string $reason): void
     {
-        $tenants = DB::connection(TenantContext::CONNECTION)->select('select t as id from public.app_tenants_with_app_installed(?) t', [$app->id]);
-
-        foreach ($tenants as $row) {
-            AppStatusNotice::dispatch((string) $row->id, $app->id, $suspended, $reason);
+        // The platform role may list an app's installs (the function refuses other tenants' sessions).
+        foreach (app(AppSecrets::class)->installedTenants($app->id) as $tenantId) {
+            AppStatusNotice::dispatch($tenantId, $app->id, $suspended, $reason);
         }
     }
 

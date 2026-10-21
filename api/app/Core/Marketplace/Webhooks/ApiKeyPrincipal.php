@@ -80,6 +80,18 @@ final class ApiKeyPrincipal implements WebhookPrincipal
         return null;
     }
 
+    /** An install's deliveries name it and its tenant inside the signed body (security review, ADR 024). */
+    public function envelope(): array
+    {
+        if ($this->key->kind !== ApiKey::KIND_APP) {
+            return [];
+        }
+
+        $installation = AppInstallation::query()->where('api_key_id', $this->key->id)->value('id');
+
+        return $installation === null ? [] : ['installation_id' => (string) $installation, 'tenant_id' => (string) $this->key->tenant_id];
+    }
+
     /** A key of kind `app` serves while its install is active and its app not suspended. */
     private function serves(): bool
     {

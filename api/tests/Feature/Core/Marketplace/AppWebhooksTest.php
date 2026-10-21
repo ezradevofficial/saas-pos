@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Marketplace;
 
+use App\Core\Marketplace\AppSecrets;
 use App\Core\Marketplace\Jobs\RollAppWebhookSecret;
 use App\Core\Marketplace\Models\AppInstallation;
 use App\Core\Rbac\Console\SyncPermissions;
@@ -49,14 +50,14 @@ class AppWebhooksTest extends TestCase
         $subscription = $installation->subscription;
 
         $this->assertSame([WebhookSubscriptions::KEY_PRINCIPAL, $installation->api_key_id, $this->branchA->id], [$subscription->principal_type, $subscription->principal_id, $subscription->branch_id]);
-        $this->assertSame($this->listed['webhook_secret'], $subscription->secret);
+        $this->assertSame(AppSecrets::deriveInstallKey($this->listed['webhook_secret'], $installation->id), $subscription->secret);
 
         $this->happen();
         $this->happen(['branchId' => $this->branchB->id, 'locationId' => $this->locationB->id, 'thingId' => 'thing-b']);
 
         $this->assertCount(1, $this->deliveries());
         Http::assertSent(function (HttpRequest $request) use ($installation) {
-            $expected = WebhookSignature::sign($this->listed['webhook_secret'], $request->header('Webhook-Id')[0], (int) $request->header('Webhook-Timestamp')[0], $request->body());
+            $expected = WebhookSignature::sign(AppSecrets::deriveInstallKey($this->listed['webhook_secret'], $installation->id), $request->header('Webhook-Id')[0], (int) $request->header('Webhook-Timestamp')[0], $request->body());
 
             return $request->url() === 'https://hooks.example.com/app?installation='.$installation->id
                 && str_contains($request->header('Webhook-Signature')[0], $expected);
@@ -84,13 +85,27 @@ class AppWebhooksTest extends TestCase
     public function test_a_rolled_app_secret_reaches_the_install_with_an_overlap(): void
     {
         $installation = $this->install();
-        $new = 'whsec_'.base64_encode(random_bytes(32));
-        DB::connection(SyncPermissions::OWNER_CONNECTION)->table('marketplace_apps')->where('id', $this->listed['app_id'])->update(['webhook_secret' => encrypt($new, false)]);
+        $new = AppSecrets::newWebhookKey();
+        DB::connection(SyncPermissions::OWNER_CONNECTION)->table('marketplace_app_secrets')->where('app_id', $this->listed['app_id'])->update(['webhook_key' => DB::raw("decode('".bin2hex($new['raw'])."', 'hex')")]);
 
         RollAppWebhookSecret::dispatchSync($this->owner->tenant_id, $this->listed['app_id'], now()->addDay()->toIso8601String());
 
         $subscription = $this->subscription($installation->webhook_subscription_id);
-        $this->assertSame([$new, $this->listed['webhook_secret']], [$subscription->secret, $subscription->previous_secret]);
+        $old = AppSecrets::deriveInstallKey($this->listed['webhook_secret'], $installation->id);
+        $this->assertSame([AppSecrets::deriveInstallKey($new['display'], $installation->id), $old], [$subscription->secret, $subscription->previous_secret]);
+    }
+
+    /** Security review 6: a leaked secret can be ended at once, with no overlap. */
+    public function test_a_rolled_app_secret_can_end_the_previous_key_at_once(): void
+    {
+        $installation = $this->install();
+        $new = AppSecrets::newWebhookKey();
+        DB::connection(SyncPermissions::OWNER_CONNECTION)->table('marketplace_app_secrets')->where('app_id', $this->listed['app_id'])->update(['webhook_key' => DB::raw("decode('".bin2hex($new['raw'])."', 'hex')")]);
+
+        RollAppWebhookSecret::dispatchSync($this->owner->tenant_id, $this->listed['app_id'], null);
+
+        $subscription = $this->subscription($installation->webhook_subscription_id);
+        $this->assertSame([AppSecrets::deriveInstallKey($new['display'], $installation->id), null, null], [$subscription->secret, $subscription->previous_secret, $subscription->previous_secret_expires_at]);
     }
 
     public function test_people_cannot_repoint_an_apps_subscription(): void

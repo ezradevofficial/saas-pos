@@ -46,8 +46,10 @@ class AuthCodeRepository implements AuthCodeRepositoryInterface
             return true;
         }
 
-        $code = OAuthAuthCode::query()->find(OAuthTokens::hash($codeId));
+        // Claimed once: two exchanges racing for one code never both pass (security review).
+        $claimed = OAuthAuthCode::query()->whereKey(OAuthTokens::hash($codeId))->where('revoked', false)
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))->update(['revoked' => true]);
 
-        return $code === null || ! $code->isUsable();
+        return $claimed !== 1;
     }
 }

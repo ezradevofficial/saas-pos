@@ -11,7 +11,6 @@ use App\Core\Marketplace\Models\MarketplaceAppVersion;
 use App\Core\Marketplace\Models\MarketplaceDeveloper;
 use App\Core\Marketplace\OAuth\OAuthClient;
 use App\Core\Tenancy\TenantContext;
-use App\Core\Webhooks\Delivery\WebhookSignature;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
@@ -37,6 +36,7 @@ class DeveloperApps
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly Auditor $auditor,
+        private readonly AppSecrets $secrets,
     ) {}
 
     /**
@@ -54,31 +54,19 @@ class DeveloperApps
                 throw new ApiException(422, 'too_many_apps', __('marketplace.errors.too_many_apps', ['count' => $max]));
             }
 
-            $appId = (string) Str::uuid7();
             $clientSecret = Str::random(48);
-            $webhookSecret = WebhookSignature::newSecret();
+            $webhookKey = AppSecrets::newWebhookKey();
+            $clientId = (string) Str::uuid7();
 
-            $client = new OAuthClient;
-            $client->forceFill([
-                'id' => (string) Str::uuid7(),
-                'name' => mb_substr($data['name'], 0, 80),
-                'secret' => $clientSecret,
-                'redirect_uris' => [],
-                'grant_types' => OAuthClient::GRANTS,
-                'revoked' => false,
-                'app_id' => $appId,
-                'developer_tenant_id' => $developer->developer_tenant_id,
-            ])->save();
-
+            // The app first: row-level security admits a client only for an app of this developer.
             $app = new MarketplaceApp([
                 'developer_id' => $developer->id,
                 'developer_tenant_id' => $developer->developer_tenant_id,
                 'slug' => $data['slug'],
-                'client_id' => $client->id,
-                'webhook_secret' => $webhookSecret,
+                'client_id' => $clientId,
                 'created_by' => $actor->id,
             ]);
-            $app->id = $appId;
+            $app->id = (string) Str::uuid7();
 
             try {
                 // Slugs are unique across developers, whose apps this tenant cannot see: the index decides.
@@ -89,6 +77,21 @@ class DeveloperApps
                 throw new ApiException(422, 'slug_taken', $message, ['slug' => [$message]]);
             }
 
+            // Passport's client row holds no secret: only the marker of a confidential client.
+            DB::connection(TenantContext::CONNECTION)->table('oauth_clients')->insert([
+                'id' => $clientId,
+                'name' => mb_substr($data['name'], 0, 80),
+                'secret' => OAuthClient::CONFIDENTIAL,
+                'redirect_uris' => '[]',
+                'grant_types' => json_encode(OAuthClient::GRANTS),
+                'revoked' => false,
+                'app_id' => $app->id,
+                'developer_tenant_id' => $developer->developer_tenant_id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->secrets->store($app->id, $clientSecret, $webhookKey['raw']);
+
             $version = MarketplaceAppVersion::create([
                 'app_id' => $app->id,
                 'developer_tenant_id' => $developer->developer_tenant_id,
@@ -96,9 +99,9 @@ class DeveloperApps
                 ...$this->content($data),
             ]);
 
-            $this->auditor->record('core.developer_app.create', $app, null, ['slug' => $app->slug, 'client_id' => $client->id, 'version' => $version->version, 'name' => $version->name]);
+            $this->auditor->record('core.developer_app.create', $app, null, ['slug' => $app->slug, 'client_id' => $clientId, 'version' => $version->version, 'name' => $version->name]);
 
-            return ['app' => $app, 'client_secret' => $clientSecret, 'webhook_secret' => $webhookSecret];
+            return ['app' => $app, 'client_secret' => $clientSecret, 'webhook_secret' => $webhookKey['display']];
         });
     }
 
@@ -199,36 +202,35 @@ class DeveloperApps
     public function rotateClientSecret(MarketplaceApp $app): string
     {
         $secret = Str::random(48);
-        $client = OAuthClient::query()->findOrFail($app->client_id);
-        $client->forceFill(['secret' => $secret])->save();
-        $this->auditor->record('core.developer_app.rotate_client_secret', $app, null, ['client_id' => $client->id]);
+        $this->secrets->store($app->id, $secret, null);
+        $this->auditor->record('core.developer_app.rotate_client_secret', $app, null, ['client_id' => $app->client_id]);
 
         return $secret;
     }
 
     /**
-     * A new webhook signing secret, shown once. The previous one keeps
-     * signing for `marketplace.apps.webhook_rotation_overlap_hours`; each
-     * tenant that installed the app gets it on its subscription by a job
-     * in its own context (RollAppWebhookSecret).
+     * A new webhook secret, shown once. Each tenant that installed the app
+     * gets its install's new key (derived from it) by a job in its own
+     * context (RollAppWebhookSecret); the previous key keeps signing for
+     * `marketplace.apps.webhook_rotation_overlap_hours`, or stops at once
+     * when $immediate (a secret that leaked).
      */
-    public function rotateWebhookSecret(MarketplaceApp $app): string
+    public function rotateWebhookSecret(MarketplaceApp $app, bool $immediate = false): string
     {
-        $secret = WebhookSignature::newSecret();
-        $until = CarbonImmutable::now()->addHours((int) config('marketplace.apps.webhook_rotation_overlap_hours', 24));
+        $key = AppSecrets::newWebhookKey();
+        $until = $immediate ? null : CarbonImmutable::now()->addHours((int) config('marketplace.apps.webhook_rotation_overlap_hours', 24));
 
-        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($app, $secret, $until) {
-            $app->forceFill(['previous_webhook_secret' => $app->webhook_secret, 'previous_webhook_secret_expires_at' => $until, 'webhook_secret' => $secret])->save();
-            $this->auditor->record('core.developer_app.rotate_webhook_secret', $app, null, ['previous_valid_until' => $until->toIso8601String()]);
+        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($app, $key, $until) {
+            $this->secrets->store($app->id, null, $key['raw']);
+            $this->auditor->record('core.developer_app.rotate_webhook_secret', $app, null, ['previous_valid_until' => $until?->toIso8601String(), 'immediate' => $until === null]);
         });
 
-        $tenants = DB::connection(TenantContext::CONNECTION)->select('select t as id from public.app_tenants_with_app_installed(?) t', [$app->id]);
-
-        foreach ($tenants as $row) {
-            RollAppWebhookSecret::dispatch((string) $row->id, $app->id, $until->toIso8601String())->afterCommit();
+        // As the app's developer tenant: the function lists installs only to it (and the platform role).
+        foreach ($this->secrets->installedTenants($app->id, DB::connection(TenantContext::CONNECTION)) as $tenantId) {
+            RollAppWebhookSecret::dispatch($tenantId, $app->id, $until?->toIso8601String())->afterCommit();
         }
 
-        return $secret;
+        return $key['display'];
     }
 
     /** The developer withdraws the app from the listing (installs keep working), or puts it back. */

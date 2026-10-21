@@ -2,9 +2,9 @@
 
 namespace App\Core\Marketplace\OAuth\Repositories;
 
+use App\Core\Marketplace\AppSecrets;
 use App\Core\Marketplace\Models\MarketplaceApp;
 use App\Core\Marketplace\OAuth\OAuthClient;
-use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Support\Str;
 use Laravel\Passport\Bridge\Client;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
@@ -18,7 +18,7 @@ use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
  */
 class ClientRepository implements ClientRepositoryInterface
 {
-    public function __construct(private readonly Hasher $hasher) {}
+    public function __construct(private readonly AppSecrets $secrets) {}
 
     public function getClientEntity(string $clientIdentifier): ?ClientEntityInterface
     {
@@ -42,7 +42,8 @@ class ClientRepository implements ClientRepositoryInterface
             return false;
         }
 
-        return ! $client->confidential() || ($clientSecret !== null && $clientSecret !== '' && $this->hasher->check($clientSecret, $client->secret));
+        // The digest is compared inside the database (oauth_client_secret_ok); no hash is ever read here.
+        return ! $client->confidential() || ($clientSecret !== null && $clientSecret !== '' && $this->secrets->clientSecretOk($client->getKey(), $clientSecret));
     }
 
     private function find(string $id): ?OAuthClient
