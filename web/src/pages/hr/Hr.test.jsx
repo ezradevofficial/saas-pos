@@ -149,7 +149,7 @@ describe('HR screens', () => {
   })
 
   it('shows researched leave days with their rules and sources (HR-12, CP-01)', async () => {
-    const sick = { id: 'lt-2', company_id: 'c-1', code: 'SICK', name: 'Sick leave', statutory_key: 'sick', statutory_label: 'Sick leave', paid: true, accrual: 'annual', entitlement_days: '30.00', days_needed: false, count_basis: 'working_days', carry_over_max_days: null, allow_negative: false, requires_document: false, accrues_from: '2026-10-17', archived_at: null, qualifying_months: 2, half_pay_days: '15.00', events: [], researched: true, research: { confidence: 'medium', researched_on: '2026-10-17', source: ['https://hreastafrica.com/employment-act-kenya'], assumed: [] } }
+    const sick = { id: 'lt-2', company_id: 'c-1', code: 'SICK', name: 'Sick leave', statutory_key: 'sick', statutory_label: 'Sick leave', paid: true, accrual: 'annual', entitlement_days: '30.00', days_needed: false, count_basis: 'working_days', carry_over_max_days: null, allow_negative: false, requires_document: false, accrues_from: '2026-10-17', archived_at: null, qualifying_months: 2, half_pay_days: '15.00', events: [], researched: true, research: { confidence: 'medium', researched_on: '2026-10-17', source: ['https://hreastafrica.com/employment-act-kenya'], assumed: ['count_basis'] } }
     setup([[/^hr\/leave-types\?/, page([sick])]], ['hr.leave.view', 'hr.leave.manage'])
     renderApp('/hr/leave/types')
     const table = await screen.findByRole('table')
@@ -157,6 +157,8 @@ describe('HR screens', () => {
     expect(within(row).getByText('After 2 months of service · then 15.00 days at half pay')).toBeInTheDocument()
     expect(within(row).getByText('Researched')).toBeInTheDocument()
     expect(within(row).getByRole('link', { name: 'hreastafrica.com' })).toBeInTheDocument()
+    // Assumed fields are worded in the UI language, never shown as keys.
+    expect(within(row).getByText('Assumed until confirmed: how days are counted')).toBeInTheDocument()
     expect(screen.getByText('Some statutory values come from public research and haven’t been confirmed by an accountant. Check them before filing.')).toBeInTheDocument()
   })
 

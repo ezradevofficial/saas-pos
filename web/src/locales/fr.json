@@ -8265,7 +8265,15 @@
       "halfPay": "puis {{days}} jours à demi-salaire",
       "event": "{{event}} : {{days}} jours",
       "valueStatus": "Jours issus de",
-      "paidUnconfirmed": "Rémunération non confirmée"
+      "paidUnconfirmed": "Rémunération non confirmée",
+      "assumedFields": {
+        "paid": "rémunération",
+        "days": "jours",
+        "qualifying_months": "mois de service requis",
+        "half_pay_days": "jours à demi-salaire",
+        "events": "jours par évènement",
+        "count_basis": "mode de décompte des jours"
+      }
     },
     "week": {
       "description": "Les quarts planifiés par employé et par jour.",

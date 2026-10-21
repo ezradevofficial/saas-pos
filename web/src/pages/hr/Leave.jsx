@@ -420,7 +420,7 @@ export function LeaveTypes() {
             key: 'research',
             label: t('hr.types.valueStatus'),
             wrap: true,
-            render: (row) => (row.researched ? <ResearchStatus status="researched" confidence={row.research?.confidence} researchedOn={row.research?.researched_on} source={row.research?.source ?? []} assumed={row.research?.assumed ?? []} /> : '—'),
+            render: (row) => (row.researched ? <ResearchStatus status="researched" confidence={row.research?.confidence} researchedOn={row.research?.researched_on} source={row.research?.source ?? []} assumed={(row.research?.assumed ?? []).map((field) => t(`hr.types.assumedFields.${field}`, { defaultValue: field }))} /> : '—'),
           },
           { key: 'basis', label: t('hr.types.countBasis'), render: (row) => enumLabel(t, 'countBases', row.count_basis) },
           { key: 'status', label: t('hr.columns.status'), render: (row) => <HrStatus status={row.archived_at ? 'archived' : row.days_needed ? 'days_needed' : 'active'} /> },

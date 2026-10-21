@@ -8265,7 +8265,15 @@
       "halfPay": "then {{days}} days at half pay",
       "event": "{{event}}: {{days}} days",
       "valueStatus": "Days from",
-      "paidUnconfirmed": "Pay not confirmed"
+      "paidUnconfirmed": "Pay not confirmed",
+      "assumedFields": {
+        "paid": "pay",
+        "days": "days",
+        "qualifying_months": "months of service before it",
+        "half_pay_days": "half-pay days",
+        "events": "event days",
+        "count_basis": "how days are counted"
+      }
     },
     "week": {
       "description": "Planned shifts by employee and day.",
