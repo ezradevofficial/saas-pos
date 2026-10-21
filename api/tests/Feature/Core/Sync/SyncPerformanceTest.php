@@ -86,6 +86,11 @@ class SyncPerformanceTest extends TestCase
     /** @return array{queries: int, items: int} */
     private function queriesFor(array $till): array
     {
+        // Each pull is a fresh request: request-scoped services (FiscalRules memoises the
+        // country pack's tax release, ADM-04) would otherwise carry over from the previous
+        // pull in the test's one application, and only the first pull would pay for them.
+        $this->app->forgetScopedInstances();
+
         $count = 0;
         DB::listen(function (QueryExecuted $query) use (&$count) {
             $count++;

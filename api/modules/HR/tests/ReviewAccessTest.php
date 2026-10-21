@@ -10,6 +10,7 @@ use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\RoleTemplates;
 use App\Core\Rbac\Scope;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -33,6 +34,9 @@ class ReviewAccessTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // HR-21: the fixed shift dates below are future (swappable) as of 14 October 2026.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14T09:00:00Z'));
 
         Notification::fake();
         $this->setUpHr();

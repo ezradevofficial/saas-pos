@@ -5,6 +5,7 @@ namespace Modules\HR\Tests;
 use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -26,6 +27,9 @@ class RecordsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // NUM-01: document numbers carry the year, and the fixed dates below are 2026: the clock is fixed in 2026.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14T09:00:00Z'));
 
         Notification::fake();
         Storage::fake('media');
