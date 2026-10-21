@@ -19,7 +19,7 @@ class VerifyPinRequest extends DeviceRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['required', 'uuid', Rule::exists('users', 'id')],
+            'user_id' => ['required', 'uuid', Rule::exists('users', 'id')->whereNot('status', 'service')],
             'pin' => ['required_without:card', 'prohibits:card', 'string', 'max:6'],
             'card' => ['required_without:pin', 'string', 'max:64'],
             'session_id' => ['nullable', 'uuid'],

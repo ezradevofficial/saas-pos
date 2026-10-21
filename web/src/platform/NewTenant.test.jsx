@@ -38,7 +38,7 @@ describe('Platform: new tenant (ONB-08)', () => {
   afterEach(() => setPlatformToken(null))
 
   it('creates a tenant for a customer and says where the invitation went', async () => {
-    mockConsole(staff('support', ['catalogue.view', 'tenants.create']))
+    mockConsole(staff('support', ['platform.catalogue.view', 'platform.tenants.create']))
     platformApi.post.mockResolvedValue({ data: { tenant_id: 't-9', slug: 'quincaillerie-lumiere', invitation_id: 'i-1', destination_masked: 'j***@example.com' } })
     renderApp('/platform/tenants/new')
 
@@ -67,7 +67,7 @@ describe('Platform: new tenant (ONB-08)', () => {
   })
 
   it('disables Create tenant while the request is pending', async () => {
-    mockConsole(staff('support', ['catalogue.view', 'tenants.create']))
+    mockConsole(staff('support', ['platform.catalogue.view', 'platform.tenants.create']))
     platformApi.post.mockReturnValue(new Promise(() => {}))
     renderApp('/platform/tenants/new')
 
@@ -77,7 +77,7 @@ describe('Platform: new tenant (ONB-08)', () => {
   })
 
   it('shows field errors from the API and hides the link from staff who cannot create tenants', async () => {
-    mockConsole(staff('billing', ['catalogue.view', 'catalogue.manage']))
+    mockConsole(staff('finance', ['platform.catalogue.view', 'platform.catalogue.manage']))
     platformApi.post.mockRejectedValue(apiError(422, 'validation_failed', 'Check the form.', { email: ['This email is already taken.'] }))
     renderApp('/platform/tenants/new')
 

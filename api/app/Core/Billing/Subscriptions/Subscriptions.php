@@ -12,6 +12,7 @@ use App\Core\Billing\Catalogue\Pricing\Coupon;
 use App\Core\Billing\Catalogue\Pricing\PriceCalculator;
 use App\Core\Billing\Catalogue\Pricing\QuoteError;
 use App\Core\Billing\Catalogue\Pricing\QuoteRequest;
+use App\Core\Billing\Deals\Deals;
 use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\Subscription;
@@ -60,6 +61,7 @@ class Subscriptions
         private readonly Accounts $accounts,
         private readonly Invoicing $invoicing,
         private readonly Auditor $auditor,
+        private readonly Deals $deals,
     ) {}
 
     public function current(): ?Subscription
@@ -120,7 +122,7 @@ class Subscriptions
      */
     public function price(string $country, array $plan, array $locked, ?Coupon $coupon, ?CarbonImmutable $on = null): array
     {
-        $snapshot = $this->catalogue->snapshot($country, ($on ?? CarbonImmutable::now())->toDateString(), $locked);
+        $snapshot = $this->snapshot($country, $locked, $on ?? CarbonImmutable::now());
 
         try {
             $quote = $this->calculator->quote($snapshot, new QuoteRequest($plan['modules'], $plan['quantities'], $plan['cycle'], $plan['bundle'], $coupon));
@@ -147,6 +149,17 @@ class Subscriptions
         $quote['snapshot'] = $snapshot;
 
         return $quote;
+    }
+
+    /**
+     * The catalogue as this tenant buys it on $on: today's (or the locked)
+     * catalogue rows, with its Enterprise deal applied (ADM-02).
+     *
+     * @param  array<string, string>  $locked
+     */
+    public function snapshot(string $country, array $locked, CarbonImmutable $on): CatalogueSnapshot
+    {
+        return $this->deals->apply($this->catalogue->snapshot($country, $on->toDateString(), $locked), $locked, $on);
     }
 
     /**

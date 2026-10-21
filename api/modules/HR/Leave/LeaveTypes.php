@@ -3,6 +3,7 @@
 namespace Modules\HR\Leave;
 
 use App\Core\CountryPacks\ResearchStatus;
+use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
@@ -54,7 +55,7 @@ class LeaveTypes
                     $current = $existing[$type['key']];
 
                     if ($current->needs_confirmation && $current->entitlement_days === null && self::usable($type)) {
-                        $current->fill(self::fromPack($type))->save();
+                        $current->fill(self::fromPack($type, $company->id))->save();
                         $created[] = $current->refresh();
                     }
 
@@ -78,7 +79,7 @@ class LeaveTypes
                     'accrual' => $type['accrual'] ?? 'none',
                     'carry_over_max_days' => null,
                     'allow_negative' => false,
-                    ...self::fromPack($type),
+                    ...self::fromPack($type, $company->id),
                 ]);
             }
 
@@ -99,7 +100,7 @@ class LeaveTypes
      *
      * @return array<string, mixed>
      */
-    private static function fromPack(array $type): array
+    private static function fromPack(array $type, string $companyId): array
     {
         $usable = self::usable($type);
 
@@ -112,7 +113,7 @@ class LeaveTypes
             'half_pay_days' => $usable && isset($type['half_pay_days']) ? (string) $type['half_pay_days'] : null,
             'events' => $usable ? ($type['events'] ?? null) : null,
             'research' => $usable ? ResearchStatus::research($type) : null,
-            'accrues_from' => $usable ? CarbonImmutable::now()->toDateString() : null,
+            'accrues_from' => $usable ? CompanyClock::today($companyId) : null,
         ];
     }
 
@@ -122,7 +123,7 @@ class LeaveTypes
         $this->assertCodeFree($data['company_id'], $data['code'], null);
         $fields = array_intersect_key($data, array_flip(['company_id', ...self::FIELDS]));
         $fields['needs_confirmation'] = false;
-        $fields['accrues_from'] ??= CarbonImmutable::now()->toDateString();
+        $fields['accrues_from'] ??= CompanyClock::today($data['company_id']);
 
         if (($fields['accrual'] ?? 'none') !== 'none' && ($fields['entitlement_days'] ?? null) === null) {
             throw Errors::make(422, 'entitlement_required', field: 'entitlement_days');
@@ -158,7 +159,7 @@ class LeaveTypes
                 }
 
                 $type->needs_confirmation = false;
-                $type->accrues_from ??= CarbonImmutable::now()->toDateString();
+                $type->accrues_from ??= CompanyClock::today($type->company_id);
             }
 
             if (! $type->needs_confirmation && $type->accrual !== 'none' && $type->entitlement_days === null) {

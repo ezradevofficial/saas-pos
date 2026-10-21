@@ -399,7 +399,6 @@
     "formLayouts": "Mises en page des formulaires",
     "formTypes": "Formulaires",
     "dataExport": "Export des données",
-    "webhooks": "Webhooks",
     "subscription": "Abonnement",
     "usage": "Utilisation",
     "imports": "Importations",
@@ -491,7 +490,11 @@
     "ecommerceCashups": "Remises des livreurs",
     "ecommerceRiders": "Livreurs",
     "ecommerceReports": "Rapports en ligne",
-    "ecommerceSettings": "Réglages de la boutique"
+    "ecommerceSettings": "Réglages de la boutique",
+    "supportAccess": "Accès du support",
+    "webhooks": "Webhooks",
+    "apiKeys": "Clés d’API",
+    "sso": "Authentification unique"
   },
   "shell": {
     "account": "Menu du compte",
@@ -539,7 +542,9 @@
       "haveAccount": "Vous avez déjà un compte ?",
       "signIn": "Se connecter",
       "contactHelp": "Pour un numéro de téléphone, commencez par l'indicatif du pays, par exemple +243 812 345 678.",
-      "submit": "Créer le compte"
+      "submit": "Créer le compte",
+      "sandboxTitle": "Créer un bac à sable développeur",
+      "sandboxIntro": "Une organisation de test gratuite, avec des données d’exemple et tous les modules activés. Les paiements et les envois fiscaux sont simulés, et elle n’est jamais facturée."
     },
     "verify": {
       "title": "Saisissez votre code",
@@ -593,6 +598,51 @@
       "signedInText": "Cette invitation crée un nouveau compte. Déconnectez-vous d'abord, puis acceptez-la.",
       "stay": "Rester connecté",
       "signOutAndAccept": "Se déconnecter et accepter"
+    },
+    "sso": {
+      "continue": "Continuer avec le SSO",
+      "or": "ou",
+      "emailLabel": "E-mail professionnel",
+      "emailHelp": "Votre adresse e-mail nous indique avec quelle organisation vous vous connectez.",
+      "start": "Continuer vers la connexion",
+      "choose": "Choisissez comment vous connecter",
+      "chooseFor": "Se connecter avec {{name}}",
+      "back": "Utiliser plutôt votre mot de passe",
+      "redirecting": "Redirection vers la page de connexion de votre organisation.",
+      "completing": "Connexion en cours.",
+      "failedTitle": "L’authentification unique n’a pas abouti",
+      "tryAgain": "Recommencer",
+      "requiredTitle": "Votre organisation utilise l’authentification unique",
+      "requiredText": "Connectez-vous avec Continuer avec le SSO au lieu de votre mot de passe.",
+      "ticketInvalid": "Cette connexion a expiré ou a déjà été utilisée. Recommencez.",
+      "notFound": "L’authentification unique n’est pas configurée pour cette adresse e-mail. Connectez-vous avec votre mot de passe, ou demandez à votre administrateur.",
+      "errors": {
+        "state_invalid": "Cette connexion a expiré ou a déjà été utilisée. Recommencez.",
+        "idp_error": "Votre fournisseur d’identité n’a pas terminé la connexion. Réessayez, ou demandez à votre administrateur.",
+        "connection_unavailable": "Ce mode de connexion n’est plus disponible. Demandez à votre administrateur.",
+        "token_exchange_failed": "La connexion n’a pas pu être confirmée auprès de votre fournisseur d’identité. Réessayez dans quelques minutes.",
+        "signature_invalid": "La réponse de connexion n’a pas pu être vérifiée, elle a donc été refusée. Recommencez, et prévenez votre administrateur si cela se répète.",
+        "issuer_mismatch": "La réponse de connexion vient d’un fournisseur d’identité que cette organisation n’utilise pas, elle a donc été refusée. Prévenez votre administrateur.",
+        "audience_mismatch": "La réponse de connexion était destinée à une autre application, elle a donc été refusée. Prévenez votre administrateur.",
+        "nonce_mismatch": "La réponse de connexion ne correspond pas à cette connexion, elle a donc été refusée. Recommencez.",
+        "expired": "La réponse de connexion avait expiré. Recommencez, et vérifiez la date et l’heure de votre appareil si cela se répète.",
+        "token_invalid": "La réponse de connexion n’a pas pu être lue, elle a donc été refusée. Recommencez.",
+        "email_missing": "Votre fournisseur d’identité n’a pas transmis votre adresse e-mail. Demandez à votre administrateur de l’inclure.",
+        "email_unverified": "L’adresse e-mail de votre compte Google n’est pas vérifiée. Vérifiez-la auprès de Google, puis réessayez.",
+        "hosted_domain_mismatch": "Connectez-vous avec le compte Google Workspace de votre organisation, pas un compte personnel.",
+        "saml_invalid": "La réponse de connexion n’a pas pu être vérifiée, elle a donc été refusée. Recommencez, et prévenez votre administrateur si cela se répète.",
+        "in_response_to_mismatch": "La réponse de connexion ne correspond pas à cette connexion, elle a donc été refusée. Recommencez depuis cette page.",
+        "replayed": "Cette réponse de connexion a déjà été utilisée, elle a donc été refusée. Recommencez.",
+        "domain_not_verified": "Le domaine de votre adresse e-mail n’est pas configuré pour l’authentification unique ici. Demandez à votre administrateur.",
+        "no_account": "Aucun compte de cette organisation n’utilise cette adresse. Demandez une invitation à votre administrateur.",
+        "identity_conflict": "Une autre connexion est déjà liée à ce compte. Demandez à votre administrateur.",
+        "deactivated": "Votre compte est désactivé. Demandez à votre administrateur de le réactiver.",
+        "jit_stale": "Les nouveaux comptes ne peuvent pas être créés pour le moment. Demandez à votre administrateur.",
+        "ticket_invalid": "Cette connexion a expiré ou a déjà été utilisée. Recommencez.",
+        "owner_link_required": "Les propriétaires ne sont jamais liés par leur e-mail. Connectez-vous avec votre mot de passe, puis liez votre compte dans Paramètres, Sécurité.",
+        "link_email_mismatch": "Le fournisseur d’identité a connecté une autre personne. Connectez-vous-y avec votre propre compte, puis réessayez.",
+        "name_id_transient": "Votre fournisseur d’identité a envoyé un identifiant à usage unique. Demandez à votre administrateur d’envoyer l’adresse e-mail ou un identifiant persistant."
+      }
     }
   },
   "home": {
@@ -5234,9 +5284,12 @@
       "newTenant": "Nouveau client"
     },
     "roles": {
-      "owner": "Propriétaire",
-      "billing": "Facturation",
-      "support": "Assistance"
+      "owner": "Propriétaire de la plateforme",
+      "support": "Assistance",
+      "sales": "Ventes",
+      "finance": "Finances",
+      "compliance": "Conformité",
+      "engineering": "Ingénierie"
     },
     "fields": {
       "email": "E-mail",
@@ -12008,6 +12061,346 @@
       "noOrders": "Aucune commande pour le moment."
     }
   },
+  "admin": {
+    "any": "Tous",
+    "close": "Fermer",
+    "reason": "Motif",
+    "reasonHelp": "Expliquez pourquoi, en 10 à 500 caractères. C’est enregistré et montré aux propriétaires du compte.",
+    "countries": {
+      "KE": "Kenya",
+      "CD": "RD Congo"
+    },
+    "units": {
+      "outlet": "Points de vente",
+      "device": "Appareils de caisse",
+      "user": "Utilisateurs",
+      "employee": "Employés"
+    },
+    "nav": {
+      "support": "Assistance",
+      "packs": "Packs pays",
+      "reports": "Rapports",
+      "staff": "Équipe"
+    },
+    "tenants": {
+      "search": "Rechercher des comptes",
+      "nameOrSlug": "Nom ou sous-domaine",
+      "ownerEmail": "E-mail du propriétaire",
+      "planKey": "Offre",
+      "planKeyHelp": "Une clé d’offre, par exemple starter",
+      "moduleKey": "Module",
+      "moduleKeyHelp": "Une clé de module, par exemple payroll",
+      "clear": "Effacer les filtres",
+      "searchButton": "Rechercher",
+      "status": "Compte",
+      "statuses": {
+        "active": "Actif",
+        "suspended": "Suspendu",
+        "closed": "Fermé"
+      },
+      "modules": "Modules activés",
+      "modulesAndUsage": "Modules et utilisation",
+      "usageOf_one": "{{count}} sur {{allowed}}",
+      "usageOf_other": "{{count}} sur {{allowed}}",
+      "usageUnlimited_one": "{{count}}, sans limite",
+      "usageUnlimited_other": "{{count}}, sans limite",
+      "health": "État",
+      "healthHelp": "Des nombres et des dates seulement. Rien de l’activité n’est montré sans accès du support.",
+      "lastActivity": "Dernière activité",
+      "never": "Jamais",
+      "devices": "Appareils de caisse actifs",
+      "syncLag": "Plus ancien contact d’appareil",
+      "noDevices": "Aucun appareil",
+      "lagHours_one": "il y a {{count}} heure",
+      "lagHours_other": "il y a {{count}} heures",
+      "failedJobs": "Tâches en échec",
+      "postingExceptions": "Exceptions de comptabilisation ouvertes",
+      "suspend": "Suspendre",
+      "suspendTitle": "Suspendre ce compte",
+      "suspendText": "Les modifications sont refusées et les caisses cessent de vendre. Les propriétaires peuvent toujours se connecter, consulter et exporter leurs données, et payer. Le motif leur est communiqué.",
+      "reactivate": "Réactiver",
+      "reactivateTitle": "Réactiver ce compte",
+      "reactivateText": "Le compte fonctionne de nouveau comme avant la suspension. Les propriétaires sont prévenus.",
+      "ownerEmailHelp": "Adresse exacte. Les recherches sont enregistrées."
+    },
+    "deals": {
+      "title": "Contrats Entreprise",
+      "description": "Un prix mensuel négocié pour ce compte seulement. Les ventes ou les finances le rédigent, une autre personne des finances l’approuve.",
+      "draft": "Rédiger un contrat",
+      "draftTitle": "Rédiger un contrat Entreprise",
+      "draftText": "Le prix remplace celui du catalogue pour cet élément, à partir du premier jour, jusqu’au dernier jour si vous en indiquez un.",
+      "itemType": "Élément",
+      "types": {
+        "bundle": "Offre groupée",
+        "module": "Module"
+      },
+      "itemKey": "Clé du catalogue",
+      "itemKeyHelp": "Par exemple enterprise, business ou payroll",
+      "monthlyPrice": "Prix mensuel",
+      "extraOutlet": "Point de vente supplémentaire, par mois",
+      "from": "Premier jour",
+      "to": "Dernier jour",
+      "toHelp": "Laissez vide pour ne pas fixer de fin",
+      "submit": "Envoyer pour approbation",
+      "lines": "Éléments",
+      "price": "Prix mensuel",
+      "period": "En vigueur",
+      "openEnded": "sans fin",
+      "status": "Statut",
+      "statuses": {
+        "pending": "En attente d’approbation",
+        "approved": "Approuvé",
+        "rejected": "Refusé",
+        "ended": "Terminé"
+      },
+      "draftedBy": "Rédigé par",
+      "approve": "Approuver",
+      "reject": "Refuser",
+      "end": "Terminer le contrat",
+      "empty": "Aucun contrat pour ce compte."
+    },
+    "support": {
+      "title": "Accès du support",
+      "description": "Vos demandes d’accès à un compte. Rien ne s’ouvre avant l’approbation du compte, et l’accès se termine de lui-même.",
+      "askTitle": "Demander un accès du support",
+      "askText": "Les propriétaires et administrateurs du compte décident. Chaque requête faite pendant la session leur est montrée.",
+      "askDialogText": "Indiquez ce que vous devez consulter. Le compte peut limiter l’accès à la lecture seule, et la paie, les RH et les paiements restent masqués sauf s’il les inclut.",
+      "ask": "Demander l’accès",
+      "send": "Envoyer la demande",
+      "mode": "Accès",
+      "modes": {
+        "read": "Lecture seule",
+        "write": "Lecture et écriture"
+      },
+      "hours": "Heures",
+      "hoursHelp": "De 1 à 72 heures, à partir de l’approbation",
+      "tenant": "Compte",
+      "staff": "Demandé par",
+      "sensitive": "Données sensibles",
+      "included": "Incluses",
+      "hidden": "Masquées",
+      "status": "Statut",
+      "statuses": {
+        "pending": "En attente du compte",
+        "approved": "Approuvé",
+        "denied": "Refusé",
+        "cancelled": "Annulé",
+        "revoked": "Révoqué",
+        "expired": "Expiré",
+        "ended": "Terminé"
+      },
+      "until": "Fin",
+      "hoursAsked_one": "{{count}} heure demandée",
+      "hoursAsked_other": "{{count}} heures demandées",
+      "open": "Ouvrir la session",
+      "end": "Terminer l’accès",
+      "cancel": "Annuler la demande",
+      "empty": "Aucune demande pour l’instant."
+    },
+    "packs": {
+      "title": "Packs pays",
+      "description": "Taxes, paie, RH, jours fériés, catégories fiscales d’immobilisations et plans comptables. Une version est contrôlée, approuvée par une deuxième personne et publiée par un troisième rôle, puis utilisée à partir de sa date.",
+      "load": "Charger une version",
+      "loadTitle": "Charger une version de pack",
+      "loadText": "Partez du fichier livré, saisissez seulement les chiffres confirmés par une source officielle et marquez-les comme confirmés. Ajoutez la référence légale aux sources.",
+      "country": "Pays",
+      "kind": "Type de pack",
+      "kinds": {
+        "tax": "Taxes",
+        "payroll": "Paie",
+        "hr": "RH et congés",
+        "holidays": "Jours fériés",
+        "fixed_assets": "Catégories fiscales d’immobilisations",
+        "accounts": "Plan comptable"
+      },
+      "file": "Fichier JSON",
+      "document": "Document",
+      "documentHelp": "Collez le JSON, ou choisissez un fichier ci-dessus",
+      "notes": "Remarques",
+      "notJson": "Ce n’est pas un JSON valide. Vérifiez les accolades et les guillemets, puis réessayez.",
+      "validate": "Contrôler et enregistrer le brouillon",
+      "releases": "Versions",
+      "inForce": "En vigueur aujourd’hui",
+      "pack": "Pack pays",
+      "version": "N° de version",
+      "effectiveFrom": "À partir du",
+      "status": "Statut",
+      "statuses": {
+        "draft": "Brouillon",
+        "approved": "Approuvée",
+        "published": "Publiée",
+        "rejected": "Refusée"
+      },
+      "checks": "Contrôles",
+      "errorCount_one": "{{count}} erreur",
+      "errorCount_other": "{{count}} erreurs",
+      "warningCount_one": "{{count}} à confirmer",
+      "warningCount_other": "{{count}} à confirmer",
+      "loadedBy": "Chargée par",
+      "source": "Origine",
+      "sources": {
+        "shipped": "Fichier livré",
+        "none": "Aucune"
+      },
+      "sourceRelease": "Version {{version}}",
+      "empty": "Aucune version pour l’instant.",
+      "releaseTitle": "{{pack}}, version {{version}}",
+      "fromDate": "En vigueur à partir du {{date}}",
+      "people": "Chargée par {{loaded}} · approuvée par {{approved}} · publiée par {{published}}",
+      "errors": "Erreurs",
+      "noErrors": "Aucune erreur. Elle peut être approuvée.",
+      "warnings": "Encore à confirmer",
+      "diff": "Changements",
+      "againstRelease": "Comparée à la version {{version}}",
+      "againstShipped": "Comparée au fichier livré",
+      "added_one": "{{count}} ajouté",
+      "added_other": "{{count}} ajoutés",
+      "changed_one": "{{count}} modifié",
+      "changed_other": "{{count}} modifiés",
+      "removed_one": "{{count}} retiré",
+      "removed_other": "{{count}} retirés",
+      "approve": "Approuver",
+      "publish": "Publier",
+      "reject": "Refuser",
+      "supersede": "Rétablir la version précédente"
+    },
+    "reports": {
+      "title": "Rapports",
+      "description": "Revenus et utilisation de la plateforme, par devise. Les KES et les USD ne sont jamais additionnés.",
+      "from": "Du",
+      "to": "Au",
+      "show": "Afficher",
+      "mrr": "Revenu mensuel récurrent, {{currency}}",
+      "mrrNone": "Revenu mensuel récurrent",
+      "trialsStarted": "Essais commencés",
+      "trialsConverted": "Essais convertis",
+      "convertedRate_one": "{{count}}, soit {{rate}} %",
+      "convertedRate_other": "{{count}}, soit {{rate}} %",
+      "churned": "Comptes perdus",
+      "churnRate_one": "{{count}}, soit {{rate}} %",
+      "churnRate_other": "{{count}}, soit {{rate}} %",
+      "mrrByPlan": "Revenu mensuel par offre",
+      "mrrByCountry": "Revenu mensuel par pays",
+      "mrrByModule": "Revenu mensuel par module",
+      "revenueByCountry": "Revenus par pays",
+      "revenueByModule": "Revenus par module",
+      "revenueByPlan": "Revenus par offre",
+      "usage": "Utilisation de tous les comptes",
+      "plan": "Offre",
+      "country": "Pays",
+      "module": "Module",
+      "amount": "Montant",
+      "unit": "Unité",
+      "tenants": "Comptes",
+      "total": "Total général",
+      "empty": "Rien sur cette période.",
+      "downloads": "Télécharger en CSV",
+      "csv": {
+        "mrr": "Revenu mensuel",
+        "revenue": "Revenus",
+        "trials": "Essais",
+        "churn": "Comptes perdus",
+        "usage": "Utilisation"
+      }
+    },
+    "staff": {
+      "title": "Équipe",
+      "description": "Les comptes et rôles de notre équipe. La connexion en deux étapes est obligatoire pour tous.",
+      "invite": "Inviter un membre",
+      "inviteTitle": "Inviter un membre de l’équipe",
+      "sendInvite": "Créer le compte",
+      "invited": "Compte créé. Envoyez ce lien à usage unique ; il fonctionne pendant {{hours}} heures.",
+      "setupLink": "Lien de configuration",
+      "name": "Nom",
+      "email": "E-mail",
+      "role": "Rôle",
+      "roleOf": "Rôle de {{name}}",
+      "status": "Statut",
+      "statuses": {
+        "active": "Actif",
+        "pending": "En configuration",
+        "deactivated": "Désactivé"
+      },
+      "lastSignIn": "Dernière connexion",
+      "deactivate": "Désactiver",
+      "reactivate": "Réactiver"
+    }
+  },
+  "supportAccess": {
+    "title": "Accès du support",
+    "description": "Notre équipe de support ne voit rien de votre activité sans votre approbation. Approuvez une demande pour la durée demandée, révoquez-la à tout moment et consultez tout ce que la session a fait.",
+    "cardText": "Les demandes de notre équipe de support, les sessions ouvertes et ce qu’elles ont fait.",
+    "open": "Ouvrir l’accès du support",
+    "pendingTitle": "Demandes en attente",
+    "pendingEmpty": "Aucune demande en attente.",
+    "requestTitle": "{{name}} demande un accès",
+    "requestMeta_one": "{{mode}} · {{count}} heure · demandé le {{date}}",
+    "requestMeta_other": "{{mode}} · {{count}} heures · demandé le {{date}}",
+    "approve": "Examiner et approuver",
+    "deny": "Refuser",
+    "approveTitle": "Approuver l’accès de {{name}}",
+    "approveFor_one": "Approuver pour {{count}} heure",
+    "approveFor_other": "Approuver pour {{count}} heures",
+    "includeSensitive": "Inclure la paie, les RH et les paiements",
+    "includeSensitiveHelp": "Désactivé sauf si vous cochez. Sinon, la paie, les coordonnées bancaires, les dossiers médicaux et disciplinaires, les paiements et les moyens de paiement restent masqués.",
+    "activeTitle": "Ouvert maintenant",
+    "activeText": "Les sessions de support qui peuvent avoir lieu maintenant. En révoquer une la termine aussitôt.",
+    "activeEmpty": "Aucun accès du support n’est ouvert.",
+    "activeLine": "{{mode}} · jusqu’au {{until}} · {{sensitive}}",
+    "sensitiveIncluded": "données sensibles incluses",
+    "sensitiveHidden": "données sensibles masquées",
+    "revoke": "Révoquer",
+    "activity": "Voir l’activité",
+    "activityTitle": "Ce que {{name}} a fait",
+    "activityEmpty": "Rien pour l’instant.",
+    "historyTitle": "Historique",
+    "historyEmpty": "Aucune demande pour l’instant.",
+    "columns": {
+      "staff": "De",
+      "reason": "Motif",
+      "mode": "Accès",
+      "status": "Statut",
+      "requested": "Demandé",
+      "requests": "Requêtes",
+      "when": "Quand",
+      "what": "Quoi",
+      "result": "Résultat"
+    },
+    "modes": {
+      "read": "Lecture seule",
+      "write": "Lecture et écriture"
+    },
+    "statuses": {
+      "pending": "En attente",
+      "approved": "Approuvé",
+      "denied": "Refusé",
+      "cancelled": "Annulé",
+      "revoked": "Révoqué",
+      "expired": "Expiré",
+      "ended": "Terminé"
+    },
+    "actions": {
+      "create": "Demande faite",
+      "update": "Demande mise à jour",
+      "start": "Session ouverte",
+      "request": "Requête pendant la session"
+    },
+    "active": {
+      "label": "Accès du support actif",
+      "text": "{{names}}, de notre équipe de support, peut voir votre compte jusqu’au {{until}}.",
+      "manage": "Examiner ou révoquer"
+    },
+    "session": {
+      "label": "Session de support",
+      "text": "Accès {{mode}} à ce compte, tel qu’autorisé par son propriétaire, jusqu’au {{until}}. Chaque requête est enregistrée.",
+      "end": "Terminer la session"
+    },
+    "enter": {
+      "title": "Session de support",
+      "opening": "Ouverture de la session de support…",
+      "missing": "Ce lien ne contient pas de code de session. Ouvrez de nouveau la session depuis la console."
+    }
+  },
   "webhooks": {
     "title": "Webhooks",
     "description": "Envoyez les événements à vos autres systèmes dès qu’ils se produisent, signés pour qu’ils puissent vérifier leur origine.",
@@ -12200,6 +12593,389 @@
       "data": "Seulement des identifiants et quelques champs documentés, jamais de coordonnées ni de secrets, et seulement les enregistrements que l’utilisateur du webhook peut voir. Un type versionné (.v1) ne change jamais de forme : une nouvelle version est ajoutée à la place.",
       "catalogueTitle": "Événements auxquels vous abonner",
       "fields": "Champs"
+    }
+  },
+  "apiKeys": {
+    "title": "Clés d’API",
+    "description": "Les clés permettent à vos autres systèmes d’utiliser l’API publique. Chaque clé agit avec un rôle à un endroit, et ses portées la limitent encore.",
+    "portal": "Portail développeurs",
+    "empty": "Aucune clé d’API pour le moment. Créez-en une pour connecter un autre système.",
+    "noRole": "Aucun rôle (révoquée)",
+    "neverUsed": "Jamais utilisée",
+    "overlapUntil": "L’ancien secret fonctionne jusqu’au {{when}}",
+    "expiresOn": "Expire le {{when}}",
+    "scopeCount_one": "{{count}} portée",
+    "scopeCount_other": "{{count}} portées",
+    "fields": {
+      "name": "Nom",
+      "status": "Statut",
+      "role": "Rôle et lieu",
+      "scopes": "Portées",
+      "lastUsed": "Dernière utilisation",
+      "actions": "Actions possibles",
+      "expires": "Expire le"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expirée",
+      "revoked": "Révoquée"
+    },
+    "create": {
+      "action": "Créer une clé",
+      "title": "Créer une clé d’API",
+      "submit": "Créer la clé",
+      "nameHelp": "Nommez-la d’après le système qui l’utilise, par exemple Synchronisation comptable.",
+      "expiresHelp": "Facultatif. Laissez vide pour une clé qui n’expire pas.",
+      "roleText": "La clé ne peut faire que ce que ce rôle permet à cet endroit. Le rôle Propriétaire ne peut pas être donné à une clé."
+    },
+    "scopes": {
+      "legend": "Portées",
+      "help_one": "{{count}} portée choisie. Lecture et écriture inclut la lecture.",
+      "help_other": "{{count}} portées choisies. Lecture et écriture inclut la lecture.",
+      "search": "Trouver une ressource",
+      "none": "Aucune ressource ne correspond.",
+      "levels": {
+        "none": "Aucun accès",
+        "read": "Lecture",
+        "write": "Lecture et écriture"
+      }
+    },
+    "secret": {
+      "title": "Copiez votre clé d’API",
+      "once": "C’est la seule fois où la clé est affichée. Enregistrez-la maintenant dans le coffre de secrets de votre système.",
+      "copy": "Copier la clé",
+      "copied": "Copiée",
+      "done": "J’ai enregistré la clé"
+    },
+    "rotate": {
+      "action": "Renouveler",
+      "for": "Renouveler {{name}}",
+      "title": "Renouveler {{name}}",
+      "body": "Un nouveau secret remplace l’actuel. Gardez l’ancien secret actif un moment pour mettre à jour vos systèmes sans interruption.",
+      "overlap": "L’ancien secret reste actif pendant",
+      "hours_one": "{{count}} heure",
+      "hours_other": "{{count}} heures",
+      "confirm": "Renouveler la clé"
+    },
+    "revoke": {
+      "action": "Révoquer",
+      "for": "Révoquer {{name}}",
+      "title": "Révoquer {{name}} ?",
+      "body": "Les systèmes qui utilisent cette clé s’arrêtent aussitôt. La révocation est définitive ; créez une nouvelle clé si vous en avez de nouveau besoin.",
+      "confirm": "Révoquer la clé"
+    },
+    "usage": {
+      "title": "Requêtes par jour",
+      "total_one": "{{total}} requête sur les 30 derniers jours",
+      "total_other": "{{total}} requêtes sur les 30 derniers jours",
+      "key": "Clé",
+      "allKeys": "Toutes les clés",
+      "requests": "Requêtes"
+    },
+    "sandbox": {
+      "title": "Bac à sable développeur",
+      "text": "Cette organisation est un bac à sable : les clés commencent par sk_test_, les paiements et les envois fiscaux sont simulés, et elle n’est jamais facturée.",
+      "reset": "Réinitialiser les données d’exemple",
+      "done": "Le bac à sable a de nouvelles données d’exemple.",
+      "confirmTitle": "Réinitialiser le bac à sable ?",
+      "confirmBody": "Chaque article, catégorie, liste de prix et contact est archivé, puis de nouvelles données d’exemple sont chargées. Les documents comme les ventes gardent leur historique.",
+      "confirm": "Réinitialiser le bac à sable"
+    },
+    "outbox": {
+      "title": "Boîte d’envoi du bac à sable",
+      "text": "Un bac à sable n’envoie ni e-mail, ni SMS, ni WhatsApp. Ce qu’il aurait envoyé est gardé ici.",
+      "empty": "Rien d’envoyé pour l’instant.",
+      "to": "{{channel}} à {{recipient}}",
+      "channels": {
+        "email": "E-mail",
+        "sms": "Texto",
+        "whatsapp": "Message WhatsApp",
+        "push": "Notification push"
+      }
+    }
+  },
+  "developers": {
+    "brand": "{{name}} pour les développeurs",
+    "example": "Exemple",
+    "nav": {
+      "label": "Portail développeurs",
+      "overview": "Vue d’ensemble",
+      "guides": "Guides pratiques",
+      "more": "Références",
+      "reference": "Référence de l’API",
+      "errors": "Codes d’erreur",
+      "changelog": "Journal des modifications",
+      "keys": "Vos clés d’API",
+      "signIn": "Se connecter"
+    },
+    "home": {
+      "title": "Développer avec l’API publique",
+      "description": "Lisez et écrivez les données de votre organisation dans {{name}} depuis vos propres systèmes, avec les mêmes permissions que l’application.",
+      "quickstart": {
+        "title": "Démarrage rapide",
+        "step1": "Créez un bac à sable développeur ou connectez-vous à votre organisation.",
+        "step2": "Dans Paramètres, Clés d’API, créez une clé avec un rôle et les portées dont votre système a besoin.",
+        "step3": "Envoyez la clé comme jeton porteur à n’importe quel point d’accès de la référence de l’API."
+      },
+      "sandbox": "Créer un bac à sable développeur",
+      "reference": "Ouvrir la référence de l’API"
+    },
+    "guides": {
+      "authentication": {
+        "title": "Authentification",
+        "summary": "Les clés d’API, comment les envoyer, les renouveler et les révoquer.",
+        "p1": "Un propriétaire, ou toute personne ayant la permission des clés d’API, crée les clés dans Paramètres, Clés d’API. Chaque clé agit comme son propre compte de service : elle a un rôle à un endroit, une société, une agence, un emplacement ou toute l’organisation, et ne peut jamais faire plus que ce rôle n’y permet.",
+        "p2": "Envoyez la clé dans l’en-tête Authorization comme jeton porteur à chaque requête. Les clés commencent par sk_live_ pour une organisation réelle et sk_test_ pour un bac à sable. Utilisez Accept-Language pour choisir des messages en anglais ou en français.",
+        "p3": "La clé n’est affichée qu’une fois, à sa création ou à son renouvellement. Le renouvellement garde l’ancien secret actif pendant la durée choisie, pour mettre vos systèmes à jour d’abord. La révocation arrête la clé aussitôt."
+      },
+      "scopes": {
+        "title": "Portées",
+        "summary": "Limitez ce qu’une clé peut atteindre, ressource par ressource.",
+        "p1": "Une portée nomme une ressource et un niveau d’accès : lecture, ou lecture et écriture. Une clé a besoin de la portée de chaque point d’accès qu’elle appelle, et chaque contrôle de permission pendant la requête a aussi besoin de la portée de sa ressource.",
+        "p2": "Les portées n’ajoutent jamais rien au rôle de la clé. Une clé avec la portée d’écriture des articles ne peut toujours pas archiver des articles si son rôle ne le peut pas, et elle ne voit que les sociétés, agences et emplacements que son rôle atteint.",
+        "p3": "Les clés ne peuvent pas servir à se connecter, à gérer des comptes, des clés ou des rôles, à payer des factures ni à atteindre des appareils : ces points d’accès les refusent avec api_key_route_refused."
+      },
+      "pagination": {
+        "title": "Pages et filtres",
+        "summary": "Pages, tri, recherche et filtres sur chaque liste.",
+        "p1": "Les listes acceptent page et per_page (de 1 à 200, 50 par défaut). La réponse contient data, des liens vers la première, la dernière, la page précédente et la suivante, et meta avec le total.",
+        "p2": "Triez avec sort=clé, ou sort=-clé pour l’ordre décroissant, parmi les clés que chaque liste documente ; les égalités sont départagées par id, donc les pages sont stables. Recherchez avec search et filtrez avec les paramètres propres à chaque liste.",
+        "p3": "Les champs que votre rôle ne peut pas voir sont absents des réponses, et trier ou filtrer sur eux est refusé."
+      },
+      "errors": {
+        "title": "Erreurs",
+        "summary": "Une seule forme d’erreur, avec un code stable pour réagir.",
+        "p1": "Chaque erreur répond en JSON avec un message traduit et un code stable. Pour les clés d’API, le même corps est en application/problem+json, avec type, title, status et detail. Réagissez au code, jamais au message.",
+        "p2": "Les erreurs de validation ajoutent errors, les messages par champ. Les codes que vous pouvez recevoir sont listés ci-dessous."
+      },
+      "idempotency": {
+        "title": "Idempotence",
+        "summary": "Réessayez un POST sans risque avec une Idempotency-Key.",
+        "p1": "Envoyez un en-tête Idempotency-Key avec un POST, une valeur propre à l’opération comme un numéro de commande. La première réponse est gardée 24 heures.",
+        "p2": "Renvoyer la même clé avec le même corps renvoie cette réponse avec Idempotent-Replayed: true, sans refaire le travail. La même clé avec un autre corps est refusée avec idempotency_mismatch.",
+        "p3": "Tant que la première requête tourne, une nouvelle tentative répond idempotency_in_progress. Une erreur du serveur n’est pas gardée, vous pouvez donc réessayer."
+      },
+      "rateLimits": {
+        "title": "Limites de débit",
+        "summary": "Requêtes par minute, par clé et par organisation.",
+        "p1": "Chaque clé a sa propre limite de requêtes par minute, et l’organisation a une limite pour toutes ses clés, fixée par son forfait.",
+        "p2": "Chaque réponse porte RateLimit-Limit, RateLimit-Remaining et RateLimit-Reset, les secondes avant la remise à zéro de la fenêtre.",
+        "p3": "Au-delà d’une limite, l’API répond 429 avec rate_limited et Retry-After. Attendez ce nombre de secondes avant de renvoyer."
+      },
+      "versioning": {
+        "title": "Versions et dépréciation",
+        "summary": "Ce qui peut changer dans la v1 et comment les retraits sont annoncés.",
+        "p1": "La version est dans le chemin, /api/v1. Les changements de la v1 ne font qu’ajouter : nouveaux points d’accès, nouveaux paramètres facultatifs et nouveaux champs. Ignorez les champs que vous ne connaissez pas.",
+        "p2": "Avant d’être retiré, un point d’accès est marqué déprécié : ses réponses portent Deprecation, Sunset (la date de retrait, au moins six mois plus tard) et un Link vers le journal des modifications.",
+        "p3": "Le journal des modifications liste chaque changement et chaque point d’accès dont le retrait est annoncé."
+      },
+      "sandbox": {
+        "title": "Bac à sable",
+        "summary": "Une organisation de test gratuite avec des données d’exemple.",
+        "p1": "Créez un bac à sable développeur depuis ce portail. Tous les modules y sont activés avec des articles, des prix et des clients d’exemple, et il n’est jamais facturé ni limité par un forfait.",
+        "p2": "Les clés du bac à sable commencent par sk_test_ et ne fonctionnent que sur le bac à sable ; les clés réelles ne l’atteignent jamais. Les paiements et les envois fiscaux passent par des fournisseurs simulés : rien n’atteint un vrai porte-monnaie ni une vraie administration fiscale.",
+        "p3": "Réinitialisez le bac à sable depuis Paramètres, Clés d’API pour archiver ses données et charger de nouvelles données d’exemple."
+      },
+      "webhooks": {
+        "title": "Notifications webhook",
+        "summary": "Des événements envoyés à vos systèmes dès qu’ils se produisent.",
+        "p1": "Les webhooks envoient des événements signés, comme une vente terminée ou un document qui change d’étape, à l’URL de votre choix, avec de nouvelles tentatives et un journal des envois.",
+        "p2": "Configurez-les dans Paramètres, Webhooks : choisissez les événements, copiez une fois le secret de signature et vérifiez la signature et l’horodatage de chaque requête avant de lui faire confiance."
+      }
+    },
+    "errorCodes": {
+      "unauthenticated": "Pas de clé, ou une clé fausse, révoquée ou expirée.",
+      "forbidden": "Le rôle de la clé ne permet pas cette action ici.",
+      "not_found": "Rien avec cet identifiant dans votre organisation, ou hors de portée de la clé.",
+      "validation_failed": "Certains champs ne sont pas valides ; voir errors.",
+      "field_readonly": "Un champ que votre rôle ne peut pas modifier a été envoyé ; retirez-le.",
+      "module_inactive": "Le module n’est pas actif pour l’organisation.",
+      "api_key_route_refused": "Ce point d’accès n’accepte pas les clés d’API.",
+      "api_scope_missing": "La clé n’a pas la portée indiquée dans scope.",
+      "rate_limited": "Trop de requêtes ; attendez la durée de Retry-After.",
+      "idempotency_key_invalid": "L’en-tête Idempotency-Key n’est pas valide.",
+      "idempotency_mismatch": "Cette Idempotency-Key a servi pour une autre requête.",
+      "idempotency_in_progress": "Une requête avec cette Idempotency-Key est encore en cours.",
+      "subscription_overdue": "L’abonnement de l’organisation est en retard ; les écritures sont suspendues.",
+      "server_error": "Une erreur s’est produite de notre côté ; réessayez plus tard."
+    },
+    "reference": {
+      "title": "Référence de l’API",
+      "description": "Chaque point d’accès public, ses paramètres et ses réponses.",
+      "base": "URL de base",
+      "version": "Version {{version}}",
+      "download": "Télécharger le document OpenAPI",
+      "search": "Trouver un point d’accès",
+      "none": "Aucun point d’accès ne correspond.",
+      "scope": "Nécessite la portée",
+      "deprecated": "Déprécié",
+      "parameters": "Paramètres",
+      "body": "Corps de la requête",
+      "response": "Réponse {{status}}",
+      "statuses": "Codes de statut",
+      "errorsLink": "Ce que signifient les codes d’erreur",
+      "field": "Champ",
+      "type": "Type de valeur",
+      "notes": "Explication",
+      "required": "obligatoire"
+    },
+    "changelog": {
+      "title": "Journal des modifications",
+      "description": "Ce qui a changé dans l’API publique, du plus récent au plus ancien.",
+      "deprecated": "Retraits annoncés",
+      "noDeprecations": "Aucun retrait n’est annoncé.",
+      "sunset": "Retiré le {{date}}",
+      "entries": {
+        "v1-launch": {
+          "keys": "L’API publique v1 : clés d’API avec rôles et portées, limites de débit, POST idempotents et erreurs en problem JSON.",
+          "reference": "La référence de l’API et ces guides, en anglais et en français.",
+          "sandbox": "Des bacs à sable développeur avec des données d’exemple et des clés de test."
+        }
+      }
+    }
+  },
+  "sso": {
+    "title": "Authentification unique",
+    "description": "Permettez à votre équipe de se connecter avec Microsoft Entra ID, Google Workspace ou un autre fournisseur d’identité SAML.",
+    "securityCard": {
+      "title": "Authentification unique",
+      "text": "Les connexions à votre fournisseur d’identité, vos domaines de messagerie et qui doit les utiliser.",
+      "open": "Configurer l’authentification unique"
+    },
+    "domains": {
+      "title": "Domaines de messagerie",
+      "text": "Seules les adresses d’un domaine vérifié se connectent avec vos connexions. Prouvez chaque domaine avec un enregistrement DNS.",
+      "label": "Domaine de messagerie",
+      "help": "Par exemple entreprise.cd",
+      "add": "Ajouter le domaine",
+      "empty": "Aucun domaine de messagerie pour l’instant. Ajoutez le domaine des adresses de votre équipe.",
+      "pendingText": "Ajoutez cet enregistrement TXT chez votre fournisseur DNS, puis vérifiez le domaine.",
+      "failedText": "Ce domaine n’a pas pu être vérifié. Contrôlez l’enregistrement, puis vérifiez à nouveau.",
+      "verifiedText": "Vérifié {{when}}.",
+      "check": "Vérifier maintenant",
+      "checkFor": "Vérifier {{domain}} maintenant",
+      "remove": "Retirer",
+      "removeFor": "Retirer {{domain}}",
+      "removeTitle": "Retirer {{domain}} ?",
+      "removeBody": "Les personnes ayant une adresse de ce domaine ne pourront plus se connecter par authentification unique. Leurs comptes restent.",
+      "removeConfirm": "Retirer le domaine",
+      "status": {
+        "pending": "En attente du DNS",
+        "verified": "Vérifié",
+        "failed": "Non vérifié"
+      },
+      "failure": {
+        "record_missing": "L’enregistrement n’a pas encore été trouvé.",
+        "lookup_failed": "La recherche DNS a échoué. Elle sera relancée.",
+        "claimed_elsewhere": "Une autre organisation a vérifié ce domaine en premier.",
+        "record_removed": "L’enregistrement a été supprimé, le domaine ne fonctionne donc plus."
+      },
+      "checkedAt": "Vérifié le {{when}}.",
+      "record": {
+        "type": "Type",
+        "name": "Nom",
+        "value": "Valeur"
+      }
+    },
+    "connections": {
+      "title": "Connexions",
+      "text": "Enregistrez cette application auprès de votre fournisseur d’identité, puis ajoutez la connexion ici et testez-la.",
+      "add": "Ajouter une connexion",
+      "empty": "Aucune connexion pour l’instant.",
+      "provider": {
+        "entra": "Microsoft Entra ID",
+        "google": "Google Workspace",
+        "saml": "SAML 2.0"
+      },
+      "enabled": "Activée",
+      "disabled": "Non activée",
+      "test": "Tester la connexion",
+      "testFor": "Tester {{name}}",
+      "enable": "Activer",
+      "enableFor": "Activer {{name}}",
+      "disable": "Désactiver",
+      "disableFor": "Désactiver {{name}}",
+      "edit": "Modifier",
+      "editFor": "Modifier {{name}}",
+      "remove": "Retirer",
+      "removeFor": "Retirer {{name}}",
+      "removeTitle": "Retirer {{name}} ?",
+      "removeBody": "Les personnes qui se connectent avec cette connexion devront utiliser un autre moyen.",
+      "removeConfirm": "Retirer la connexion",
+      "untested": "Pas encore testée. Testez-la avant de l’activer.",
+      "testOk": "Test réussi {{when}} avec {{email}}.",
+      "testFailed": "Le dernier test a échoué {{when}} : {{reason}}",
+      "testMfa": "Le fournisseur d’identité a confirmé l’authentification multifacteur.",
+      "testNoMfa": "Aucune authentification multifacteur n’a été confirmée : la connexion en deux étapes de l’application s’applique donc encore.",
+      "testAction": {
+        "linked": "Connecte l’utilisateur déjà lié à cette adresse.",
+        "link": "Lie cette adresse à son utilisateur existant à la première connexion.",
+        "invitation": "Accepte l’invitation en attente pour cette adresse.",
+        "provision": "Crée un compte avec le rôle par défaut.",
+        "owner_link": "C’est un propriétaire : il lie lui-même son compte dans Paramètres, Sécurité."
+      },
+      "register": "Valeurs pour votre fournisseur d’identité",
+      "redirectUri": "URI de redirection",
+      "entityId": "Identifiant (ID d’entité)",
+      "acsUrl": "URL de réponse (ACS)"
+    },
+    "form": {
+      "addTitle": "Ajouter une connexion",
+      "editTitle": "Modifier {{name}}",
+      "provider": "Fournisseur d’identité",
+      "name": "Nom",
+      "nameHelp": "Affiché sur la page de connexion quand il y a plusieurs connexions.",
+      "clientId": "ID d’application (client)",
+      "clientSecret": "Secret client",
+      "clientSecretHelp": "Conservé chiffré et jamais réaffiché.",
+      "clientSecretKeep": "Un secret est enregistré. Laissez vide pour le garder.",
+      "directoryId": "ID de l’annuaire (locataire)",
+      "directoryIdHelp": "Le GUID de votre annuaire Entra. Les points d’accès partagés comme common ne sont pas acceptés.",
+      "hostedDomain": "Domaine Workspace",
+      "hostedDomainHelp": "Facultatif. Seuls les comptes de ce domaine Google Workspace peuvent se connecter.",
+      "metadataUrl": "URL des métadonnées",
+      "metadataUrlHelp": "Une adresse https des métadonnées de fédération de votre fournisseur d’identité.",
+      "metadataXml": "Ou collez le XML des métadonnées",
+      "manual": "Ou saisissez les valeurs vous-même",
+      "idpEntityId": "ID d’entité du fournisseur d’identité",
+      "idpSsoUrl": "URL de connexion du fournisseur d’identité",
+      "certificate": "Certificat de signature",
+      "certificateHelp": "Collez le certificat, avec ses lignes BEGIN et END.",
+      "save": "Enregistrer la connexion"
+    },
+    "rules": {
+      "title": "Règles de connexion",
+      "enforce": "Exiger l’authentification unique",
+      "enforceHelp": "Les personnes ayant une adresse de vos domaines vérifiés ne peuvent plus se connecter avec un mot de passe, et personne ne peut créer un nouveau compte avec une telle adresse. Les propriétaires gardent leur mot de passe et la connexion en deux étapes au cas où votre fournisseur d’identité serait indisponible.",
+      "jit": "Créer les comptes à la première connexion",
+      "jitHelp": "Une personne sans compte ni invitation en reçoit un avec le rôle par défaut ci-dessous. Désactivé : seuls les utilisateurs existants et les personnes invitées peuvent se connecter.",
+      "defaultRole": "Rôle par défaut des nouveaux comptes",
+      "save": "Enregistrer les règles de connexion",
+      "saved": "Règles de connexion enregistrées."
+    },
+    "test": {
+      "ok": "La connexion de test a réussi. Vérifiez le résultat ci-dessous, puis activez la connexion.",
+      "failed": "La connexion de test a échoué. La raison est affichée sur la connexion."
+    },
+    "myLinks": {
+      "title": "Authentification unique pour votre compte",
+      "text": "Liez votre compte au fournisseur d’identité de votre organisation. Les propriétaires lient leur compte ici ; ils ne sont jamais liés par leur e-mail.",
+      "empty": "Votre compte n’est pas encore lié.",
+      "link": "Lier mon compte avec {{name}}",
+      "linked": "Lié en tant que {{email}} avec {{name}}.",
+      "unlink": "Délier",
+      "unlinkFor": "Délier {{name}}",
+      "done": "Votre compte est lié. La prochaine fois, connectez-vous avec Continuer avec le SSO.",
+      "failed": "Votre compte n’a pas été lié."
+    },
+    "userLinks": {
+      "title": "Liens d’authentification unique",
+      "text": "Les comptes du fournisseur d’identité avec lesquels cet utilisateur se connecte. Délier arrête cette connexion ; l’utilisateur peut se lier à nouveau en se connectant.",
+      "empty": "Aucun lien d’authentification unique.",
+      "linked": "{{email}} avec {{name}}",
+      "lastUsed": "Dernière utilisation {{when}}.",
+      "unlink": "Délier",
+      "unlinkFor": "Délier {{email}}"
     }
   },
   "packs": {

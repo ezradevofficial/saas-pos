@@ -11,6 +11,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Sms\LogSmsSender;
 use App\Core\Notifications\Sms\NullSmsSender;
 use App\Core\Notifications\Sms\SmsSender;
+use App\Core\Platform\SupportAccess\SupportAccess;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
@@ -46,8 +47,19 @@ class IdentityServiceProvider extends ServiceProvider
         Sanctum::authenticateAccessTokensUsing(function (PersonalAccessToken $token, bool $isValid): bool {
             $tokenable = $isValid ? $token->tokenable : null;
 
+            // RBAC-13 (review M8): an expired support session's token is refused and logged.
+            if (! $isValid && ($principal = $token->tokenable) instanceof User && $principal->support_grant_id !== null) {
+                app(SupportAccess::class)->acceptsToken($principal);
+                app(TenantContext::class)->set(null);
+
+                return false;
+            }
+
             $valid = match (true) {
-                $tokenable instanceof User => $tokenable->isActive()
+                // RBAC-13f: a support session's token works only while its grant is approved and not past its end.
+                $tokenable instanceof User && $tokenable->support_grant_id !== null => app(SupportAccess::class)->acceptsToken($tokenable),
+                // ADR 020: an API key's principal acts through its key only, never a token.
+                $tokenable instanceof User => $tokenable->isActive() && $tokenable->isPerson()
                     && ! SessionTimeout::isIdle($token, Tenant::find($token->tenant_id)),
                 $tokenable instanceof Device => $tokenable->isActive(),
                 // HR-24: a module's own machine (biometric terminals), while it accepts tokens.

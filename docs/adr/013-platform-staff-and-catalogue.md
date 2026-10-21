@@ -36,7 +36,9 @@ Our own team has to maintain what we sell: modules, bundles, prices per country,
 - Staff tokens last 8 hours (`PLATFORM_TOKEN_MINUTES`). The web keeps them in `sessionStorage` (one tab, gone when it closes).
 - In production the console is served on its own subdomain (`PLATFORM_URL`, which setup links use), so no tenant page shares its origin.
 
-**Roles (minimal).** `owner`, `billing` and `support`. Every role can view the catalogue (`catalogue.view`); only owner and billing can change it (`catalogue.manage`). Form Requests check the role. The full staff RBAC is ADM-07 in phase 8.
+**Roles (ADM-07, phase 8; amended).** Phase 6 had `owner`, `billing` and `support`. Phase 8 has six roles: `owner` (platform owner), `support`, `sales`, `finance` (the former `billing`), `compliance` and `engineering`. Each holds a fixed list of platform permissions named `platform.<resource>.<action>`: tenants, catalogue, billing, deals, support, packs, reports and staff. The list is code (`PlatformUser::PERMISSIONS`), not data, and the table is in `docs/modules/platform-admin.md`. Form Requests check the permission, and `me` returns the list as `abilities` for the console. Platform owners manage staff: invite (a one-time setup link), change a role, deactivate and reactivate. The last active owner can never be demoted or deactivated. Two-factor stays mandatory.
+
+Support access with consent (RBAC-13), Enterprise deals (ADM-02), pack releases (ADM-04, ADR 022) and reports (ADM-06) are described in `docs/modules/platform-admin.md`. The platform tables they add: `platform_support_requests` (platform role only) and `country_pack_releases` (the runtime role reads it).
 
 **Audit.** Every staff action and sign-in event is appended to `platform_audit_logs`: one hash chain for the platform, built like AUD-03 with `Auditor::canonicalJson`. Appends are serialised by an advisory lock. A trigger refuses updates, deletes and truncation for every role, and the runtime role has no UPDATE or DELETE grant. `platform:audit-verify` walks the chain.
 

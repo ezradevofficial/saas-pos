@@ -77,6 +77,18 @@ class DueTenants
         return $this->ids('app_tenants_with_domain_checks_due(?::timestamptz)', [$at->toIso8601String()]);
     }
 
+    /** @return list<string> AUTH-11: active tenants with SAML metadata fetched by URL (sso:refresh-metadata). */
+    public function withSsoMetadataUrls(): array
+    {
+        return $this->ids('app_tenants_with_sso_metadata_urls()');
+    }
+
+    /** @return list<string> AUTH-11: active tenants with SSO email domains to check, re-check or archive at $at (as above). */
+    public function withSsoDomainChecksDue(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_sso_domain_checks_due(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
     /** @return list<string> SUB-03, SUB-05: subscriptions with a trial or period ending within 7 days of $at, past due or read-only. */
     public function withBillingDue(CarbonInterface $at): array
     {
@@ -149,6 +161,18 @@ class DueTenants
         return $this->ids('app_tenants_with_expired_ecom_reservations(?::timestamptz)', [$at->toIso8601String()]);
     }
 
+    /** @return list<string> RBAC-13f: support access grants approved and past their end at $at. */
+    public function withExpiredSupportGrants(CarbonInterface $at): array
+    {
+        return $this->ids('app_tenants_with_expired_support_grants(?::timestamptz)', [$at->toIso8601String()]);
+    }
+
+    /** @return list<string> ADM-04 (review H3): every tenant that is not closed, suspended ones included, for country pack updates. */
+    public function forPackUpdates(): array
+    {
+        return $this->ids('app_tenants_for_pack_updates()');
+    }
+
     /** @return list<string> HOOK-01: webhook deliveries left behind since before $staleBefore, or created before $pruneBefore (migration 2026_11_29_000100). */
     public function withWebhookWork(CarbonInterface $staleBefore, CarbonInterface $pruneBefore): array
     {
@@ -159,6 +183,18 @@ class DueTenants
     public function active(): array
     {
         return $this->ids('app_active_tenant_ids()');
+    }
+
+    /** @return list<string> active tenants with an API key not revoked (`api:flush-usage`, ADR 020) */
+    public function withApiKeys(): array
+    {
+        return $this->ids('app_tenants_with_api_keys()');
+    }
+
+    /** @return list<string> active developer sandboxes (`sandbox:expire`, API-05) */
+    public function sandboxes(): array
+    {
+        return $this->ids('app_sandbox_tenant_ids()');
     }
 
     /**

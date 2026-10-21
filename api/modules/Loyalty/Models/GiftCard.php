@@ -7,6 +7,7 @@ use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\HasScope;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\BelongsToTenant;
+use App\Core\Tenancy\CompanyClock;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -64,9 +65,10 @@ class GiftCard extends Model implements HasScope
         return $this->belongsTo(User::class, 'issued_by');
     }
 
+    /** Past its expiry date on $today (Y-m-d), by default today in the card's company's time zone, not UTC's. */
     public function isExpired(?string $today = null): bool
     {
-        return $this->expires_on !== null && $this->expires_on->format('Y-m-d') < ($today ?? now()->format('Y-m-d'));
+        return $this->expires_on !== null && $this->expires_on->format('Y-m-d') < ($today ?? CompanyClock::today($this->company_id));
     }
 
     public function scope(): Scope

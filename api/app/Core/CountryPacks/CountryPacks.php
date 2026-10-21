@@ -19,28 +19,29 @@ class CountryPacks
     /**
      * @return array{0: CountryPack, 1: bool} the version in force and whether it was just created
      */
-    public function publish(PackFile $file): array
+    public function publish(PackFile $file, string $connection = SyncPermissions::OWNER_CONNECTION): array
     {
-        $db = DB::connection(SyncPermissions::OWNER_CONNECTION);
+        // The deploy publishes as the owner; a pack release (ADM-04, ADR 022) as the platform role.
+        $db = DB::connection($connection);
 
-        return $db->transaction(function () use ($db, $file) {
+        return $db->transaction(function () use ($db, $file, $connection) {
             // One publisher per pack at a time; the advisory lock ends with the transaction.
             $db->select('select pg_advisory_xact_lock(hashtext(?))', ['country_pack:'.$file->code()]);
 
-            $latest = CountryPack::on(SyncPermissions::OWNER_CONNECTION)
+            $latest = CountryPack::on($connection)
                 ->where('code', $file->code())->orderByDesc('version')->first();
 
             if ($latest !== null && hash_equals($latest->content_hash, $file->hash())) {
                 return [$latest, false];
             }
 
-            $previous = $latest === null ? [] : PackTaxCode::on(SyncPermissions::OWNER_CONNECTION)
+            $previous = $latest === null ? [] : PackTaxCode::on($connection)
                 ->where('country_pack_id', $latest->id)->get()
                 ->map(fn (PackTaxCode $row) => $this->row($row->only(['code', 'kind', 'rate', 'needs_confirmation', 'effective_from', 'effective_to', 'fiscal_code', 'research'])))
                 ->all();
             $current = array_map(fn (array $row) => $this->row([...$row, 'research' => PackFile::research($row)]), $file->taxCodes());
 
-            $pack = CountryPack::on(SyncPermissions::OWNER_CONNECTION)->create([
+            $pack = CountryPack::on($connection)->create([
                 'code' => $file->code(),
                 'version' => ($latest?->version ?? 0) + 1,
                 'content_hash' => $file->hash(),
@@ -57,7 +58,7 @@ class CountryPacks
             ]);
 
             foreach ($file->taxCodes() as $row) {
-                PackTaxCode::on(SyncPermissions::OWNER_CONNECTION)->create([
+                PackTaxCode::on($connection)->create([
                     'country_pack_id' => $pack->id,
                     'code' => $row['code'],
                     'kind' => $row['kind'],

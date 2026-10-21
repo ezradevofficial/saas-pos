@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
+import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { MySsoLinks } from './sso/SsoLinks'
 
 const FIELDS = ['password_min_length', 'session_timeout_minutes', 'default_locale']
 
@@ -115,6 +118,7 @@ function SettingsForm({ settings }) {
 /** AUTH-02, AUTH-09, L10N-01: the tenant's password minimum, session timeout and default language. */
 export default function Security() {
   const { t } = useTranslation()
+  const { tenantWide } = usePermissions()
   const settings = useQuery({ queryKey: ['tenant', 'settings'], queryFn: () => api.get('tenant/settings') })
 
   return (
@@ -135,6 +139,20 @@ export default function Security() {
         <Card>
           <SettingsForm settings={settings.data.data} />
         </Card>
+      ) : null}
+      {/* AUTH-11: single sign-on lives on its own page (the Owner's). */}
+      {tenantWide('core.sso.manage') ? (
+        <Card title={t('sso.securityCard.title')} subtitle={t('sso.securityCard.text')}>
+          <Link to="/settings/sso" className="text-label font-medium text-primary hover:text-primary-hover">
+            {t('sso.securityCard.open')}
+          </Link>
+        </Card>
+      ) : null}
+      {/* AUTH-11, ADR 023: link one's own account (how an Owner is linked). */}
+      <MySsoLinks />
+      {/* RBAC-13: who may see the organisation from our support team. */}
+      {tenantWide('core.support_access.view') ? (
+        <Card title={t('supportAccess.title')} subtitle={t('supportAccess.cardText')} actions={<Link to="/settings/security/support-access" className="rounded-sm text-label text-primary underline-offset-2 hover:underline">{t('supportAccess.open')}</Link>} />
       ) : null}
     </>
   )

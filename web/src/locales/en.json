@@ -399,7 +399,6 @@
     "formLayouts": "Form layouts",
     "formTypes": "Forms",
     "dataExport": "Data export",
-    "webhooks": "Webhooks",
     "subscription": "Subscription",
     "usage": "Usage",
     "imports": "Imports",
@@ -491,7 +490,11 @@
     "ecommerceCashups": "Rider cash-ups",
     "ecommerceRiders": "Riders",
     "ecommerceReports": "Online reports",
-    "ecommerceSettings": "Store settings"
+    "ecommerceSettings": "Store settings",
+    "supportAccess": "Support access",
+    "webhooks": "Webhooks",
+    "apiKeys": "API keys",
+    "sso": "Single sign-on"
   },
   "shell": {
     "account": "Account menu",
@@ -539,7 +542,9 @@
       "haveAccount": "Already have an account?",
       "signIn": "Sign in",
       "contactHelp": "For a phone number, start with the country code, for example +254 712 345 678.",
-      "submit": "Create account"
+      "submit": "Create account",
+      "sandboxTitle": "Create a developer sandbox",
+      "sandboxIntro": "A free test organisation with sample data and every module on. Payments and tax submissions are simulated, and it is never billed."
     },
     "verify": {
       "title": "Enter your code",
@@ -593,6 +598,51 @@
       "signedInText": "This invitation creates a new account. Sign out first, then accept it.",
       "stay": "Stay signed in",
       "signOutAndAccept": "Sign out and accept"
+    },
+    "sso": {
+      "continue": "Continue with SSO",
+      "or": "or",
+      "emailLabel": "Work email",
+      "emailHelp": "Your email address tells us which organisation you sign in with.",
+      "start": "Continue to sign-in",
+      "choose": "Choose how to sign in",
+      "chooseFor": "Sign in with {{name}}",
+      "back": "Use your password instead",
+      "redirecting": "Taking you to your organisation’s sign-in page.",
+      "completing": "Signing you in.",
+      "failedTitle": "Single sign-on did not complete",
+      "tryAgain": "Start again",
+      "requiredTitle": "Your organisation uses single sign-on",
+      "requiredText": "Sign in with Continue with SSO instead of your password.",
+      "ticketInvalid": "This sign-in has expired or was already used. Start again.",
+      "notFound": "Single sign-on is not set up for this email address. Sign in with your password, or ask your administrator.",
+      "errors": {
+        "state_invalid": "This sign-in expired or was already used. Start again.",
+        "idp_error": "Your identity provider did not complete the sign-in. Try again, or ask your administrator.",
+        "connection_unavailable": "This sign-in method is no longer available. Ask your administrator.",
+        "token_exchange_failed": "The sign-in could not be confirmed with your identity provider. Try again in a few minutes.",
+        "signature_invalid": "The sign-in response could not be verified, so it was refused. Start again, and tell your administrator if it keeps happening.",
+        "issuer_mismatch": "The sign-in response came from an identity provider this organisation does not use, so it was refused. Tell your administrator.",
+        "audience_mismatch": "The sign-in response was meant for another application, so it was refused. Tell your administrator.",
+        "nonce_mismatch": "The sign-in response did not match this sign-in, so it was refused. Start again.",
+        "expired": "The sign-in response had expired. Start again, and check the date and time on your device if it keeps happening.",
+        "token_invalid": "The sign-in response could not be read, so it was refused. Start again.",
+        "email_missing": "Your identity provider did not share your email address. Ask your administrator to include it.",
+        "email_unverified": "Your Google account email is not verified. Verify it with Google, then try again.",
+        "hosted_domain_mismatch": "Sign in with your organisation’s Google Workspace account, not a personal one.",
+        "saml_invalid": "The sign-in response could not be verified, so it was refused. Start again, and tell your administrator if it keeps happening.",
+        "in_response_to_mismatch": "The sign-in response did not match this sign-in, so it was refused. Start again from this page.",
+        "replayed": "This sign-in response was already used, so it was refused. Start again.",
+        "domain_not_verified": "Your email domain is not set up for single sign-on here. Ask your administrator.",
+        "no_account": "No account in this organisation uses this email. Ask your administrator for an invitation.",
+        "identity_conflict": "Another sign-in is already linked to this account. Ask your administrator.",
+        "deactivated": "Your account is deactivated. Ask your administrator to reactivate it.",
+        "jit_stale": "New accounts cannot be created right now. Ask your administrator.",
+        "ticket_invalid": "This sign-in has expired or was already used. Start again.",
+        "owner_link_required": "Owners are never linked by email. Sign in with your password, then link your account under Settings, Security.",
+        "link_email_mismatch": "The identity provider signed in someone else. Sign in there with your own account, then try again.",
+        "name_id_transient": "Your identity provider sent a one-time user ID. Ask your administrator to send the email address or a persistent ID."
+      }
     }
   },
   "home": {
@@ -5234,9 +5284,12 @@
       "newTenant": "New tenant"
     },
     "roles": {
-      "owner": "Owner",
-      "billing": "Billing",
-      "support": "Support"
+      "owner": "Platform owner",
+      "support": "Support",
+      "sales": "Sales",
+      "finance": "Finance",
+      "compliance": "Compliance",
+      "engineering": "Engineering"
     },
     "fields": {
       "email": "Email",
@@ -12008,6 +12061,346 @@
       "noOrders": "No orders yet."
     }
   },
+  "admin": {
+    "any": "Any",
+    "close": "Close",
+    "reason": "Reason",
+    "reasonHelp": "Say why, in 10 to 500 characters. It is recorded and shown to the tenant’s Owners.",
+    "countries": {
+      "KE": "Kenya",
+      "CD": "DR Congo"
+    },
+    "units": {
+      "outlet": "Outlets",
+      "device": "POS devices",
+      "user": "Users",
+      "employee": "Employees"
+    },
+    "nav": {
+      "support": "Support",
+      "packs": "Country packs",
+      "reports": "Reports",
+      "staff": "Staff"
+    },
+    "tenants": {
+      "search": "Search tenants",
+      "nameOrSlug": "Name or subdomain",
+      "ownerEmail": "Owner email",
+      "planKey": "Plan",
+      "planKeyHelp": "A bundle key, such as starter",
+      "moduleKey": "Module",
+      "moduleKeyHelp": "A module key, such as payroll",
+      "clear": "Clear filters",
+      "searchButton": "Search",
+      "status": "Account",
+      "statuses": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "closed": "Closed"
+      },
+      "modules": "Modules on",
+      "modulesAndUsage": "Modules and usage",
+      "usageOf_one": "{{count}} of {{allowed}}",
+      "usageOf_other": "{{count}} of {{allowed}}",
+      "usageUnlimited_one": "{{count}}, no limit",
+      "usageUnlimited_other": "{{count}}, no limit",
+      "health": "Health",
+      "healthHelp": "Counts and times only. Nothing of the business is shown without support access.",
+      "lastActivity": "Last activity",
+      "never": "Never",
+      "devices": "Active POS devices",
+      "syncLag": "Oldest device contact",
+      "noDevices": "No devices",
+      "lagHours_one": "{{count}} hour ago",
+      "lagHours_other": "{{count}} hours ago",
+      "failedJobs": "Failed jobs",
+      "postingExceptions": "Open posting exceptions",
+      "suspend": "Suspend",
+      "suspendTitle": "Suspend this tenant",
+      "suspendText": "Changes are refused and the tills stop selling. The Owners can still sign in, see and export their data, and pay. They are told why.",
+      "reactivate": "Reactivate",
+      "reactivateTitle": "Reactivate this tenant",
+      "reactivateText": "The account works again as before the suspension. The Owners are told.",
+      "ownerEmailHelp": "Exact address. Searches are recorded."
+    },
+    "deals": {
+      "title": "Enterprise deals",
+      "description": "A negotiated monthly price for this tenant only. Sales or finance draft it, and someone else in finance approves it.",
+      "draft": "Draft a deal",
+      "draftTitle": "Draft an Enterprise deal",
+      "draftText": "The price replaces the catalogue’s for this item, from the first day, until the last day if you give one.",
+      "itemType": "Item",
+      "types": {
+        "bundle": "Bundle",
+        "module": "Module"
+      },
+      "itemKey": "Catalogue key",
+      "itemKeyHelp": "For example enterprise, business or payroll",
+      "monthlyPrice": "Monthly price",
+      "extraOutlet": "Extra outlet, monthly",
+      "from": "First day",
+      "to": "Last day",
+      "toHelp": "Leave empty for no end",
+      "submit": "Send for approval",
+      "lines": "Items",
+      "price": "Monthly price",
+      "period": "In force",
+      "openEnded": "no end",
+      "status": "Status",
+      "statuses": {
+        "pending": "Waiting for approval",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "ended": "Ended"
+      },
+      "draftedBy": "Drafted by",
+      "approve": "Approve",
+      "reject": "Reject",
+      "end": "End deal",
+      "empty": "No deals for this tenant."
+    },
+    "support": {
+      "title": "Support access",
+      "description": "Your requests to see a tenant. Nothing opens until the tenant approves, and it ends on its own.",
+      "askTitle": "Ask for support access",
+      "askText": "The tenant’s Owners and Admins decide. Every request you make in the session is shown to them.",
+      "askDialogText": "Say what you need to look at. The tenant can narrow it to read-only, and payroll, HR and payment data stay hidden unless they include them.",
+      "ask": "Ask for access",
+      "send": "Send request",
+      "mode": "Access",
+      "modes": {
+        "read": "Read-only",
+        "write": "Read and write"
+      },
+      "hours": "Hours",
+      "hoursHelp": "1 to 72 hours, counted from the approval",
+      "tenant": "Tenant",
+      "staff": "Asked by",
+      "sensitive": "Sensitive data",
+      "included": "Included",
+      "hidden": "Hidden",
+      "status": "Status",
+      "statuses": {
+        "pending": "Waiting for the tenant",
+        "approved": "Approved",
+        "denied": "Denied",
+        "cancelled": "Cancelled",
+        "revoked": "Revoked",
+        "expired": "Expired",
+        "ended": "Ended"
+      },
+      "until": "Ends",
+      "hoursAsked_one": "{{count}} hour asked",
+      "hoursAsked_other": "{{count}} hours asked",
+      "open": "Open session",
+      "end": "End access",
+      "cancel": "Cancel request",
+      "empty": "No support requests yet."
+    },
+    "packs": {
+      "title": "Country packs",
+      "description": "Tax, payroll, HR, holidays, fixed asset classes and charts of accounts. A release is checked, approved by a second person and published by a third role, then used from its date.",
+      "load": "Load a release",
+      "loadTitle": "Load a pack release",
+      "loadText": "Start from the shipped file, enter only figures confirmed from an official source, and mark them confirmed. Add the legal reference to the sources.",
+      "country": "Country",
+      "kind": "Pack",
+      "kinds": {
+        "tax": "Taxes",
+        "payroll": "Payroll",
+        "hr": "HR and leave",
+        "holidays": "Public holidays",
+        "fixed_assets": "Fixed asset tax classes",
+        "accounts": "Chart of accounts"
+      },
+      "file": "JSON file",
+      "document": "Document",
+      "documentHelp": "Paste the JSON, or choose a file above",
+      "notes": "Notes",
+      "notJson": "This isn’t valid JSON. Check the brackets and quotes, then try again.",
+      "validate": "Check and save draft",
+      "releases": "Releases",
+      "inForce": "In force today",
+      "pack": "Pack",
+      "version": "Version",
+      "effectiveFrom": "From",
+      "status": "Status",
+      "statuses": {
+        "draft": "Draft",
+        "approved": "Approved",
+        "published": "Published",
+        "rejected": "Rejected"
+      },
+      "checks": "Checks",
+      "errorCount_one": "{{count}} error",
+      "errorCount_other": "{{count}} errors",
+      "warningCount_one": "{{count}} to confirm",
+      "warningCount_other": "{{count}} to confirm",
+      "loadedBy": "Loaded by",
+      "source": "Source",
+      "sources": {
+        "shipped": "Shipped file",
+        "none": "None"
+      },
+      "sourceRelease": "Release {{version}}",
+      "empty": "No releases yet.",
+      "releaseTitle": "{{pack}}, release {{version}}",
+      "fromDate": "In force from {{date}}",
+      "people": "Loaded by {{loaded}} · approved by {{approved}} · published by {{published}}",
+      "errors": "Errors",
+      "noErrors": "No errors. It can be approved.",
+      "warnings": "Still to confirm",
+      "diff": "Changes",
+      "againstRelease": "Compared with release {{version}}",
+      "againstShipped": "Compared with the shipped file",
+      "added_one": "{{count}} added",
+      "added_other": "{{count}} added",
+      "changed_one": "{{count}} changed",
+      "changed_other": "{{count}} changed",
+      "removed_one": "{{count}} removed",
+      "removed_other": "{{count}} removed",
+      "approve": "Approve",
+      "publish": "Publish",
+      "reject": "Reject",
+      "supersede": "Put back the previous release"
+    },
+    "reports": {
+      "title": "Reports",
+      "description": "Revenue and usage of the platform, per currency. KES and USD are never added up.",
+      "from": "From",
+      "to": "To",
+      "show": "Show",
+      "mrr": "MRR, {{currency}}",
+      "mrrNone": "MRR",
+      "trialsStarted": "Trials started",
+      "trialsConverted": "Trials converted",
+      "convertedRate_one": "{{count}} · {{rate}} %",
+      "convertedRate_other": "{{count}} · {{rate}} %",
+      "churned": "Churned accounts",
+      "churnRate_one": "{{count}} · {{rate}} %",
+      "churnRate_other": "{{count}} · {{rate}} %",
+      "mrrByPlan": "MRR by plan",
+      "mrrByCountry": "MRR by country",
+      "mrrByModule": "MRR by module",
+      "revenueByCountry": "Revenue by country",
+      "revenueByModule": "Revenue by module",
+      "revenueByPlan": "Revenue by plan",
+      "usage": "Usage across tenants",
+      "plan": "Plan",
+      "country": "Country",
+      "module": "Module",
+      "amount": "Amount",
+      "unit": "Unit",
+      "tenants": "Tenants",
+      "total": "Total",
+      "empty": "Nothing in this range.",
+      "downloads": "Download as CSV",
+      "csv": {
+        "mrr": "MRR",
+        "revenue": "Revenue",
+        "trials": "Trials",
+        "churn": "Churn",
+        "usage": "Usage"
+      }
+    },
+    "staff": {
+      "title": "Staff",
+      "description": "Our team’s accounts and roles. Two-factor sign-in is required for everyone.",
+      "invite": "Invite staff",
+      "inviteTitle": "Invite a staff member",
+      "sendInvite": "Create account",
+      "invited": "Account created. Send this one-time link; it works for {{hours}} hours.",
+      "setupLink": "Setup link",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "roleOf": "Role of {{name}}",
+      "status": "Status",
+      "statuses": {
+        "active": "Active",
+        "pending": "Setting up",
+        "deactivated": "Deactivated"
+      },
+      "lastSignIn": "Last sign-in",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate"
+    }
+  },
+  "supportAccess": {
+    "title": "Support access",
+    "description": "Our support team sees nothing of your business unless you approve a request. Approve it for the hours asked, revoke it at any time, and see everything the session did.",
+    "cardText": "Requests from our support team, open sessions and what they did.",
+    "open": "Open support access",
+    "pendingTitle": "Requests waiting for you",
+    "pendingEmpty": "No requests waiting.",
+    "requestTitle": "{{name}} asks for access",
+    "requestMeta_one": "{{mode}} · {{count}} hour · asked {{date}}",
+    "requestMeta_other": "{{mode}} · {{count}} hours · asked {{date}}",
+    "approve": "Review and approve",
+    "deny": "Deny",
+    "approveTitle": "Approve access for {{name}}",
+    "approveFor_one": "Approve for {{count}} hour",
+    "approveFor_other": "Approve for {{count}} hours",
+    "includeSensitive": "Include payroll, HR and payment data",
+    "includeSensitiveHelp": "Off unless you tick it. Pay, bank details, medical and disciplinary records, payments and payment methods stay hidden otherwise.",
+    "activeTitle": "Open now",
+    "activeText": "Support sessions that can run now. Revoking one ends it at once.",
+    "activeEmpty": "No support access is open.",
+    "activeLine": "{{mode}} · until {{until}} · {{sensitive}}",
+    "sensitiveIncluded": "sensitive data included",
+    "sensitiveHidden": "sensitive data hidden",
+    "revoke": "Revoke",
+    "activity": "See activity",
+    "activityTitle": "What {{name}} did",
+    "activityEmpty": "Nothing yet.",
+    "historyTitle": "History",
+    "historyEmpty": "No support requests yet.",
+    "columns": {
+      "staff": "From",
+      "reason": "Reason",
+      "mode": "Access",
+      "status": "Status",
+      "requested": "Asked",
+      "requests": "Requests",
+      "when": "When",
+      "what": "What",
+      "result": "Result"
+    },
+    "modes": {
+      "read": "Read-only",
+      "write": "Read and write"
+    },
+    "statuses": {
+      "pending": "Waiting",
+      "approved": "Approved",
+      "denied": "Denied",
+      "cancelled": "Cancelled",
+      "revoked": "Revoked",
+      "expired": "Expired",
+      "ended": "Ended"
+    },
+    "actions": {
+      "create": "Request made",
+      "update": "Request updated",
+      "start": "Session opened",
+      "request": "Request in the session"
+    },
+    "active": {
+      "label": "Support access active",
+      "text": "{{names}} from our support team can see your account until {{until}}.",
+      "manage": "Review or revoke"
+    },
+    "session": {
+      "label": "Support session",
+      "text": "{{mode}} access to this account, as allowed by its Owner, until {{until}}. Every request is logged.",
+      "end": "End session"
+    },
+    "enter": {
+      "title": "Support session",
+      "opening": "Opening the support session…",
+      "missing": "This link has no session code. Open the session again from the console."
+    }
+  },
   "webhooks": {
     "title": "Webhooks",
     "description": "Send events to your other systems as they happen, signed so they can check each one came from here.",
@@ -12200,6 +12593,389 @@
       "data": "Only ids and a few documented fields, never contact details or secrets, and only records the webhook’s user may see. A versioned type (.v1) never changes shape: a new version is added instead.",
       "catalogueTitle": "Events you can subscribe to",
       "fields": "Fields"
+    }
+  },
+  "apiKeys": {
+    "title": "API keys",
+    "description": "Keys let your other systems use the public API. Each key acts with one role at one place, and its scopes narrow it further.",
+    "portal": "Developer portal",
+    "empty": "No API keys yet. Create one to connect another system.",
+    "noRole": "No role (revoked)",
+    "neverUsed": "Never used",
+    "overlapUntil": "Previous secret works until {{when}}",
+    "expiresOn": "Expires {{when}}",
+    "scopeCount_one": "{{count}} scope",
+    "scopeCount_other": "{{count}} scopes",
+    "fields": {
+      "name": "Name",
+      "status": "Status",
+      "role": "Role and place",
+      "scopes": "Scopes",
+      "lastUsed": "Last used",
+      "actions": "Actions",
+      "expires": "Expires on"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    },
+    "create": {
+      "action": "Create key",
+      "title": "Create an API key",
+      "submit": "Create key",
+      "nameHelp": "Name it after the system that uses it, such as Accounting sync.",
+      "expiresHelp": "Optional. Leave empty for a key that does not expire.",
+      "roleText": "The key can do only what this role allows at this place. An Owner role can’t be given to a key."
+    },
+    "scopes": {
+      "legend": "Scopes",
+      "help_one": "{{count}} scope chosen. Read and write includes read.",
+      "help_other": "{{count}} scopes chosen. Read and write includes read.",
+      "search": "Find a resource",
+      "none": "No resource matches.",
+      "levels": {
+        "none": "No access",
+        "read": "Read",
+        "write": "Read and write"
+      }
+    },
+    "secret": {
+      "title": "Copy your API key",
+      "once": "This is the only time the key is shown. Store it in your system’s secret store now.",
+      "copy": "Copy key",
+      "copied": "Copied",
+      "done": "I have stored the key"
+    },
+    "rotate": {
+      "action": "Rotate",
+      "for": "Rotate {{name}}",
+      "title": "Rotate {{name}}",
+      "body": "A new secret replaces the current one. Keep the previous secret working for a while, so you can update your systems without downtime.",
+      "overlap": "Previous secret keeps working for",
+      "hours_one": "{{count}} hour",
+      "hours_other": "{{count}} hours",
+      "confirm": "Rotate key"
+    },
+    "revoke": {
+      "action": "Revoke",
+      "for": "Revoke {{name}}",
+      "title": "Revoke {{name}}?",
+      "body": "Systems using this key stop working at once. Revoking can’t be undone; create a new key if you need one again.",
+      "confirm": "Revoke key"
+    },
+    "usage": {
+      "title": "Requests per day",
+      "total_one": "{{total}} request in the last 30 days",
+      "total_other": "{{total}} requests in the last 30 days",
+      "key": "Key",
+      "allKeys": "All keys",
+      "requests": "Requests"
+    },
+    "sandbox": {
+      "title": "Developer sandbox",
+      "text": "This organisation is a sandbox: keys start with sk_test_, payments and tax submissions are simulated, and it is never billed.",
+      "reset": "Reset sample data",
+      "done": "The sandbox has fresh sample data.",
+      "confirmTitle": "Reset the sandbox?",
+      "confirmBody": "Every item, category, price list and contact is archived, then new sample data is loaded. Documents such as sales keep their history.",
+      "confirm": "Reset sandbox"
+    },
+    "outbox": {
+      "title": "Sandbox outbox",
+      "text": "A sandbox sends no email, SMS or WhatsApp. What it would have sent is kept here.",
+      "empty": "Nothing sent yet.",
+      "to": "{{channel}} to {{recipient}}",
+      "channels": {
+        "email": "Email",
+        "sms": "SMS",
+        "whatsapp": "WhatsApp",
+        "push": "Push"
+      }
+    }
+  },
+  "developers": {
+    "brand": "{{name}} developers",
+    "example": "Example",
+    "nav": {
+      "label": "Developer portal",
+      "overview": "Overview",
+      "guides": "Guides",
+      "more": "Reference",
+      "reference": "API reference",
+      "errors": "Error codes",
+      "changelog": "Changelog",
+      "keys": "Your API keys",
+      "signIn": "Sign in"
+    },
+    "home": {
+      "title": "Build on the public API",
+      "description": "Read and write your organisation’s data in {{name}} from your own systems, with the same permissions as the app.",
+      "quickstart": {
+        "title": "Quick start",
+        "step1": "Create a developer sandbox, or sign in to your organisation.",
+        "step2": "In Settings, API keys, create a key with a role and the scopes your system needs.",
+        "step3": "Send the key as a bearer token to any endpoint in the API reference."
+      },
+      "sandbox": "Create a developer sandbox",
+      "reference": "Open the API reference"
+    },
+    "guides": {
+      "authentication": {
+        "title": "Authentication",
+        "summary": "API keys, how to send them, rotation and revocation.",
+        "p1": "An Owner, or anyone with the API keys permission, creates keys in Settings, API keys. Each key acts as its own service account: it holds one role at one place, a company, a branch, a location or the whole organisation, and can never do more than that role allows there.",
+        "p2": "Send the key in the Authorization header as a bearer token on every request. Keys start with sk_live_ for a live organisation and sk_test_ for a sandbox. Use Accept-Language to choose English or French messages.",
+        "p3": "The key is shown once, when it is created or rotated. Rotating keeps the previous secret working for the overlap you choose, so you can update your systems first. Revoking stops the key at once."
+      },
+      "scopes": {
+        "title": "Scopes",
+        "summary": "Narrow what a key can reach, resource by resource.",
+        "p1": "Scopes name a resource and an access level: read, or read and write. A key needs the scope of each endpoint it calls, and every permission check in the request also needs the scope of its resource.",
+        "p2": "Scopes never add to the key’s role. A key with the items write scope still can’t archive items if its role can’t, and it sees only the companies, branches and locations its role reaches.",
+        "p3": "Keys can’t be used to sign in, manage accounts, keys or roles, pay invoices or reach devices: those endpoints refuse them with api_key_route_refused."
+      },
+      "pagination": {
+        "title": "Pagination and filters",
+        "summary": "Pages, sorting, search and filters on every list.",
+        "p1": "Lists take page and per_page (1 to 200, 50 by default). The answer has data, links to the first, last, previous and next pages, and meta with the total.",
+        "p2": "Sort with sort=key or sort=-key for descending, from the keys each list documents; ties are broken by id, so pages are stable. Search with search, and filter with each list’s own parameters.",
+        "p3": "Fields your role can’t see are left out of answers, and sorting or filtering on them is refused."
+      },
+      "errors": {
+        "title": "Errors",
+        "summary": "One error shape, with a stable code to branch on.",
+        "p1": "Every error answers JSON with a translated message and a stable code. For API keys the same body is application/problem+json, with type, title, status and detail. Branch on code, never on the message.",
+        "p2": "Validation errors add errors, the messages per field. The codes you may receive are listed below."
+      },
+      "idempotency": {
+        "title": "Idempotency",
+        "summary": "Retry a POST safely with an Idempotency-Key.",
+        "p1": "Send an Idempotency-Key header with a POST, a value unique to the operation such as an order number. The first response is kept for 24 hours.",
+        "p2": "Sending the same key and body again returns that response with Idempotent-Replayed: true, without doing the work twice. The same key with another body is refused with idempotency_mismatch.",
+        "p3": "While the first request runs, a retry answers idempotency_in_progress. A server error is not kept, so you can retry it."
+      },
+      "rateLimits": {
+        "title": "Rate limits",
+        "summary": "Requests a minute, per key and per organisation.",
+        "p1": "Each key has its own limit of requests a minute, and the organisation has a limit across all its keys, set by its plan.",
+        "p2": "Every answer carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset, the seconds until the window resets.",
+        "p3": "Over a limit, the API answers 429 with rate_limited and Retry-After. Wait that many seconds before sending again."
+      },
+      "versioning": {
+        "title": "Versions and deprecation",
+        "summary": "What may change in v1, and how removals are announced.",
+        "p1": "The version is in the path, /api/v1. Changes in v1 only add: new endpoints, new optional parameters and new fields. Ignore fields you don’t know.",
+        "p2": "Before an endpoint is removed it is marked deprecated: its answers carry Deprecation, Sunset (the removal date, at least six months later) and a Link to the changelog.",
+        "p3": "The changelog lists every change and every endpoint announced for removal."
+      },
+      "sandbox": {
+        "title": "Sandbox",
+        "summary": "A free test organisation with sample data.",
+        "p1": "Create a developer sandbox from this portal. It has every module on and sample items, prices and customers, and it is never billed or limited by a plan.",
+        "p2": "Sandbox keys start with sk_test_ and work only on the sandbox; live keys never reach it. Payments and tax submissions use simulated providers, so nothing reaches a real wallet or tax authority.",
+        "p3": "Reset the sandbox from Settings, API keys to archive its data and load fresh sample data."
+      },
+      "webhooks": {
+        "title": "Webhooks",
+        "summary": "Events sent to your systems as they happen.",
+        "p1": "Webhooks send signed events, such as a completed sale or a document moving to another stage, to a URL you choose, with retries and a delivery log.",
+        "p2": "Set them up in Settings, Webhooks: choose the events, copy the signing secret once, and check each request’s signature and timestamp before you trust it."
+      }
+    },
+    "errorCodes": {
+      "unauthenticated": "No key, or the key is wrong, revoked or expired.",
+      "forbidden": "The key’s role doesn’t allow this here.",
+      "not_found": "Nothing with this id in your organisation, or out of the key’s reach.",
+      "validation_failed": "Some fields are not valid; see errors.",
+      "field_readonly": "A field your role can’t change was sent; leave it out.",
+      "module_inactive": "The module isn’t active for the organisation.",
+      "api_key_route_refused": "This endpoint doesn’t accept API keys.",
+      "api_scope_missing": "The key lacks the scope named in scope.",
+      "rate_limited": "Too many requests; wait for Retry-After.",
+      "idempotency_key_invalid": "The Idempotency-Key header is not valid.",
+      "idempotency_mismatch": "The Idempotency-Key was used for another request.",
+      "idempotency_in_progress": "A request with this Idempotency-Key is still running.",
+      "subscription_overdue": "The organisation’s subscription is overdue; writes are paused.",
+      "server_error": "Something went wrong on our side; retry later."
+    },
+    "reference": {
+      "title": "API reference",
+      "description": "Every public endpoint, its parameters and its answers.",
+      "base": "Base URL",
+      "version": "Version {{version}}",
+      "download": "Download the OpenAPI document",
+      "search": "Find an endpoint",
+      "none": "No endpoint matches.",
+      "scope": "Needs the scope",
+      "deprecated": "Deprecated",
+      "parameters": "Parameters",
+      "body": "Request body",
+      "response": "Response {{status}}",
+      "statuses": "Status codes",
+      "errorsLink": "What error codes mean",
+      "field": "Field",
+      "type": "Type",
+      "notes": "Description",
+      "required": "required"
+    },
+    "changelog": {
+      "title": "Changelog",
+      "description": "What changed in the public API, newest first.",
+      "deprecated": "Announced for removal",
+      "noDeprecations": "Nothing is announced for removal.",
+      "sunset": "Removed on {{date}}",
+      "entries": {
+        "v1-launch": {
+          "keys": "The public API v1: API keys with roles and scopes, rate limits, idempotent POSTs and problem JSON errors.",
+          "reference": "The API reference and these guides, in English and French.",
+          "sandbox": "Developer sandboxes with sample data and test keys."
+        }
+      }
+    }
+  },
+  "sso": {
+    "title": "Single sign-on",
+    "description": "Let your team sign in with Microsoft Entra ID, Google Workspace or another SAML identity provider.",
+    "securityCard": {
+      "title": "Single sign-on",
+      "text": "Connections to your identity provider, your email domains and who must use them.",
+      "open": "Set up single sign-on"
+    },
+    "domains": {
+      "title": "Email domains",
+      "text": "Only addresses at a verified domain sign in with your connections. Prove each domain with a DNS record.",
+      "label": "Email domain",
+      "help": "For example company.co.ke",
+      "add": "Add domain",
+      "empty": "No email domains yet. Add the domain of your team’s email addresses.",
+      "pendingText": "Add this TXT record at your DNS provider, then check the domain.",
+      "failedText": "This domain could not be verified. Check the record, then check again.",
+      "verifiedText": "Verified {{when}}.",
+      "check": "Check now",
+      "checkFor": "Check {{domain}} now",
+      "remove": "Remove",
+      "removeFor": "Remove {{domain}}",
+      "removeTitle": "Remove {{domain}}?",
+      "removeBody": "People with addresses at this domain can no longer sign in with single sign-on. Their accounts stay.",
+      "removeConfirm": "Remove domain",
+      "status": {
+        "pending": "Waiting for DNS",
+        "verified": "Verified",
+        "failed": "Not verified"
+      },
+      "failure": {
+        "record_missing": "The record was not found yet.",
+        "lookup_failed": "The DNS lookup failed. It will be tried again.",
+        "claimed_elsewhere": "Another organisation verified this domain first.",
+        "record_removed": "The record was removed, so the domain stopped working."
+      },
+      "checkedAt": "Checked {{when}}.",
+      "record": {
+        "type": "Type",
+        "name": "Name",
+        "value": "Value"
+      }
+    },
+    "connections": {
+      "title": "Connections",
+      "text": "Register this app with your identity provider, then add the connection here and test it.",
+      "add": "Add connection",
+      "empty": "No connections yet.",
+      "provider": {
+        "entra": "Microsoft Entra ID",
+        "google": "Google Workspace",
+        "saml": "SAML 2.0"
+      },
+      "enabled": "Enabled",
+      "disabled": "Not enabled",
+      "test": "Test connection",
+      "testFor": "Test {{name}}",
+      "enable": "Enable",
+      "enableFor": "Enable {{name}}",
+      "disable": "Disable",
+      "disableFor": "Disable {{name}}",
+      "edit": "Edit",
+      "editFor": "Edit {{name}}",
+      "remove": "Remove",
+      "removeFor": "Remove {{name}}",
+      "removeTitle": "Remove {{name}}?",
+      "removeBody": "People who sign in with this connection will need another way in.",
+      "removeConfirm": "Remove connection",
+      "untested": "Not tested yet. Test it before you enable it.",
+      "testOk": "Test passed {{when}} as {{email}}.",
+      "testFailed": "Last test failed {{when}}: {{reason}}",
+      "testMfa": "The identity provider confirmed multi-factor authentication.",
+      "testNoMfa": "No multi-factor authentication was confirmed, so the app’s two-step sign-in still applies.",
+      "testAction": {
+        "linked": "Signs in the user already linked to this address.",
+        "link": "Links this address to its existing user on first sign-in.",
+        "invitation": "Accepts the open invitation for this address.",
+        "provision": "Creates an account with the default role.",
+        "owner_link": "This is an Owner: they link their account themselves under Settings, Security."
+      },
+      "register": "Values for your identity provider",
+      "redirectUri": "Redirect URI",
+      "entityId": "Identifier (entity ID)",
+      "acsUrl": "Reply URL (ACS)"
+    },
+    "form": {
+      "addTitle": "Add a connection",
+      "editTitle": "Edit {{name}}",
+      "provider": "Identity provider",
+      "name": "Name",
+      "nameHelp": "Shown on the sign-in page when there is more than one connection.",
+      "clientId": "Application (client) ID",
+      "clientSecret": "Client secret",
+      "clientSecretHelp": "Stored encrypted and never shown again.",
+      "clientSecretKeep": "A secret is saved. Leave this empty to keep it.",
+      "directoryId": "Directory (tenant) ID",
+      "directoryIdHelp": "The GUID of your Entra directory. Shared endpoints such as common are not accepted.",
+      "hostedDomain": "Workspace domain",
+      "hostedDomainHelp": "Optional. Only accounts of this Google Workspace domain can sign in.",
+      "metadataUrl": "Metadata URL",
+      "metadataUrlHelp": "An https address of your identity provider’s federation metadata.",
+      "metadataXml": "Or paste the metadata XML",
+      "manual": "Or enter the values yourself",
+      "idpEntityId": "Identity provider entity ID",
+      "idpSsoUrl": "Identity provider sign-in URL",
+      "certificate": "Signing certificate",
+      "certificateHelp": "Paste the certificate, including its BEGIN and END lines.",
+      "save": "Save connection"
+    },
+    "rules": {
+      "title": "Sign-in rules",
+      "enforce": "Require single sign-on",
+      "enforceHelp": "People with addresses at your verified domains can no longer sign in with a password, and nobody can create a new account with one. Owners keep their password and two-step sign-in in case your identity provider is down.",
+      "jit": "Create accounts on first sign-in",
+      "jitHelp": "Someone with no account or invitation gets one with the default role below. When this is off, only existing users and invited people can sign in.",
+      "defaultRole": "Default role for new accounts",
+      "save": "Save sign-in rules",
+      "saved": "Sign-in rules saved."
+    },
+    "test": {
+      "ok": "The test sign-in worked. Check the result below, then enable the connection.",
+      "failed": "The test sign-in failed. The reason is shown on the connection."
+    },
+    "myLinks": {
+      "title": "Single sign-on for your account",
+      "text": "Link your account to your organisation’s identity provider. Owners link their account here; they are never linked by email.",
+      "empty": "Your account is not linked yet.",
+      "link": "Link my account with {{name}}",
+      "linked": "Linked as {{email}} with {{name}}.",
+      "unlink": "Unlink",
+      "unlinkFor": "Unlink {{name}}",
+      "done": "Your account is linked. Next time, sign in with Continue with SSO.",
+      "failed": "Your account was not linked."
+    },
+    "userLinks": {
+      "title": "Single sign-on links",
+      "text": "Identity provider accounts this user signs in with. Unlinking stops that sign-in; the user can link again by signing in.",
+      "empty": "No single sign-on links.",
+      "linked": "{{email}} with {{name}}",
+      "lastUsed": "Last used {{when}}.",
+      "unlink": "Unlink",
+      "unlinkFor": "Unlink {{email}}"
     }
   },
   "packs": {

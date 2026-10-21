@@ -238,7 +238,7 @@ class AssetsImporter extends Importer
         }
 
         $asset->fill(['archived_at' => CarbonImmutable::now(), 'archived_by' => $context->user->id, 'archive_reason' => __('fixed_assets.imports.undone')])->save();
-        app(History::class)->record($asset, 'cancelled', CarbonImmutable::now(), note: __('fixed_assets.imports.undone'), by: $context->user);
+        app(History::class)->record($asset, 'cancelled', null, note: __('fixed_assets.imports.undone'), by: $context->user);
     }
 
     public function companiesOf(array $ids): array

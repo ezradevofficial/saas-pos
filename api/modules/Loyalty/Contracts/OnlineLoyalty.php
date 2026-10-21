@@ -259,7 +259,7 @@ final class OnlineLoyalty
     {
         $card = GiftCard::query()->where('code_hash', GiftCards::hash($code))->where('company_id', $companyId)->first();
 
-        if ($card === null || $card->status !== GiftCard::ACTIVE || $card->currency !== $currency || $card->isExpired(CarbonImmutable::now()->format('Y-m-d'))) {
+        if ($card === null || $card->status !== GiftCard::ACTIVE || $card->currency !== $currency || $card->isExpired()) {
             return null;
         }
 

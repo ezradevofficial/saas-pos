@@ -2,8 +2,11 @@
 
 namespace App\Core\Billing\Http;
 
+use App\Core\Api\Sandbox\Sandbox;
+use App\Core\Api\Sandbox\SandboxCaps;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Http\ApiException;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Closure;
@@ -38,6 +41,11 @@ use Symfony\Component\HttpFoundation\Response;
  *   `subscription_pos_stopped` and the till shows why.
  *
  * Everything else is refused, including new records and settings.
+ *
+ * ADM-01c (owner decision 2026-10-17): a tenant suspended by platform
+ * staff answers 403 `tenant_suspended` to every write except billing,
+ * the user's own account, the data export, approvals and payroll (runs,
+ * corrections, cancellation and statutory returns). Tills stop.
  */
 class EnforceSubscription
 {
@@ -104,6 +112,12 @@ class EnforceSubscription
         'POST pos/override' => self::DEVICE,
         'POST sync/device-secret/rotate' => self::DEVICE,
         'POST sync/device-secret/activate' => self::DEVICE,
+        // RBAC-13: deciding on support access, and a support session ending itself
+        // (support may be what an unpaid or suspended tenant needs).
+        'POST support-access/{support_access_grant}/approve' => self::ACCOUNT,
+        'POST support-access/{support_access_grant}/deny' => self::ACCOUNT,
+        'POST support-access/{support_access_grant}/revoke' => self::ACCOUNT,
+        'POST support-session/end' => self::ACCOUNT,
         'POST tenant-exports' => self::EXPORT,
         'POST tenant-exports/{tenant_export}/link' => self::EXPORT,
         'POST pos/number-ranges' => self::POS_UPLOAD,
@@ -119,17 +133,44 @@ class EnforceSubscription
         'POST hr/device/punches' => self::POS_UPLOAD,
     ];
 
-    public function __construct(private readonly TenantContext $tenants) {}
+    /** API-05: writes that would start billing, refused in a developer sandbox (ADR 020). */
+    public const SANDBOX_REFUSED = ['PUT onboarding/modules'];
+
+    public function __construct(
+        private readonly TenantContext $tenants,
+        private readonly Sandbox $sandbox,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
         $class = self::classify($request->method(), $request->route());
+
+        if ($this->startsBilling($request, $class) && $this->sandbox->active()) {
+            throw new ApiException(403, 'sandbox_not_billed', __('api.errors.sandbox_not_billed'));
+        }
+
+        // API-05 (review): a sandbox's creations are capped (SandboxCaps).
+        if ($request->isMethod('POST') && $this->tenants->id() !== null && ! self::sandboxCapExempt($request) && $this->sandbox->active()) {
+            app(SandboxCaps::class)->assertCanCreateRecord();
+        }
 
         if ($class === self::ALLOWED || $this->tenants->id() === null) {
             return $next($request);
         }
 
         $subscription = Subscription::query()->first(['id', 'status', 'pos_stops_at']);
+
+        // ADM-01c (owner decision 2026-10-17): a tenant suspended by platform staff keeps its
+        // billing, its own account, the data export, approvals and payroll (runs, corrections,
+        // cancellation and statutory returns: PAY-28 and LIM-04's approvals rule hold);
+        // everything else, tills included, is refused.
+        if ($subscription?->status === Subscription::SUSPENDED || ($subscription === null && Tenant::query()->whereKey($this->tenants->id())->value('status') === 'suspended')) {
+            if (self::allowedWhileSuspended($class, $request->route())) {
+                return $next($request);
+            }
+
+            throw new ApiException(403, 'tenant_suspended', __('platform.tenants.suspended'));
+        }
 
         if ($subscription === null || ! $subscription->refusesWrites() || in_array($class, [self::BILLING, self::APPROVAL, self::ACCOUNT, self::EXPORT, self::DEVICE, self::STAFF], true)) {
             return $next($request);
@@ -144,6 +185,40 @@ class EnforceSubscription
         }
 
         throw new ApiException(402, 'subscription_overdue', __('billing.read_only.message'));
+    }
+
+    /** Writes that are not new records: the account, keys, the sandbox's own reset, onboarding. */
+    private static function sandboxCapExempt(Request $request): bool
+    {
+        $uri = preg_replace('#^api/v1/#', '', (string) $request->route()?->uri());
+
+        foreach (['auth/', 'me', 'api-keys', 'sandbox/', 'onboarding', 'subscription'] as $prefix) {
+            if (str_starts_with($uri, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** A subscription write, or choosing modules (which starts a trial). */
+    private function startsBilling(Request $request, string $class): bool
+    {
+        $uri = preg_replace('#^api/v1/#', '', (string) $request->route()?->uri());
+
+        return $class === self::BILLING || in_array(strtoupper($request->method()).' '.$uri, self::SANDBOX_REFUSED, true);
+    }
+
+    /** ADM-01c: what a suspended tenant may still write (the read-only classes for billing, account, export, approvals and payroll). */
+    public static function allowedWhileSuspended(string $class, Route|string|null $route): bool
+    {
+        if (in_array($class, [self::ALLOWED, self::BILLING, self::ACCOUNT, self::EXPORT, self::APPROVAL], true)) {
+            return true;
+        }
+
+        $uri = preg_replace('#^api/v1/#', '', ltrim($route instanceof Route ? $route->uri() : (string) $route, '/'));
+
+        return $class === self::STAFF && str_starts_with($uri, 'payroll/');
     }
 
     /** How a request to $route with $method is treated in read-only mode. */

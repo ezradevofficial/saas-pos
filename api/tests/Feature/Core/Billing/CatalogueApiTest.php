@@ -133,7 +133,7 @@ class CatalogueApiTest extends TestCase
     public function test_roles_decide_who_reads_and_who_changes_the_catalogue(): void
     {
         $support = $this->staffBearer($this->staff(PlatformUser::ROLE_SUPPORT));
-        $billing = $this->staffBearer($this->staff(PlatformUser::ROLE_BILLING));
+        $billing = $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE));
         $coupon = ['code' => 'WELCOME20', 'kind' => 'percent', 'percent' => 20];
 
         foreach (['modules', 'bundles', 'prices', 'coupons', 'annual-discounts'] as $list) {

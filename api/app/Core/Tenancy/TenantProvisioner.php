@@ -31,7 +31,7 @@ class TenantProvisioner
     ) {}
 
     /** @return array{tenant: Tenant, company: Company} */
-    public function provision(string $tenantId, string $businessName, string $country, string $locale, bool $withSubdomain = false): array
+    public function provision(string $tenantId, string $businessName, string $country, string $locale, bool $withSubdomain = false, bool $sandbox = false): array
     {
         $defaults = self::COUNTRIES[$country];
 
@@ -39,6 +39,8 @@ class TenantProvisioner
             'id' => $tenantId,
             'name' => $businessName,
             'default_locale' => $locale,
+            // API-05: set once, here; a trigger refuses any later change (ADR 020).
+            'is_sandbox' => $sandbox,
         ]);
         // ONB-01: a self sign-up gets its subdomain once the owner verifies (no squatting).
         if ($withSubdomain) {

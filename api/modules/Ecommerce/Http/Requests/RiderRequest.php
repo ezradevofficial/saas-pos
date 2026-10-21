@@ -20,7 +20,7 @@ class RiderRequest extends FormRequest
 
         return [
             'company_id' => [...($create ? ['required'] : ['prohibited']), 'uuid', Rule::exists('companies', 'id')->whereNull('archived_at')],
-            'user_id' => [...($create ? ['required'] : ['prohibited']), 'uuid', Rule::exists('users', 'id')],
+            'user_id' => [...($create ? ['required'] : ['prohibited']), 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
             'employee_id' => ['sometimes', 'nullable', 'uuid'],
             'name' => [...($create ? ['sometimes'] : ['sometimes', 'required']), 'string', 'max:160'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:32'],

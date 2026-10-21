@@ -66,6 +66,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/auth/invitations/{token}' => 'the 40-character invitation token is the credential',
         'POST api/v1/auth/invitations/{token}/accept' => 'the 40-character invitation token is the credential',
         'POST api/v1/devices/pair' => 'the one-time pairing code is the credential',
+        'GET api/v1/developers/openapi.json' => 'API-04: the committed OpenAPI document of the public routes, the same for everyone; no tenant data; rate-limited per IP',
         'GET api/v1/media/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may view the item (MD-02)',
         'GET api/v1/custom-field-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record and the field (CF-01)',
         'GET api/v1/custom-form-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record (CF-04)',
@@ -75,12 +76,18 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
         'POST api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential (APR-08)',
         'GET api/v1/public/branding' => 'BR-04: the sign-in page\'s branding of a host, through a security-definer function that returns only public fields (name, look, welcome text, signed asset URLs), never ids or rows; rate-limited',
+        // AUTH-11, ADR 023: single sign-on before anyone is signed in (SsoAuthController); rate-limited per address.
+        'POST api/v1/auth/sso/start' => 'AUTH-11: answers only an IdP sign-in URL or the names of the enabled connections of the tenant whose verified email domain or host was named (security-definer lookups returning tenant ids only); never a row of a tenant',
+        'GET api/v1/auth/sso/oidc/callback' => 'AUTH-11: the single-use state (only its sha256 is a cache key) names the flow and its tenant; answers only a redirect with a ticket or an error code in the fragment',
+        'POST api/v1/auth/sso/saml/{connection}/acs' => 'AUTH-11: the single-use RelayState names the flow and its tenant; the connection in the path must be the flow\'s; answers only a redirect with a ticket or an error code',
+        'POST api/v1/auth/sso/complete' => 'AUTH-11: needs the single-use ticket and the browser binding secret of its flow; answers the signed-in user\'s own token, as a password sign-in does',
         'GET api/v1/tls/ask' => 'BR-05: answers only 200 or 404 for whether a host is a verified custom domain (Caddy on-demand TLS); "no" cached 60 s; reachable only from Caddy on the private interface',
         'GET api/v1/branding/assets/{path}' => 'BR-02: a signed URL for one public brand asset; the controller enters the tenant the path names and serves the file only if that tenant has it',
         'GET api/v1/tenant-exports/{export}/download' => 'EXP-02: temporary signed URL for one full export and its requesting Owner; the controller enters the signed tenant and serves the zip only to that user while they are an active Owner',
         'POST api/v1/payments/callbacks/{token}/{kind}' => 'a payment provider\'s callback: the 48-character callback token names one payment method (its tenant found by a security-definer function), the caller must be the provider\'s address, and it answers only "Accepted"',
         'GET api/v1/catalogue' => 'ONB-03: the global plan catalogue of a country (no tenant data, global tables); rate-limited',
         'POST api/v1/catalogue/quote' => 'ONB-03: prices a selection against the global catalogue; reads no tenant row; rate-limited',
+        'POST api/v1/auth/support-session' => 'RBAC-13c: a support session\'s one-time entry code (the tenant id and a 48-character secret, stored as sha256, valid 60 seconds, used once) is the credential; the tenant it names is entered and the code\'s hash looked up under its RLS; rate-limited (SupportAccessTest)',
         'POST api/v1/platform/auth/sign-in' => 'ADR 013: platform staff sign-in (platform_users, global); needs the email and password; rate-limited',
         'POST api/v1/platform/auth/two-factor' => 'ADR 013: needs the encrypted sign-in challenge and a TOTP code',
         'GET api/v1/platform/auth/setup/{token}' => 'ADR 013: the 48-character one-time setup token is the credential; answers only the staff member\'s name and email',
@@ -120,6 +127,8 @@ class TenantIsolationTest extends TestCase
      * TwoTenants, a row of that type in both tenants).
      */
     public const PARAMETERS = [
+        // RBAC-13: a support access request (pending) of each tenant.
+        'support_access_grant' => 'support_access_grant',
         'company' => 'company',
         'branch' => 'branch',
         'location' => 'location',
@@ -138,6 +147,7 @@ class TenantIsolationTest extends TestCase
         'uom' => 'uom',
         'item_image' => 'item_image',
         'item_price' => 'item_price', // MD-03 follow-up: item-prices/{item_price}/archive|restore
+        'api_key' => 'api_key', // API-02: api-keys/{api_key}
         'payment_method' => 'payment_method',
         'department' => 'department',
         'cost_centre' => 'cost_centre',
@@ -166,6 +176,9 @@ class TenantIsolationTest extends TestCase
         'webhook' => 'webhook', // HOOK-01: webhooks/{webhook}[/rotate-secret|test|archive]
         'webhook_delivery' => 'webhook_delivery', // HOOK-01: webhook-deliveries/{webhook_delivery}[/replay]
         'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
+        'sso_connection' => 'sso_connection', // AUTH-11: sso/connections/{sso_connection}[/enable|disable|archive|test]
+        'sso_domain' => 'sso_domain', // AUTH-11: sso/domains/{sso_domain}/check|archive
+        'sso_identity' => 'sso_identity', // AUTH-11: me/sso/identities/{sso_identity}/archive, users/{user}/sso-identities/{sso_identity}/archive
         'brand_asset' => 'brand_asset', // BR-02, LAY-05: sync/brand-assets/{brand_asset} (device), the tenant's logo
         'billing_invoice' => 'billing_invoice', // SUB-03: subscription/invoices/{billing_invoice}[/pdf|pay], the first invoice (the tenant's copy)
         'billing_payment' => 'billing_payment', // SUB-04: subscription/payments/{billing_payment}, an M-Pesa payment of that invoice
@@ -319,6 +332,11 @@ class TenantIsolationTest extends TestCase
      */
     public const REFERENCE_FIELDS = [
         'role_id' => 'role',
+        // AUTH-11: the JIT default role and its scope (PUT sso/settings).
+        'jit_role_id' => 'role',
+        'jit_scope_id' => 'company',
+        // AUTH-11: linking one's own account to an enabled connection (POST me/sso/link).
+        'connection_id' => 'sso_live_connection',
         'company_id' => 'company',
         'branch_id' => 'branch',
         'location_id' => 'location',
@@ -526,6 +544,9 @@ class TenantIsolationTest extends TestCase
         'tax_id' => "a company's tax registration number, free text",
         'sms_sender_id' => 'BR-06: the alphanumeric SMS sender name (3 to 11 letters), free text, never a row',
         'external_id' => 'HR-24: a biometric device\'s own event id, free text the device names; looked up only for that device under its tenant, never a reference to another row',
+        'client_id' => 'AUTH-11: an identity provider\'s OAuth client id, free text registered at the IdP, never a row',
+        'directory_id' => 'AUTH-11: an Entra ID directory (tenant) GUID at Microsoft, never a row',
+        'idp_entity_id' => 'AUTH-11: a SAML identity provider\'s entity id (a URI it names itself), free text, never a row',
         'session_id' => 'AUTH-07: a till sign-in session the device names itself (actor_proof); looked up only for that device under its tenant, never a reference to another row',
     ];
 
@@ -549,6 +570,8 @@ class TenantIsolationTest extends TestCase
         ['channel' => 'email', 'status' => 'all'],
         // AUTO-05: the run log's outcome filter (both tenants have a run that succeeded).
         ['outcome' => 'succeeded'],
+        // API-03: requests per day over 7 days (both tenants used their key).
+        ['days' => 7],
         // MD-03 follow-up: a price list's prices in force (both tenants priced their item).
         ['state' => 'current'],
 
@@ -596,7 +619,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'webhook'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook'];
 
     private TwoTenants $tenants;
 
@@ -1426,8 +1449,15 @@ class TenantIsolationTest extends TestCase
         $uri = '/'.$route->uri();
 
         if ($platform) {
-            // Platform ids are catalogue rows, never tenant rows: any UUID will do.
-            return preg_replace('/\{[a-z_]+\??\}/', '00000000-0000-7000-8000-000000000000', $uri);
+            // Platform ids are catalogue rows, never tenant rows: any UUID will do,
+            // or the first allowed value of a constrained parameter (ADM-07 reports).
+            foreach ($route->parameterNames() as $name) {
+                $where = $route->wheres[$name] ?? '';
+                $value = preg_match('/^[a-z0-9_-]+(\|[a-z0-9_-]+)*$/', $where) ? explode('|', $where)[0] : '00000000-0000-7000-8000-000000000000';
+                $uri = str_replace(['{'.$name.'}', '{'.$name.'?}'], $value, $uri);
+            }
+
+            return $uri;
         }
 
         foreach ($route->parameterNames() as $name) {
@@ -1668,6 +1698,11 @@ class TenantIsolationTest extends TestCase
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
+            // AUTH-11: linking one's own account; JIT provisioning's default role (A's custom role) at A's company.
+            'POST api/v1/me/sso/link' => ['connection_id' => $tenant->id('sso_live_connection'), 'origin' => 'https://app.example.test'],
+            'PUT api/v1/sso/settings' => ['jit_role_id' => $tenant->id('role'), 'jit_scope_type' => 'company', 'jit_scope_id' => $tenant->id('company')],
+            // API-02: a key with the custom role at the outlet.
+            'POST api/v1/api-keys' => ['name' => 'Hijack key', ...$assignment, 'scopes' => ['core.location.read']],
             // LOY-01: the programme's gift card item (A's item is shared, TEN-08).
             'PUT api/v1/companies/{company}/loyalty-programme' => ['gift_card_item_id' => $tenant->id('gift_card_item')],
             // LOY-13: a preview of a draft bundle for the customer at the branch.

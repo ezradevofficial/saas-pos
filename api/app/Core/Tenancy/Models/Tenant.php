@@ -6,6 +6,7 @@ use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 /**
@@ -32,19 +33,21 @@ class Tenant extends Model
 
     protected function casts(): array
     {
-        return ['settings' => 'array'];
+        return ['settings' => 'array', 'is_sandbox' => 'boolean'];
     }
 
     /**
      * Create a tenant inside its own (pre-generated) context, as RLS requires.
+     * `is_sandbox` (API-05) is set only here, never filled later.
      */
     public static function provision(array $attributes): self
     {
         $id = $attributes['id'] ?? (string) Str::uuid7();
+        $sandbox = (bool) ($attributes['is_sandbox'] ?? false);
 
         return app(TenantContext::class)->run(
             $id,
-            fn () => tap(static::make($attributes)->forceFill(['id' => $id]))->save(),
+            fn () => tap(static::make(Arr::except($attributes, ['is_sandbox']))->forceFill(['id' => $id, 'is_sandbox' => $sandbox]))->save(),
         );
     }
 

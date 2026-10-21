@@ -72,6 +72,7 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 | `permissions` | The permission catalogue is the same for every tenant (RBAC-01). Roles and their links are tenant tables. `app` may only read it; `permissions:sync` writes it as the owner. |
 | `currencies` | The ISO 4217 catalogue (CUR-01), the same for every tenant and with no `tenant_id`. `app` may only read it; `currencies:sync` writes it as the owner. The currencies a tenant uses (`tenant_currencies`) and a company's reporting currencies (`company_reporting_currencies`) are tenant tables. |
 | `platform_*`, `catalogue_*` | Platform staff, their tokens and audit log, and the plan catalogue (ADR 013). No `tenant_id`; staff belong to no tenant and the catalogue is the same for every tenant. Listed in `GlobalTables::PLATFORM`. Grants keep them apart instead of RLS: only role `app_platform` reaches the staff tables and writes the catalogue; `app` only reads the catalogue. |
+| `country_pack_releases` | Country pack releases loaded and published by platform staff (ADM-04, ADR 022): reference data, the same for every tenant. The platform role writes it; `app` reads only published releases (a row-level security policy on status). Listed in `GlobalTables::PLATFORM`. |
 
 - `personal_access_tokens` and `verification_challenges` carry a `tenant_id` column. They are listed in `api/tests/Support/GlobalTables.php`.
 - `RlsCoverageTest` fails if any other table with a `tenant_id` lacks forced RLS.
@@ -86,9 +87,12 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `auth_tenant_for_login(p_login text)` | `users` by email (citext) or phone |
 | `auth_tenant_for_invitation(p_token_hash text)` | `invitations` by token hash |
 | `auth_tenant_for_pairing(p_code_hash text)` | `devices` by pairing-code hash, unexpired codes only |
+| `api_key_tenant(p_public_id text, p_sandbox boolean)` | `api_keys` by key id, when the tenant's sandbox flag matches the key's `sk_test_` or `sk_live_` prefix (ADR 020) |
 | `crm_lead_form_tenant(p_token_hash text)` | `crm_lead_forms` by token hash, archived forms included (the controller refuses them; CRM-06) |
 | `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | the active tenant whose slug or verified custom domain the storefront's host names and that has a live, not archived store with that handle (ECOM-06) |
 | `ecom_whatsapp_tenant(p_token_hash text)` | `ecom_stores` by WhatsApp webhook token hash, archived stores included (the controller refuses them; ECOM-24) |
+| `sso_tenant_for_email_domain(p_domain text)` | `sso_domains`: the active tenant with that verified, not archived email domain (AUTH-11 email discovery and sign-up's enforced-domain check; ADR 023) |
+| `sso_tenant_for_host(p_slug text, p_host text)` | the active tenant whose subdomain slug or verified custom domain the sign-in page's host names (AUTH-11 on the tenant's host; ADR 023) |
 
 Each function is `language sql stable security definer`:
 
@@ -112,6 +116,8 @@ Amended in Phase 3. The scheduled commands must find the tenants that have work 
 | `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `credit-limits:reconcile` (WF-10, WF-11) | a pending credit limit change whose flow completed or was cancelled before `p_before` |
 | `app_tenants_with_pending_domains()` | `DueTenants::withPendingDomains()` (BR-05) | active tenants with a custom domain waiting for its TXT record |
 | `app_tenants_with_domain_checks_due(p_at timestamptz)` | `domains:verify` (BR-05) | active tenants with a pending claim, a verified domain due for its daily re-check, or a claim failed for 7 days |
+| `app_tenants_with_sso_domain_checks_due(p_at timestamptz)` | `domains:verify` (AUTH-11, ADR 023) | the same, for SSO email domains (`sso_domains`) |
+| `app_tenants_with_sso_metadata_urls()` | `sso:refresh-metadata` (AUTH-11, ADR 023) | active tenants with a SAML connection whose metadata was fetched by URL |
 | `app_tenants_with_billing_due(p_at timestamptz)` | `billing:cycle` (SUB-03, SUB-05, ADR 016) | active customers whose trial or period ends within 7 days, or that are past due or read-only, or have an open invoice already due |
 | `app_tenants_with_modules_to_purge(p_before timestamptz)` | `billing:purge-report` (SUB-07) | switched-off modules, switched off before `p_before`, not yet flagged for purge |
 | `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `webhooks:sweep` (HOOK-01, ADR 021) | webhook deliveries left pending or sending, or overdue for a retry, since before `p_stale_before`, or created before `p_prune_before` (30-day retention) |
@@ -140,13 +146,14 @@ Two more functions answer for hosts, before any tenant is known:
 
 ### Every security-definer function (stage 7B closing review)
 
-Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid` (the one documented exception: `app_public_branding`, public fields of a sign-in page, above).
+Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid`. The documented exceptions are `app_public_branding` (public fields of a sign-in page, above) and `app_platform_usage_totals` (ADM-06: totals per unit across tenants for the platform's reports, with no tenant id; the test pins its result type), and `app_prune_api_idempotency_keys` (ADR 020: deletes expired stored API responses of every tenant and returns only how many, below).
 
 | Function | Returns | Used for |
 | --- | --- | --- |
 | `auth_tenant_for_login(p_login text)` | `uuid` | sign-in by email or phone |
 | `auth_tenant_for_invitation(p_token_hash text)` | `uuid` | an invitation link |
 | `auth_tenant_for_pairing(p_code_hash text)` | `uuid` | device pairing |
+| `api_key_tenant(p_public_id text, p_sandbox boolean)` | `uuid` | an API key's tenant, only when the tenant's sandbox flag matches the key's prefix (API-02, API-05, ADR 020) |
 | `approval_tenant_for_email_token(p_token_hash text)` | `uuid` | approving from an email link (APR-03) |
 | `document_share_tenant(p_token_hash text)` | `uuid` | a shared document link (TPL-04) |
 | `crm_lead_form_tenant(p_token_hash text)` | `uuid` | a public CRM lead form (CRM-06) |
@@ -154,15 +161,23 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `ecom_whatsapp_tenant(p_token_hash text)` | `uuid` | a store's inbound WhatsApp webhook (ECOM-24) |
 | `payment_tenant_for_callback_token(p_token_hash text)` | `uuid` | a payment provider's callback (M-Pesa) |
 | `procurement_portal_tenant(p_kind text, p_token_hash text)` | `uuid` | the supplier portal's link, session or notice token (PRC-07, PRC-08) |
+| `sso_tenant_for_email_domain(p_domain text)` | `setof uuid` | single sign-on by email domain (AUTH-11) |
+| `sso_tenant_for_host(p_slug text, p_host text)` | `setof uuid` | single sign-on on the tenant's host (AUTH-11) |
 | `app_assisted_tenant_for_contact(p_contact text)` | `setof uuid` | assisted onboarding by contact (ONB-) |
 | `app_tenant_for_verified_domain(p_host text)` | `setof uuid` | a verified custom domain (BR-05) |
 | `app_public_branding(p_slug text, p_host text)` | a table of public fields | the sign-in page's look (BR-04); documented exception |
+| `app_prune_api_idempotency_keys(p_before timestamptz)` | `integer` | `api:prune-idempotency` (API-01, ADR 020): deletes `api_idempotency_keys` rows that expired before `p_before`, in every tenant, and returns how many; nothing else is read or changed; documented exception |
+| `app_tenants_with_api_keys()` | `setof uuid` | `api:flush-usage` (API-03): active tenants with a key not revoked |
+| `app_sandbox_tenant_ids()` | `setof uuid` | `sandbox:expire` (API-05): active developer sandboxes |
+| `app_platform_usage_totals(p_day date)` | a table of `(unit, tenants, total)` | ADM-06: usage totals for the platform's reports, per unit on the latest metered day on or before `p_day`; counts only, never a tenant id or row; called only by the staff reports; documented exception |
 | `app_active_tenant_ids()` | `setof uuid` | exchange rates, usage metering |
 | `app_operator_tenant_id()` | `setof uuid` | the operator tenant (ADR 016) |
 | `app_tenants_awaiting_handover(p_before timestamptz)` | `setof uuid` | assisted onboarding handovers |
 | `app_tenants_pending_verification(p_before timestamptz)` | `setof uuid` | sign-ups waiting for verification |
 | `app_tenants_with_billing_due(p_at timestamptz)` | `setof uuid` | `billing:cycle` |
 | `app_tenants_with_domain_checks_due(p_at timestamptz)` | `setof uuid` | `domains:verify` |
+| `app_tenants_with_sso_domain_checks_due(p_at timestamptz)` | `setof uuid` | `domains:verify`, SSO email domains (AUTH-11) |
+| `app_tenants_with_sso_metadata_urls()` | `setof uuid` | `sso:refresh-metadata` (AUTH-11) |
 | `app_tenants_with_due_approval_timers(p_at timestamptz)` | `setof uuid` | `approvals:process-timers` |
 | `app_tenants_with_due_crm_reminders(p_at timestamptz)` | `setof uuid` | `crm:remind` |
 | `app_tenants_with_expired_ecom_reservations(p_at timestamptz)` | `setof uuid` | `ecommerce:expire` |
@@ -181,6 +196,9 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_with_stuck_automation(p_stale_before timestamptz)` | `setof uuid` | `automation:scan reap` |
 | `app_tenants_with_tenders()` | `setof uuid` | `procurement:rewrap-keys`, every tenant with a tender, suspended and closed ones included (ADR 019) |
 | `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `setof uuid` | `credit-limits:reconcile` |
+| `app_tenants_owned_by_email(p_email text)` | `setof uuid` | ADM-01 (review L3): the console's owner-email search, every tenant where the email is an active Owner; audited, support and compliance only |
+| `app_tenants_for_pack_updates()` | `setof uuid` | ADM-04 (ADR 022): every tenant that is not closed, suspended ones included, to receive a published tax release (one queued job per tenant) |
+| `app_tenants_with_expired_support_grants(p_at timestamptz)` | `setof uuid` | `support:expire`: support access approved and past its end (RBAC-13, docs/modules/platform-admin.md) |
 | `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `setof uuid` | `webhooks:sweep` (ADR 021) |
 
 ### Nobody but the owner creates objects in `public`

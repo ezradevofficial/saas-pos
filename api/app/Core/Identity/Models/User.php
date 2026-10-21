@@ -5,6 +5,7 @@ namespace App\Core\Identity\Models;
 use App\Core\Audit\Audited;
 use App\Core\Identity\Policies\UserPolicy;
 use App\Core\Notifications\Models\InAppNotification;
+use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Tenancy\BelongsToTenant;
 use Database\Factories\UserFactory;
@@ -12,6 +13,7 @@ use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\RoutesNotifications;
@@ -35,6 +37,13 @@ class User extends Authenticatable implements HasLocalePreference
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_DEACTIVATED = 'deactivated';
+
+    /**
+     * API-02, ADR 020: an API key's service principal, not a person. It
+     * acts through its key only (no email, phone or usable password), and
+     * every list, count or notice meant for people filters on `active`.
+     */
+    public const STATUS_SERVICE = 'service';
 
     protected array $auditHidden = ['password', 'two_factor_secret', 'two_factor_last_used_step'];
 
@@ -64,6 +73,18 @@ class User extends Authenticatable implements HasLocalePreference
             'failed_sign_ins' => 'integer',
             'is_platform_staff' => 'boolean',
         ];
+    }
+
+    /** RBAC-13: the grant a support principal acts under (null for people). */
+    public function supportGrant(): BelongsTo
+    {
+        return $this->belongsTo(SupportAccessGrant::class, 'support_grant_id');
+    }
+
+    /** RBAC-13: a support session's principal, not a person. */
+    public function isSupportPrincipal(): bool
+    {
+        return $this->support_grant_id !== null;
     }
 
     protected static function newFactory(): UserFactory
@@ -99,9 +120,36 @@ class User extends Authenticatable implements HasLocalePreference
         return $this->two_factor_confirmed_at !== null;
     }
 
+    /** Active, or an API key's principal (whose key the guard and ApiScopes check). */
     public function isActive(): bool
     {
-        return $this->status === self::STATUS_ACTIVE;
+        return $this->status === self::STATUS_ACTIVE || $this->status === self::STATUS_SERVICE;
+    }
+
+    /**
+     * A person (any status): neither an API key's service principal (ADR
+     * 020) nor a support session's principal (RBAC-13). For checks meant for people.
+     */
+    public function isPerson(): bool
+    {
+        return ! $this->isServicePrincipal() && ! $this->isSupportPrincipal();
+    }
+
+    /** API-02: an API key's service principal (ADR 020). */
+    public function isServicePrincipal(): bool
+    {
+        return $this->status === self::STATUS_SERVICE;
+    }
+
+    /**
+     * `users/{user}` never reaches an API key's principal: keys are managed
+     * through `api-keys` only (ADR 020).
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->resolveRouteBindingQuery($this->newQuery(), $value, $field)
+            ->where('status', '<>', self::STATUS_SERVICE)
+            ->first();
     }
 
     public function preferredLocale(): string

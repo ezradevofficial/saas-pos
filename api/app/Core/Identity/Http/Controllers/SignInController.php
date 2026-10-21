@@ -41,6 +41,8 @@ class SignInController
                 headers: $result->retryAfter === null ? [] : ['Retry-After' => $result->retryAfter],
             ),
             SignInResult::DEACTIVATED => throw new ApiException(403, 'deactivated', __('auth.deactivated')),
+            // AUTH-11: only after the password was right, so nothing is revealed without it.
+            SignInResult::SSO_REQUIRED => throw new ApiException(403, 'sso_required', __('sso.errors.password_sso_required')),
             default => throw new ApiException(422, 'invalid_credentials', __('auth.failed'), ['login' => [__('auth.failed')]]),
         };
     }

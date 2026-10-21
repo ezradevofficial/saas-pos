@@ -75,7 +75,23 @@ async function request(method, path, body) {
   throw new ApiError({ status: response.status, code: code ?? 'http_error', message: message || i18n.t('errors.generic'), errors, data: rest })
 }
 
+/** ADM-06: a CSV (or other file) from the staff API, saved under `filename`. */
+async function download(path, filename) {
+  const token = getPlatformToken()
+  const response = await fetch(`${apiUrl}/api/v1/${path.replace(/^\//, '')}`, {
+    headers: { Accept: 'text/csv', 'Accept-Language': i18n.resolvedLanguage ?? i18n.language ?? 'en', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  })
+  if (!response.ok) throw new ApiError({ status: response.status, code: 'http_error', message: i18n.t('errors.generic') })
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 export const platformApi = {
+  download,
   get: (path) => request('GET', path),
   post: (path, body = {}) => request('POST', path, body),
   patch: (path, body = {}) => request('PATCH', path, body),

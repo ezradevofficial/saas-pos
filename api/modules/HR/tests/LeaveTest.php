@@ -41,6 +41,10 @@ class LeaveTest extends TestCase
     {
         parent::setUp();
 
+        // HR-12 to HR-15: the fixed leave dates below are in the future of 14 October 2026 (the
+        // accrual date), and a request is cancelled "before it ends": the clock is fixed there.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14T09:00:00Z'));
+
         Notification::fake();
         $this->setUpHr();
         $this->assertSame(0, Artisan::call('country-packs:holidays', ['code' => 'KE']));
@@ -174,6 +178,72 @@ class LeaveTest extends TestCase
 
         $this->assertSame(['2026-12-07', '2026-11-02'], array_column($this->getJson('/api/v1/hr/me/leave', $this->headersFor($this->bossUser))->assertOk()->json('data.requests'), 'start_date'));
         $this->getJson('/api/v1/hr/leave-calendar?from=2026-11-01&to=2026-11-30', $this->headersFor($this->hrOfficer))->assertOk()->assertJsonCount(2, 'data');
+    }
+
+    public function test_a_new_types_accrual_starts_on_the_companys_day_not_utcs(): void
+    {
+        // HR-12: a type's accrual starts today by default.
+        $this->atNairobiHalfPastMidnight();
+        $created = $this->postJson('/api/v1/hr/leave-types', ['company_id' => $this->acme->id, 'code' => 'CL', 'name' => 'Compassionate', 'count_basis' => 'calendar_days', 'accrual' => 'annual', 'entitlement_days' => '5'], $this->headersFor($this->hrOfficer))
+            ->assertCreated()->json('data');
+        $this->assertSame('2026-10-20', $created['accrues_from']);
+    }
+
+    public function test_accruals_run_as_of_the_companys_day_not_utcs(): void
+    {
+        // HR-13: someone hired today (the company's today) accrues.
+        $this->atNairobiHalfPastMidnight();
+        $type = $this->type(['code' => 'AL', 'accrual' => 'annual', 'entitlement_days' => '21']);
+        $hired = $this->employee(['first_name' => 'New', 'hire_date' => '2026-10-20']);
+        $this->postJson('/api/v1/hr/leave-accruals/run', ['company_id' => $this->acme->id], $this->headersFor($this->hrOfficer))->assertOk();
+        $this->assertTrue($this->inTenant(fn () => LeaveEntry::query()->where('employee_id', $hired->id)->where('leave_type_id', $type->id)->exists()));
+    }
+
+    public function test_balances_default_to_the_companys_day_not_utcs(): void
+    {
+        // HR-15: with or without a company filter.
+        $this->atNairobiHalfPastMidnight();
+        $headers = $this->headersFor($this->hrOfficer);
+        $this->type(['code' => 'AL', 'accrual' => 'annual', 'entitlement_days' => '21']);
+        $this->getJson("/api/v1/hr/leave-balances?company={$this->acme->id}", $headers)->assertOk()->assertJsonPath('meta.as_of', '2026-10-20');
+        $this->getJson('/api/v1/hr/leave-balances', $headers)->assertOk()->assertJsonPath('meta.as_of', '2026-10-20');
+    }
+
+    public function test_an_adjustment_takes_effect_on_the_companys_day_by_default_not_utcs(): void
+    {
+        // HR-15.
+        $this->atNairobiHalfPastMidnight();
+        $type = $this->type(['code' => 'AL', 'accrual' => 'annual', 'entitlement_days' => '21']);
+        $this->postJson('/api/v1/hr/leave-adjustments', ['employee_id' => $this->worker->id, 'leave_type_id' => $type->id, 'days' => '1', 'reason' => 'Carried in'], $this->headersFor($this->hrOfficer))
+            ->assertCreated()->assertJsonPath('data.effective_on', '2026-10-20');
+    }
+
+    public function test_leave_that_ended_on_the_companys_yesterday_is_no_longer_cancelled(): void
+    {
+        // HR-14: Monday 19th is over in Nairobi, though not yet in UTC.
+        $this->atNairobiHalfPastMidnight();
+        $type = $this->type(['code' => 'UL', 'accrual' => 'none', 'entitlement_days' => '10', 'paid' => false]);
+        $past = $this->request($type, '2026-10-19', '2026-10-19')->assertCreated()->json('data.id');
+        $this->approve($past);
+        $this->postJson("/api/v1/hr/leave-requests/{$past}/cancel", ['reason' => 'Late'], $this->headersFor($this->hrOfficer))->assertStatus(409)->assertJsonPath('code', 'document_not_open');
+    }
+
+    public function test_the_leave_calendar_shows_the_companys_month_by_default(): void
+    {
+        // 00:30 on Sunday 1 November 2026 in Nairobi; still 31 October in UTC.
+        $this->travelTo(CarbonImmutable::parse('2026-10-31T21:30:00Z'));
+        $this->organisationTokens = []; // Signed in again: the sessions of 14 October have timed out.
+        $type = $this->type(['code' => 'UL', 'accrual' => 'none', 'entitlement_days' => '10', 'paid' => false]);
+        $this->request($type, '2026-11-02', '2026-11-03')->assertCreated();
+
+        $this->getJson("/api/v1/hr/leave-calendar?company={$this->acme->id}", $this->headersFor($this->hrOfficer))->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    /** 00:30 on Tuesday 20 October 2026 in Nairobi; still Monday 19 October in UTC. Signed in again: the sessions of 14 October have timed out. */
+    private function atNairobiHalfPastMidnight(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-19T21:30:00Z'));
+        $this->organisationTokens = [];
     }
 
     /** @param array<string, mixed> $data */

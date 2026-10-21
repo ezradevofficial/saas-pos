@@ -37,7 +37,7 @@ class ListAssetsRequest extends ListRequest
             ...parent::rules(),
             ...$this->sortAndExportRules(),
             'status' => ['sometimes', 'string', Rule::in([...Asset::STATUSES, 'archived', 'all'])],
-            'custodian' => ['sometimes', 'uuid', Rule::exists('users', 'id')],
+            'custodian' => ['sometimes', 'uuid', Rule::exists('users', 'id')->whereNot('status', 'service')],
         ];
     }
 

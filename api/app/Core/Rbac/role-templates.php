@@ -47,7 +47,8 @@ return [
             'ecommerce.*.view', 'ecommerce.store.manage', 'ecommerce.rider.manage'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
-        'except' => ['core.tenant.export', 'core.onboarding.modules', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
+        // AUTH-11: and single sign-on (whoever controls the IdP signs in as anyone linked).
+        'except' => ['core.tenant.export', 'core.onboarding.modules', 'core.sso.manage', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

@@ -2,10 +2,12 @@
 
 namespace Tests\Support;
 
+use App\Core\Api\Sandbox\SandboxOutbox;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
 use App\Core\Automation\Webhooks\HostResolver;
+use App\Core\Billing\Models\BillingDeal;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\DataExport\Jobs\BuildTenantExport;
@@ -27,11 +29,14 @@ use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Notifications\Notifier;
+use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Sso\Models\SsoConnection;
+use App\Core\Sso\Models\SsoIdentity;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
@@ -73,6 +78,7 @@ use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Configuration\TestLayoutKind;
 use Tests\Support\Fiscal\TestFiscalSource;
 use Tests\Support\Limits\FixedAllowances;
+use Tests\Support\Sso\FakeSamlIdp;
 use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestOrderType;
 use Tests\Support\Workflow\TestRequestType;
@@ -339,13 +345,29 @@ final class TwoTenants
         self::ok($test->postJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/publish", ['revision' => $configDraft['draft']['revision']], $owner));
         self::ok($test->putJson('/api/v1/config/'.TestLayoutKind::KEY."/{$configDocument}/draft", ['payload' => ['columns' => [['id' => 'code']]]], $owner));
 
-        // TPL-01: a template preview the owner made (its PDF is kept for a few minutes).
+        // TPL-01: a template preview the owner made. Its PDF is kept for 10 minutes in
+        // production; the isolation walk can outlast that, so the fixture keeps it a day.
+        config(['document_templates.preview_minutes' => 24 * 60]);
         $templatePreview = basename(dirname((string) parse_url(self::ok($test->postJson('/api/v1/templates/preview', [
             'type' => 'sales.quote', 'payload' => DefaultTemplates::for('sales.quote'),
         ], $owner))->json('data.pdf_url'), PHP_URL_PATH)));
         // BR-02, BR-05: a brand asset (a logo) and a custom domain, still pending.
         $brandAsset = self::ok($test->post('/api/v1/branding/assets', ['kind' => 'logo', 'file' => UploadedFile::fake()->image('logo.png', 8, 8)], [...$owner, 'Accept' => 'application/json']), 201)->json('data.id');
         $tenantDomain = self::ok($test->postJson('/api/v1/branding/domains', ['host' => "erp-{$key}.example.org"], $owner), 201)->json('data.id');
+        // AUTH-11: an SSO email domain (pending), an Entra connection and the owner linked to an IdP subject.
+        $ssoDomain = self::ok($test->postJson('/api/v1/sso/domains', ['domain' => "staff-{$key}.example.org"], $owner), 201)->json('data.id');
+        $ssoConnection = self::ok($test->postJson('/api/v1/sso/connections', [
+            'provider' => 'entra', 'name' => "Entra {$upper}", 'client_id' => (string) Str::uuid(), 'client_secret' => "secret-{$key}", 'directory_id' => (string) Str::uuid(),
+        ], $owner), 201)->json('data.id');
+        $ssoIdentity = app(TenantContext::class)->run($tenantId, fn () => SsoIdentity::create([
+            'user_id' => $ownerId, 'connection_id' => $ssoConnection, 'subject' => "subject-{$key}", 'email' => "owner-{$key}@staff-{$key}.example.org",
+        ])->id);
+        // AUTH-11: an enabled SAML connection (no network to start a sign-in) for linking one's own account.
+        $ssoLive = self::ok($test->postJson('/api/v1/sso/connections', [
+            'provider' => 'saml', 'name' => "SAML {$upper}", 'idp_entity_id' => "https://idp-{$key}.example.org", 'idp_sso_url' => "https://idp-{$key}.example.org/sso",
+            'idp_certificates' => [FakeSamlIdp::pair()['cert']],
+        ], $owner), 201)->json('data.id');
+        app(TenantContext::class)->run($tenantId, fn () => SsoConnection::query()->whereKey($ssoLive)->update(['enabled' => true, 'tested_at' => now()]));
 
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
@@ -614,6 +636,20 @@ final class TwoTenants
         self::ok($test->patchJson("/api/v1/imports/{$import}", ['mode' => 'create'], $owner));
         self::ok($test->postJson("/api/v1/imports/{$import}/run", [], $owner), 202);
 
+        // API-01..API-03 (ADR 020): an API key with the Admin role, used once to list
+        // locations (a usage row) and once to create a customer with an Idempotency-Key
+        // (a stored response). B's plain key must never reach A.
+        $apiKey = self::ok($test->postJson('/api/v1/api-keys', [
+            'name' => "Integration {$upper}", 'role_id' => $roles['admin'], 'scope_type' => 'tenant',
+            'scopes' => ['core.location.read', 'core.party.write'],
+        ], $owner), 201);
+        $keyHeaders = ['Authorization' => 'Bearer '.$apiKey->json('secret'), 'Accept' => 'application/json'];
+        self::ok($test->getJson('/api/v1/locations', $keyHeaders));
+        // API-03: counted in the cache, written to api_key_usage_days by the scheduled flush.
+        $test->artisan('api:flush-usage')->assertSuccessful();
+        // API-05: an outbox message (the fixture tenants are live: written as a sandbox's outbox would).
+        app(TenantContext::class)->run($tenantId, fn () => app(SandboxOutbox::class)->record('email', "outbox-{$key}@example.com", "Outbox {$upper}", "Kept {$upper}", 'mail'));
+        self::ok($test->postJson('/api/v1/parties', ['kind' => 'person', 'name' => "API customer {$upper}", 'roles' => ['customer']], [...$keyHeaders, 'Idempotency-Key' => "isolation-{$key}"]), 201);
         // HOOK-01: a webhook subscription of the company (its URL carries a token, its
         // secret is shown once: neither may reach the other tenant) and a test delivery.
         $webhook = self::ok($test->postJson('/api/v1/webhooks', [
@@ -633,6 +669,16 @@ final class TwoTenants
         app()->instance(PlanAllowances::class, $fixed);
         app(TenantContext::class)->run($tenantId, fn () => app(UsageLimits::class)->meter(CarbonImmutable::now()));
         app()->instance(PlanAllowances::class, $plans);
+
+        // RBAC-13: a pending support access request from a (fictional) staff member,
+        // and ADM-02: a pending Enterprise deal. Tenant rows only: the platform mirror
+        // and staff live on the platform connection.
+        [$supportGrant, $billingDeal] = app(TenantContext::class)->run($tenantId, fn () => [
+            SupportAccessGrant::query()->create(['platform_user_id' => (string) Str::uuid7(), 'staff_name' => 'Support '.$upper, 'staff_email' => "support-{$key}@example.com",
+                'reason' => 'Help with the import', 'mode' => 'read', 'hours' => 4, 'requested_at' => now()])->id,
+            BillingDeal::query()->create(['country' => 'KE', 'currency' => 'KES', 'lines' => [['type' => 'bundle', 'key' => 'starter', 'amount' => 300000]],
+                'effective_from' => now()->toDateString(), 'reason' => 'Negotiated three-year term', 'created_by_staff' => (string) Str::uuid7(), 'created_by_name' => 'Sales '.$upper])->id,
+        ]);
 
         // The owner's sign-up session (a global, non-RLS row).
         $session = PersonalAccessToken::where('tokenable_id', $ownerId)->orderBy('created_at')->value('id');
@@ -688,11 +734,18 @@ final class TwoTenants
                 'config_document' => $configDocument,
                 'template_preview' => $templatePreview,
                 'tenant_domain' => $tenantDomain,
+                'sso_domain' => $ssoDomain,
+                'sso_connection' => $ssoConnection,
+                'sso_identity' => $ssoIdentity,
+                'sso_live_connection' => $ssoLive,
                 'brand_asset' => $brandAsset,
                 'billing_invoice' => $billingInvoice,
                 'billing_payment' => $billingPayment,
                 'billing_payment_method' => $billingMethod,
+                'support_access_grant' => $supportGrant,
+                'billing_deal' => $billingDeal,
                 'import' => $import,
+                'api_key' => $apiKey->json('data.id'),
                 'webhook' => $webhook->json('data.id'),
                 'webhook_delivery' => $webhookDelivery,
                 ...$dimensions,
@@ -711,7 +764,7 @@ final class TwoTenants
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, $subscriptionSecret, "hook-token-{$key}", "path-token-{$key}", $callbackToken, ...$ecommerce['contacts']])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, $subscriptionSecret, "hook-token-{$key}", "path-token-{$key}", $callbackToken, $apiKey->json('secret'), ...$ecommerce['contacts']])),
         );
     }
 

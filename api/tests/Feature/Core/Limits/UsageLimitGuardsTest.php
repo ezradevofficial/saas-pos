@@ -33,6 +33,8 @@ class UsageLimitGuardsTest extends TestCase
         'app/Core/Tenancy/DevicePairing.php' => ['pair' => 'DEVICE', 'resume' => 'DEVICE'],
         'app/Core/Identity/Http/Controllers/InvitationController.php' => ['store' => 'USER'],
         'app/Core/Identity/Http/Controllers/UserController.php' => ['reactivate' => 'USER'],
+        // AUTH-11: just-in-time provisioning at SSO sign-in adds a user.
+        'app/Core/Sso/SsoLinker.php' => ['provision' => 'USER'],
         // HR-32: HR's hire path (the API and the employees import) and rehire.
         'modules/HR/Employees/Employees.php' => ['hire' => 'EMPLOYEE', 'rehire' => 'EMPLOYEE'],
     ];
@@ -89,8 +91,8 @@ class UsageLimitGuardsTest extends TestCase
         // The guarded actions listed for people are the same ones, by unit, and only the four units.
         $this->assertSame(Units::ALL, array_keys(UsageLimits::GUARDED));
         $byUnit = array_count_values(array_merge(...array_map('array_values', array_values(self::CALL_SITES))));
-        $this->assertSame([3, 4, 2, 2], array_map(fn (string $unit) => $byUnit[strtoupper($unit)] ?? 0, Units::ALL));
-        $this->assertSame([3, 4, 2, 2], array_map('count', array_values(UsageLimits::GUARDED)));
+        $this->assertSame([3, 4, 3, 2], array_map(fn (string $unit) => $byUnit[strtoupper($unit)] ?? 0, Units::ALL));
+        $this->assertSame([3, 4, 3, 2], array_map('count', array_values(UsageLimits::GUARDED)));
     }
 
     public function test_the_routes_reaching_a_guarded_action_all_add_one_more(): void

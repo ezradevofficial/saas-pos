@@ -58,10 +58,10 @@ class PlatformBillingTest extends TestCase
 
     public function test_billing_staff_extend_a_trial_override_grace_and_mark_a_bank_transfer_paid(): void
     {
-        $billing = $this->staffBearer($this->staff(PlatformUser::ROLE_BILLING));
+        $billing = $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE));
         $tenant = $this->owner->tenant_id;
 
-        $this->postJson("/api/v1/platform/tenants/{$tenant}/trial", ['trial_ends_at' => '2026-11-30T00:00:00Z'], $billing)->assertOk()
+        $this->postJson("/api/v1/platform/tenants/{$tenant}/trial", ['trial_ends_at' => '2026-11-30T00:00:00Z', 'reason' => 'Customer asked for more time'], $billing)->assertOk()
             ->assertJsonPath('data.account.trial_ends_at', '2026-11-30T00:00:00+00:00');
         $this->assertSame('2026-11-30', $this->subscription()->trial_ends_at->toDateString());
         $this->assertTrue($this->audited('platform.subscription.trial_extend'));
@@ -79,13 +79,13 @@ class PlatformBillingTest extends TestCase
         $this->postJson("/api/v1/platform/invoices/{$operatorInvoice}/mark-paid", ['reference' => 'EQUITY-0091'], $billing)->assertStatus(422);
 
         // A trial that has become a paid subscription is not extended.
-        $this->postJson("/api/v1/platform/tenants/{$tenant}/trial", ['trial_ends_at' => '2026-12-30T00:00:00Z'], $billing)->assertStatus(422);
+        $this->postJson("/api/v1/platform/tenants/{$tenant}/trial", ['trial_ends_at' => '2026-12-30T00:00:00Z', 'reason' => 'Customer asked for more time'], $billing)->assertStatus(422);
     }
 
     public function test_trial_extension_and_grace_override_lock_the_subscription_in_a_transaction(): void
     {
         // A racing "Subscribe now" or billing cycle must not interleave with staff changes.
-        $billing = $this->staffBearer($this->staff(PlatformUser::ROLE_BILLING));
+        $billing = $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE));
         $tenant = $this->owner->tenant_id;
         $locked = [];
         DB::listen(function ($query) use (&$locked) {
@@ -94,7 +94,7 @@ class PlatformBillingTest extends TestCase
             }
         });
 
-        $this->postJson("/api/v1/platform/tenants/{$tenant}/trial", ['trial_ends_at' => '2026-11-30T00:00:00Z'], $billing)->assertOk();
+        $this->postJson("/api/v1/platform/tenants/{$tenant}/trial", ['trial_ends_at' => '2026-11-30T00:00:00Z', 'reason' => 'Customer asked for more time'], $billing)->assertOk();
         $this->assertCount(1, $locked, 'the trial extension locks the subscription');
         $this->postJson("/api/v1/platform/tenants/{$tenant}/grace", ['grace_days' => 14], $billing)->assertOk();
         $this->assertCount(2, $locked, 'the grace override locks the subscription');

@@ -2,6 +2,7 @@
 
 namespace Modules\HR\Http\Controllers;
 
+use App\Core\Tenancy\CompanyClock;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
@@ -116,9 +117,10 @@ class SelfServiceController
         $peers = Employee::query()->where('company_id', $me->company_id)->where('status', 'active')->whereKeyNot($me->id)
             ->when($me->branch_id !== null, fn ($q) => $q->where('branch_id', $me->branch_id))
             ->orderBy('first_name')->orderBy('last_name')->orderBy('id')->limit(200)->get(['id', 'number', 'first_name', 'last_name']);
-        $today = CarbonImmutable::now()->toDateString();
+        // The next 31 days of the employee's place, not of UTC.
+        $today = CarbonImmutable::now(CompanyClock::timezone($me->company_id, $me->branch_id))->startOfDay();
         $shifts = RosterShift::query()->with('shift')->whereIn('employee_id', $peers->pluck('id')->all())->where('status', RosterShift::PLANNED)
-            ->whereBetween('date', [$today, CarbonImmutable::now()->addDays(31)->toDateString()])->orderBy('date')->get()->groupBy('employee_id');
+            ->whereBetween('date', [$today->toDateString(), $today->addDays(31)->toDateString()])->orderBy('date')->get()->groupBy('employee_id');
 
         return new JsonResponse(['data' => $peers->map(fn ($peer) => [
             ...Refs::employee($peer),

@@ -2,10 +2,18 @@
 
 namespace App\Core\Platform;
 
+use App\Core\CountryPacks\Console\ApplyPackReleases;
+use App\Core\CountryPacks\PackSchemas;
 use App\Core\Identity\Services\LoginThrottle;
+use App\Core\Notifications\EventTypes;
 use App\Core\Platform\Console\CreatePlatformUser;
 use App\Core\Platform\Console\VerifyPlatformAudit;
+use App\Core\Platform\SupportAccess\Console\ExpireSupportAccess;
+use App\Core\Platform\SupportAccess\SupportNotices;
+use App\Core\Platform\Tenants\PlatformNotices;
+use App\Core\Platform\Tenants\TenantHealthProbes;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -28,6 +36,9 @@ class PlatformServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(PlatformTokens::class);
+        $this->app->singleton(TenantHealthProbes::class);
+        // ADM-04: the schema of each pack kind; modules register theirs.
+        $this->app->singleton(PackSchemas::class);
     }
 
     public function boot(): void
@@ -50,8 +61,20 @@ class PlatformServiceProvider extends ServiceProvider
 
         RateLimiter::for(self::PUBLIC_CATALOGUE_LIMITER, fn (Request $request) => Limit::perMinute((int) config('platform.public_per_minute', 60))->by('catalogue|'.$request->ip()));
 
+        // ADM-01c: what staff did to the account, told to the tenant's Owners.
+        PlatformNotices::register($this->app->make(EventTypes::class));
+        // RBAC-13b: support access told to the tenant's Owners and Admins.
+        SupportNotices::register($this->app->make(EventTypes::class));
+
+        // RBAC-13f: approvals past their end are closed every five minutes.
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('support:expire')->everyFiveMinutes()->withoutOverlapping();
+            // ADM-04d: tax and holidays releases are written into the pack tables on their date.
+            $schedule->command('country-packs:apply-releases')->dailyAt('00:10')->withoutOverlapping();
+        });
+
         if ($this->app->runningInConsole()) {
-            $this->commands([CreatePlatformUser::class, VerifyPlatformAudit::class]);
+            $this->commands([CreatePlatformUser::class, VerifyPlatformAudit::class, ExpireSupportAccess::class, ApplyPackReleases::class]);
         }
     }
 }

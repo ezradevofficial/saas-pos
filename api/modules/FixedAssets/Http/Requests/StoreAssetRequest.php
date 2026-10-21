@@ -45,7 +45,7 @@ class StoreAssetRequest extends FormRequest
             'number' => ['sometimes', 'nullable', 'string', 'max:80'],
             'category_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('fa_categories', 'id')],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
-            'custodian_user_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')],
+            'custodian_user_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
             // FA-04: an HR employee, known only through HR's read contract while HR is active.
             'custodian_employee_id' => ['sometimes', 'nullable', 'uuid', self::employee()],
             'cost_centre_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('cost_centres', 'id')],

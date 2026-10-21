@@ -19,7 +19,7 @@ class OverrideRequest extends DeviceRequest
     public function rules(): array
     {
         return [
-            'manager_user_id' => ['required', 'uuid', Rule::exists('users', 'id')],
+            'manager_user_id' => ['required', 'uuid', Rule::exists('users', 'id')->whereNot('status', 'service')],
             'pin' => ['required_without:card', 'prohibits:card', 'string', 'max:6'],
             'card' => ['required_without:pin', 'string', 'max:64'],
             'permission' => ['required', 'string', 'max:150', function (string $attribute, mixed $value, \Closure $fail) {
@@ -27,7 +27,7 @@ class OverrideRequest extends DeviceRequest
                     $fail(__('auth.override.unknown_permission'));
                 }
             }],
-            'cashier_user_id' => ['nullable', 'uuid', Rule::exists('users', 'id')],
+            'cashier_user_id' => ['nullable', 'uuid', Rule::exists('users', 'id')->whereNot('status', 'service')],
             // The sale or line the override is for: tokens are bound to it.
             'reference' => ['required', 'string', 'max:100'],
         ];
