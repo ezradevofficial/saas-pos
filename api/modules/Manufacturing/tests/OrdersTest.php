@@ -5,6 +5,7 @@ namespace Modules\Manufacturing\Tests;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\Scope;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Modules\Inventory\Models\Movement;
@@ -182,8 +183,10 @@ class OrdersTest extends TestCase
         $count = function (): int {
             $queries = 0;
             $on = true;
-            DB::listen(function () use (&$queries, &$on) {
-                if ($on) {
+            // Sanctum writes a token's last_used_at only when the second has changed, so
+            // whether a measured request pays that write depends on the runner's speed.
+            DB::listen(function (QueryExecuted $query) use (&$queries, &$on) {
+                if ($on && ! str_starts_with($query->sql, 'update "personal_access_tokens"')) {
                     $queries++;
                 }
             });
