@@ -53,6 +53,8 @@ class TaxCodeSource implements SnapshotSource
                     'effective_from' => $rate->effective_from->toDateString(),
                     'effective_to' => $rate->effective_to?->toDateString(),
                     'needs_confirmation' => $rate->isNeeded(),
+                    // CP-01: from public research, not yet confirmed (the till may say so).
+                    'researched' => $rate->isResearched(),
                 ])->values()->all(),
             ])
             ->values()

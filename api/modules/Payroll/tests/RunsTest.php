@@ -69,8 +69,10 @@ class RunsTest extends TestCase
     public function test_a_run_is_refused_while_the_pack_misses_a_value(): void
     {
         $this->payrollEmployee();
-        // The shipped pack: every value is null.
-        app(PayrollPack::class)->fake('KE', json_decode((string) file_get_contents(base_path('country-packs/KE/payroll.json')), true));
+        // A pack whose PAYE values are all null (as the packs shipped before the researched values).
+        $pack = json_decode((string) file_get_contents(base_path('country-packs/KE/payroll.json')), true);
+        $pack['components'][0]['periods'] = [['effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true, 'bands' => null, 'rounding' => null]];
+        app(PayrollPack::class)->fake('KE', $pack);
         $id = $this->createRun()->assertCreated()->json('data.id');
 
         $response = $this->postJson("/api/v1/payroll/runs/{$id}/calculate", [], $this->headersFor($this->officer))

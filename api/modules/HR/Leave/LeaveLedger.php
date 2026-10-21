@@ -19,7 +19,7 @@ use Modules\HR\Models\LeaveType;
 class LeaveLedger
 {
     /** Append an entry unless one with the same key exists; returns it, or null when it existed. */
-    public function post(string $employeeId, string $leaveTypeId, string $kind, string $days, string $effectiveOn, string $key, ?string $requestId = null, ?string $note = null, ?string $by = null): ?LeaveEntry
+    public function post(string $employeeId, string $leaveTypeId, string $kind, string $days, string $effectiveOn, string $key, ?string $requestId = null, ?string $note = null, ?string $by = null, bool $researched = false): ?LeaveEntry
     {
         $days = (string) BigDecimal::of($days)->toScale(2, RoundingMode::HalfUp);
 
@@ -39,6 +39,7 @@ class LeaveLedger
             'leave_request_id' => $requestId,
             'note' => $note,
             'created_by' => $by,
+            'researched' => $researched,
             'created_at' => now(),
         ]);
 

@@ -23,6 +23,12 @@ class LeaveTypeRequest extends SetupRowRequest
             'allow_negative' => ['sometimes', 'boolean'],
             'requires_document' => ['sometimes', 'boolean'],
             'accrues_from' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            // HR-12: months of service first, half-pay days after the full-pay days, per-event days.
+            'qualifying_months' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:120'],
+            'half_pay_days' => ['sometimes', 'nullable', 'string', 'regex:/^\d{1,3}(\.\d{1,2})?$/'],
+            'events' => ['sometimes', 'nullable', 'array', 'max:20'],
+            'events.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}$/', 'distinct'],
+            'events.*.days' => ['required', 'integer', 'min:1', 'max:366'],
             ...($creating ? [] : ['confirm' => ['sometimes', 'boolean']]),
         ];
     }

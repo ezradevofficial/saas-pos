@@ -32,6 +32,8 @@ class TaxCodeResource extends JsonResource
             'fiscal_code' => $this->fiscal_code,
             'current_rate' => $current?->toSummary(),
             'rate_needed' => ! $this->isExempt() && ($current === null || $current->isNeeded()),
+            // CP-01: the rate in force comes from public research, not yet confirmed.
+            'rate_researched' => $current !== null && $current->isResearched(),
             'rates' => $this->rates->map(fn (TaxRate $rate) => $rate->toSummary())->values()->all(),
             'archived_at' => $this->archived_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

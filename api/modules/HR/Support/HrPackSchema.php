@@ -3,6 +3,7 @@
 namespace Modules\HR\Support;
 
 use App\Core\CountryPacks\PackSchemas;
+use App\Core\CountryPacks\ResearchStatus;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 
@@ -30,6 +31,7 @@ final class HrPackSchema
             'identifier_types.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/', 'distinct'],
             'identifier_types.*.required' => ['required', 'boolean'],
             'identifier_types.*.pattern' => ['present', 'nullable', 'string', 'max:200'],
+            'identifier_types.*.enforce' => ['sometimes', 'string', 'in:reject,warn'],
             'statutory_leave_types' => ['present', 'array'],
             'statutory_leave_types.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/'],
             'statutory_leave_types.*.days' => ['present', 'nullable', 'integer', 'min:0', 'max:366'],
@@ -40,6 +42,11 @@ final class HrPackSchema
 
         if ($validator->fails()) {
             throw new InvalidArgumentException(implode(' ', $validator->errors()->all()));
+        }
+
+        // CP-01: researched rows carry their confidence (high or medium), date and sources.
+        foreach ([...$content['identifier_types'], ...$content['statutory_leave_types']] as $row) {
+            ResearchStatus::check($row, (string) $row['key']);
         }
 
         foreach ($content['identifier_types'] as $type) {

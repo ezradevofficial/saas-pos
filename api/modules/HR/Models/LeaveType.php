@@ -7,6 +7,7 @@ use App\Core\Rbac\HasScope;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Archivable;
 use App\Core\Tenancy\BelongsToTenant;
+use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -23,6 +24,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property ?string $carry_over_max_days
  * @property bool $allow_negative
  * @property bool $paid
+ * @property ?int $qualifying_months months of service before it can be taken
+ * @property ?string $half_pay_days days at half pay after the full-pay days, in a year
+ * @property ?list<array{key: string, days: int}> $events per-event days within the yearly days
+ * @property ?array{confidence: string, researched_on: string, source: list<string>, assumed: list<string>} $research CP-01
  */
 class LeaveType extends Model implements HasScope
 {
@@ -48,12 +53,30 @@ class LeaveType extends Model implements HasScope
             'allow_negative' => 'boolean',
             'requires_document' => 'boolean',
             'accrues_from' => 'immutable_date',
+            'events' => 'array',
+            'research' => 'array',
         ];
     }
 
     public function scope(): Scope
     {
         return Scope::company($this->company_id);
+    }
+
+    /** CP-01: its days come from public research (the country pack), not yet confirmed. */
+    public function researched(): bool
+    {
+        return $this->research !== null;
+    }
+
+    /** HR-13: the days credited a year: the full-pay days and any half-pay days after them. */
+    public function yearlyDays(): ?string
+    {
+        if ($this->entitlement_days === null) {
+            return null;
+        }
+
+        return (string) BigDecimal::of((string) $this->entitlement_days)->plus((string) ($this->half_pay_days ?? '0'));
     }
 
     /** HR-12: usable for requests and accrual only once its days are confirmed. */

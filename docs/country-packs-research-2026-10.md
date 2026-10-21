@@ -124,6 +124,68 @@ DRC national ID and CNSS number: no reliable format found. Not enforced.
 ### Tax depreciation
 No statutory class table was found. Usual practice is straight line at commonly accepted rates. Low. Not applied.
 
+## What was applied (branch feat/researched-pack-values)
+
+Every applied value is a pack row with `status: researched`, `confidence`,
+`researched_on: 2026-10-17` and its `source` URLs (`App\Core\CountryPacks\ResearchStatus`).
+A row with several values takes the lowest confidence among them (the
+rounding rule makes most KE payroll rows medium). Effective dates: the
+pack data start, 2026-01-01, except NSSF (year 3 to 2026-01-31, year 4 from
+2026-02-01). Runs, tax lines and leave records that use a researched value
+record it, and the web app shows the "from public research" notice.
+
+| Pack | Applied | Confidence |
+| --- | --- | --- |
+| KE `pack.json` | VAT_STD 16%; VAT_ZERO 0% | High |
+| KE `payroll.json` | PAYE bands; rounding to the cent | Medium |
+| | Personal relief 2,400 | High |
+| | Insurance relief 15%, cap 5,000 | Medium |
+| | Pension + NSSF limit 30,000; post-retirement medical 15,000; mortgage interest 30,000 (new `deduction_limit` components) | High |
+| | NSSF year 3 (8,000 / 72,000) and year 4 (9,000 / 108,000), 6% + 6%, reduces taxable pay | Medium (rounding) |
+| | SHIF 2.75%, minimum 300, reduces taxable pay | Medium (rounding) |
+| | Housing levy 1.5% + 1.5%, reduces taxable pay | Medium (rounding) |
+| | NITA 50 per employee (employer) | Medium (rounding) |
+| KE `hr.json` | Annual 21 working days after 12 months; maternity 90 calendar days paid; paternity 14 days paid; sick 30 full + 15 half after 2 months | Medium |
+| | KRA PIN `^[AP][0-9]{9}[A-Z]$` | High |
+| | National ID `^[0-9]{7,9}$` | Medium |
+| CD `pack.json` | VAT_STD 16%; VAT_ZERO 0% (exports) | High |
+| CD `payroll.json` | IPR annual bands ÷ 12, cap 30%, minimum CDF 2,000 (rounding to the franc assumed) | Medium |
+| | CNSS 5% + 5% (not deducted from the IPR base and no ceiling: assumed), risks 1.5%, family 6.5% | Medium |
+| | ONEM 0.2% employer, on the taxable base | Medium |
+| CD `hr.json` | Maternity 14 weeks (98 calendar days; pay null: the pay rate is not confirmed, so payroll runs with maternity days are blocked) | Medium |
+| | Circumstantial leave 10 working days a year; own marriage 2, birth of a child 2 | Medium |
+
+Not applied (low confidence or not found), still null and
+`needs_confirmation`:
+
+- KE tax depreciation (fixed assets tax book stays refused).
+- CD INPP: blocks payroll runs of a company with employees until
+  confirmed; the company may mark it **not applicable** in its payroll
+  settings, with a reason (audited, recorded on each run).
+- CD IPR dependants reduction: not applied (dependants give no
+  reduction), never blocking.
+- CD CNSS deductibility from the IPR base: not deducted (an assumed
+  `false`, shown as such).
+- CD annual and sick leave ("Days needed"); CD maternity pay rate; CD
+  identifier formats (none enforced); CD tax depreciation.
+- Also still needed (not covered by the research): KE VAT withholding;
+  CD family allowance per child (blocks runs with an employee who has
+  children); weekly and bi-weekly pay rules; return and payment file
+  layouts.
+
+Known gaps: payroll does not yet pay KE half-pay sick days at half (the
+run records and shows them as "half-pay sick days paid in full"); document lines of POS, Accounting, CRM,
+E-commerce and Procurement keep only the tax rate they used, so "used a
+researched rate" is on the tax calculation result (`TaxAmount::$researched`)
+and the tax rate row, not yet stored on each document line (that needs a
+schema change in those modules).
+
+Confirming or correcting a value: publish the pack with the row's
+`status: confirmed` (and the research fields removed) through the country
+pack release flow (ADM-04, ADR 022). Tax rate rows follow the new version
+(their research is cleared); HR leave types already copied keep their
+days and research until the company confirms or changes them.
+
 ## Sources
 
 - KRA, "Amendments to PAYE computation pursuant to the Tax Laws (Amendment) Act, 2024": https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024

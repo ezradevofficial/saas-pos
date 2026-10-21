@@ -25,7 +25,7 @@ class LeaveEntry extends Model
 
     protected function casts(): array
     {
-        return ['effective_on' => 'immutable_date', 'created_at' => 'immutable_datetime'];
+        return ['effective_on' => 'immutable_date', 'created_at' => 'immutable_datetime', 'researched' => 'boolean'];
     }
 
     public function leaveType(): BelongsTo

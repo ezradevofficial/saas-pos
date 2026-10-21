@@ -5,6 +5,7 @@ namespace Modules\Payroll\Employees;
 use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\Models\Company;
+use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use InvalidArgumentException;
 use Modules\HR\Contracts\AttendanceRecords;
@@ -100,11 +101,63 @@ class EmployeeCopy
     /** PAY-11: unpaid leave days (paid leave changes nothing). */
     public function leaveApproved(LeaveApproved $event): void
     {
-        if ($event->paid) {
-            return;
+        $days = self::leaveDays($event->paid, $event->halfPayDays, $event->dates);
+        $this->replaceHalfPay([[$event->requestId, $days]]);
+
+        if ($days !== []) {
+            $this->approveDays([[$event->requestId, $event->employeeId, $event->companyId, $days]]);
+        }
+    }
+
+    /**
+     * PAY-11, CP-01: the days of an approved request Payroll keeps, each
+     * with its kind: every day of unpaid leave (`unpaid`, deducted), every
+     * day of leave whose pay rate is not confirmed (`pay_unconfirmed`, the
+     * run is blocked), and the last days of paid leave that are at half pay
+     * by statute (`half_pay`, KE sick leave: paid in full for now and
+     * flagged on the run).
+     *
+     * @param  list<array{date: string, fraction: string}>  $dates
+     * @return list<array{date: string, fraction: string, kind: string}>
+     */
+    public static function leaveDays(?bool $paid, string $halfPayDays, array $dates): array
+    {
+        if ($paid !== true) {
+            $kind = $paid === null ? 'pay_unconfirmed' : 'unpaid';
+
+            return array_map(fn (array $d) => [...$d, 'kind' => $kind], array_values($dates));
         }
 
-        $this->approveDays([[$event->requestId, $event->employeeId, $event->companyId, $event->dates]]);
+        $left = BigDecimal::of($halfPayDays === '' ? '0' : $halfPayDays);
+        $days = [];
+
+        foreach (array_reverse(array_values($dates)) as $d) {
+            if (! $left->isPositive()) {
+                break;
+            }
+
+            $fraction = BigDecimal::min(BigDecimal::of((string) $d['fraction']), $left);
+            $days[] = ['date' => $d['date'], 'fraction' => (string) $fraction->toScale(2), 'kind' => 'half_pay'];
+            $left = $left->minus($fraction);
+        }
+
+        return array_reverse($days);
+    }
+
+    /**
+     * Half-pay markers follow HR's latest count (it changes when an earlier
+     * request is cancelled or trimmed): the request's half-pay days not in
+     * the new list are removed. They are a projection, never a tombstone.
+     *
+     * @param  list<array{0: string, 1: list<array{date: string, kind: string}>}>  $requests
+     */
+    private function replaceHalfPay(array $requests): void
+    {
+        foreach ($requests as [$requestId, $days]) {
+            $keep = array_column(array_filter($days, fn (array $d) => $d['kind'] === 'half_pay'), 'date');
+            LeaveDay::query()->where('request_id', $requestId)->where('kind', 'half_pay')
+                ->when($keep !== [], fn ($q) => $q->whereNotIn('date', $keep))->delete();
+        }
     }
 
     /**
@@ -248,14 +301,24 @@ class EmployeeCopy
     /** @param list<array{request_id: string, employee_id: string, company_id: string, status: string, dates: list<array{date: string, fraction: string}>}> $requests */
     private function copyLeave(array $requests): void
     {
-        $approved = array_values(array_filter($requests, fn (array $r) => $r['status'] === 'approved'));
-        $this->approveDays(array_map(fn (array $r) => [$r['request_id'], $r['employee_id'], $r['company_id'], $r['dates']], $approved));
+        // CP-01: unpaid days, days whose pay is not confirmed and half-pay days (rows without `paid` are unpaid leave).
+        $days = [];
+
+        foreach ($requests as $r) {
+            $days[$r['request_id']] = $r['status'] === 'approved'
+                ? self::leaveDays(array_key_exists('paid', $r) ? $r['paid'] : false, (string) ($r['half_pay_days'] ?? '0'), $r['dates'])
+                : [];
+        }
+
+        $this->replaceHalfPay(array_map(fn (string $id) => [$id, $days[$id]], array_keys($days)));
+        $approved = array_values(array_filter($requests, fn (array $r) => $r['status'] === 'approved' && $days[$r['request_id']] !== []));
+        $this->approveDays(array_map(fn (array $r) => [$r['request_id'], $r['employee_id'], $r['company_id'], $days[$r['request_id']]], $approved));
 
         // A request trimmed in HR (a backdated termination) keeps only its current days; a cancelled one none.
         $kept = [];
 
         foreach ($requests as $r) {
-            $kept[$r['request_id']] = $r['status'] === 'approved' ? array_column($r['dates'], 'date') : [];
+            $kept[$r['request_id']] = array_column($days[$r['request_id']], 'date');
         }
 
         $gone = [];
@@ -281,12 +344,12 @@ class EmployeeCopy
 
         foreach ($requests as [$requestId, $employeeId, $companyId, $dates]) {
             foreach ($dates as $day) {
-                $rows[] = ['request_id' => $requestId, 'date' => $day['date'], 'employee_id' => $employeeId, 'company_id' => $companyId, 'fraction' => (string) $day['fraction'], 'cancelled_at' => null];
+                $rows[] = ['request_id' => $requestId, 'date' => $day['date'], 'employee_id' => $employeeId, 'company_id' => $companyId, 'fraction' => (string) $day['fraction'], 'kind' => $day['kind'] ?? 'unpaid', 'cancelled_at' => null];
             }
         }
 
-        // A tombstone (a cancelled day) is never brought back.
-        Upserts::run('payroll_leave_days', $rows, ['request_id', 'date'], ['employee_id', 'company_id', 'fraction'], 't.cancelled_at is null and t.fraction is distinct from excluded.fraction');
+        // A tombstone (a cancelled day) is never brought back; a confirmed pay rate changes the day's kind.
+        Upserts::run('payroll_leave_days', $rows, ['request_id', 'date'], ['employee_id', 'company_id', 'fraction', 'kind'], 't.cancelled_at is null and (t.fraction is distinct from excluded.fraction or t.kind is distinct from excluded.kind)');
     }
 
     /** @param list<array{0: string, 1: string, 2: string, 3: list<string>}> $requests [request, employee, company, dates] */

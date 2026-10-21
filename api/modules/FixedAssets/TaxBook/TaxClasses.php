@@ -3,6 +3,7 @@
 namespace Modules\FixedAssets\TaxBook;
 
 use App\Core\CountryPacks\PackDocuments;
+use App\Core\CountryPacks\ResearchStatus;
 use InvalidArgumentException;
 
 /**
@@ -79,7 +80,8 @@ class TaxClasses
     /** Whether the class row can be computed from: a known method and rate, confirmed. */
     public static function confirmed(?array $class): bool
     {
-        return $class !== null && ! $class['needs_confirmation'] && $class['rate'] !== null && in_array($class['method'], self::METHODS, true);
+        // CP-01: confirmed, or researched at high or medium confidence (ResearchStatus), with a known method and rate.
+        return $class !== null && ResearchStatus::usable($class) && $class['rate'] !== null && in_array($class['method'], self::METHODS, true);
     }
 
     /** The confirmed year-of-acquisition rule of the pack (`full_year`, `pro_rata_months`), or null. */
@@ -91,7 +93,7 @@ class TaxClasses
 
         $rule = (array) ($this->pack($country)['acquisition_rule'] ?? []);
 
-        return ($rule['needs_confirmation'] ?? true) === false && in_array($rule['value'] ?? null, self::ACQUISITION_RULES, true) ? $rule['value'] : null;
+        return ResearchStatus::usable($rule) && in_array($rule['value'] ?? null, self::ACQUISITION_RULES, true) ? $rule['value'] : null;
     }
 
     /** @return list<string> what the pack's notes ask the owner to confirm */
@@ -123,6 +125,7 @@ class TaxClasses
                 'method' => $row['method'] ?? null,
                 'rate' => isset($row['rate']) ? (string) $row['rate'] : null,
                 'needs_confirmation' => (bool) ($row['needs_confirmation'] ?? true),
+                ...array_intersect_key($row, array_flip(['status', 'confidence'])),
                 'effective_from' => $row['effective_from'] ?? null,
                 'effective_to' => $row['effective_to'] ?? null,
             ];

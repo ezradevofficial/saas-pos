@@ -1,23 +1,105 @@
 {
     "code": "CD",
-    "notes": "HR reference data for Congolese companies (docs/modules/hr.md HR-03, HR-12). Structure only: identifier types and statutory leave types. No figure is entered until it is confirmed from an official source: a null pattern enforces no format, and a null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. Labels live in lang/{locale}/hr.php (pack.*).",
-    "sources": [],
+    "notes": "HR reference data for Congolese companies (docs/modules/hr.md HR-03, HR-12, HR-13): identifier types and statutory leave types. Each row has a status (ResearchStatus): 'researched' values come from public research (docs/country-packs-research-2026-10.md) with their confidence, research date and sources; they are used, and leave records that use them say so until the owner confirms them through a pack release (ADM-04). A null 'paid' on a usable type means its pay rate is not confirmed (maternity: 2/3 of pay is cited, low confidence): requests are taken, and a payroll run with such days is blocked until the pay is confirmed. A null pattern enforces no format; a null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. Low-confidence research is never entered. events: per-event days within the type's yearly days (circumstantial leave: at most 10 working days a year, not deducted from annual leave, Code du travail art. 146). Labels live in lang/{locale}/hr.php (pack.*).",
+    "sources": [
+        "https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail",
+        "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
+    ],
     "todo": [
-        "national_id: confirm the national identity document accepted for employees and its number format.",
-        "cnss_number: confirm the CNSS affiliation number format before enforcing a pattern.",
-        "annual: statutory annual leave (congé annuel) days, how they grow with service and age (Code du travail, 2002, as amended), with the effective date.",
-        "maternity: statutory maternity leave (congé de maternité) weeks and pay, with the effective date.",
-        "sick: statutory sick leave (incapacité de travail) rules and pay.",
-        "circumstantial: the congé de circonstance events and days (marriage, birth, death), with legal references."
+        "Confirm every researched value, then publish it as confirmed through a pack release (ADM-04): maternity 14 weeks (98 calendar days) and circumstantial leave (10 working days a year; own marriage 2, birth of a child 2).",
+        "maternity: the pay during maternity leave (2/3 of pay is cited, low confidence). Until confirmed the type's pay is null: requests are taken, and a payroll run with maternity days is blocked ('Leave pay rate not confirmed') until the company or the pack confirms the pay.",
+        "annual: statutory annual leave (1.5 working days a month, or a 15/18/21-day seniority scale, are cited; low confidence), with the effective date.",
+        "sick: statutory sick leave (incapacité de travail) rules and pay (not found).",
+        "circumstantial: the other events (death of a spouse, child or parent, and so on) and their days, with legal references.",
+        "national_id and cnss_number: no reliable format found; not enforced."
     ],
     "identifier_types": [
-        {"key": "national_id", "required": false, "pattern": null},
-        {"key": "cnss_number", "required": false, "pattern": null}
+        {
+            "key": "national_id",
+            "required": false,
+            "pattern": null,
+            "needs_confirmation": true,
+            "status": "needs_confirmation"
+        },
+        {
+            "key": "cnss_number",
+            "required": false,
+            "pattern": null,
+            "needs_confirmation": true,
+            "status": "needs_confirmation"
+        }
     ],
     "statutory_leave_types": [
-        {"key": "annual", "accrual": "annual", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "maternity", "accrual": "none", "count_basis": "calendar_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "sick", "accrual": "none", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "circumstantial", "accrual": "none", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null}
+        {
+            "key": "annual",
+            "accrual": "annual",
+            "count_basis": "working_days",
+            "paid": null,
+            "days": null,
+            "needs_confirmation": true,
+            "confidence": "low",
+            "source": [
+                "https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail",
+                "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
+            ],
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "status": "needs_confirmation"
+        },
+        {
+            "key": "maternity",
+            "accrual": "none",
+            "count_basis": "calendar_days",
+            "paid": null,
+            "days": 98,
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail",
+                "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
+            ],
+            "needs_confirmation": false,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "sick",
+            "accrual": "none",
+            "count_basis": "working_days",
+            "paid": null,
+            "days": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "status": "needs_confirmation"
+        },
+        {
+            "key": "circumstantial",
+            "accrual": "annual",
+            "count_basis": "working_days",
+            "paid": true,
+            "days": 10,
+            "events": [
+                {
+                    "key": "marriage",
+                    "days": 2
+                },
+                {
+                    "key": "birth",
+                    "days": 2
+                }
+            ],
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail",
+                "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
+            ],
+            "needs_confirmation": false,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        }
     ]
 }

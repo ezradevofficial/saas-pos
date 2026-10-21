@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Checkbox, DataTable, Dialog, ListView, Select, TextField } from '@/components/ds'
+import { ResearchStatus, ResearchedNotice } from '@/components/ResearchedNotice'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDate } from '@/lib/dates'
 import { useDebounced } from '@/lib/useDebounced'
@@ -142,10 +143,17 @@ function LeaveDetail({ row, onCancel, onClose }) {
         <Detail label={t('hr.leave.days')}>
           <Days value={row.days} />
         </Detail>
+        {row.event ? <Detail label={t('hr.leave.event')}>{row.event_label ?? row.event}</Detail> : null}
+        {Number(row.half_pay_days) > 0 ? (
+          <Detail label={t('hr.leave.halfPayDays')}>
+            <Days value={row.half_pay_days} />
+          </Detail>
+        ) : null}
         <Detail label={t('hr.fields.reason')}>{row.reason ?? '—'}</Detail>
         <Detail label={t('hr.leave.requestedBy')}>{row.requested_by?.name ?? '—'}</Detail>
         {row.cancel_reason ? <Detail label={t('hr.leave.cancelReason')}>{row.cancel_reason}</Detail> : null}
       </DetailGrid>
+      {row.researched ? <ResearchedNotice to="/hr/leave/types" className="mt-4" /> : null}
     </Dialog>
   )
 }
@@ -383,6 +391,7 @@ export function LeaveTypes() {
       />
       {pack.isError ? <Alert tone="danger" title={errorMessage(pack.error)} /> : null}
       {(query.data?.data ?? []).some((row) => row.days_needed && !row.archived_at) ? <Alert tone="warning" title={t('hr.types.daysNeededTitle')}>{t('hr.types.daysNeededHelp')}</Alert> : null}
+      {(query.data?.data ?? []).some((row) => row.researched && !row.archived_at) ? <ResearchedNotice /> : null}
       <DataTable
         caption={t('hr.sections.leave.types')}
         loading={query.isLoading}
@@ -391,9 +400,28 @@ export function LeaveTypes() {
         columns={[
           { key: 'code', label: t('hr.columns.code'), render: (row) => <span className="font-medium tabular-nums">{row.code}</span> },
           { key: 'name', label: t('hr.types.name'), render: (row) => (row.statutory_label && row.statutory_label !== row.name ? `${row.name} · ${row.statutory_label}` : row.name) },
-          { key: 'paid', label: t('hr.types.paid'), render: (row) => (row.paid ? t('hr.types.paidYes') : t('hr.types.paidNo')) },
+          { key: 'paid', label: t('hr.types.paid'), render: (row) => (row.paid === null ? t('hr.types.paidUnconfirmed') : row.paid ? t('hr.types.paidYes') : t('hr.types.paidNo')) },
           { key: 'accrual', label: t('hr.types.accrual'), render: (row) => enumLabel(t, 'accruals', row.accrual) },
           { key: 'days', label: t('hr.types.entitlement'), align: 'end', render: (row) => <Days value={row.entitlement_days} /> },
+          {
+            key: 'rules',
+            label: t('hr.types.rules'),
+            wrap: true,
+            render: (row) =>
+              [
+                row.qualifying_months ? t('hr.types.qualifying', { count: row.qualifying_months }) : null,
+                Number(row.half_pay_days) > 0 ? t('hr.types.halfPay', { days: row.half_pay_days }) : null,
+                row.events?.length ? row.events.map((event) => t('hr.types.event', { event: event.label, days: event.days })).join(', ') : null,
+              ]
+                .filter(Boolean)
+                .join(' · ') || '—',
+          },
+          {
+            key: 'research',
+            label: t('hr.types.valueStatus'),
+            wrap: true,
+            render: (row) => (row.researched ? <ResearchStatus status="researched" confidence={row.research?.confidence} researchedOn={row.research?.researched_on} source={row.research?.source ?? []} assumed={(row.research?.assumed ?? []).map((field) => t(`hr.types.assumedFields.${field}`, { defaultValue: field }))} /> : '—'),
+          },
           { key: 'basis', label: t('hr.types.countBasis'), render: (row) => enumLabel(t, 'countBases', row.count_basis) },
           { key: 'status', label: t('hr.columns.status'), render: (row) => <HrStatus status={row.archived_at ? 'archived' : row.days_needed ? 'days_needed' : 'active'} /> },
           {

@@ -17,7 +17,9 @@ use InvalidArgumentException;
  * figure is confirmed; a null rate must say `needs_confirmation` (exempt
  * codes have no rate; zero-rated codes are 0 by definition). A code's
  * periods never overlap, at most one is open-ended, and all have the same
- * kind.
+ * kind. A rate may be `researched` (public research, not yet confirmed):
+ * it then says its `confidence` (high or medium), `researched_on` and
+ * `source` URLs (ResearchStatus); low-confidence figures are never entered.
  */
 final class PackFile
 {
@@ -72,6 +74,12 @@ final class PackFile
             'tax_codes.*.effective_from' => ['required', 'date_format:Y-m-d'],
             'tax_codes.*.effective_to' => ['present', 'nullable', 'date_format:Y-m-d'],
             'tax_codes.*.fiscal_code' => ['present', 'nullable', 'string', 'max:50'],
+            // CP-01: a rate from public research carries its status, confidence, date and sources (ResearchStatus).
+            'tax_codes.*.status' => ['sometimes', 'string', 'in:'.implode(',', ResearchStatus::STATUSES)],
+            'tax_codes.*.confidence' => ['sometimes', 'string', 'in:'.implode(',', ResearchStatus::CONFIDENCE)],
+            'tax_codes.*.researched_on' => ['sometimes', 'date_format:Y-m-d'],
+            'tax_codes.*.source' => ['sometimes', 'array', 'min:1'],
+            'tax_codes.*.source.*' => ['string', 'max:500'],
         ]);
 
         if ($validator->fails()) {
@@ -95,6 +103,12 @@ final class PackFile
 
             if (! is_bool($row['needs_confirmation'])) {
                 throw new InvalidArgumentException("{$where}: needs_confirmation must be true or false.");
+            }
+
+            ResearchStatus::check($row, $where);
+
+            if (array_key_exists('assumed', $row)) {
+                throw new InvalidArgumentException("{$where}: a tax rate has no assumed fields.");
             }
 
             if ($rate !== null) {
@@ -184,6 +198,25 @@ final class PackFile
         $fiscal = $this->data['documents']['fiscal'] ?? null;
 
         return is_array($fiscal) ? $fiscal : null;
+    }
+
+    /**
+     * The research a row's rate comes from (null when it is confirmed or
+     * still needed), as stored on pack and tenant rate rows.
+     *
+     * @return array{confidence: string, researched_on: string, source: list<string>}|null
+     */
+    public static function research(array $row): ?array
+    {
+        $research = ResearchStatus::research($row);
+
+        if ($research === null || ($row['rate'] ?? null) === null) {
+            return null;
+        }
+
+        unset($research['assumed']);
+
+        return $research;
     }
 
     /** @return list<array<string, mixed>> */

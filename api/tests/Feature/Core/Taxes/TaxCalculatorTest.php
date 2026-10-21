@@ -67,6 +67,22 @@ class TaxCalculatorTest extends TestCase
         return [$result->net->minor(), $taxes, $result->gross->minor()];
     }
 
+    public function test_a_researched_rate_is_used_and_the_line_says_so(): void
+    {
+        // CP-01: a rate from public research (synthetic 12.5 here) taxes the line and is recorded on it.
+        $researched = $this->vat('12.5');
+        $researched->rates->first()->research = ['confidence' => 'high', 'researched_on' => '2026-10-17', 'source' => ['https://example.org']];
+        $result = $this->calculator->forLine(Money::ofMinor(100000, 'KES'), [$researched], false, $this->on());
+        $this->assertSame('12500', $result->tax[0]->amount->minor());
+        $this->assertTrue($result->tax[0]->researched);
+        $this->assertTrue($result->researched());
+        $this->assertTrue($result->jsonSerialize()['researched']);
+
+        $confirmed = $this->calculator->forLine(Money::ofMinor(100000, 'KES'), [$this->vat('12.5')], true, $this->on());
+        $this->assertFalse($confirmed->researched());
+        $this->assertFalse($confirmed->tax[0]->researched);
+    }
+
     public function test_exclusive_tax_is_added_to_the_net(): void
     {
         $this->assertSame(['100000', ['12500'], '112500'], $this->line(Money::ofMinor(100000, 'KES'), [$this->vat('12.5')], false));

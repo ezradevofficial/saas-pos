@@ -251,6 +251,8 @@ export function PersonalForm({ form, setForm, errors }) {
  */
 export function LeaveRequestFields({ form, setForm, types, errors, employeePicker }) {
   const { t } = useTranslation()
+  // HR-12: per-event days of the type (circumstantial leave: marriage, birth).
+  const events = types.find((type) => type.id === form.leave_type_id)?.events ?? []
   return (
     <>
       {employeePicker}
@@ -261,8 +263,18 @@ export function LeaveRequestFields({ form, setForm, types, errors, employeePicke
         value={form.leave_type_id}
         required
         error={errors.fields.leave_type_id}
-        onChange={(event) => setForm({ ...form, leave_type_id: event.target.value })}
+        onChange={(event) => setForm({ ...form, leave_type_id: event.target.value, event: '' })}
       />
+      {events.length ? (
+        <Select
+          label={t('hr.leave.event')}
+          help={t('hr.leave.eventHelp')}
+          options={[{ value: '', label: t('hr.leave.noEvent') }, ...events.map((event) => ({ value: event.key, label: t('hr.types.event', { event: event.label, days: event.days }) }))]}
+          value={form.event ?? ''}
+          error={errors.fields.event}
+          onChange={(event) => setForm({ ...form, event: event.target.value })}
+        />
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <TextField type="date" label={t('hr.fields.startDate')} value={form.start_date} required error={errors.fields.start_date} onChange={(event) => setForm({ ...form, start_date: event.target.value })} />
         <TextField type="date" label={t('hr.fields.endDate')} value={form.end_date} required error={errors.fields.end_date} onChange={(event) => setForm({ ...form, end_date: event.target.value })} />

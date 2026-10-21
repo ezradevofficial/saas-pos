@@ -40,8 +40,8 @@ class PublishCountryPackTest extends TestCase
             'sources' => [],
             'todo' => ['VAT_STD: the standard rate.'],
             'tax_codes' => $taxCodes ?: [
-                ['code' => 'VAT_STD', 'kind' => 'vat', 'rate' => null, 'needs_confirmation' => true, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
-                ['code' => 'VAT_ZERO', 'kind' => 'zero_rated', 'rate' => 0, 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
+                ['code' => 'VAT_STD', 'kind' => 'vat', 'rate' => null, 'status' => 'needs_confirmation', 'needs_confirmation' => true, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
+                ['code' => 'VAT_ZERO', 'kind' => 'zero_rated', 'rate' => 0, 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
             ],
         ], $overrides);
     }
@@ -66,15 +66,17 @@ class PublishCountryPackTest extends TestCase
             $pack = CountryPack::latest($code);
             $this->assertNotNull($pack, "{$code} is not published");
             $this->assertSame(1, $pack->version);
-            $this->assertSame([], $pack->summary['sources']);
+            $this->assertNotEmpty($pack->summary['sources']);
             $this->assertNotEmpty($pack->summary['todo']);
 
             $codes = $pack->taxCodes()->get()->keyBy('code');
             $this->assertCount($count, $codes);
 
-            // Nothing is stated that cannot be confirmed: the standard rate is null and flagged.
-            $this->assertNull($codes['VAT_STD']->rate);
-            $this->assertTrue($codes['VAT_STD']->needs_confirmation);
+            // CP-01: the standard rate comes from public research (high confidence), with its sources.
+            $this->assertSame('16.0000', $codes['VAT_STD']->rate);
+            $this->assertFalse($codes['VAT_STD']->needs_confirmation);
+            $this->assertSame(['high', '2026-10-17'], [$codes['VAT_STD']->research['confidence'], $codes['VAT_STD']->research['researched_on']]);
+            $this->assertContains('VAT_STD', $pack->summary['researched']);
             $this->assertSame('0.0000', $codes['VAT_ZERO']->rate);
             $this->assertFalse($codes['VAT_ZERO']->needs_confirmation);
             $this->assertNull($codes['VAT_EXEMPT']->rate);
@@ -86,15 +88,15 @@ class PublishCountryPackTest extends TestCase
                 $this->assertTrue($row->kind === 'exempt' || $row->rate !== null || $row->needs_confirmation, "{$code} {$row->code}");
             }
 
-            $this->assertSame(['VAT_STD', 'VAT_WHT'], CountryPack::latest('KE')->summary['needs_confirmation']);
+            $this->assertSame(['VAT_WHT'], CountryPack::latest('KE')->summary['needs_confirmation']);
         }
 
-        // Only rates that are 0 by definition are filled in, in every shipped file.
+        // Every rate in a shipped file is 0 by definition, or researched with its sources (never invented).
         foreach (['KE', 'CD'] as $code) {
             $data = json_decode(file_get_contents(base_path("country-packs/{$code}/pack.json")), true);
 
             foreach ($data['tax_codes'] as $row) {
-                $this->assertContains($row['rate'], [null, '0', 0], "{$code} {$row['code']} states a rate");
+                $this->assertTrue(in_array($row['rate'], [null, '0', 0], true) || (($row['status'] ?? null) === 'researched' && $row['source'] !== []), "{$code} {$row['code']} states a rate");
             }
         }
     }
@@ -119,9 +121,9 @@ class PublishCountryPackTest extends TestCase
         $first = CountryPack::latest(self::CODE);
 
         $changed = $this->pack(taxCodes: [
-            ['code' => 'VAT_STD', 'kind' => 'vat', 'rate' => null, 'needs_confirmation' => true, 'effective_from' => '2026-01-01', 'effective_to' => '2026-06-30', 'fiscal_code' => null],
-            ['code' => 'VAT_STD', 'kind' => 'vat', 'rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-07-01', 'effective_to' => null, 'fiscal_code' => 'B'],
-            ['code' => 'VAT_EXEMPT', 'kind' => 'exempt', 'rate' => null, 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
+            ['code' => 'VAT_STD', 'kind' => 'vat', 'rate' => null, 'status' => 'needs_confirmation', 'needs_confirmation' => true, 'effective_from' => '2026-01-01', 'effective_to' => '2026-06-30', 'fiscal_code' => null],
+            ['code' => 'VAT_STD', 'kind' => 'vat', 'rate' => '12.5', 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_from' => '2026-07-01', 'effective_to' => null, 'fiscal_code' => 'B'],
+            ['code' => 'VAT_EXEMPT', 'kind' => 'exempt', 'rate' => null, 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null],
         ]);
         $this->artisan('country-packs:publish', ['code' => self::CODE, '--file' => $this->file($changed)])
             ->expectsOutputToContain('version 2')->assertSuccessful();
@@ -139,28 +141,28 @@ class PublishCountryPackTest extends TestCase
 
     public function test_a_pack_that_would_invent_or_contradict_a_rate_is_refused(): void
     {
-        $row = ['code' => 'X', 'kind' => 'vat', 'rate' => null, 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null];
+        $row = ['code' => 'X', 'kind' => 'vat', 'rate' => null, 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_from' => '2026-01-01', 'effective_to' => null, 'fiscal_code' => null];
 
         foreach ([
             'null rate not flagged' => [$row],
             'exempt with a rate' => [['kind' => 'exempt', 'rate' => '5'] + $row],
-            'zero-rated not zero' => [['kind' => 'zero_rated', 'rate' => '1', 'needs_confirmation' => false] + $row],
-            'rate above 100' => [['rate' => '101', 'needs_confirmation' => false] + $row],
-            'float-like rate' => [['rate' => '12.50001', 'needs_confirmation' => false] + $row],
-            'unknown kind' => [['kind' => 'sales_tax', 'needs_confirmation' => true] + $row],
-            'ends before it starts' => [['needs_confirmation' => true, 'effective_to' => '2025-01-01'] + $row],
-            'rate as a JSON float' => [['rate' => 12.5, 'needs_confirmation' => false] + $row],
+            'zero-rated not zero' => [['kind' => 'zero_rated', 'rate' => '1', 'status' => 'confirmed', 'needs_confirmation' => false] + $row],
+            'rate above 100' => [['rate' => '101', 'status' => 'confirmed', 'needs_confirmation' => false] + $row],
+            'float-like rate' => [['rate' => '12.50001', 'status' => 'confirmed', 'needs_confirmation' => false] + $row],
+            'unknown kind' => [['kind' => 'sales_tax', 'status' => 'needs_confirmation', 'needs_confirmation' => true] + $row],
+            'ends before it starts' => [['status' => 'needs_confirmation', 'needs_confirmation' => true, 'effective_to' => '2025-01-01'] + $row],
+            'rate as a JSON float' => [['rate' => 12.5, 'status' => 'confirmed', 'needs_confirmation' => false] + $row],
             'overlapping periods' => [
-                ['rate' => '10', 'needs_confirmation' => false, 'effective_to' => '2026-06-30'] + $row,
-                ['rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-06-30'] + $row,
+                ['rate' => '10', 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_to' => '2026-06-30'] + $row,
+                ['rate' => '12.5', 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_from' => '2026-06-30'] + $row,
             ],
             'two open-ended periods' => [
-                ['rate' => '10', 'needs_confirmation' => false] + $row,
-                ['rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-07-01'] + $row,
+                ['rate' => '10', 'status' => 'confirmed', 'needs_confirmation' => false] + $row,
+                ['rate' => '12.5', 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_from' => '2026-07-01'] + $row,
             ],
             'kind changes between periods' => [
-                ['rate' => '10', 'needs_confirmation' => false, 'effective_to' => '2026-06-30'] + $row,
-                ['kind' => 'excise', 'rate' => '12.5', 'needs_confirmation' => false, 'effective_from' => '2026-07-01'] + $row,
+                ['rate' => '10', 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_to' => '2026-06-30'] + $row,
+                ['kind' => 'excise', 'rate' => '12.5', 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_from' => '2026-07-01'] + $row,
             ],
         ] as $case => $codes) {
             $this->assertSame(1, $this->publish($this->pack(taxCodes: $codes)), $case);
@@ -195,7 +197,7 @@ class PublishCountryPackTest extends TestCase
 
     public function test_rates_as_strings_or_integers_and_consecutive_periods_are_accepted(): void
     {
-        $row = ['code' => 'VAT_STD', 'kind' => 'vat', 'needs_confirmation' => false, 'effective_to' => null, 'fiscal_code' => null];
+        $row = ['code' => 'VAT_STD', 'kind' => 'vat', 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_to' => null, 'fiscal_code' => null];
 
         $this->assertSame(0, $this->publish($this->pack(taxCodes: [
             ['rate' => 10, 'effective_from' => '2026-01-01', 'effective_to' => '2026-06-30'] + $row,
@@ -237,7 +239,7 @@ class PublishCountryPackTest extends TestCase
             }
         }
 
-        $this->assertNull(PackTaxCode::where('country_pack_id', $pack->id)->where('code', 'VAT_STD')->value('rate'));
+        $this->assertSame('16.0000', PackTaxCode::where('country_pack_id', $pack->id)->where('code', 'VAT_STD')->value('rate'));
 
         foreach (['country_packs', 'country_pack_tax_codes'] as $table) {
             $this->assertTrue((bool) DB::selectOne("select has_table_privilege(current_user, '{$table}', 'SELECT') as p")->p);

@@ -7159,6 +7159,9 @@
                             },
                             "source": {
                                 "type": "string"
+                            },
+                            "research": {
+                                "type": "string"
                             }
                         },
                         "required": [
@@ -7167,10 +7170,14 @@
                             "effective_from",
                             "effective_to",
                             "needs_confirmation",
-                            "source"
+                            "source",
+                            "research"
                         ]
                     },
                     "rate_needed": {
+                        "type": "string"
+                    },
+                    "rate_researched": {
                         "type": "string"
                     },
                     "rates": {
@@ -7202,6 +7209,7 @@
                     "fiscal_code",
                     "current_rate",
                     "rate_needed",
+                    "rate_researched",
                     "rates",
                     "archived_at",
                     "updated_at"

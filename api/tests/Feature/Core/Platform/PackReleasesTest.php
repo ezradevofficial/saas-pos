@@ -101,6 +101,12 @@ class PackReleasesTest extends TestCase
     {
         $release = $this->load('payroll', FixturePacks::ke());
         $this->assertContains('components:paye', $release['diff']['changed']);
+        // S2: confirming a researched value is a warning the approver sees.
+        $this->assertContains('components.paye.periods.2026-01-01: researched → confirmed. Approving this release certifies the change.', $release['validation']['warnings']);
+        // A row without an explicit status is refused.
+        $unstated = FixturePacks::ke();
+        unset($unstated['components'][0]['periods'][0]['status']);
+        $this->assertNotEmpty(array_filter($this->load('payroll', $unstated)['validation']['errors'], fn ($e) => str_contains($e, 'status is required')));
         $id = $release['id'];
 
         // The loader cannot approve their own release; engineering cannot publish at all.
@@ -130,7 +136,7 @@ class PackReleasesTest extends TestCase
     public function test_a_release_takes_over_from_its_effective_date(): void
     {
         $release = $this->load('hr', [...self::file('KE', 'hr'), 'statutory_leave_types' => [
-            ['key' => 'annual', 'accrual' => 'annual', 'count_basis' => 'working_days', 'paid' => true, 'days' => 21, 'needs_confirmation' => false, 'effective_from' => '2026-12-01', 'effective_to' => null],
+            ['key' => 'annual', 'accrual' => 'annual', 'count_basis' => 'working_days', 'paid' => true, 'days' => 21, 'status' => 'confirmed', 'needs_confirmation' => false, 'effective_from' => '2026-12-01', 'effective_to' => null],
         ]], from: '2026-12-01');
         $this->approveAndPublish($release['id']);
 

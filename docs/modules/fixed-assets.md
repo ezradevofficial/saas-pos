@@ -279,6 +279,16 @@ tokens only, en/fr.
 `api/country-packs/KE/fixed_assets.json` and
 `api/country-packs/CD/fixed_assets.json` hold class keys only, every
 method and rate null and `needs_confirmation: true`. Nothing is guessed.
+
+Public research (2026-10-17, `docs/country-packs-research-2026-10.md`)
+was **low confidence** for both countries, so nothing was entered and the
+tax book stays refused: for KE, commonly cited rates are commercial
+buildings 10%, computers 25%, motor vehicles 25% and manufacturing
+machinery 50% in year 1 then 25%, but sources disagree on straight line
+against reducing balance and on later Finance Act changes; for CD no
+statutory class table was found (usual practice is straight line at
+commonly accepted rates). The packs' `todo` repeats this.
+
 The owner must confirm, from official sources, with legal references and
 effective dates:
 

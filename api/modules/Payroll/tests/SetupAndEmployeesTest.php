@@ -50,7 +50,7 @@ class SetupAndEmployeesTest extends TestCase
             ->assertCreated()->assertJsonPath('data.taxable', true);
         $this->postJson('/api/v1/payroll/items', ['company_id' => $this->acme->id, 'code' => 'PENSION', 'name' => 'Pension', 'kind' => 'deduction', 'taxable' => true], $headers)
             ->assertUnprocessable()->assertJsonPath('code', 'item_flag_kind');
-        $item = $this->postJson('/api/v1/payroll/items', ['company_id' => $this->acme->id, 'code' => 'PENSION', 'name' => 'Pension', 'kind' => 'deduction', 'pre_tax' => true], $headers)->assertCreated()->json('data.id');
+        $item = $this->postJson('/api/v1/payroll/items', ['company_id' => $this->acme->id, 'code' => 'PENSION', 'name' => 'Pension', 'kind' => 'deduction', 'pre_tax' => true, 'pre_tax_category' => 'pension'], $headers)->assertCreated()->json('data.id');
         $this->patchJson("/api/v1/payroll/items/{$item}", ['kind' => 'earning'], $headers)->assertUnprocessable();
         $this->postJson("/api/v1/payroll/items/{$item}/archive", [], $headers)->assertOk()->assertJsonPath('data.archived_at', fn ($v) => $v !== null);
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'payroll.item.create')->exists()));
@@ -71,7 +71,10 @@ class SetupAndEmployeesTest extends TestCase
         $this->getJson("/api/v1/payroll/statutory/{$this->acme->id}", $this->headersFor($this->officer))->assertOk()
             ->assertJsonPath('data.ready', true)->assertJsonPath('data.currency', 'KES');
 
-        app(PayrollPack::class)->fake('KE', json_decode((string) file_get_contents(base_path('country-packs/KE/payroll.json')), true));
+        // A pack whose PAYE values are all null (as the packs shipped before the researched values).
+        $pack = json_decode((string) file_get_contents(base_path('country-packs/KE/payroll.json')), true);
+        $pack['components'][0]['periods'] = [['effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true, 'bands' => null, 'rounding' => null]];
+        app(PayrollPack::class)->fake('KE', $pack);
         $data = $this->getJson("/api/v1/payroll/statutory/{$this->acme->id}", $this->headersFor($this->officer))->assertOk()->json('data');
         $this->assertFalse($data['ready']);
         $this->assertSame('PAYE', $data['components'][0]['name']);
