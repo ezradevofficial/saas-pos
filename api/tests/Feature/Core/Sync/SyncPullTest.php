@@ -256,7 +256,7 @@ class SyncPullTest extends TestCase
 
         // The tax codes entity tells the till the rate is needed too.
         $codes = collect($this->pull($this->till, ['tax_codes'])->assertOk()->json('entities.tax_codes.upserts'))->keyBy('code');
-        $this->assertSame([['rate' => null, 'effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true]], $codes['VAT_NEW']['rates']);
+        $this->assertSame([['rate' => null, 'effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true, 'researched' => false]], $codes['VAT_NEW']['rates']);
 
         // Confirming the rate re-sends exactly the items of that category.
         $this->inTenant(fn () => app(TaxRates::class)->add($needed['code'], '8', CarbonImmutable::parse('2026-01-01')));
