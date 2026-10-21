@@ -319,6 +319,8 @@ class ResearchedPackTest extends TestCase
         $this->assertSame('3000000', $ipr('10000000')['employee_minor']);
         // 20,000: 3% = 600, raised to the CDF 2,000 minimum.
         $this->assertSame('2000', $ipr('20000')['employee_minor']);
+        // S4: the minimum comes before the 30% cap, so the cap wins: 5,000 → 150 → 2,000 → capped at 1,500.
+        $this->assertSame('1500', $ipr('5000')['employee_minor']);
         // Dependants: no reduction until confirmed.
         $this->assertSame($ipr('1000000')['employee_minor'], $ipr('1000000', 3)['employee_minor']);
 

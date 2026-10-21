@@ -16,8 +16,9 @@ use InvalidArgumentException;
  * base → taxable pay (taxable gross − pre-tax deductions − employee
  * contributions that reduce taxable pay, + what exceeds a category's
  * deduction limit) → income tax by bands → the reduction per dependant →
- * the `max_rate` cap → the `min_minor` minimum (on positive taxable pay,
- * at most that pay) → fixed and rate reliefs → floored at zero. Every component is computed exactly and rounded once,
+ * the `min_minor` minimum (on positive taxable pay, at most that pay) →
+ * the `max_rate` cap (it wins over the minimum) → fixed and rate reliefs →
+ * floored at zero. Every component is computed exactly and rounded once,
  * by its own pack rounding rule. A conditional component (`when`) whose
  * condition is not met is skipped.
  *
@@ -137,22 +138,22 @@ final class StatutoryEngine
                 }
             }
 
-            if (isset($c['values']['max_rate'])) {
-                $cap = $base->multipliedBy($c['values']['max_rate'])->dividedBy(100, self::SCALE, RoundingMode::HalfUp);
-
-                if ($tax->isGreaterThan($cap)) {
-                    $trace['capped_minor'] = (string) $cap->toScale(2, RoundingMode::HalfUp);
-                    $tax = $cap;
-                }
-            }
-
-            // CD: a minimum tax on positive taxable pay, never more than the taxable pay itself.
+            // CD: a minimum tax on positive taxable pay (never more than that pay), applied before the cap: the cap wins.
             if (isset($c['values']['min_minor']) && $base->isPositive()) {
                 $minimum = BigDecimal::min(BigDecimal::of($c['values']['min_minor'])->multipliedBy($scale), $base);
 
                 if ($tax->isLessThan($minimum)) {
                     $trace['minimum_minor'] = (string) $minimum->toScale(2, RoundingMode::HalfUp);
                     $tax = $minimum;
+                }
+            }
+
+            if (isset($c['values']['max_rate'])) {
+                $cap = $base->multipliedBy($c['values']['max_rate'])->dividedBy(100, self::SCALE, RoundingMode::HalfUp);
+
+                if ($tax->isGreaterThan($cap)) {
+                    $trace['capped_minor'] = (string) $cap->toScale(2, RoundingMode::HalfUp);
+                    $tax = $cap;
                 }
             }
 

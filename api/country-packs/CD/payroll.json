@@ -9,6 +9,7 @@
     "todo": [
         "Confirm (accountant) every researched value, then publish it as confirmed through a pack release (ADM-04): the IPR bands (annual ÷ 12), the 30% cap and the CDF 2,000 minimum, CNSS 5% + 5%, risks 1.5%, family 6.5%, ONEM 0.2%.",
         "ipr: a different '2026' scale is shown by one site without a legal source; it is not used. Confirm the scale in force.",
+        "ipr: the CDF 2,000 minimum is assumed monthly and applied before the 30% cap (the cap wins for very low pay). Confirm both.",
         "ipr and the contributions: the rounding rule (to the franc is assumed).",
         "ipr_dependants: the reduction per dependant (2% of IPR per dependant, at most 9, is cited; low confidence). Not applied until confirmed: dependants give no reduction.",
         "cnss: whether the employee's CNSS reduces the IPR base (disputed, low confidence; not deducted until confirmed), and whether a ceiling applies to the base (none found, none applied).",
@@ -64,7 +65,9 @@
                         "unit_minor": "1"
                     },
                     "assumed": [
-                        "rounding"
+                        "rounding",
+                        "min_order",
+                        "min_monthly"
                     ]
                 }
             ]

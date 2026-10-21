@@ -155,7 +155,8 @@ Order: earnings in the pack currency → allowances → contributions (on
 `gross`, `taxable_gross`, `contributory_gross` or `basic`) → taxable pay
 (`taxable_gross` − pre-tax deductions − employee contributions that
 `reduces_taxable` + what exceeds a deduction limit) → income tax by bands →
-reductions per dependant → the `max_rate` cap → the `min_minor` minimum →
+reductions per dependant → the `min_minor` minimum → the `max_rate` cap (it
+wins over the minimum) →
 fixed and rate reliefs → floor at zero → rounding. Each
 component is computed exactly (decimals) and rounded once by its own rule.
 A pack's `non_monthly` value says how monthly figures apply to weekly and
@@ -513,7 +514,7 @@ Kenya (`api/country-packs/KE/payroll.json`, KES):
 
 DR Congo (`api/country-packs/CD/payroll.json`, CDF), all medium:
 
-1. IPR: annual bands ÷ 12 (3% to 162,000, 15% to 1,800,000, 30% to 3,600,000, 40% above, per month), capped at 30% of taxable pay, minimum CDF 2,000.
+1. IPR: annual bands ÷ 12 (3% to 162,000, 15% to 1,800,000, 30% to 3,600,000, 40% above, per month), minimum CDF 2,000, capped at 30% of taxable pay (the cap wins). Assumed until confirmed: the minimum is monthly and applies before the cap.
 2. CNSS pension 5% employee and 5% employer; occupational risks 1.5%; family benefits 6.5% (employer).
 3. ONEM 0.2% employer on the taxable base.
 4. Assumed until confirmed: the employee's CNSS does not reduce the IPR base; no CNSS ceiling; rounding to the franc.
