@@ -98,6 +98,15 @@ class ResearchedLeaveTest extends TestCase
         $this->assertSame((string) $expected, $second['half_pay_days']);
         $this->assertTrue(BigDecimal::of($second['half_pay_days'])->isPositive());
 
+        // The statute's 12 months are rolling, not the calendar year: January 2027 still counts the 2026 requests.
+        $third = $this->request($worker, $types['sick'], '2027-01-11', '2027-01-15')->assertCreated()->json('data');
+        $this->assertSame('5.00', $third['half_pay_days']);
+
+        // Cancelling the first request frees its full-pay days: the later ones are counted again.
+        $this->postJson("/api/v1/hr/leave-requests/{$first['id']}/cancel", ['reason' => 'Entered by mistake'], $this->headersFor($this->hrOfficer))->assertOk();
+        $this->getJson("/api/v1/hr/leave-requests/{$second['id']}", $this->headersFor($this->hrOfficer))->assertOk()->assertJsonPath('data.half_pay_days', '0.00');
+        $this->getJson("/api/v1/hr/leave-requests/{$third['id']}", $this->headersFor($this->hrOfficer))->assertOk()->assertJsonPath('data.half_pay_days', '0.00');
+
         // Maternity: at most 90 calendar days a request.
         $mother = $this->employee(['first_name' => 'Mother', 'hire_date' => '2025-01-06']);
         $this->request($mother, $types['maternity'], '2026-11-02', '2027-01-31')->assertUnprocessable()->assertJsonPath('code', 'leave_balance_short');

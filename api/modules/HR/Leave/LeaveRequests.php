@@ -108,7 +108,7 @@ class LeaveRequests
             }
 
             $this->assertBalance($employee, $type, $data['end_date'], $total);
-            $halfPay = $this->halfPayDays($employee, $type, $data['start_date'], $total);
+            $halfPay = $this->halfPayDays($employee->id, $type, $data['start_date'], $total, null);
 
             $request = LeaveRequest::create([
                 'number' => $this->numbers->next(Numbers::LEAVE_REQUEST, $employee->company_id, $employee->branch_id),
@@ -158,12 +158,17 @@ class LeaveRequests
             $this->ledger->post($request->employee_id, $request->leave_type_id, 'taken', '-'.$request->days, $request->start_date->toDateString(), "request:{$request->id}", $request->id, null, $userId);
             $type = LeaveType::query()->findOrFail($request->leave_type_id);
 
-            LeaveApproved::dispatch(
-                $this->tenants->require(), $request->id, $request->number, $request->employee_id, $request->company_id, $type->id, $type->code, $type->paid,
-                $request->start_date->toDateString(), $request->end_date->toDateString(), $request->start_half, $request->end_half, (string) $request->days, $request->dates,
-                (string) ($request->half_pay_days ?? '0'),
-            );
+            $this->approved($request, $type);
         });
+    }
+
+    private function approved(LeaveRequest $request, LeaveType $type): void
+    {
+        LeaveApproved::dispatch(
+            $this->tenants->require(), $request->id, $request->number, $request->employee_id, $request->company_id, $type->id, $type->code, $type->paid,
+            $request->start_date->toDateString(), $request->end_date->toDateString(), $request->start_half, $request->end_half, (string) $request->days, $request->dates,
+            (string) ($request->half_pay_days ?? '0'),
+        );
     }
 
     /** WF-11: the request's flow was cancelled elsewhere. */
@@ -202,6 +207,8 @@ class LeaveRequests
                 $this->ledger->post($request->employee_id, $request->leave_type_id, 'reversal', (string) $request->days, $request->start_date->toDateString(), "reversal:{$request->id}", $request->id, $reason, $by->id);
                 LeaveCancelled::dispatch($this->tenants->require(), $request->id, $request->employee_id, $request->company_id, $request->leave_type_id, (string) $request->days, $request->dates);
             }
+
+            $this->recountHalfPay($request);
 
             return $request->refresh();
         });
@@ -253,6 +260,8 @@ class LeaveRequests
             $this->ledger->post($request->employee_id, $request->leave_type_id, 'reversal', (string) $request->days, $request->start_date->toDateString(), "reversal:{$request->id}", $request->id, $reason, $by->id);
             LeaveCancelled::dispatch($this->tenants->require(), $request->id, $request->employee_id, $request->company_id, $request->leave_type_id, (string) $request->days, $request->dates);
         }
+
+        $this->recountHalfPay($request);
     }
 
     /**
@@ -271,24 +280,69 @@ class LeaveRequests
             $this->ledger->post($request->employee_id, $request->leave_type_id, 'reversal', $removedDays, $request->start_date->toDateString(), "trim:{$request->id}", $request->id, __('hr.leave.cancelled_on_termination'), $by->id);
             LeaveCancelled::dispatch($this->tenants->require(), $request->id, $request->employee_id, $request->company_id, $request->leave_type_id, $removedDays, $removed);
         }
+
+        $this->recountHalfPay($request, includeSelf: true);
+    }
+
+    /**
+     * HR-12: after a request of a type with half-pay days is cancelled or
+     * trimmed, the later open requests of the employee and type within its
+     * 12 months (and a trimmed request itself) are counted again; an
+     * approved one whose count changes is sent to Payroll again
+     * (LeaveApproved, which replaces its half-pay days).
+     */
+    private function recountHalfPay(LeaveRequest $changed, bool $includeSelf = false): void
+    {
+        $type = LeaveType::query()->find($changed->leave_type_id);
+
+        if ($type === null || $type->half_pay_days === null || BigDecimal::of((string) $type->half_pay_days)->isZero()) {
+            return;
+        }
+
+        $from = $changed->start_date->toDateString();
+        $later = LeaveRequest::query()->where('employee_id', $changed->employee_id)->where('leave_type_id', $type->id)
+            ->whereIn('status', [LeaveRequest::PENDING, LeaveRequest::APPROVED])
+            ->where(fn ($q) => $q->where('start_date', '>', $from)->when($includeSelf, fn ($q) => $q->orWhereKey($changed->id)))
+            ->where('start_date', '<=', $changed->start_date->addYear()->toDateString())
+            ->orderBy('start_date')->orderBy('created_at')->lockForUpdate()->get();
+
+        foreach ($later as $request) {
+            $count = $this->halfPayDays($request->employee_id, $type, $request->start_date->toDateString(), (string) $request->days, $request->id);
+
+            if (BigDecimal::of($count)->isEqualTo((string) $request->half_pay_days)) {
+                continue;
+            }
+
+            $request->fill(['half_pay_days' => $count])->save();
+
+            if ($request->status === LeaveRequest::APPROVED) {
+                $this->approved($request, $type);
+            }
+        }
     }
 
     /**
      * HR-12: the request's days at half pay: those beyond the type's
-     * full-pay days in the calendar year, counting the year's pending and
-     * approved requests of the type before it (KE sick leave: 30 full,
-     * then 15 half). Payroll does not reduce pay for them yet.
+     * full-pay days in the 12 months before it (the statute's rolling
+     * period), counting the pending and approved requests of the type that
+     * start in them (KE sick leave: 30 full, then 15 half). Payroll pays
+     * them in full for now and flags them on the run.
      */
-    private function halfPayDays(Employee $employee, LeaveType $type, string $startDate, string $days): string
+    private function halfPayDays(string $employeeId, LeaveType $type, string $startDate, string $days, ?string $exceptId): string
     {
         if ($type->half_pay_days === null || BigDecimal::of((string) $type->half_pay_days)->isZero() || $type->entitlement_days === null) {
             return '0';
         }
 
-        $year = CarbonImmutable::parse($startDate)->year;
-        $used = LeaveRequest::query()->where('employee_id', $employee->id)->where('leave_type_id', $type->id)
+        $start = CarbonImmutable::parse($startDate);
+        $used = LeaveRequest::query()->where('employee_id', $employeeId)->where('leave_type_id', $type->id)
             ->whereIn('status', [LeaveRequest::PENDING, LeaveRequest::APPROVED])
-            ->whereBetween('start_date', ["{$year}-01-01", "{$year}-12-31"])->sum('days');
+            ->when($exceptId !== null, fn ($q) => $q->whereKeyNot($exceptId))
+            ->where('start_date', '>', $start->subYear()->toDateString())->where('start_date', '<=', $start->toDateString())
+            // A request starting the same day counts only if it was asked earlier.
+            ->when($exceptId !== null, fn ($q) => $q->where(fn ($c) => $c->where('start_date', '<', $start->toDateString())
+                ->orWhere('created_at', '<', LeaveRequest::query()->whereKey($exceptId)->value('created_at'))))
+            ->sum('days');
         $fullLeft = BigDecimal::max(BigDecimal::of((string) $type->entitlement_days)->minus((string) $used), 0);
 
         return (string) BigDecimal::max(BigDecimal::of($days)->minus($fullLeft), 0)->toScale(2);

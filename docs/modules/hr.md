@@ -294,8 +294,11 @@ Decisions taken while building (no owner input asked, per instructions):
 3. **Statutory leave days come from the pack when usable.** Researched
    days (2026-10-17) are copied with their research; the others are null
    and "Days needed" until confirmed (HR-12). A half-pay day (KE sick
-   leave) is credited and counted on the request; Payroll does not yet pay
-   it at half.
+   leave) is credited and counted on the request over the statute's
+   rolling 12 months (the requests starting in the 12 months before it);
+   cancelling or trimming a request counts the later ones again and sends
+   approved ones to Payroll again. Payroll pays them in full for now and
+   flags them on the run.
 4. **HR counts, Payroll pays.** Time rules classify minutes; no multiplier
    or premium rate lives in HR.
 5. **Emergency contacts are part of the employee record** (jsonb), not a
