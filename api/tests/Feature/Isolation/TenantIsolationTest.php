@@ -300,6 +300,7 @@ class TenantIsolationTest extends TestCase
         'kind' => TestLayoutKind::KEY, // LAY-06: config/{kind}: a registered configuration kind; the documents shown are the caller's tenant's
         'dashboard_source' => 'approvals.mine', // LAY-01: dashboard/sources/{dashboard_source}: a registered data source key; the data is the caller's own
         'importer' => 'customers', // IMP-01: imports/importers/{importer}/template: a registered importer key; custom field columns are the caller's tenant's
+        'component' => 'inpp', // CP-01: payroll/statutory/{company}/not-applicable/{component}: a pack component code; the company is B's
     ];
 
     /**

@@ -202,10 +202,10 @@ final class TwoTenants
         $tenantCurrency = collect(self::ok($test->getJson('/api/v1/tenant/currencies', $owner))->json('data'))->firstWhere('code', 'USD')['id'];
 
         // MD-03, CP-01, CP-02: the company got the KE pack's tax codes; a rate is
-        // entered (a test figure), the pack applied again (adds nothing), a shared
+        // entered (a test figure, after the researched pack rate's start), the pack applied again (adds nothing), a shared
         // tax category with a default code, and a default price list.
         $taxCode = collect(self::ok($test->getJson("/api/v1/companies/{$company}/tax-codes", $owner))->json('data'))->firstWhere('code', 'VAT_STD')['id'];
-        self::ok($test->postJson("/api/v1/tax-codes/{$taxCode}/rates", ['rate' => '12.5', 'effective_from' => '2026-01-01'], $owner), 201);
+        self::ok($test->postJson("/api/v1/tax-codes/{$taxCode}/rates", ['rate' => '12.5', 'effective_from' => '2026-02-01'], $owner), 201);
         self::ok($test->postJson("/api/v1/companies/{$company}/tax-codes/apply-pack", [], $owner));
         $taxCategory = self::ok($test->postJson('/api/v1/tax-categories', [
             'name' => "Goods {$upper}",
@@ -1233,7 +1233,8 @@ final class TwoTenants
         $peer = self::ok($test->postJson('/api/v1/hr/employees', [
             'company_id' => $company, 'first_name' => 'Peer', 'last_name' => $upper, 'hire_date' => '2026-01-05', 'branch_id' => $branch, 'location_id' => $location, 'reports_to_id' => $employee,
         ], $owner), 201)->json('data.id');
-        self::ok($test->putJson("/api/v1/hr/employees/{$employee}/identifiers", ['identifiers' => [['type' => 'national_id', 'value' => "NID{$upper}12345"]]], $owner));
+        // HR-03: a national ID in the KE pack's researched format (7 to 9 digits).
+        self::ok($test->putJson("/api/v1/hr/employees/{$employee}/identifiers", ['identifiers' => [['type' => 'national_id', 'value' => ($upper === 'A' ? '12345671' : '12345672')]]], $owner));
         $payAccount = self::ok($test->postJson("/api/v1/hr/employees/{$employee}/pay-accounts", [
             'kind' => 'bank', 'provider' => "Bank {$upper}", 'account_name' => "Worker {$upper}", 'account_number' => "ACC{$upper}00110022", 'currency' => 'KES',
         ], $owner), 201)->json('data.id');
