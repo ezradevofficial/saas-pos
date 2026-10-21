@@ -89,6 +89,7 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `auth_tenant_for_pairing(p_code_hash text)` | `devices` by pairing-code hash, unexpired codes only |
 | `api_key_tenant(p_public_id text, p_sandbox boolean)` | `api_keys` by key id, when the tenant's sandbox flag matches the key's `sk_test_` or `sk_live_` prefix (ADR 020) |
 | `crm_lead_form_tenant(p_token_hash text)` | `crm_lead_forms` by token hash, archived forms included (the controller refuses them; CRM-06) |
+| `oauth_token_tenant(p_kind text, p_id_hash text)` | `oauth_auth_codes`, `oauth_access_tokens` or `oauth_refresh_tokens` by the sha256 of a marketplace app's code or token identifier (ADR 024) |
 | `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | the active tenant whose slug or verified custom domain the storefront's host names and that has a live, not archived store with that handle (ECOM-06) |
 | `ecom_whatsapp_tenant(p_token_hash text)` | `ecom_stores` by WhatsApp webhook token hash, archived stores included (the controller refuses them; ECOM-24) |
 
@@ -192,6 +193,8 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_for_pack_updates()` | `setof uuid` | ADM-04 (ADR 022): every tenant that is not closed, suspended ones included, to receive a published tax release (one queued job per tenant) |
 | `app_tenants_with_expired_support_grants(p_at timestamptz)` | `setof uuid` | `support:expire`: support access approved and past its end (RBAC-13, docs/modules/platform-admin.md) |
 | `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `setof uuid` | `webhooks:sweep` (ADR 021) |
+| `oauth_token_tenant(p_kind text, p_id_hash text)` | `uuid` | the tenant of a marketplace app's authorization code, access or refresh token, by sha256 of its identifier (`auth_code`, `access_token`, `refresh_token`), for the token endpoint and the resource guard (API-02, MKT-02, ADR 024) |
+| `app_tenants_with_app_installed(p_app_id uuid)` | `setof uuid` | tenants (not closed) with an active install of an app: staff suspending or reinstating it audit each, and a rolled webhook secret reaches each (ADM-05, MKT-02, ADR 024) |
 
 ### Nobody but the owner creates objects in `public`
 
