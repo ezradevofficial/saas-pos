@@ -656,7 +656,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('sso/domains/{sso_domain}/archive', [SsoDomainController::class, 'archive']);
     // AUTH-11, ADR 023: SSO links: one's own (Settings, Security), and a user's as an SSO manager sees them.
     Route::get('me/sso', [SsoIdentityController::class, 'mine']);
-    Route::post('me/sso/link', [SsoIdentityController::class, 'link'])->name('sso.me.link');
+    Route::post('me/sso/link', [SsoIdentityController::class, 'link']);
     Route::post('me/sso/identities/{sso_identity}/archive', [SsoIdentityController::class, 'unlinkMine']);
     Route::get('users/{user}/sso-identities', [SsoIdentityController::class, 'ofUser']);
     Route::post('users/{user}/sso-identities/{sso_identity}/archive', [SsoIdentityController::class, 'unlink']);

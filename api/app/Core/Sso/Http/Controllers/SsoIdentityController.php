@@ -3,6 +3,7 @@
 namespace App\Core\Sso\Http\Controllers;
 
 use App\Core\Identity\Models\User;
+use App\Core\Sso\Http\Requests\LinkMySsoRequest;
 use App\Core\Sso\Http\Requests\MySsoRequest;
 use App\Core\Sso\Http\Requests\UserSsoIdentitiesRequest;
 use App\Core\Sso\Models\SsoConnection;
@@ -38,7 +39,7 @@ class SsoIdentityController
         ]]);
     }
 
-    public function link(MySsoRequest $request, SsoFlows $flows): JsonResponse
+    public function link(LinkMySsoRequest $request, SsoFlows $flows): JsonResponse
     {
         $started = $flows->startLink($request->connection(), $request->user(), $request->validated('origin'));
 

@@ -2,7 +2,6 @@
 
 namespace App\Core\Sso\Http\Requests;
 
-use App\Core\Sso\Models\SsoConnection;
 use App\Core\Sso\Models\SsoIdentity;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -20,19 +19,7 @@ class MySsoRequest extends FormRequest
 
     public function rules(): array
     {
-        return $this->routeIs('sso.me.link') ? [
-            'connection_id' => ['required', 'uuid'],
-            'origin' => ['nullable', 'string', 'max:255'],
-        ] : [];
-    }
-
-    /** An enabled connection of the tenant (404 otherwise). */
-    public function connection(): SsoConnection
-    {
-        $connection = SsoConnection::query()->whereKey($this->validated('connection_id'))->first();
-        abort_if($connection === null || ! $connection->isLive(), 404);
-
-        return $connection;
+        return [];
     }
 
     /** One of the user's own live links (404 otherwise). */
