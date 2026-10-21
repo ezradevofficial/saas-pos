@@ -22,10 +22,10 @@ const OAUTH_PARAMS = ['client_id', 'redirect_uri', 'response_type', 'scope', 'st
  * Either way they go back to the app.
  */
 export default function Consent() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [params] = useSearchParams()
   const oauth = Object.fromEntries(OAUTH_PARAMS.filter((key) => params.get(key)).map((key) => [key, params.get(key)]))
-  const query = useQuery({ queryKey: ['oauth', 'authorize', params.toString()], queryFn: () => api.get(`oauth/authorize?${new URLSearchParams(oauth)}`), retry: false })
+  const query = useQuery({ queryKey: ['oauth', 'authorize', params.toString(), i18n.resolvedLanguage], queryFn: () => api.get(`oauth/authorize?${new URLSearchParams(oauth)}`), retry: false })
   const grants = useGrantOptions()
   const options = { ...grants, rolesFor: (row) => grants.rolesFor(row).filter((role) => !role.is_owner) }
   const [row, setRow] = useState(() => emptyAssignment())

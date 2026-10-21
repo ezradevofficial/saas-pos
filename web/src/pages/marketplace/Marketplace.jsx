@@ -86,9 +86,9 @@ export default function Marketplace() {
  * connector says what it still lacks.
  */
 export function MarketplaceApp() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { appId } = useParams()
-  const query = useQuery({ queryKey: ['marketplace', 'app', appId], queryFn: () => api.get(`marketplace/apps/${appId}`) })
+  const query = useQuery({ queryKey: ['marketplace', 'app', appId, i18n.resolvedLanguage], queryFn: () => api.get(`marketplace/apps/${appId}`) })
   const connectors = useQuery({ queryKey: ['marketplace', 'connectors'], queryFn: () => api.get('marketplace/connectors'), enabled: Boolean(query.data?.data?.developer?.first_party) })
   const app = query.data?.data
   const connector = connectors.data?.data?.find((row) => row.app_id === appId)

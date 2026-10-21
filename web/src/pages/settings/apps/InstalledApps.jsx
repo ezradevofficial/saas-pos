@@ -173,11 +173,11 @@ function UninstallDialog({ installation, onClose }) {
  * version, change its role, or uninstall it (core.marketplace.install).
  */
 export function InstalledApp() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const locale = useLocale()
   const { installationId } = useParams()
   const [dialog, setDialog] = useState(null)
-  const query = useQuery({ queryKey: [...KEY, installationId], queryFn: () => api.get(`apps/installed/${installationId}`) })
+  const query = useQuery({ queryKey: [...KEY, installationId, i18n.resolvedLanguage], queryFn: () => api.get(`apps/installed/${installationId}`) })
   const installation = query.data?.data
 
   if (query.isError) return <Alert tone="danger" title={errorMessage(query.error)} />
