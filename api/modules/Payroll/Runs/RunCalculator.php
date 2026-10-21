@@ -157,8 +157,9 @@ class RunCalculator
         // Review fix 5: what the run was calculated from (the pack's source and hash); decisions 29, 33, 40: what the reviewer should know.
         $run->fill(['missing' => null, 'totals' => $this->totals($run, $lines, $previous, $employees), 'inputs' => [
             'pack' => $this->packs->source($company->country, $run->pay_date),
-            // CP-01: researched values used, components left out while unconfirmed, and those marked not applicable.
-            'statutory' => PayrollPack::notices($inForce, $used, $notApplicable),
+            // CP-01: researched values used, components left out while unconfirmed, those marked not applicable,
+            // and statutory half-pay leave days paid in full (HR-12: KE sick leave beyond its full-pay days).
+            'statutory' => [...PayrollPack::notices($inForce, $used, $notApplicable), 'half_pay_paid_in_full' => self::halfPayDays($lines)],
             'review' => $this->review($run, $group, $previous),
         ]])->save();
     }
@@ -195,7 +196,7 @@ class RunCalculator
     private static function fingerprint(Run $run, PayrollEmployee $employee, Collection $leave, array $attendanceIds): string
     {
         sort($attendanceIds);
-        $days = $leave->map(fn (LeaveDay $d) => $d->date->toDateString().'='.$d->fraction)->sort()->values()->all();
+        $days = $leave->map(fn (LeaveDay $d) => $d->date->toDateString().'='.$d->fraction.(($d->kind ?? 'unpaid') === 'unpaid' ? '' : ':'.$d->kind))->sort()->values()->all();
 
         return hash('sha256', json_encode([
             'hire' => $employee->hire_date->gte($run->period_start) ? $employee->hire_date->toDateString() : null,
@@ -480,6 +481,20 @@ class RunCalculator
         // PAY-11: unpaid leave of monthly pay at the daily rate.
         $leave = collect($data['leave'][$employee->employee_id] ?? []);
         $inputs['fingerprint'] = self::fingerprint($run, $employee, $leave, $inputs['attendance_ids']);
+
+        // CP-01: leave whose pay rate is not confirmed (CD maternity) blocks the line; half-pay days (KE sick
+        // leave) are paid in full for now and counted for the run's notice.
+        if ($leave->contains(fn (LeaveDay $d) => $d->kind === 'pay_unconfirmed')) {
+            $errors[] = 'leave_pay_unconfirmed';
+        }
+
+        $halfPay = $leave->filter(fn (LeaveDay $d) => $d->kind === 'half_pay')->reduce(fn (BigDecimal $sum, LeaveDay $d) => $sum->plus($d->fraction), BigDecimal::zero());
+
+        if ($halfPay->isPositive()) {
+            $inputs['half_pay_days'] = (string) $halfPay;
+        }
+
+        $leave = $leave->filter(fn (LeaveDay $d) => ($d->kind ?? 'unpaid') === 'unpaid');
 
         if ($last?->pay_basis === 'monthly') {
             $leaveDays = $leave->reduce(fn (BigDecimal $sum, LeaveDay $d) => $sum->plus($d->fraction), BigDecimal::zero());
@@ -855,6 +870,26 @@ class RunCalculator
     }
 
     /** Rows with the same $key summed (amounts as digit strings). */
+    /**
+     * CP-01: the run's half-pay leave days paid in full (null when none).
+     *
+     * @return array{days: string, employees: int}|null
+     */
+    private static function halfPayDays(array $lines): ?array
+    {
+        $days = BigDecimal::zero();
+        $employees = 0;
+
+        foreach ($lines as $line) {
+            if (isset($line['inputs']['half_pay_days'])) {
+                $days = $days->plus($line['inputs']['half_pay_days']);
+                $employees++;
+            }
+        }
+
+        return $employees === 0 ? null : ['days' => (string) $days->toScale(2), 'employees' => $employees];
+    }
+
     /**
      * PAY-07: pre-tax deductions by statutory category (the pack limits each).
      *

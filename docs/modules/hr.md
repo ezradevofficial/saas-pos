@@ -469,8 +469,9 @@ Open for the owner:
   calendar days paid, paternity 14 days paid, sick 30 days full pay then
   15 at half pay after 2 months' service (medium); KRA PIN
   `^[AP][0-9]{9}[A-Z]$` (high) and national ID `^[0-9]{7,9}$` (medium,
-  format only). DR Congo maternity 14 weeks (98 calendar days; marked paid
-  as an assumption, the pay rate is unconfirmed) and circumstantial leave
+  format only). DR Congo maternity 14 weeks (98 calendar days; its pay is
+  null, "Pay not confirmed": requests are taken and Payroll blocks runs
+  with such days until the pay is confirmed) and circumstantial leave
   10 working days a year with own marriage 2 and birth of a child 2
   (medium).
 - Still needed: Kenya compassionate and pre-adoptive leave; DR Congo

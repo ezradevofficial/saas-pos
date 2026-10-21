@@ -6,9 +6,13 @@ use App\Core\Workflow\Calendar\BusinessCalendar;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
+use Modules\HR\Contracts\LeaveRecords;
+use Modules\HR\Events\LeaveApproved;
 use Modules\HR\Leave\Accruals;
+use Modules\HR\Leave\LeaveRequests;
 use Modules\HR\Models\Employee;
 use Modules\HR\Models\LeaveEntry;
 use Modules\HR\Models\LeaveType;
@@ -121,9 +125,16 @@ class ResearchedLeaveTest extends TestCase
         $this->assertTrue($types['sick']->needs_confirmation);
         $this->request($worker, $types['annual'], '2026-10-26', '2026-10-27')->assertUnprocessable()->assertJsonPath('code', 'leave_days_needed');
 
-        // Maternity 14 weeks; paid is assumed until the pay rate is confirmed.
-        $this->assertSame(['98.00', 'calendar_days', false], [(string) $types['maternity']->entitlement_days, $types['maternity']->count_basis, $types['maternity']->needs_confirmation]);
-        $this->assertSame(['paid'], $types['maternity']->research['assumed']);
+        // Maternity 14 weeks; its pay rate is not confirmed (paid null): requests are taken, Payroll blocks the run.
+        $this->assertSame(['98.00', 'calendar_days', false, null], [(string) $types['maternity']->entitlement_days, $types['maternity']->count_basis, $types['maternity']->needs_confirmation, $types['maternity']->paid]);
+        Event::fake([LeaveApproved::class]);
+        $mother = $this->employee(['first_name' => 'Mother', 'hire_date' => '2025-01-06']);
+        $maternity = $this->request($mother, $types['maternity'], '2026-11-02', '2026-11-30')->assertCreated()->json('data.id');
+        $this->inTenant(fn () => app(LeaveRequests::class)->completed($maternity, 'approved', null));
+        Event::assertDispatched(LeaveApproved::class, fn (LeaveApproved $e) => $e->requestId === $maternity && $e->paid === null);
+        // Payroll's sync reads it too (the HR contract), with its unconfirmed pay.
+        $records = $this->inTenant(fn () => collect(app(LeaveRecords::class)->unpaidOfCompany($this->acme->id))->keyBy('request_id'));
+        $this->assertNull($records[$maternity]['paid']);
 
         // Circumstantial: 10 working days a year; own marriage 2, birth 2.
         $circumstantial = $types['circumstantial'];

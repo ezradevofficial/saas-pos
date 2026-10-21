@@ -1,13 +1,13 @@
 {
     "code": "CD",
-    "notes": "HR reference data for Congolese companies (docs/modules/hr.md HR-03, HR-12, HR-13): identifier types and statutory leave types. Each row has a status (ResearchStatus): 'researched' values come from public research (docs/country-packs-research-2026-10.md) with their confidence, research date and sources; they are used, and leave records that use them say so until the owner confirms them through a pack release (ADM-04). 'assumed' lists fields that are defaults pending confirmation (maternity: paid, while the pay rate, 2/3 cited, is unconfirmed). A null pattern enforces no format; a null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. Low-confidence research is never entered. events: per-event days within the type's yearly days (circumstantial leave: at most 10 working days a year, not deducted from annual leave, Code du travail art. 146). Labels live in lang/{locale}/hr.php (pack.*).",
+    "notes": "HR reference data for Congolese companies (docs/modules/hr.md HR-03, HR-12, HR-13): identifier types and statutory leave types. Each row has a status (ResearchStatus): 'researched' values come from public research (docs/country-packs-research-2026-10.md) with their confidence, research date and sources; they are used, and leave records that use them say so until the owner confirms them through a pack release (ADM-04). A null 'paid' on a usable type means its pay rate is not confirmed (maternity: 2/3 of pay is cited, low confidence): requests are taken, and a payroll run with such days is blocked until the pay is confirmed. A null pattern enforces no format; a null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. Low-confidence research is never entered. events: per-event days within the type's yearly days (circumstantial leave: at most 10 working days a year, not deducted from annual leave, Code du travail art. 146). Labels live in lang/{locale}/hr.php (pack.*).",
     "sources": [
         "https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail",
         "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
     ],
     "todo": [
         "Confirm every researched value, then publish it as confirmed through a pack release (ADM-04): maternity 14 weeks (98 calendar days) and circumstantial leave (10 working days a year; own marriage 2, birth of a child 2).",
-        "maternity: the pay during maternity leave (2/3 of pay is cited, low confidence). Until confirmed the type is marked paid (assumed) and payroll pays it in full: check each case.",
+        "maternity: the pay during maternity leave (2/3 of pay is cited, low confidence). Until confirmed the type's pay is null: requests are taken, and a payroll run with maternity days is blocked ('Leave pay rate not confirmed') until the company or the pack confirms the pay.",
         "annual: statutory annual leave (1.5 working days a month, or a 15/18/21-day seniority scale, are cited; low confidence), with the effective date.",
         "sick: statutory sick leave (incapacité de travail) rules and pay (not found).",
         "circumstantial: the other events (death of a spouse, child or parent, and so on) and their days, with legal references.",
@@ -45,7 +45,7 @@
             "key": "maternity",
             "accrual": "none",
             "count_basis": "calendar_days",
-            "paid": true,
+            "paid": null,
             "days": 98,
             "status": "researched",
             "confidence": "medium",
@@ -55,9 +55,6 @@
                 "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
             ],
             "needs_confirmation": false,
-            "assumed": [
-                "paid"
-            ],
             "effective_from": "2026-01-01",
             "effective_to": null
         },

@@ -263,6 +263,11 @@ export function RunDetail() {
         {status === 'approved' ? <Alert tone="info" title={t('payroll.run.approvedTitle')}>{t('payroll.run.approvedHelp')}</Alert> : null}
         {status !== 'posted' && status !== 'cancelled' ? <RunReview review={run.review} /> : null}
         {run.uses_researched_values ? <ResearchedNotice to="/payroll/settings?tab=statutory" /> : null}
+        {run.statutory?.half_pay_paid_in_full ? (
+          <Alert tone="warning" title={t('payroll.run.halfPayTitle')}>
+            {t('payroll.run.halfPayHelp', { days: run.statutory.half_pay_paid_in_full.days, count: run.statutory.half_pay_paid_in_full.employees })}
+          </Alert>
+        ) : null}
         {run.statutory?.not_applicable?.length ? (
           <Alert tone="info" title={t('payroll.run.notApplicable', { components: run.statutory.not_applicable.map((row) => row.name ?? row.component).join(', ') })}>
             {run.statutory.not_applicable.map((row) => row.reason).join(' · ')}

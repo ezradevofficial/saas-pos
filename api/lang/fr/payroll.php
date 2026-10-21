@@ -50,6 +50,7 @@ return [
         'rate_missing' => 'Il manque un taux de change pour la date de paie. Ajoutez-le dans les taux de change.',
         'paid_in_other_run' => 'Déjà dans la paie d’un autre groupe pour ces jours. Retirez l’employé de l’un des groupes.',
         'net_negative' => 'Le net à payer est négatif. Réduisez une retenue ou une mensualité de prêt.',
+        'leave_pay_unconfirmed' => 'Taux de rémunération du congé non confirmé (par exemple le congé de maternité en RDC) : cette période comprend un congé dont la rémunération n’est pas confirmée. Confirmez la rémunération du type de congé dans les RH, puis recalculez.',
     ],
 
     'line_warnings' => [

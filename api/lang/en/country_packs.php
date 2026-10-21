@@ -25,6 +25,7 @@ return [
         'overlap' => 'Two periods of :key in :path overlap. Close one before the next starts.',
         'missing_value' => ':path is marked confirmed but has no value for :fields. Enter the figures, or mark it as needing confirmation.',
         'needs_confirmation' => ':path still needs confirmation; what uses it stays blocked until it is confirmed.',
+        'pay_needs_confirmation' => ':path: the pay rate is not confirmed; payroll runs with this leave are blocked until it is.',
         'missing_key' => ':key in :path leaves out :fields. Every row of this pack needs them; use null for a figure still to confirm.',
         'supersede_notes' => 'Puts back the content of release :version.',
         'not_published' => 'Only a published release can be superseded.',

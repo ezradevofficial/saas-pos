@@ -152,7 +152,7 @@ record it, and the web app shows the "from public research" notice.
 | CD `payroll.json` | IPR annual bands ÷ 12, cap 30%, minimum CDF 2,000 (rounding to the franc assumed) | Medium |
 | | CNSS 5% + 5% (not deducted from the IPR base and no ceiling: assumed), risks 1.5%, family 6.5% | Medium |
 | | ONEM 0.2% employer, on the taxable base | Medium |
-| CD `hr.json` | Maternity 14 weeks (98 calendar days; paid is assumed, the pay rate is not confirmed) | Medium |
+| CD `hr.json` | Maternity 14 weeks (98 calendar days; pay null: the pay rate is not confirmed, so payroll runs with maternity days are blocked) | Medium |
 | | Circumstantial leave 10 working days a year; own marriage 2, birth of a child 2 | Medium |
 
 Not applied (low confidence or not found), still null and
@@ -174,7 +174,7 @@ Not applied (low confidence or not found), still null and
   layouts.
 
 Known gaps: payroll does not yet pay KE half-pay sick days at half (the
-leave request records them); document lines of POS, Accounting, CRM,
+run records and shows them as "half-pay sick days paid in full"); document lines of POS, Accounting, CRM,
 E-commerce and Procurement keep only the tax rate they used, so "used a
 researched rate" is on the tax calculation result (`TaxAmount::$researched`)
 and the tax rate row, not yet stored on each document line (that needs a

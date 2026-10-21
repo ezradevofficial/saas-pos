@@ -8264,7 +8264,8 @@
       "qualifying_other": "After {{count}} months of service",
       "halfPay": "then {{days}} days at half pay",
       "event": "{{event}}: {{days}} days",
-      "valueStatus": "Days from"
+      "valueStatus": "Days from",
+      "paidUnconfirmed": "Pay not confirmed"
     },
     "week": {
       "description": "Planned shifts by employee and day.",
@@ -10132,7 +10133,10 @@
         "override": "Test pack (staging)",
         "test": "Test fixture"
       },
-      "notApplicable": "Marked not applicable for this company: {{components}}"
+      "notApplicable": "Marked not applicable for this company: {{components}}",
+      "halfPayTitle": "Half-pay sick days paid in full",
+      "halfPayHelp_one": "{{days}} days of sick leave are at half pay by statute, but this run pays them in full ({{count}} employee). Adjust them before filing if needed.",
+      "halfPayHelp_other": "{{days}} days of sick leave are at half pay by statute, but this run pays them in full ({{count}} employees). Adjust them before filing if needed."
     },
     "kpi": {
       "employees": "Employees",

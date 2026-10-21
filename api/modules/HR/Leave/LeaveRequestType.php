@@ -62,7 +62,7 @@ class LeaveRequestType extends DocumentType
         return [
             'leave_type' => $type?->code,
             'days' => (string) $request->days,
-            'paid' => (bool) $type?->paid,
+            'paid' => $type?->paid,
             'start_date' => $request->start_date->toDateString(),
             'employee' => $request->employee_id,
             'department' => Employee::query()->whereKey($request->employee_id)->value('department_id'),

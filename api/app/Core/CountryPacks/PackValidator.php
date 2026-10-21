@@ -193,7 +193,9 @@ class PackValidator
             $empty = [];
 
             foreach ($node as $key => $value) {
-                $exempt = $kind === 'tax' && $key === 'rate' && ($node['kind'] ?? null) === 'exempt';
+                $exempt = ($kind === 'tax' && $key === 'rate' && ($node['kind'] ?? null) === 'exempt')
+                    // CP-01: a leave type's null pay is "pay rate not confirmed" (warned below); its days stand.
+                    || ($kind === 'hr' && $key === 'paid');
 
                 if ($value === null && ! in_array($key, self::NULLABLE, true) && ! $exempt) {
                     $empty[] = $key;
@@ -201,6 +203,10 @@ class PackValidator
             }
 
             $where = $path === '' ? '(top)' : $path;
+
+            if ($kind === 'hr' && array_key_exists('paid', $node) && $node['paid'] === null && $node['needs_confirmation'] === false) {
+                $warnings[] = __('country_packs.releases.pay_needs_confirmation', ['path' => $path === '' ? '(top)' : $path]);
+            }
 
             if ($node['needs_confirmation'] === false && $empty !== []) {
                 $errors[] = __('country_packs.releases.missing_value', ['path' => $where, 'fields' => implode(', ', $empty)]);

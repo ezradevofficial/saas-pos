@@ -8,6 +8,7 @@ use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Modules\HR\Models\LeaveRequest;
 use Modules\HR\Models\LeaveType;
 use Modules\HR\Support\Errors;
 use Modules\HR\Support\HrPack;
@@ -105,7 +106,8 @@ class LeaveTypes
         $usable = self::usable($type);
 
         return [
-            'paid' => $type['paid'] ?? true,
+            // CP-01: null = the pay rate is not confirmed (CD maternity); runs with such days are blocked in Payroll.
+            'paid' => array_key_exists('paid', $type) ? $type['paid'] : true,
             'entitlement_days' => $usable ? (string) $type['days'] : null,
             'needs_confirmation' => ! $usable,
             'count_basis' => $type['count_basis'] ?? 'working_days',
@@ -166,7 +168,13 @@ class LeaveTypes
                 throw Errors::make(422, 'entitlement_required', field: 'entitlement_days');
             }
 
+            $paidChanged = $type->isDirty('paid');
             $type->save();
+
+            // CP-01: Payroll's copy of this type's leave follows its pay (unconfirmed, paid or unpaid) on the next sync.
+            if ($paidChanged) {
+                LeaveRequest::query()->where('leave_type_id', $type->id)->update(['updated_at' => now()]);
+            }
 
             return $type->refresh();
         });

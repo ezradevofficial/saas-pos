@@ -400,7 +400,7 @@ export function LeaveTypes() {
         columns={[
           { key: 'code', label: t('hr.columns.code'), render: (row) => <span className="font-medium tabular-nums">{row.code}</span> },
           { key: 'name', label: t('hr.types.name'), render: (row) => (row.statutory_label && row.statutory_label !== row.name ? `${row.name} · ${row.statutory_label}` : row.name) },
-          { key: 'paid', label: t('hr.types.paid'), render: (row) => (row.paid ? t('hr.types.paidYes') : t('hr.types.paidNo')) },
+          { key: 'paid', label: t('hr.types.paid'), render: (row) => (row.paid === null ? t('hr.types.paidUnconfirmed') : row.paid ? t('hr.types.paidYes') : t('hr.types.paidNo')) },
           { key: 'accrual', label: t('hr.types.accrual'), render: (row) => enumLabel(t, 'accruals', row.accrual) },
           { key: 'days', label: t('hr.types.entitlement'), align: 'end', render: (row) => <Days value={row.entitlement_days} /> },
           {

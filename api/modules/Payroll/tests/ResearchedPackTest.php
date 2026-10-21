@@ -8,6 +8,9 @@ use App\Core\Currency\TenantCurrencies;
 use App\Core\Rbac\Scope;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
+use Modules\HR\Events\LeaveApproved;
+use Modules\Payroll\Models\LeaveDay;
 use Modules\Payroll\Models\Settings;
 use Modules\Payroll\Statutory\MissingValues;
 use Modules\Payroll\Statutory\PayrollPack;
@@ -83,6 +86,35 @@ class ResearchedPackTest extends TestCase
         $this->assertNotEmpty($researched['paye']['source']);
         // Conditional components no employee used are not recorded.
         $this->assertArrayNotHasKey('insurance_relief', $researched->all());
+    }
+
+    public function test_leave_with_an_unconfirmed_pay_rate_blocks_the_line_and_half_pay_days_are_flagged(): void
+    {
+        $amina = $this->payrollEmployee('10000000');
+        $baraka = $this->payrollEmployee('10000000', ['first_name' => 'Baraka']);
+        $dates = [['date' => '2026-10-12', 'fraction' => '1.00'], ['date' => '2026-10-13', 'fraction' => '1.00'], ['date' => '2026-10-14', 'fraction' => '1.00']];
+        // CD-style maternity leave whose pay rate is not confirmed (paid null).
+        event(new LeaveApproved($amina->tenant_id, (string) Str::uuid7(), 'LV-1', $amina->employee_id, $this->acme->id, (string) Str::uuid7(), 'MATERNITY', null, '2026-10-12', '2026-10-14', false, false, '3.00', $dates));
+        // KE sick leave with 1.5 days at half pay (the last days of the request).
+        $sick = (string) Str::uuid7();
+        event(new LeaveApproved($baraka->tenant_id, $sick, 'LV-2', $baraka->employee_id, $this->acme->id, (string) Str::uuid7(), 'SICK', true, '2026-10-12', '2026-10-14', false, false, '3.00', $dates, '1.50'));
+
+        $id = $this->calculatedRun();
+        $lines = $this->lines($id);
+        $this->assertSame(['leave_pay_unconfirmed'], array_column($lines[$amina->number]['errors'], 'code'));
+        $this->assertStringContainsString('Leave pay rate not confirmed', $lines[$amina->number]['errors'][0]['message']);
+        // Not deducted as unpaid leave either.
+        $this->assertFalse(collect($lines[$amina->number]['earnings'])->contains('code', 'unpaid_leave'));
+        $this->assertSame([], $lines[$baraka->number]['errors']);
+
+        $run = $this->getJson("/api/v1/payroll/runs/{$id}", $this->headersFor($this->officer))->assertOk();
+        $this->assertSame(1, $run->json('data.lines_with_errors'));
+        $this->assertSame(['days' => '1.50', 'employees' => 1], $run->json('data.statutory.half_pay_paid_in_full'));
+        $this->assertSame([['2026-10-13', '0.50'], ['2026-10-14', '1.00']], $this->inTenant(fn () => LeaveDay::query()->where('request_id', $sick)->where('kind', 'half_pay')->orderBy('date')->get()->map(fn (LeaveDay $d) => [$d->date->toDateString(), (string) $d->fraction])->all()));
+
+        // HR recounts (an earlier request was cancelled): no half-pay day left.
+        event(new LeaveApproved($baraka->tenant_id, $sick, 'LV-2', $baraka->employee_id, $this->acme->id, (string) Str::uuid7(), 'SICK', true, '2026-10-12', '2026-10-14', false, false, '3.00', $dates, '0'));
+        $this->assertSame(0, $this->inTenant(fn () => LeaveDay::query()->where('request_id', $sick)->count()));
     }
 
     public function test_nssf_year_3_and_year_4_by_pay_date(): void

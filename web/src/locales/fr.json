@@ -8264,7 +8264,8 @@
       "qualifying_other": "Après {{count}} mois de service",
       "halfPay": "puis {{days}} jours à demi-salaire",
       "event": "{{event}} : {{days}} jours",
-      "valueStatus": "Jours issus de"
+      "valueStatus": "Jours issus de",
+      "paidUnconfirmed": "Rémunération non confirmée"
     },
     "week": {
       "description": "Les quarts planifiés par employé et par jour.",
@@ -10132,7 +10133,10 @@
         "override": "Pack de test (préproduction)",
         "test": "Jeu de test"
       },
-      "notApplicable": "Marqué non applicable pour cette entreprise : {{components}}"
+      "notApplicable": "Marqué non applicable pour cette entreprise : {{components}}",
+      "halfPayTitle": "Jours de maladie à demi-salaire payés en entier",
+      "halfPayHelp_one": "{{days}} jours de congé de maladie sont à demi-salaire selon la loi, mais cette paie les paie en entier ({{count}} salarié). Ajustez-les avant toute déclaration si nécessaire.",
+      "halfPayHelp_other": "{{days}} jours de congé de maladie sont à demi-salaire selon la loi, mais cette paie les paie en entier ({{count}} salariés). Ajustez-les avant toute déclaration si nécessaire."
     },
     "kpi": {
       "employees": "Employés",

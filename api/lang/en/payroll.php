@@ -49,6 +49,7 @@ return [
         'rate_missing' => 'An exchange rate for the pay date is missing. Add it in exchange rates.',
         'paid_in_other_run' => 'Already in another pay group’s run for these days. Take them out of one pay group.',
         'net_negative' => 'Net pay is below zero. Reduce a deduction or a loan instalment.',
+        'leave_pay_unconfirmed' => 'Leave pay rate not confirmed (for example DR Congo maternity pay): this period has leave of a type whose pay isn’t confirmed. Confirm the leave type’s pay in HR, then calculate again.',
     ],
 
     'line_warnings' => [

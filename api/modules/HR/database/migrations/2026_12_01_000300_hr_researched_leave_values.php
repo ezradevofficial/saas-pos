@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Schema;
 //   (`half_pay_days`), list per-event days within its yearly days
 //   (`events`), and carry the research its days come from (`research`);
 // - a request records the event it is for, its days at half pay, and the
-//   research of its type when it was made (CP-01).
+//   research of its type when it was made (CP-01);
+// - a type's pay may be null: its pay rate is not confirmed (CP-01).
 return new class extends Migration
 {
     public function up(): void
@@ -23,6 +24,8 @@ return new class extends Migration
             $table->jsonb('research')->nullable();
         });
         DB::statement('alter table hr_leave_types add constraint hr_leave_types_half_pay_check check (half_pay_days is null or half_pay_days >= 0)');
+        // CP-01: null pay = the pay rate is not confirmed (CD maternity); Payroll blocks runs with such days.
+        DB::statement('alter table hr_leave_types alter column paid drop not null');
 
         Schema::table('hr_leave_requests', function (Blueprint $table) {
             $table->string('event', 40)->nullable();
@@ -40,6 +43,8 @@ return new class extends Migration
     {
         Schema::table('hr_leave_entries', fn (Blueprint $table) => $table->dropColumn('researched'));
         Schema::table('hr_leave_requests', fn (Blueprint $table) => $table->dropColumn(['event', 'half_pay_days', 'research']));
+        DB::statement('update hr_leave_types set paid = true where paid is null');
+        DB::statement('alter table hr_leave_types alter column paid set not null');
         DB::statement('alter table hr_leave_types drop constraint if exists hr_leave_types_half_pay_check');
         Schema::table('hr_leave_types', fn (Blueprint $table) => $table->dropColumn(['qualifying_months', 'half_pay_days', 'events', 'research']));
     }

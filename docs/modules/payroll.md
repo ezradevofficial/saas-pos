@@ -522,7 +522,8 @@ DR Congo (`api/country-packs/CD/payroll.json`, CDF), all medium:
 
 - KE: weekly and bi-weekly pay (`non_monthly`); other items (disability exemption); the return layouts (P10, NSSF, SHIF, housing levy, NITA, P9) and the M-Pesa B2C bulk file.
 - CD: **INPP** (sources conflict: low; runs are refused until confirmed, unless the company marks it not applicable); the **IPR reduction for dependants** (low; not applied, dependants give no reduction); the **family allowance** per child (runs with an employee who has children are refused); whether CNSS reduces the IPR base (low; not deducted); `non_monthly`; the declaration layouts (IPR, CNSS, INPP, ONEM).
-- Payroll does not yet reduce pay for HR's half-pay sick days (KE): the leave request records them.
+- Payroll does not yet reduce pay for HR's half-pay sick days (KE): HR sends them with the approved request (`LeaveApproved::$halfPayDays`, the request's last days), Payroll keeps them as `half_pay` leave days, and each run records `inputs.statutory.half_pay_paid_in_full` (days, employees) and shows "Half-pay sick days paid in full".
+- Leave whose pay rate is not confirmed (a leave type with `paid` null, CD maternity) is copied as `pay_unconfirmed` days: the employee's line has the error `leave_pay_unconfirmed` ("Leave pay rate not confirmed"), so the run cannot be submitted until the leave type's pay is confirmed in HR (Payroll's copy follows on the next sync).
 
 ## Open for the owner
 
