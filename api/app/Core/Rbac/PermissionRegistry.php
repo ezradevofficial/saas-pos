@@ -97,6 +97,8 @@ class PermissionRegistry
         // edit: tenant scope; Owner, Admin); the business type and the
         // modules the trial covers (modules: the subscription, Owner only).
         'onboarding' => ['view', 'edit', 'modules'],
+        // API-02, API-05 (ADR 020): the tenant's API keys and its developer sandbox's reset (Owner, Admin).
+        'api_key' => ['manage'],
         // RBAC-13: see support access requests and sessions (view); approve,
         // deny and revoke them (manage). Owner and Admin templates.
         'support_access' => ['view', 'manage'],

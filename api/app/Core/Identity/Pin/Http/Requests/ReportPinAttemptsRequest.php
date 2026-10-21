@@ -15,7 +15,7 @@ class ReportPinAttemptsRequest extends DeviceRequest
     {
         return [
             'reports' => ['required', 'array', 'min:1', 'max:100'],
-            'reports.*.user_id' => ['required', 'uuid', 'distinct', Rule::exists('users', 'id')],
+            'reports.*.user_id' => ['required', 'uuid', 'distinct', Rule::exists('users', 'id')->whereNot('status', 'service')],
             'reports.*.failed_attempts' => ['required', 'integer', 'min:0', 'max:1000'],
             'reports.*.locked' => ['required', 'boolean'],
             'reports.*.occurred_at' => ['nullable', 'date'],

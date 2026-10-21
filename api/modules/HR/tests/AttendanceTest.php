@@ -44,6 +44,9 @@ class AttendanceTest extends TestCase
 
     public function test_a_planned_shift_and_manual_punches_make_an_approved_day_and_the_period_closes_with_its_totals(): void
     {
+        // HR-26: the close below is inside the 7-day offline window (forced), so the clock
+        // is fixed four days after the period ends: Wednesday 14 October 2026, 12:00 in Nairobi.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14T09:00:00Z'));
         Event::fake([AttendancePeriodClosed::class]);
         $shift = $this->postJson('/api/v1/hr/shifts', ['company_id' => $this->acme->id, 'code' => 'DAY', 'name' => 'Day', 'start_time' => '08:00', 'end_time' => '17:00', 'break_minutes' => 60], $this->headersFor($this->hrOfficer))
             ->assertCreated()->json('data.id');
@@ -127,8 +130,8 @@ class AttendanceTest extends TestCase
         // Two punches queued offline, uploaded twice: stored once, answered the same.
         $in = (string) Str::uuid7();
         $body = ['punches' => [
-            ['id' => $in, 'employee_id' => $this->amina->id, 'kind' => 'in', 'occurred_at' => '2026-10-13T07:58:00+03:00'],
-            ['id' => (string) Str::uuid7(), 'employee_id' => $elsewhere->id, 'kind' => 'in', 'occurred_at' => '2026-10-13T08:00:00+03:00'],
+            ['id' => $in, 'employee_id' => $this->amina->id, 'kind' => 'in', 'occurred_at' => $this->yesterdayAt('07:58')],
+            ['id' => (string) Str::uuid7(), 'employee_id' => $elsewhere->id, 'kind' => 'in', 'occurred_at' => $this->yesterdayAt('08:00')],
         ]];
         $first = $this->postJson('/api/v1/hr/till/punches', $body, $this->deviceHeaders($till))->assertOk()->json('data');
         $this->assertSame(['stored', 'rejected'], array_column($first, 'status'));
@@ -149,9 +152,9 @@ class AttendanceTest extends TestCase
         $this->assertArrayNotHasKey('token', $created['data']);
 
         $body = ['punches' => [
-            ['external_id' => 'ev-1', 'ref' => '1001', 'kind' => 'auto', 'occurred_at' => '2026-10-13T08:01:00+03:00'],
-            ['external_id' => 'ev-2', 'ref' => '1001', 'kind' => 'auto', 'occurred_at' => '2026-10-13T17:03:00+03:00'],
-            ['external_id' => 'ev-3', 'ref' => '9999', 'kind' => 'in', 'occurred_at' => '2026-10-13T17:03:00+03:00'],
+            ['external_id' => 'ev-1', 'ref' => '1001', 'kind' => 'auto', 'occurred_at' => $this->yesterdayAt('08:01')],
+            ['external_id' => 'ev-2', 'ref' => '1001', 'kind' => 'auto', 'occurred_at' => $this->yesterdayAt('17:03')],
+            ['external_id' => 'ev-3', 'ref' => '9999', 'kind' => 'in', 'occurred_at' => $this->yesterdayAt('17:03')],
         ]];
         $results = $this->postJson('/api/v1/hr/device/punches', $body, $headers)->assertOk()->json('data');
         $this->assertSame(['stored', 'stored', 'rejected'], array_column($results, 'status'));
@@ -181,5 +184,14 @@ class AttendanceTest extends TestCase
         $this->assertSame(0, $this->inTenant(fn () => AttendanceDay::query()->count()));
         $this->postJson("/api/v1/hr/punches/{$punch}/void", ['reason' => 'Again'], $this->headersFor($this->hrOfficer))->assertStatus(409);
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'hr.punch.void')->exists()));
+    }
+
+    /**
+     * HR-22, NFR-04: uploads are accepted from 7 days back to an hour ahead of now, so
+     * uploaded punches are dated yesterday in Nairobi, inside that window at any hour.
+     */
+    private function yesterdayAt(string $time): string
+    {
+        return CarbonImmutable::now('Africa/Nairobi')->subDay()->setTimeFromTimeString($time)->toIso8601String();
     }
 }

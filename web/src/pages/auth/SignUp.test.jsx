@@ -57,6 +57,21 @@ describe('Sign up and verify', () => {
     expect(getToken()).toBe('fresh')
   })
 
+  it('creates a developer sandbox when asked from the developer portal (API-05)', async () => {
+    api.post.mockResolvedValue({ challenge_id: 'ch-2', destination_masked: 'd***@example.com' })
+    const { router } = renderApp('/sign-up?country=KE&locale=en&sandbox=1')
+
+    expect(screen.getByRole('heading', { name: 'Create a developer sandbox' })).toBeInTheDocument()
+    fill('Your name', 'Dev')
+    fill('Email or phone number', 'dev@example.com')
+    fill('New password', 'long enough pass')
+    fill('Business name', 'Dev sandbox')
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/verify'))
+    expect(api.post).toHaveBeenCalledWith('auth/sign-up', expect.objectContaining({ email: 'dev@example.com', sandbox: true }))
+  })
+
   it('shows an email or phone error under the contact field', async () => {
     api.post.mockRejectedValue(apiError(422, 'validation_failed', 'Check the form.', { email: ['This email is already taken.'] }))
     renderApp('/sign-up?country=KE&locale=en')

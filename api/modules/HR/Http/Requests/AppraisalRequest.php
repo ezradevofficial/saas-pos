@@ -64,7 +64,7 @@ class AppraisalRequest extends HrRequest
             'goals.*.comment' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'manager_rating' => ['sometimes', 'nullable', 'integer', 'between:1,5'],
             'manager_comments' => ['sometimes', 'nullable', 'string', 'max:5000'],
-            'reviewer_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')],
+            'reviewer_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
         ] : [];
     }
 }

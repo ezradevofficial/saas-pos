@@ -1,4 +1,5 @@
 import {
+  Code2,
   CalendarDays,
   FilePen,
   Handshake,
@@ -148,6 +149,8 @@ const ICONS = {
   restore: ArchiveRestore,
   remove: Trash2,
   key: KeyRound,
+  // API-02, API-04: API keys and the developer portal.
+  developers: Code2,
   currencies: Coins,
   exchangeRates: ArrowLeftRight,
   taxes: Percent,

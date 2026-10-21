@@ -66,6 +66,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/auth/invitations/{token}' => 'the 40-character invitation token is the credential',
         'POST api/v1/auth/invitations/{token}/accept' => 'the 40-character invitation token is the credential',
         'POST api/v1/devices/pair' => 'the one-time pairing code is the credential',
+        'GET api/v1/developers/openapi.json' => 'API-04: the committed OpenAPI document of the public routes, the same for everyone; no tenant data; rate-limited per IP',
         'GET api/v1/media/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may view the item (MD-02)',
         'GET api/v1/custom-field-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record and the field (CF-01)',
         'GET api/v1/custom-form-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record (CF-04)',
@@ -146,6 +147,7 @@ class TenantIsolationTest extends TestCase
         'uom' => 'uom',
         'item_image' => 'item_image',
         'item_price' => 'item_price', // MD-03 follow-up: item-prices/{item_price}/archive|restore
+        'api_key' => 'api_key', // API-02: api-keys/{api_key}
         'payment_method' => 'payment_method',
         'department' => 'department',
         'cost_centre' => 'cost_centre',
@@ -567,6 +569,8 @@ class TenantIsolationTest extends TestCase
         ['channel' => 'email', 'status' => 'all'],
         // AUTO-05: the run log's outcome filter (both tenants have a run that succeeded).
         ['outcome' => 'succeeded'],
+        // API-03: requests per day over 7 days (both tenants used their key).
+        ['days' => 7],
         // MD-03 follow-up: a price list's prices in force (both tenants priced their item).
         ['state' => 'current'],
 
@@ -614,7 +618,7 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'webhook'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook'];
 
     private TwoTenants $tenants;
 
@@ -1693,9 +1697,11 @@ class TenantIsolationTest extends TestCase
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
-            // AUTH-11: JIT provisioning's default role (A's custom role) at A's company.
+            // AUTH-11: linking one's own account; JIT provisioning's default role (A's custom role) at A's company.
             'POST api/v1/me/sso/link' => ['connection_id' => $tenant->id('sso_live_connection'), 'origin' => 'https://app.example.test'],
             'PUT api/v1/sso/settings' => ['jit_role_id' => $tenant->id('role'), 'jit_scope_type' => 'company', 'jit_scope_id' => $tenant->id('company')],
+            // API-02: a key with the custom role at the outlet.
+            'POST api/v1/api-keys' => ['name' => 'Hijack key', ...$assignment, 'scopes' => ['core.location.read']],
             // LOY-01: the programme's gift card item (A's item is shared, TEN-08).
             'PUT api/v1/companies/{company}/loyalty-programme' => ['gift_card_item_id' => $tenant->id('gift_card_item')],
             // LOY-13: a preview of a draft bundle for the customer at the branch.

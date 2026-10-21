@@ -34,7 +34,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::put('inventory/companies/{company}/settings', [SettingsController::class, 'update']);
 
     // INV-04, INV-05, INV-19, INV-20: stock on hand, the ledger, the valuation.
-    Route::get('inventory/stock', [StockController::class, 'index']);
+    Route::get('inventory/stock', [StockController::class, 'index'])->middleware('public-api:inventory.stock');
     Route::get('inventory/movements', [StockController::class, 'movements']);
     Route::get('inventory/valuation', [StockController::class, 'valuation']);
 

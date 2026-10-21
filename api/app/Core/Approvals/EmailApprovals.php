@@ -122,7 +122,7 @@ class EmailApprovals
         $assignment = ApprovalAssignment::query()->findOrFail($row->assignment_id);
         $request = ApprovalRequest::query()->findOrFail($assignment->request_id);
         $user = User::query()->find($row->user_id);
-        abort_if($user === null || ! $user->isActive(), 404);
+        abort_if($user === null || ! $user->isActive() || ! $user->isPerson(), 404);
 
         $reason = match (true) {
             $row->used_at !== null => 'used',

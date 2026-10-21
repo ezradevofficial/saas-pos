@@ -323,7 +323,7 @@ class UsageLimitsTest extends TestCase
         $this->assertNull($this->openOverage(Units::DEVICE));
 
         // No limit at all on the unit: adding works, and the meter closes it as unlimited.
-        $this->travelTo(CarbonImmutable::parse('2026-11-01T06:00:00Z'));
+        $this->travelTo(CarbonImmutable::now()->addDays(13));
         $this->allow([Units::DEVICE => 2]);
         $this->devices(1);
         $this->meter();

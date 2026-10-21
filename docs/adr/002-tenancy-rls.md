@@ -87,6 +87,7 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `auth_tenant_for_login(p_login text)` | `users` by email (citext) or phone |
 | `auth_tenant_for_invitation(p_token_hash text)` | `invitations` by token hash |
 | `auth_tenant_for_pairing(p_code_hash text)` | `devices` by pairing-code hash, unexpired codes only |
+| `api_key_tenant(p_public_id text, p_sandbox boolean)` | `api_keys` by key id, when the tenant's sandbox flag matches the key's `sk_test_` or `sk_live_` prefix (ADR 020) |
 | `crm_lead_form_tenant(p_token_hash text)` | `crm_lead_forms` by token hash, archived forms included (the controller refuses them; CRM-06) |
 | `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | the active tenant whose slug or verified custom domain the storefront's host names and that has a live, not archived store with that handle (ECOM-06) |
 | `ecom_whatsapp_tenant(p_token_hash text)` | `ecom_stores` by WhatsApp webhook token hash, archived stores included (the controller refuses them; ECOM-24) |
@@ -145,13 +146,14 @@ Two more functions answer for hosts, before any tenant is known:
 
 ### Every security-definer function (stage 7B closing review)
 
-Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid`. The documented exceptions are `app_public_branding` (public fields of a sign-in page, above) and `app_platform_usage_totals` (ADM-06: totals per unit across tenants for the platform's reports, with no tenant id; the test pins its result type).
+Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid`. The documented exceptions are `app_public_branding` (public fields of a sign-in page, above) and `app_platform_usage_totals` (ADM-06: totals per unit across tenants for the platform's reports, with no tenant id; the test pins its result type), and `app_prune_api_idempotency_keys` (ADR 020: deletes expired stored API responses of every tenant and returns only how many, below).
 
 | Function | Returns | Used for |
 | --- | --- | --- |
 | `auth_tenant_for_login(p_login text)` | `uuid` | sign-in by email or phone |
 | `auth_tenant_for_invitation(p_token_hash text)` | `uuid` | an invitation link |
 | `auth_tenant_for_pairing(p_code_hash text)` | `uuid` | device pairing |
+| `api_key_tenant(p_public_id text, p_sandbox boolean)` | `uuid` | an API key's tenant, only when the tenant's sandbox flag matches the key's prefix (API-02, API-05, ADR 020) |
 | `approval_tenant_for_email_token(p_token_hash text)` | `uuid` | approving from an email link (APR-03) |
 | `document_share_tenant(p_token_hash text)` | `uuid` | a shared document link (TPL-04) |
 | `crm_lead_form_tenant(p_token_hash text)` | `uuid` | a public CRM lead form (CRM-06) |
@@ -164,6 +166,9 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_assisted_tenant_for_contact(p_contact text)` | `setof uuid` | assisted onboarding by contact (ONB-) |
 | `app_tenant_for_verified_domain(p_host text)` | `setof uuid` | a verified custom domain (BR-05) |
 | `app_public_branding(p_slug text, p_host text)` | a table of public fields | the sign-in page's look (BR-04); documented exception |
+| `app_prune_api_idempotency_keys(p_before timestamptz)` | `integer` | `api:prune-idempotency` (API-01, ADR 020): deletes `api_idempotency_keys` rows that expired before `p_before`, in every tenant, and returns how many; nothing else is read or changed; documented exception |
+| `app_tenants_with_api_keys()` | `setof uuid` | `api:flush-usage` (API-03): active tenants with a key not revoked |
+| `app_sandbox_tenant_ids()` | `setof uuid` | `sandbox:expire` (API-05): active developer sandboxes |
 | `app_platform_usage_totals(p_day date)` | a table of `(unit, tenants, total)` | ADM-06: usage totals for the platform's reports, per unit on the latest metered day on or before `p_day`; counts only, never a tenant id or row; called only by the staff reports; documented exception |
 | `app_active_tenant_ids()` | `setof uuid` | exchange rates, usage metering |
 | `app_operator_tenant_id()` | `setof uuid` | the operator tenant (ADR 016) |

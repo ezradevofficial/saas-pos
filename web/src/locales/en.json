@@ -493,6 +493,7 @@
     "ecommerceSettings": "Store settings",
     "supportAccess": "Support access",
     "webhooks": "Webhooks",
+    "apiKeys": "API keys",
     "sso": "Single sign-on"
   },
   "shell": {
@@ -541,7 +542,9 @@
       "haveAccount": "Already have an account?",
       "signIn": "Sign in",
       "contactHelp": "For a phone number, start with the country code, for example +254 712 345 678.",
-      "submit": "Create account"
+      "submit": "Create account",
+      "sandboxTitle": "Create a developer sandbox",
+      "sandboxIntro": "A free test organisation with sample data and every module on. Payments and tax submissions are simulated, and it is never billed."
     },
     "verify": {
       "title": "Enter your code",
@@ -12556,6 +12559,245 @@
       "data": "Only ids and a few documented fields, never contact details or secrets, and only records the webhook’s user may see. A versioned type (.v1) never changes shape: a new version is added instead.",
       "catalogueTitle": "Events you can subscribe to",
       "fields": "Fields"
+    }
+  },
+  "apiKeys": {
+    "title": "API keys",
+    "description": "Keys let your other systems use the public API. Each key acts with one role at one place, and its scopes narrow it further.",
+    "portal": "Developer portal",
+    "empty": "No API keys yet. Create one to connect another system.",
+    "noRole": "No role (revoked)",
+    "neverUsed": "Never used",
+    "overlapUntil": "Previous secret works until {{when}}",
+    "expiresOn": "Expires {{when}}",
+    "scopeCount_one": "{{count}} scope",
+    "scopeCount_other": "{{count}} scopes",
+    "fields": {
+      "name": "Name",
+      "status": "Status",
+      "role": "Role and place",
+      "scopes": "Scopes",
+      "lastUsed": "Last used",
+      "actions": "Actions",
+      "expires": "Expires on"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    },
+    "create": {
+      "action": "Create key",
+      "title": "Create an API key",
+      "submit": "Create key",
+      "nameHelp": "Name it after the system that uses it, such as Accounting sync.",
+      "expiresHelp": "Optional. Leave empty for a key that does not expire.",
+      "roleText": "The key can do only what this role allows at this place. An Owner role can’t be given to a key."
+    },
+    "scopes": {
+      "legend": "Scopes",
+      "help_one": "{{count}} scope chosen. Read and write includes read.",
+      "help_other": "{{count}} scopes chosen. Read and write includes read.",
+      "search": "Find a resource",
+      "none": "No resource matches.",
+      "levels": {
+        "none": "No access",
+        "read": "Read",
+        "write": "Read and write"
+      }
+    },
+    "secret": {
+      "title": "Copy your API key",
+      "once": "This is the only time the key is shown. Store it in your system’s secret store now.",
+      "copy": "Copy key",
+      "copied": "Copied",
+      "done": "I have stored the key"
+    },
+    "rotate": {
+      "action": "Rotate",
+      "for": "Rotate {{name}}",
+      "title": "Rotate {{name}}",
+      "body": "A new secret replaces the current one. Keep the previous secret working for a while, so you can update your systems without downtime.",
+      "overlap": "Previous secret keeps working for",
+      "hours_one": "{{count}} hour",
+      "hours_other": "{{count}} hours",
+      "confirm": "Rotate key"
+    },
+    "revoke": {
+      "action": "Revoke",
+      "for": "Revoke {{name}}",
+      "title": "Revoke {{name}}?",
+      "body": "Systems using this key stop working at once. Revoking can’t be undone; create a new key if you need one again.",
+      "confirm": "Revoke key"
+    },
+    "usage": {
+      "title": "Requests per day",
+      "total_one": "{{total}} request in the last 30 days",
+      "total_other": "{{total}} requests in the last 30 days",
+      "key": "Key",
+      "allKeys": "All keys",
+      "requests": "Requests"
+    },
+    "sandbox": {
+      "title": "Developer sandbox",
+      "text": "This organisation is a sandbox: keys start with sk_test_, payments and tax submissions are simulated, and it is never billed.",
+      "reset": "Reset sample data",
+      "done": "The sandbox has fresh sample data.",
+      "confirmTitle": "Reset the sandbox?",
+      "confirmBody": "Every item, category, price list and contact is archived, then new sample data is loaded. Documents such as sales keep their history.",
+      "confirm": "Reset sandbox"
+    },
+    "outbox": {
+      "title": "Sandbox outbox",
+      "text": "A sandbox sends no email, SMS or WhatsApp. What it would have sent is kept here.",
+      "empty": "Nothing sent yet.",
+      "to": "{{channel}} to {{recipient}}",
+      "channels": {
+        "email": "Email",
+        "sms": "SMS",
+        "whatsapp": "WhatsApp",
+        "push": "Push"
+      }
+    }
+  },
+  "developers": {
+    "brand": "{{name}} developers",
+    "example": "Example",
+    "nav": {
+      "label": "Developer portal",
+      "overview": "Overview",
+      "guides": "Guides",
+      "more": "Reference",
+      "reference": "API reference",
+      "errors": "Error codes",
+      "changelog": "Changelog",
+      "keys": "Your API keys",
+      "signIn": "Sign in"
+    },
+    "home": {
+      "title": "Build on the public API",
+      "description": "Read and write your organisation’s data in {{name}} from your own systems, with the same permissions as the app.",
+      "quickstart": {
+        "title": "Quick start",
+        "step1": "Create a developer sandbox, or sign in to your organisation.",
+        "step2": "In Settings, API keys, create a key with a role and the scopes your system needs.",
+        "step3": "Send the key as a bearer token to any endpoint in the API reference."
+      },
+      "sandbox": "Create a developer sandbox",
+      "reference": "Open the API reference"
+    },
+    "guides": {
+      "authentication": {
+        "title": "Authentication",
+        "summary": "API keys, how to send them, rotation and revocation.",
+        "p1": "An Owner, or anyone with the API keys permission, creates keys in Settings, API keys. Each key acts as its own service account: it holds one role at one place, a company, a branch, a location or the whole organisation, and can never do more than that role allows there.",
+        "p2": "Send the key in the Authorization header as a bearer token on every request. Keys start with sk_live_ for a live organisation and sk_test_ for a sandbox. Use Accept-Language to choose English or French messages.",
+        "p3": "The key is shown once, when it is created or rotated. Rotating keeps the previous secret working for the overlap you choose, so you can update your systems first. Revoking stops the key at once."
+      },
+      "scopes": {
+        "title": "Scopes",
+        "summary": "Narrow what a key can reach, resource by resource.",
+        "p1": "Scopes name a resource and an access level: read, or read and write. A key needs the scope of each endpoint it calls, and every permission check in the request also needs the scope of its resource.",
+        "p2": "Scopes never add to the key’s role. A key with the items write scope still can’t archive items if its role can’t, and it sees only the companies, branches and locations its role reaches.",
+        "p3": "Keys can’t be used to sign in, manage accounts, keys or roles, pay invoices or reach devices: those endpoints refuse them with api_key_route_refused."
+      },
+      "pagination": {
+        "title": "Pagination and filters",
+        "summary": "Pages, sorting, search and filters on every list.",
+        "p1": "Lists take page and per_page (1 to 200, 50 by default). The answer has data, links to the first, last, previous and next pages, and meta with the total.",
+        "p2": "Sort with sort=key or sort=-key for descending, from the keys each list documents; ties are broken by id, so pages are stable. Search with search, and filter with each list’s own parameters.",
+        "p3": "Fields your role can’t see are left out of answers, and sorting or filtering on them is refused."
+      },
+      "errors": {
+        "title": "Errors",
+        "summary": "One error shape, with a stable code to branch on.",
+        "p1": "Every error answers JSON with a translated message and a stable code. For API keys the same body is application/problem+json, with type, title, status and detail. Branch on code, never on the message.",
+        "p2": "Validation errors add errors, the messages per field. The codes you may receive are listed below."
+      },
+      "idempotency": {
+        "title": "Idempotency",
+        "summary": "Retry a POST safely with an Idempotency-Key.",
+        "p1": "Send an Idempotency-Key header with a POST, a value unique to the operation such as an order number. The first response is kept for 24 hours.",
+        "p2": "Sending the same key and body again returns that response with Idempotent-Replayed: true, without doing the work twice. The same key with another body is refused with idempotency_mismatch.",
+        "p3": "While the first request runs, a retry answers idempotency_in_progress. A server error is not kept, so you can retry it."
+      },
+      "rateLimits": {
+        "title": "Rate limits",
+        "summary": "Requests a minute, per key and per organisation.",
+        "p1": "Each key has its own limit of requests a minute, and the organisation has a limit across all its keys, set by its plan.",
+        "p2": "Every answer carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset, the seconds until the window resets.",
+        "p3": "Over a limit, the API answers 429 with rate_limited and Retry-After. Wait that many seconds before sending again."
+      },
+      "versioning": {
+        "title": "Versions and deprecation",
+        "summary": "What may change in v1, and how removals are announced.",
+        "p1": "The version is in the path, /api/v1. Changes in v1 only add: new endpoints, new optional parameters and new fields. Ignore fields you don’t know.",
+        "p2": "Before an endpoint is removed it is marked deprecated: its answers carry Deprecation, Sunset (the removal date, at least six months later) and a Link to the changelog.",
+        "p3": "The changelog lists every change and every endpoint announced for removal."
+      },
+      "sandbox": {
+        "title": "Sandbox",
+        "summary": "A free test organisation with sample data.",
+        "p1": "Create a developer sandbox from this portal. It has every module on and sample items, prices and customers, and it is never billed or limited by a plan.",
+        "p2": "Sandbox keys start with sk_test_ and work only on the sandbox; live keys never reach it. Payments and tax submissions use simulated providers, so nothing reaches a real wallet or tax authority.",
+        "p3": "Reset the sandbox from Settings, API keys to archive its data and load fresh sample data."
+      },
+      "webhooks": {
+        "title": "Webhooks",
+        "summary": "Events sent to your systems as they happen.",
+        "p1": "Webhooks send signed events, such as a completed sale or a document moving to another stage, to a URL you choose, with retries and a delivery log.",
+        "p2": "Set them up in Settings, Webhooks: choose the events, copy the signing secret once, and check each request’s signature and timestamp before you trust it."
+      }
+    },
+    "errorCodes": {
+      "unauthenticated": "No key, or the key is wrong, revoked or expired.",
+      "forbidden": "The key’s role doesn’t allow this here.",
+      "not_found": "Nothing with this id in your organisation, or out of the key’s reach.",
+      "validation_failed": "Some fields are not valid; see errors.",
+      "field_readonly": "A field your role can’t change was sent; leave it out.",
+      "module_inactive": "The module isn’t active for the organisation.",
+      "api_key_route_refused": "This endpoint doesn’t accept API keys.",
+      "api_scope_missing": "The key lacks the scope named in scope.",
+      "rate_limited": "Too many requests; wait for Retry-After.",
+      "idempotency_key_invalid": "The Idempotency-Key header is not valid.",
+      "idempotency_mismatch": "The Idempotency-Key was used for another request.",
+      "idempotency_in_progress": "A request with this Idempotency-Key is still running.",
+      "subscription_overdue": "The organisation’s subscription is overdue; writes are paused.",
+      "server_error": "Something went wrong on our side; retry later."
+    },
+    "reference": {
+      "title": "API reference",
+      "description": "Every public endpoint, its parameters and its answers.",
+      "base": "Base URL",
+      "version": "Version {{version}}",
+      "download": "Download the OpenAPI document",
+      "search": "Find an endpoint",
+      "none": "No endpoint matches.",
+      "scope": "Needs the scope",
+      "deprecated": "Deprecated",
+      "parameters": "Parameters",
+      "body": "Request body",
+      "response": "Response {{status}}",
+      "statuses": "Status codes",
+      "errorsLink": "What error codes mean",
+      "field": "Field",
+      "type": "Type",
+      "notes": "Description",
+      "required": "required"
+    },
+    "changelog": {
+      "title": "Changelog",
+      "description": "What changed in the public API, newest first.",
+      "deprecated": "Announced for removal",
+      "noDeprecations": "Nothing is announced for removal.",
+      "sunset": "Removed on {{date}}",
+      "entries": {
+        "v1-launch": {
+          "keys": "The public API v1: API keys with roles and scopes, rate limits, idempotent POSTs and problem JSON errors.",
+          "reference": "The API reference and these guides, in English and French.",
+          "sandbox": "Developer sandboxes with sample data and test keys."
+        }
+      }
     }
   },
   "sso": {

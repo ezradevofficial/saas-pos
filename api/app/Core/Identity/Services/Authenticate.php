@@ -42,7 +42,8 @@ class Authenticate
 
         // ONB-08: an assisted tenant's setup account never signs in (staff keep no tenant access).
         // RBAC-13: nor does a support principal; its token comes only from a granted session.
-        if ($user === null || $user->is_platform_staff || $user->support_grant_id !== null) {
+        // ADR 020: nor an API key's principal (it acts through its key).
+        if ($user === null || $user->is_platform_staff || $user->support_grant_id !== null || ! $user->isPerson()) {
             Hash::check($password, self::$dummyHash ??= Hash::make(Str::random(40)));
 
             return SignInResult::invalid();

@@ -48,10 +48,13 @@ class TemplateSource implements SnapshotSource
 
         return array_map(function (string $type) use ($resolver, $rules, $scope, $language, $labels) {
             ['payload' => $payload, 'document' => $document] = $resolver->published($type, $scope->company->id, $scope->branch->id);
+            $payload ??= DefaultTemplates::for($type, $language);
+            // API-05: a sandbox's receipts are stamped "not a fiscal receipt" on the till too.
+            $payload['blocks'] = TemplateRenderer::withSandboxStamp((array) ($payload['blocks'] ?? []), (string) ($payload['language'] ?? $language));
 
             return [
                 'id' => $type,
-                'payload' => $payload ?? DefaultTemplates::for($type, $language),
+                'payload' => $payload,
                 'source' => $document === null ? null : [
                     'document_id' => $document->id,
                     'scope' => ['type' => $document->scope_type, 'id' => $document->scope_id],

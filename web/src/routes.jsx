@@ -275,6 +275,10 @@ import Usage from './pages/settings/Usage'
 import PriceListDetail from './pages/settings/taxes/PriceListDetail'
 import UserDetail from './pages/settings/UserDetail'
 import Users from './pages/settings/Users'
+import ApiKeys from './pages/settings/ApiKeys'
+import { ApiReference } from './pages/developers/ApiReference'
+import { Changelog, DevelopersHome, Guide } from './pages/developers/DeveloperPages'
+import { DevelopersLayout } from './pages/developers/DevelopersLayout'
 import DocumentWorkflow from './pages/workflows/DocumentWorkflow'
 import WorkflowBuilder from './pages/workflows/LazyWorkflowBuilder'
 import WorkflowInsights from './pages/workflows/WorkflowInsights'
@@ -331,6 +335,18 @@ export const routes = [
     ],
   },
   // ECOM-05: the storefront, open to everyone on the tenant's host; it never uses a tenant user's sign-in.
+  // API-04: the developer portal, public (signed in or not).
+  {
+    path: '/developers',
+    element: <DevelopersLayout />,
+    children: [
+      { index: true, element: <DevelopersHome /> },
+      { path: 'guides/:guide', element: <Guide /> },
+      { path: 'reference', element: <ApiReference /> },
+      { path: 'errors', element: <Guide id="errors" /> },
+      { path: 'changelog', element: <Changelog /> },
+    ],
+  },
   {
     path: '/shop/:store',
     element: <ShopLayout />,
@@ -779,6 +795,8 @@ export const routes = [
       // LAY-05: the API answers 404 for the kind without the POS module (RBAC-08).
       { path: '/settings/pos-layout', handle: { wide: true }, element: <RequirePermission permission={POS_LAYOUT_VIEW}><PosLayout /></RequirePermission> },
       { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
+      // API-02, API-03, API-05: API keys, their usage and the sandbox reset.
+      { path: '/settings/api-keys', element: <RequirePermission permission="core.api_key.manage" tenantWide><ApiKeys /></RequirePermission> },
       // EXP-02: the full data export (Owners only; the API also checks the Owner role).
       // SUB-02..SUB-06: the plan, invoices and payment methods.
       { path: '/settings/subscription', element: <RequirePermission permission="core.subscription.view" tenantWide><Subscription /></RequirePermission> },

@@ -2,6 +2,7 @@
 
 namespace App\Core\Http;
 
+use App\Core\Api\ApiKeyToken;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,7 +12,9 @@ use Throwable;
 
 /**
  * Every API error has one shape: `{message, code, errors?}` with a
- * translated message and a stable machine code.
+ * translated message and a stable machine code. A request made with an API
+ * key gets the same body as `application/problem+json` (RFC 9457) with
+ * `type`, `title`, `status` and `detail` added (ADR 020).
  */
 class ApiErrorRenderer
 {
@@ -21,6 +24,13 @@ class ApiErrorRenderer
             return null;
         }
 
+        $response = self::response($e);
+
+        return $response !== null && ApiKeyToken::claims($request->bearerToken()) ? self::problem($response) : $response;
+    }
+
+    private static function response(Throwable $e): ?JsonResponse
+    {
         return match (true) {
             $e instanceof ApiException => self::json(
                 $e->getStatusCode(), $e->errorCode, $e->getMessage(), $e->errors, $e->extra, $e->getHeaders(),
@@ -74,6 +84,25 @@ class ApiErrorRenderer
         }
 
         return new JsonResponse(array_merge($body, $extra), $status, $headers);
+    }
+
+    /** RFC 9457 members over the usual body, for API key clients. */
+    private static function problem(JsonResponse $response): JsonResponse
+    {
+        $body = $response->getData(true);
+        $status = $response->getStatusCode();
+        $code = (string) ($body['code'] ?? 'http_error');
+        $message = (string) ($body['message'] ?? '');
+
+        $response->setData(array_merge([
+            'type' => '/developers/errors#'.$code,
+            'title' => $message,
+            'status' => $status,
+            'detail' => $message,
+        ], $body));
+        $response->headers->set('Content-Type', 'application/problem+json');
+
+        return $response;
     }
 
     /** "Try again in N second(s)", pluralised per locale. */

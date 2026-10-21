@@ -493,6 +493,7 @@
     "ecommerceSettings": "Réglages de la boutique",
     "supportAccess": "Accès du support",
     "webhooks": "Webhooks",
+    "apiKeys": "Clés d’API",
     "sso": "Authentification unique"
   },
   "shell": {
@@ -541,7 +542,9 @@
       "haveAccount": "Vous avez déjà un compte ?",
       "signIn": "Se connecter",
       "contactHelp": "Pour un numéro de téléphone, commencez par l'indicatif du pays, par exemple +243 812 345 678.",
-      "submit": "Créer le compte"
+      "submit": "Créer le compte",
+      "sandboxTitle": "Créer un bac à sable développeur",
+      "sandboxIntro": "Une organisation de test gratuite, avec des données d’exemple et tous les modules activés. Les paiements et les envois fiscaux sont simulés, et elle n’est jamais facturée."
     },
     "verify": {
       "title": "Saisissez votre code",
@@ -12556,6 +12559,245 @@
       "data": "Seulement des identifiants et quelques champs documentés, jamais de coordonnées ni de secrets, et seulement les enregistrements que l’utilisateur du webhook peut voir. Un type versionné (.v1) ne change jamais de forme : une nouvelle version est ajoutée à la place.",
       "catalogueTitle": "Événements auxquels vous abonner",
       "fields": "Champs"
+    }
+  },
+  "apiKeys": {
+    "title": "Clés d’API",
+    "description": "Les clés permettent à vos autres systèmes d’utiliser l’API publique. Chaque clé agit avec un rôle à un endroit, et ses portées la limitent encore.",
+    "portal": "Portail développeurs",
+    "empty": "Aucune clé d’API pour le moment. Créez-en une pour connecter un autre système.",
+    "noRole": "Aucun rôle (révoquée)",
+    "neverUsed": "Jamais utilisée",
+    "overlapUntil": "L’ancien secret fonctionne jusqu’au {{when}}",
+    "expiresOn": "Expire le {{when}}",
+    "scopeCount_one": "{{count}} portée",
+    "scopeCount_other": "{{count}} portées",
+    "fields": {
+      "name": "Nom",
+      "status": "Statut",
+      "role": "Rôle et lieu",
+      "scopes": "Portées",
+      "lastUsed": "Dernière utilisation",
+      "actions": "Actions possibles",
+      "expires": "Expire le"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expirée",
+      "revoked": "Révoquée"
+    },
+    "create": {
+      "action": "Créer une clé",
+      "title": "Créer une clé d’API",
+      "submit": "Créer la clé",
+      "nameHelp": "Nommez-la d’après le système qui l’utilise, par exemple Synchronisation comptable.",
+      "expiresHelp": "Facultatif. Laissez vide pour une clé qui n’expire pas.",
+      "roleText": "La clé ne peut faire que ce que ce rôle permet à cet endroit. Le rôle Propriétaire ne peut pas être donné à une clé."
+    },
+    "scopes": {
+      "legend": "Portées",
+      "help_one": "{{count}} portée choisie. Lecture et écriture inclut la lecture.",
+      "help_other": "{{count}} portées choisies. Lecture et écriture inclut la lecture.",
+      "search": "Trouver une ressource",
+      "none": "Aucune ressource ne correspond.",
+      "levels": {
+        "none": "Aucun accès",
+        "read": "Lecture",
+        "write": "Lecture et écriture"
+      }
+    },
+    "secret": {
+      "title": "Copiez votre clé d’API",
+      "once": "C’est la seule fois où la clé est affichée. Enregistrez-la maintenant dans le coffre de secrets de votre système.",
+      "copy": "Copier la clé",
+      "copied": "Copiée",
+      "done": "J’ai enregistré la clé"
+    },
+    "rotate": {
+      "action": "Renouveler",
+      "for": "Renouveler {{name}}",
+      "title": "Renouveler {{name}}",
+      "body": "Un nouveau secret remplace l’actuel. Gardez l’ancien secret actif un moment pour mettre à jour vos systèmes sans interruption.",
+      "overlap": "L’ancien secret reste actif pendant",
+      "hours_one": "{{count}} heure",
+      "hours_other": "{{count}} heures",
+      "confirm": "Renouveler la clé"
+    },
+    "revoke": {
+      "action": "Révoquer",
+      "for": "Révoquer {{name}}",
+      "title": "Révoquer {{name}} ?",
+      "body": "Les systèmes qui utilisent cette clé s’arrêtent aussitôt. La révocation est définitive ; créez une nouvelle clé si vous en avez de nouveau besoin.",
+      "confirm": "Révoquer la clé"
+    },
+    "usage": {
+      "title": "Requêtes par jour",
+      "total_one": "{{total}} requête sur les 30 derniers jours",
+      "total_other": "{{total}} requêtes sur les 30 derniers jours",
+      "key": "Clé",
+      "allKeys": "Toutes les clés",
+      "requests": "Requêtes"
+    },
+    "sandbox": {
+      "title": "Bac à sable développeur",
+      "text": "Cette organisation est un bac à sable : les clés commencent par sk_test_, les paiements et les envois fiscaux sont simulés, et elle n’est jamais facturée.",
+      "reset": "Réinitialiser les données d’exemple",
+      "done": "Le bac à sable a de nouvelles données d’exemple.",
+      "confirmTitle": "Réinitialiser le bac à sable ?",
+      "confirmBody": "Chaque article, catégorie, liste de prix et contact est archivé, puis de nouvelles données d’exemple sont chargées. Les documents comme les ventes gardent leur historique.",
+      "confirm": "Réinitialiser le bac à sable"
+    },
+    "outbox": {
+      "title": "Boîte d’envoi du bac à sable",
+      "text": "Un bac à sable n’envoie ni e-mail, ni SMS, ni WhatsApp. Ce qu’il aurait envoyé est gardé ici.",
+      "empty": "Rien d’envoyé pour l’instant.",
+      "to": "{{channel}} à {{recipient}}",
+      "channels": {
+        "email": "E-mail",
+        "sms": "Texto",
+        "whatsapp": "Message WhatsApp",
+        "push": "Notification push"
+      }
+    }
+  },
+  "developers": {
+    "brand": "{{name}} pour les développeurs",
+    "example": "Exemple",
+    "nav": {
+      "label": "Portail développeurs",
+      "overview": "Vue d’ensemble",
+      "guides": "Guides pratiques",
+      "more": "Références",
+      "reference": "Référence de l’API",
+      "errors": "Codes d’erreur",
+      "changelog": "Journal des modifications",
+      "keys": "Vos clés d’API",
+      "signIn": "Se connecter"
+    },
+    "home": {
+      "title": "Développer avec l’API publique",
+      "description": "Lisez et écrivez les données de votre organisation dans {{name}} depuis vos propres systèmes, avec les mêmes permissions que l’application.",
+      "quickstart": {
+        "title": "Démarrage rapide",
+        "step1": "Créez un bac à sable développeur ou connectez-vous à votre organisation.",
+        "step2": "Dans Paramètres, Clés d’API, créez une clé avec un rôle et les portées dont votre système a besoin.",
+        "step3": "Envoyez la clé comme jeton porteur à n’importe quel point d’accès de la référence de l’API."
+      },
+      "sandbox": "Créer un bac à sable développeur",
+      "reference": "Ouvrir la référence de l’API"
+    },
+    "guides": {
+      "authentication": {
+        "title": "Authentification",
+        "summary": "Les clés d’API, comment les envoyer, les renouveler et les révoquer.",
+        "p1": "Un propriétaire, ou toute personne ayant la permission des clés d’API, crée les clés dans Paramètres, Clés d’API. Chaque clé agit comme son propre compte de service : elle a un rôle à un endroit, une société, une agence, un emplacement ou toute l’organisation, et ne peut jamais faire plus que ce rôle n’y permet.",
+        "p2": "Envoyez la clé dans l’en-tête Authorization comme jeton porteur à chaque requête. Les clés commencent par sk_live_ pour une organisation réelle et sk_test_ pour un bac à sable. Utilisez Accept-Language pour choisir des messages en anglais ou en français.",
+        "p3": "La clé n’est affichée qu’une fois, à sa création ou à son renouvellement. Le renouvellement garde l’ancien secret actif pendant la durée choisie, pour mettre vos systèmes à jour d’abord. La révocation arrête la clé aussitôt."
+      },
+      "scopes": {
+        "title": "Portées",
+        "summary": "Limitez ce qu’une clé peut atteindre, ressource par ressource.",
+        "p1": "Une portée nomme une ressource et un niveau d’accès : lecture, ou lecture et écriture. Une clé a besoin de la portée de chaque point d’accès qu’elle appelle, et chaque contrôle de permission pendant la requête a aussi besoin de la portée de sa ressource.",
+        "p2": "Les portées n’ajoutent jamais rien au rôle de la clé. Une clé avec la portée d’écriture des articles ne peut toujours pas archiver des articles si son rôle ne le peut pas, et elle ne voit que les sociétés, agences et emplacements que son rôle atteint.",
+        "p3": "Les clés ne peuvent pas servir à se connecter, à gérer des comptes, des clés ou des rôles, à payer des factures ni à atteindre des appareils : ces points d’accès les refusent avec api_key_route_refused."
+      },
+      "pagination": {
+        "title": "Pages et filtres",
+        "summary": "Pages, tri, recherche et filtres sur chaque liste.",
+        "p1": "Les listes acceptent page et per_page (de 1 à 200, 50 par défaut). La réponse contient data, des liens vers la première, la dernière, la page précédente et la suivante, et meta avec le total.",
+        "p2": "Triez avec sort=clé, ou sort=-clé pour l’ordre décroissant, parmi les clés que chaque liste documente ; les égalités sont départagées par id, donc les pages sont stables. Recherchez avec search et filtrez avec les paramètres propres à chaque liste.",
+        "p3": "Les champs que votre rôle ne peut pas voir sont absents des réponses, et trier ou filtrer sur eux est refusé."
+      },
+      "errors": {
+        "title": "Erreurs",
+        "summary": "Une seule forme d’erreur, avec un code stable pour réagir.",
+        "p1": "Chaque erreur répond en JSON avec un message traduit et un code stable. Pour les clés d’API, le même corps est en application/problem+json, avec type, title, status et detail. Réagissez au code, jamais au message.",
+        "p2": "Les erreurs de validation ajoutent errors, les messages par champ. Les codes que vous pouvez recevoir sont listés ci-dessous."
+      },
+      "idempotency": {
+        "title": "Idempotence",
+        "summary": "Réessayez un POST sans risque avec une Idempotency-Key.",
+        "p1": "Envoyez un en-tête Idempotency-Key avec un POST, une valeur propre à l’opération comme un numéro de commande. La première réponse est gardée 24 heures.",
+        "p2": "Renvoyer la même clé avec le même corps renvoie cette réponse avec Idempotent-Replayed: true, sans refaire le travail. La même clé avec un autre corps est refusée avec idempotency_mismatch.",
+        "p3": "Tant que la première requête tourne, une nouvelle tentative répond idempotency_in_progress. Une erreur du serveur n’est pas gardée, vous pouvez donc réessayer."
+      },
+      "rateLimits": {
+        "title": "Limites de débit",
+        "summary": "Requêtes par minute, par clé et par organisation.",
+        "p1": "Chaque clé a sa propre limite de requêtes par minute, et l’organisation a une limite pour toutes ses clés, fixée par son forfait.",
+        "p2": "Chaque réponse porte RateLimit-Limit, RateLimit-Remaining et RateLimit-Reset, les secondes avant la remise à zéro de la fenêtre.",
+        "p3": "Au-delà d’une limite, l’API répond 429 avec rate_limited et Retry-After. Attendez ce nombre de secondes avant de renvoyer."
+      },
+      "versioning": {
+        "title": "Versions et dépréciation",
+        "summary": "Ce qui peut changer dans la v1 et comment les retraits sont annoncés.",
+        "p1": "La version est dans le chemin, /api/v1. Les changements de la v1 ne font qu’ajouter : nouveaux points d’accès, nouveaux paramètres facultatifs et nouveaux champs. Ignorez les champs que vous ne connaissez pas.",
+        "p2": "Avant d’être retiré, un point d’accès est marqué déprécié : ses réponses portent Deprecation, Sunset (la date de retrait, au moins six mois plus tard) et un Link vers le journal des modifications.",
+        "p3": "Le journal des modifications liste chaque changement et chaque point d’accès dont le retrait est annoncé."
+      },
+      "sandbox": {
+        "title": "Bac à sable",
+        "summary": "Une organisation de test gratuite avec des données d’exemple.",
+        "p1": "Créez un bac à sable développeur depuis ce portail. Tous les modules y sont activés avec des articles, des prix et des clients d’exemple, et il n’est jamais facturé ni limité par un forfait.",
+        "p2": "Les clés du bac à sable commencent par sk_test_ et ne fonctionnent que sur le bac à sable ; les clés réelles ne l’atteignent jamais. Les paiements et les envois fiscaux passent par des fournisseurs simulés : rien n’atteint un vrai porte-monnaie ni une vraie administration fiscale.",
+        "p3": "Réinitialisez le bac à sable depuis Paramètres, Clés d’API pour archiver ses données et charger de nouvelles données d’exemple."
+      },
+      "webhooks": {
+        "title": "Notifications webhook",
+        "summary": "Des événements envoyés à vos systèmes dès qu’ils se produisent.",
+        "p1": "Les webhooks envoient des événements signés, comme une vente terminée ou un document qui change d’étape, à l’URL de votre choix, avec de nouvelles tentatives et un journal des envois.",
+        "p2": "Configurez-les dans Paramètres, Webhooks : choisissez les événements, copiez une fois le secret de signature et vérifiez la signature et l’horodatage de chaque requête avant de lui faire confiance."
+      }
+    },
+    "errorCodes": {
+      "unauthenticated": "Pas de clé, ou une clé fausse, révoquée ou expirée.",
+      "forbidden": "Le rôle de la clé ne permet pas cette action ici.",
+      "not_found": "Rien avec cet identifiant dans votre organisation, ou hors de portée de la clé.",
+      "validation_failed": "Certains champs ne sont pas valides ; voir errors.",
+      "field_readonly": "Un champ que votre rôle ne peut pas modifier a été envoyé ; retirez-le.",
+      "module_inactive": "Le module n’est pas actif pour l’organisation.",
+      "api_key_route_refused": "Ce point d’accès n’accepte pas les clés d’API.",
+      "api_scope_missing": "La clé n’a pas la portée indiquée dans scope.",
+      "rate_limited": "Trop de requêtes ; attendez la durée de Retry-After.",
+      "idempotency_key_invalid": "L’en-tête Idempotency-Key n’est pas valide.",
+      "idempotency_mismatch": "Cette Idempotency-Key a servi pour une autre requête.",
+      "idempotency_in_progress": "Une requête avec cette Idempotency-Key est encore en cours.",
+      "subscription_overdue": "L’abonnement de l’organisation est en retard ; les écritures sont suspendues.",
+      "server_error": "Une erreur s’est produite de notre côté ; réessayez plus tard."
+    },
+    "reference": {
+      "title": "Référence de l’API",
+      "description": "Chaque point d’accès public, ses paramètres et ses réponses.",
+      "base": "URL de base",
+      "version": "Version {{version}}",
+      "download": "Télécharger le document OpenAPI",
+      "search": "Trouver un point d’accès",
+      "none": "Aucun point d’accès ne correspond.",
+      "scope": "Nécessite la portée",
+      "deprecated": "Déprécié",
+      "parameters": "Paramètres",
+      "body": "Corps de la requête",
+      "response": "Réponse {{status}}",
+      "statuses": "Codes de statut",
+      "errorsLink": "Ce que signifient les codes d’erreur",
+      "field": "Champ",
+      "type": "Type de valeur",
+      "notes": "Explication",
+      "required": "obligatoire"
+    },
+    "changelog": {
+      "title": "Journal des modifications",
+      "description": "Ce qui a changé dans l’API publique, du plus récent au plus ancien.",
+      "deprecated": "Retraits annoncés",
+      "noDeprecations": "Aucun retrait n’est annoncé.",
+      "sunset": "Retiré le {{date}}",
+      "entries": {
+        "v1-launch": {
+          "keys": "L’API publique v1 : clés d’API avec rôles et portées, limites de débit, POST idempotents et erreurs en problem JSON.",
+          "reference": "La référence de l’API et ces guides, en anglais et en français.",
+          "sandbox": "Des bacs à sable développeur avec des données d’exemple et des clés de test."
+        }
+      }
     }
   },
   "sso": {

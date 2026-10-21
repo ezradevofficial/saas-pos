@@ -45,7 +45,7 @@ final class EmployeeRules
             'department_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('departments', 'id')],
             'position_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('hr_positions', 'id')],
             'reports_to_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('hr_employees', 'id')],
-            'user_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')],
+            'user_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
             'clock_methods' => ['sometimes', 'array'],
             'clock_methods.*' => ['string', Rule::in(Employee::CLOCK_METHODS)],
             'biometric_ref' => ['sometimes', 'nullable', 'string', 'max:64'],

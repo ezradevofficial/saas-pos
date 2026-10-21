@@ -40,6 +40,9 @@ return [
         'custom' => 'Champs personnalisés',
     ],
 
+    // API-05 : imprimé en tête de chaque document et reçu d’un bac à sable développeur (verrouillé, TPL-03).
+    'sandbox_stamp' => 'BAC À SABLE – ce n’est pas un reçu fiscal',
+
     'print' => [
         'fields' => [
             'company' => [
