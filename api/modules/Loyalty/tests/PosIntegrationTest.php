@@ -5,6 +5,7 @@ namespace Modules\Loyalty\Tests;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\DueTenants;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
@@ -184,6 +185,28 @@ class PosIntegrationTest extends TestCase
         $this->assertSame('-62500', (string) $this->inTenant(fn () => GiftCard::query()->findOrFail($card->id)->balance_minor));
         $this->assertEqualsCanonicalizing(['gift_card_blocked', 'gift_card_overdrawn'], $this->flags($over['id']));
         $this->assertSame(['gift_card_unknown'], $this->flags($unknown['id']));
+    }
+
+    public function test_a_gift_card_expires_on_the_companys_day_not_utcs(): void
+    {
+        // 00:30 on Tuesday 20 October 2026 in Nairobi; still Monday 19 October in UTC. The card's last day was the 19th.
+        $this->travelTo(CarbonImmutable::parse('2026-10-19T21:30:00Z'));
+        [$card] = $this->giftCard('200000');
+        $this->inTenant(fn () => $card->forceFill(['expires_on' => '2026-10-19'])->save());
+
+        $this->assertTrue($this->inTenant(fn () => GiftCard::query()->findOrFail($card->id)->isExpired()));
+        $this->getJson("/api/v1/loyalty/gift-cards/{$card->id}", $this->headersFor())->assertOk()->assertJsonPath('data.expired', true);
+    }
+
+    public function test_a_till_sale_on_an_expired_gift_card_is_flagged_on_the_branchs_day_not_utcs(): void
+    {
+        // Sold at 00:25 on 20 October in Nairobi (still the 19th in UTC); the card's last day was the 19th. Flagged, never refused.
+        [$card, $code] = $this->giftCard('200000');
+        $this->inTenant(fn () => $card->forceFill(['expires_on' => '2026-10-19'])->save());
+        $sale = $this->loyaltySale($this->shift, 1, null, [$this->pay('voucher', '112500', ['code_hash' => GiftCards::proof($code)])], extra: ['sold_at' => '2026-10-19T21:25:00Z']);
+
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
+        $this->assertContains('gift_card_expired', $this->flags($sale['id']));
     }
 
     public function test_a_refund_to_a_gift_card_puts_the_money_back(): void
