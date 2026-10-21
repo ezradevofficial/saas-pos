@@ -1,5 +1,7 @@
 <?php
 
+use App\Core\Observability\Logging\ScrubLogs;
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -60,6 +62,7 @@ return [
 
         'single' => [
             'driver' => 'single',
+            'tap' => [ScrubLogs::class],
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
@@ -67,6 +70,7 @@ return [
 
         'daily' => [
             'driver' => 'daily',
+            'tap' => [ScrubLogs::class],
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => env('LOG_DAILY_DAYS', 14),
@@ -75,6 +79,7 @@ return [
 
         'monthly' => [
             'driver' => 'monthly',
+            'tap' => [ScrubLogs::class],
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => 3,
@@ -83,6 +88,7 @@ return [
 
         'slack' => [
             'driver' => 'slack',
+            'tap' => [ScrubLogs::class],
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
             'username' => env('LOG_SLACK_USERNAME', env('APP_NAME', 'Laravel')),
             'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
@@ -92,6 +98,7 @@ return [
 
         'papertrail' => [
             'driver' => 'monolog',
+            'tap' => [ScrubLogs::class],
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => env('LOG_PAPERTRAIL_HANDLER', SyslogUdpHandler::class),
             'handler_with' => [
@@ -104,6 +111,7 @@ return [
 
         'stderr' => [
             'driver' => 'monolog',
+            'tap' => [ScrubLogs::class],
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => StreamHandler::class,
             'handler_with' => [
@@ -115,6 +123,7 @@ return [
 
         'syslog' => [
             'driver' => 'syslog',
+            'tap' => [ScrubLogs::class],
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
             'replace_placeholders' => true,
@@ -122,8 +131,33 @@ return [
 
         'errorlog' => [
             'driver' => 'errorlog',
+            'tap' => [ScrubLogs::class],
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+        ],
+
+        // NFR-10: structured logs, one JSON object per line with the request
+        // id and tenant id (Laravel's Context) and scrubbed like every other
+        // channel. Production: LOG_STACK=json (file, rotated daily) or
+        // json_stderr (systemd journal), see docs/observability.md.
+        'json' => [
+            'driver' => 'daily',
+            'tap' => [ScrubLogs::class],
+            'path' => storage_path('logs/app.json.log'),
+            'level' => env('LOG_LEVEL', 'info'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'formatter' => JsonFormatter::class,
+            'formatter_with' => ['appendNewline' => true, 'includeStacktraces' => false],
+        ],
+
+        'json_stderr' => [
+            'driver' => 'monolog',
+            'tap' => [ScrubLogs::class],
+            'level' => env('LOG_LEVEL', 'info'),
+            'handler' => StreamHandler::class,
+            'handler_with' => ['stream' => 'php://stderr'],
+            'formatter' => JsonFormatter::class,
+            'formatter_with' => ['appendNewline' => true, 'includeStacktraces' => false],
         ],
 
         'null' => [

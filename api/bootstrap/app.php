@@ -5,6 +5,9 @@ use App\Core\Http\ApiErrorRenderer;
 use App\Core\Http\CheckSupportLinks;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\SetLocale;
+use App\Core\Observability\Http\RecordMetrics;
+use App\Core\Observability\Http\RequestId;
+use App\Core\Observability\Http\SecurityHeaders;
 use App\Core\Platform\SupportAccess\Http\EnforceSupportSession;
 use App\Core\Rbac\Http\Middleware\EnsureModuleActive;
 use App\Core\Support\Http\EnforceEnvironment;
@@ -18,6 +21,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,6 +35,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // TEN-01: every request starts without a tenant; routes that need one
         // use `tenant` after auth.
         $middleware->prepend(ResetTenantContext::class);
+        // NFR-10: the request id comes first, so every log line of the
+        // request (even a refused one) and every job it queues carries it.
+        $middleware->prepend(RequestId::class);
+        // NFR-06: security headers on every response; NFR-02, NFR-10:
+        // request counts and latency for /metrics.
+        $middleware->append(SecurityHeaders::class);
+        $middleware->append(RecordMetrics::class);
         // NFR-06: no request served with development drivers (EnvironmentGuard).
         // Appended, so it runs after PreventRequestsDuringMaintenance: while
         // the app is down (deploys), every request gets the 503 page.
@@ -61,6 +72,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToPriorityList(AuthenticatesRequests::class, EnsureDeviceToken::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // NFR-10: unhandled exceptions reach Sentry (a no-op without a DSN),
+        // scrubbed by App\Core\Observability\SentryEvents.
+        Integration::handles($exceptions);
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

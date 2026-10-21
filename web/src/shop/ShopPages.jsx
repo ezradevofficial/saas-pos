@@ -299,6 +299,8 @@ export function ShopCheckout() {
           <Card title={t('shop.checkout.payment')}>
             <div className="flex flex-col gap-2" role="radiogroup" aria-label={t('shop.checkout.payment')}>
               {store.payment_kinds.filter((kind) => ['mpesa', 'card', 'cod'].includes(kind)).map((kind) => (
+                // The label wraps its radio and visible text (translated), which the rule cannot see.
+                // oxlint-disable-next-line jsx-a11y/label-has-associated-control
                 <label key={kind} className={cn('flex cursor-pointer items-center gap-3 rounded-md border border-border p-3', values.payment === kind && 'border-primary')}>
                   <input type="radio" name="payment" value={kind} checked={values.payment === kind} onChange={() => set('payment', kind)} />
                   <span className="flex flex-col">

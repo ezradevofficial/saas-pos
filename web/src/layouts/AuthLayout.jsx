@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Outlet } from 'react-router'
+import { PageOutlet } from './PageOutlet'
 import { setLocale } from '@/i18n'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
@@ -66,7 +66,7 @@ export function AuthLayout({ children }) {
           </div>
         ) : null}
         <main className="flex flex-1 items-start justify-center px-4 py-6 md:py-12">
-          <div className="flex w-full max-w-auth flex-col gap-6">{children ?? <Outlet />}</div>
+          <div className="flex w-full max-w-auth flex-col gap-6"><PageOutlet>{children}</PageOutlet></div>
         </main>
       </div>
       {brand ? (

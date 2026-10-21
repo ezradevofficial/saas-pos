@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, Outlet } from 'react-router'
+import { Link } from 'react-router'
+import { PageOutlet } from '@/layouts/PageOutlet'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Icon } from '@/components/ds'
 import { LanguageSwitch } from '@/layouts/AuthLayout'
@@ -51,7 +52,7 @@ export function ShopLayout() {
       </header>
       <main className="mx-auto flex w-full max-w-content flex-1 flex-col gap-6 px-4 py-6 md:px-6">
         {query.isError ? <Alert tone="danger" title={query.error?.status === 404 ? t('shop.notFound') : errorMessage(query.error)} /> : null}
-        {store ? <Outlet /> : null}
+        {store ? <PageOutlet /> : null}
       </main>
       <footer className="border-t border-border px-4 py-4 text-center text-caption text-ink-muted md:px-6">
         {store?.contact_phone ? <span>{t('shop.contact', { phone: store.contact_phone })}{store.whatsapp ? ' · ' : ''}</span> : null}

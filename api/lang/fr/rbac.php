@@ -93,6 +93,8 @@ return [
                 'subscription' => 'Abonnement et facturation',
                 'support_access' => 'Accès du support',
                 'webhook' => 'Webhooks',
+                'privacy_request' => 'Demandes des personnes concernées',
+                'consent' => 'Consentement marketing',
             ],
             'pos' => [
                 'sale' => 'Ventes',

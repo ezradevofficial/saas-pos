@@ -281,3 +281,47 @@ jobs:
       - run: npm run check:i18n
       # The check's own test (API catalogues, dotted keys).
       - run: node --test scripts/check-i18n.test.mjs
+      # NFR-10: the shared scrubber (web, POS) over the fixtures the API's
+      # ScrubberTest also runs; NFR-06: the security scripts' own tests.
+      - run: node --test packages/scrub/test/*.test.js scripts/secret-scan.test.mjs scripts/npm-audit.test.mjs
+
+  # NFR-06: dependency scanning and a committed-secret scan on every push,
+  # with built-in tools only (no marketplace actions).
+  composer-audit:
+    name: security (composer audit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      # Reads composer.lock against the advisory database; fails on any advisory.
+      - run: composer audit --locked --no-interaction
+
+  npm-audit:
+    name: security (npm audit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      # npm audit --omit=dev at high and above, minus reviewed, dated
+      # exceptions (scripts/npm-audit-allowlist.json). Reads package-lock.json.
+      - run: node scripts/npm-audit.mjs
+
+  secret-scan:
+    name: security (secret scan)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      # Every tracked file against committed-secret patterns; reviewed
+      # fixtures in scripts/secret-scan-allowlist.json.
+      - run: node scripts/secret-scan.mjs

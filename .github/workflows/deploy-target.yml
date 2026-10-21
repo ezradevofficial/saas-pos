@@ -35,6 +35,9 @@ on:
         required: true
       path:
         required: true
+      # NFR-10: optional; source maps are uploaded to Sentry only when set.
+      sentry-auth-token:
+        required: false
 
 permissions:
   contents: read
@@ -57,11 +60,41 @@ jobs:
 
       - run: npm ci
 
+      # NFR-10: the release is the commit; Sentry is on only when the
+      # environment's SENTRY_WEB_DSN variable is set. Hidden source maps are
+      # built only when a Sentry token is set, uploaded, then deleted, so
+      # they are never served.
       - name: Build web
         env:
           VITE_APP_NAME: ${{ vars.APP_NAME || 'App' }}
           VITE_API_URL: ${{ inputs.api-url }}
+          VITE_SENTRY_DSN: ${{ vars.SENTRY_WEB_DSN }}
+          VITE_SENTRY_RELEASE: ${{ inputs.ref }}
+          VITE_SENTRY_ENVIRONMENT: ${{ inputs.environment }}
+          VITE_SOURCEMAP: ${{ secrets.sentry-auth-token != '' && 'hidden' || '' }}
         run: npm run build -w web
+
+      - name: Upload web source maps to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.sentry-auth-token }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_WEB_PROJECT }}
+          SENTRY_URL: ${{ vars.SENTRY_URL || 'https://sentry.io/' }}
+          RELEASE: ${{ inputs.ref }}
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "No Sentry token: source maps not uploaded."
+            exit 0
+          fi
+          npx sentry-cli sourcemaps inject web/dist
+          npx sentry-cli sourcemaps upload --release "$RELEASE" web/dist
+          find web/dist -name '*.map' -delete
+
+      # NFR-10: the API reports the same release (config/sentry.php reads api/REVISION).
+      - name: Record the release
+        env:
+          RELEASE: ${{ inputs.ref }}
+        run: printf '%s\n' "$RELEASE" > api/REVISION
 
       - name: Configure SSH
         env:
@@ -163,10 +196,26 @@ jobs:
           php artisan payment-methods:seed-defaults
           # SUB-02, SUB-07: modules installed since a tenant subscribed are switched on when its plan covers them.
           php artisan billing:sync-modules
+          # SUB-02, ADR 016: once per environment, trial subscriptions for
+          # tenants created before billing (idempotent). The marker lives in
+          # storage/, which deploys never touch. A failure (for example no
+          # operator tenant yet, `platform:operator`) is reported and tried
+          # again on the next deploy; it never keeps the API down.
+          if [ ! -f storage/app/deploy/billing-backfill.done ]; then
+            if php artisan billing:backfill-subscriptions; then
+              mkdir -p storage/app/deploy && date -u +%FT%TZ > storage/app/deploy/billing-backfill.done
+            else
+              echo "::warning::billing:backfill-subscriptions failed; it runs again on the next deploy (docs/deploy-linode.md)."
+            fi
+          fi
           php artisan config:cache
           php artisan route:cache
           php artisan horizon:terminate
           php artisan queue:restart
           # Only once every step above succeeded.
           php artisan up
+          # NFR-01: the readiness checks (database, Redis, queue, storage) from
+          # the host itself; also writes the status snapshot. Reported, not fatal:
+          # the release is already live.
+          php artisan health:status || echo "::warning::The readiness checks failed after the deploy; see php artisan health:status on the host."
           REMOTE

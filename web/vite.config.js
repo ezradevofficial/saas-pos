@@ -16,7 +16,12 @@ export default defineConfig({
   },
   // @app/tokens is CommonJS and linked from the workspace, so pre-bundle it for the browser.
   optimizeDeps: {
-    include: ['@app/tokens'],
+    include: ['@app/tokens', '@app/scrub'],
+  },
+  // NFR-10: source maps only for the deploy's Sentry upload (VITE_SOURCEMAP=hidden,
+  // set when SENTRY_AUTH_TOKEN is); the deploy deletes them before the files go live.
+  build: {
+    sourcemap: process.env.VITE_SOURCEMAP === 'hidden' ? 'hidden' : false,
   },
   server: {
     port: 3008,

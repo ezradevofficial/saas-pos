@@ -1,0 +1,19 @@
+{
+  "_about": "NFR-06: reviewed exceptions to the npm audit job (scripts/npm-audit.mjs). Each entry needs a reason and a review_by date (at most 90 days ahead); past that date it fails CI again.",
+  "entries": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "reason": "Pulled in by tailwindcss 3 (NativeWind's compiler) through chokidar and micromatch. It runs only at build time on our own source globs, never in the POS app or on a server, and has no fixed release in the tailwindcss 3 line NativeWind 4 needs.",
+      "added": "2026-10-17",
+      "review_by": "2027-01-15"
+    },
+    {
+      "id": "GHSA-86w9-cpqp-85rv",
+      "package": "node-forge",
+      "reason": "Used by @expo/cli for development-server and code-signing certificates. Not part of the app bundle or any server; upgrade with the next Expo SDK that moves off node-forge 1.4.",
+      "added": "2026-10-17",
+      "review_by": "2027-01-15"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { Command as CommandPrimitive } from 'cmdk'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -41,6 +41,8 @@ export function Combobox({
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  // NFR-09: the trigger names the list it controls (WAI-ARIA combobox).
+  const listId = `${useId()}-list`
   const items = useMemo(() => normalizeOptions(options), [options])
   const current = value == null ? '' : String(value)
   const selectedIndex = items.findIndex((option) => option.value === current)
@@ -89,6 +91,8 @@ export function Combobox({
           id={id}
           role="combobox"
           aria-expanded={open}
+          aria-controls={listId}
+          aria-haspopup="listbox"
           aria-required={required ? 'true' : undefined}
           aria-invalid={invalid ? 'true' : undefined}
           disabled={disabled}
@@ -122,7 +126,7 @@ export function Combobox({
               className="h-control w-full min-w-0 bg-transparent text-body text-ink outline-none placeholder:text-ink-muted"
             />
           </div>
-          <CommandList className="max-h-picker">
+          <CommandList id={listId} className="max-h-picker">
             <CommandEmpty className="px-3 py-4 text-body text-ink-muted">{t('ds.combobox.noMatches')}</CommandEmpty>
             <CommandGroup className="p-1 text-ink">
               {shown.map(({ option, index }) => (

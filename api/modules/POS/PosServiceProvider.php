@@ -15,6 +15,8 @@ use App\Core\Numbering\NumberFormat;
 use App\Core\Onboarding\Checklist\Checklist;
 use App\Core\Onboarding\Sample\SampleDependents;
 use App\Core\Payments\Events\PaymentIntentSettled;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
@@ -32,6 +34,7 @@ use Modules\POS\Events\PosEventReplay;
 use Modules\POS\Events\SaleCompleted;
 use Modules\POS\Events\SaleRefunded;
 use Modules\POS\Events\SaleVoided;
+use Modules\POS\Fiscal\FiscalCustomerRetention;
 use Modules\POS\Fiscal\PosFiscalSource;
 use Modules\POS\Layout\PosLayout;
 use Modules\POS\Listeners\ApplyPaymentSettlement;
@@ -93,6 +96,11 @@ class PosServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/pos.php', 'pos');
+        $this->callAfterResolving(PrivacySubjects::class, function (PrivacySubjects $subjects) {
+            // Review H1: sales to the customer (customer_id), never those a user rang up as cashier.
+            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'pos_sales', match: 'customer_id', related: true));
+            $subjects->retain('customer', fn (string $partyId) => app(FiscalCustomerRetention::class)->for($partyId));
+        });
         // AUTH-07, AUTH-08: core's PIN verifier once it is installed, else nothing is provable (held).
         $this->app->bindIf(OverrideVerifier::class, CoreOverrides::class);
         $this->app->scoped(Sellability::class);

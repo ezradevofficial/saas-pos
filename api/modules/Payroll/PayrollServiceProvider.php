@@ -6,9 +6,12 @@ use App\Core\CountryPacks\PackSchemas;
 use App\Core\DocumentTemplates\DataSources;
 use App\Core\Layouts\ListViewCatalogue;
 use App\Core\Numbering\DocumentNumberTypes;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
+use App\Core\Tenancy\TenantContext;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
@@ -16,6 +19,7 @@ use App\Core\Workflow\Events\WorkflowCompleted;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +30,8 @@ use Modules\HR\Events\EmployeeHired;
 use Modules\HR\Events\EmployeeTerminated;
 use Modules\HR\Events\LeaveApproved;
 use Modules\HR\Events\LeaveCancelled;
+use Modules\HR\Support\PrivacyMasks;
+use Modules\HR\Support\Sensitive;
 use Modules\Payroll\Http\Lists\LoanList;
 use Modules\Payroll\Http\Lists\PayEmployeeList;
 use Modules\Payroll\Http\Lists\RunLineList;
@@ -89,6 +95,23 @@ class PayrollServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/payroll.php', 'payroll');
+        // NFR-08: Payroll's copy of an employee is part of their data (access
+        // reports); payslips and returns are statutory records and are kept.
+        $this->callAfterResolving(PrivacySubjects::class, function (PrivacySubjects $subjects) {
+            $subjects->register(new SubjectSource(subjectType: 'employee', table: 'payroll_employees', match: 'employee_id'));
+            foreach (['payroll_payslips', 'payroll_run_lines', 'payroll_contracts', 'payroll_attendance', 'payroll_leave_days'] as $table) {
+                $subjects->register(new SubjectSource(subjectType: 'employee', table: $table, match: 'employee_id', related: true));
+            }
+            foreach (['payroll_loans', 'payroll_employee_items'] as $table) {
+                $subjects->register(new SubjectSource(subjectType: 'employee', table: $table, match: 'payroll_employee_id', related: true, through: ['payroll_employees', 'employee_id']));
+            }
+            // Review H2: pay records are HR's pay group (HR-09).
+            $masks = $this->app->make(PrivacyMasks::class);
+            $payrollEmployee = fn (array $row) => $row['employee_id'] ?? DB::connection(TenantContext::CONNECTION)->table('payroll_employees')->where('id', $row['payroll_employee_id'] ?? null)->value('employee_id');
+            foreach (['payroll_payslips', 'payroll_run_lines', 'payroll_contracts', 'payroll_loans', 'payroll_employee_items'] as $table) {
+                $subjects->mask($table, $masks->forGroupRows(Sensitive::PAY, $payrollEmployee));
+            }
+        });
         $this->app->singleton(PayrollPack::class);
         $this->app->scoped(PayFields::class);
         $this->app->singleton(PaymentFormats::class, function () {

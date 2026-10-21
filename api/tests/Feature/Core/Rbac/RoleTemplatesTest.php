@@ -121,8 +121,8 @@ class RoleTemplatesTest extends TestCase
         // Payroll (docs/modules/payroll.md): 15 payroll.* permissions (payroll.pay.view, decision 36).
         // Fixed assets (docs/modules/fixed-assets.md): 17 fixed_assets.* permissions.
         // E-commerce (docs/modules/ecommerce.md): 17 ecommerce.* permissions.
-        // API-02: core.api_key.manage. HOOK-01: core.webhook.manage. RBAC-13: core.support_access.view|manage. AUTH-11: core.sso.manage (118 core permissions).
-        $this->assertSame(118 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27 + 15 + 17 + 14 + 17, count($names));
+        // API-02: core.api_key.manage. HOOK-01: core.webhook.manage. RBAC-13: core.support_access.view|manage. AUTH-11: core.sso.manage. NFR-08: core.privacy_request.* and core.consent.* (123 core permissions).
+        $this->assertSame(123 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27 + 15 + 17 + 14 + 17, count($names));
     }
 
     public function test_sign_up_provisions_fifteen_system_roles_and_an_owner_assignment(): void
@@ -402,7 +402,7 @@ class RoleTemplatesTest extends TestCase
 
         $this->assertSame(['core'], $response->json('modules'));
         $permissions = collect($response->json('permissions'))->keyBy('name');
-        $this->assertCount(118, $permissions); // AUTH-11 core.sso.manage, and core, EXP-02 core.tenant.export, IMP-01 core.import.run, ONB core.onboarding.view|edit|modules, SUB-02 core.subscription.*, HOOK-01 core.webhook.manage, RBAC-13 core.support_access.* and API-02 core.api_key.manage included
+        $this->assertCount(123, $permissions); // NFR-08 core.privacy_request.* and core.consent.*, AUTH-11 core.sso.manage, and core, EXP-02 core.tenant.export, IMP-01 core.import.run, ONB core.onboarding.view|edit|modules, SUB-02 core.subscription.*, HOOK-01 core.webhook.manage, RBAC-13 core.support_access.* and API-02 core.api_key.manage included
         $this->assertSame([['type' => 'tenant', 'id' => $tenantId]], $permissions['core.company.view']['scopes']);
     }
 

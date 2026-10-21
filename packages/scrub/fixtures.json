@@ -1,0 +1,274 @@
+{
+  "_about": "NFR-10: cases both scrubbers must pass (packages/scrub/test and api ScrubberTest). `strings`: input and expected output of scrubString. `objects`: input and expected output of scrub. `sensitiveKeys` / `plainKeys`: keys that are and are not always redacted.",
+  "strings": [
+    [
+      "Sign-in failed for amina@example.com",
+      "Sign-in failed for [email]"
+    ],
+    [
+      "Authorization: Bearer 12|abcdefghijklmnopqrstuvwxyz0123",
+      "Authorization: Bearer [redacted]"
+    ],
+    [
+      "token 41|Q9w8e7r6t5y4u3i2o1p0asdfghjkl was refused",
+      "token [token] was refused"
+    ],
+    [
+      "jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTYifQ.c2lnbmF0dXJlMTIz",
+      "jwt [token]"
+    ],
+    [
+      "Card 4111 1111 1111 1111 declined",
+      "Card [number] declined"
+    ],
+    [
+      "Card 4111111111111111 declined",
+      "Card [number] declined"
+    ],
+    [
+      "STK push to +254 712 345 678 timed out",
+      "STK push to [phone] timed out"
+    ],
+    [
+      "STK push to 254712345678 timed out",
+      "STK push to [phone] timed out"
+    ],
+    [
+      "Call 0712345678 or 0712 345 678",
+      "Call [phone] or [phone]"
+    ],
+    [
+      "Kinshasa wallet 0812345678",
+      "Kinshasa wallet [phone]"
+    ],
+    [
+      "GET /api/v1/media/x?expires=1760000000&signature=abc123def",
+      "GET /api/v1/media/x?expires=1760000000&signature=[redacted]"
+    ],
+    [
+      "https://shop.example/cb?token=s3cr3t&ok=1",
+      "https://shop.example/cb?token=[redacted]&ok=1"
+    ],
+    [
+      "Sale 0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b posted for KES 12,450.00",
+      "Sale 0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b posted for KES 12,450.00"
+    ],
+    [
+      "Receipt R-000123 on 2026-10-17 at 14:05",
+      "Receipt R-000123 on 2026-10-17 at 14:05"
+    ],
+    [
+      "SQLSTATE[23505]: Unique violation",
+      "SQLSTATE[23505]: Unique violation"
+    ],
+    [
+      "Request 0199f5a2-1111-7222-8333-444455556666 done",
+      "Request 0199f5a2-1111-7222-8333-444455556666 done"
+    ],
+    [
+      "GET /api/v1/auth/invitations/Q9w8E7r6T5y4U3i2O1p0AsDfGhJkLzXc",
+      "GET /api/v1/auth/invitations/[redacted]"
+    ],
+    [
+      "POST https://api.example/api/v1/payments/callback/mpesa/a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8?x=1",
+      "POST https://api.example/api/v1/payments/callback/mpesa/[redacted]?x=1"
+    ],
+    [
+      "/api/v1/approvals/email/Zx9_Yw8-Vu7_Ts6-Rq5_Po4-Nm3_Lk2-Ji1_Hg0 approved",
+      "/api/v1/approvals/email/[redacted] approved"
+    ],
+    [
+      "GET /api/v1/companies/0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b/branches",
+      "GET /api/v1/companies/0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b/branches"
+    ],
+    [
+      "token=s3cr3tvalue&page=2",
+      "token=[redacted]&page=2"
+    ],
+    [
+      "signature=abc123&expires=1760000000",
+      "signature=[redacted]&expires=1760000000"
+    ]
+  ],
+  "objects": [
+    [
+      {
+        "password": "hunter22",
+        "pin": "1234",
+        "name": "Amina",
+        "count": 3,
+        "two_factor_enabled": true
+      },
+      {
+        "password": "[redacted]",
+        "pin": "[redacted]",
+        "name": "Amina",
+        "count": 3,
+        "two_factor_enabled": true
+      }
+    ],
+    [
+      {
+        "headers": {
+          "Authorization": "Bearer abc.def.ghi",
+          "X-Request-Id": "r-1",
+          "Cookie": "s=1"
+        }
+      },
+      {
+        "headers": {
+          "Authorization": "[redacted]",
+          "X-Request-Id": "r-1",
+          "Cookie": "[redacted]"
+        }
+      }
+    ],
+    [
+      {
+        "customer": {
+          "phones": [
+            "+254712345678"
+          ],
+          "emails": [
+            "a@b.co"
+          ],
+          "tax_id": "P051234567X",
+          "kra_pin": "A123"
+        }
+      },
+      {
+        "customer": {
+          "phones": "[redacted]",
+          "emails": "[redacted]",
+          "tax_id": "[redacted]",
+          "kra_pin": "[redacted]"
+        }
+      }
+    ],
+    [
+      {
+        "card_number": 4111111111111111,
+        "cvv": "123",
+        "account_number": "0123456789",
+        "iban": null
+      },
+      {
+        "card_number": "[redacted]",
+        "cvv": "[redacted]",
+        "account_number": "[redacted]",
+        "iban": null
+      }
+    ],
+    [
+      {
+        "tenant_id": "0199f5a2-1111-7222-8333-444455556666",
+        "request_id": "0199f5a2-0000-7000-8000-000000000001",
+        "message": "mail to x@y.com failed"
+      },
+      {
+        "tenant_id": "0199f5a2-1111-7222-8333-444455556666",
+        "request_id": "0199f5a2-0000-7000-8000-000000000001",
+        "message": "mail to [email] failed"
+      }
+    ],
+    [
+      {
+        "apiKey": "k",
+        "accessToken": "t",
+        "shipping_address": "Moi Avenue",
+        "shipping_method": "rider",
+        "opinion": "fine",
+        "national_id": "12345678",
+        "id_number": "12345678"
+      },
+      {
+        "apiKey": "[redacted]",
+        "accessToken": "[redacted]",
+        "shipping_address": "[redacted]",
+        "shipping_method": "rider",
+        "opinion": "fine",
+        "national_id": "[redacted]",
+        "id_number": "[redacted]"
+      }
+    ],
+    [
+      {
+        "code": "482913",
+        "recovery_code": "ABCD-EFGH",
+        "passkey": "bfb279f9",
+        "consumer_key": "ck",
+        "security_credential": "sc",
+        "status_code": 200,
+        "currency_code": "KES"
+      },
+      {
+        "code": "[redacted]",
+        "recovery_code": "[redacted]",
+        "passkey": "[redacted]",
+        "consumer_key": "[redacted]",
+        "security_credential": "[redacted]",
+        "status_code": 200,
+        "currency_code": "KES"
+      }
+    ],
+    [
+      {
+        "PartyA": 254712345678,
+        "PhoneNumber": 254712345678,
+        "Amount": 1500,
+        "amount_minor": 125000000,
+        "count": 3
+      },
+      {
+        "PartyA": "[phone]",
+        "PhoneNumber": "[redacted]",
+        "Amount": 1500,
+        "amount_minor": 125000000,
+        "count": 3
+      }
+    ]
+  ],
+  "sensitiveKeys": [
+    "password",
+    "new_password",
+    "PIN",
+    "otp_code",
+    "two_factor_secret",
+    "client_secret",
+    "X-Api-Key",
+    "set-cookie",
+    "msisdn",
+    "work_email",
+    "personal_phone",
+    "date_of_birth",
+    "ip_address",
+    "card",
+    "bank_account",
+    "passport",
+    "code",
+    "recovery_code",
+    "passkey",
+    "consumer_key",
+    "security_credential",
+    "SecurityCredential"
+  ],
+  "plainKeys": [
+    "name",
+    "status",
+    "shipping",
+    "opinion",
+    "mapping",
+    "spinner",
+    "company_id",
+    "amount_minor",
+    "currency",
+    "url",
+    "message",
+    "level",
+    "description",
+    "status_code",
+    "currency_code",
+    "item_code",
+    "error_code"
+  ]
+}

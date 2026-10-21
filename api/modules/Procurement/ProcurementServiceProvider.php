@@ -9,6 +9,8 @@ use App\Core\Layouts\ListViewCatalogue;
 use App\Core\MasterData\RecordUsage;
 use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberTypes;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Support\EventReplays;
@@ -88,6 +90,12 @@ class ProcurementServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/procurement.php', 'procurement');
+        // NFR-08: a party's own procurement records as a supplier (party_id); never bid scores or committees.
+        $this->callAfterResolving(PrivacySubjects::class, function (PrivacySubjects $subjects) {
+            foreach (['procurement_orders', 'procurement_invoices', 'procurement_quotes', 'procurement_receipts'] as $table) {
+                $subjects->register(new SubjectSource(subjectType: 'customer', table: $table, match: 'party_id', related: true));
+            }
+        });
     }
 
     public function boot(): void

@@ -89,6 +89,7 @@ jobs:
       ssh-key: ${{ secrets.DEV_LINODE_SSH_KEY }}
       known-hosts: ${{ secrets.DEV_LINODE_KNOWN_HOSTS }}
       path: ${{ secrets.DEV_DEPLOY_PATH }}
+      sentry-auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
   # Staging follows dev; when dev is skipped (no credentials) staging can
   # still deploy on its own.
@@ -110,3 +111,4 @@ jobs:
       ssh-key: ${{ secrets.STAGING_LINODE_SSH_KEY }}
       known-hosts: ${{ secrets.STAGING_LINODE_KNOWN_HOSTS }}
       path: ${{ secrets.STAGING_DEPLOY_PATH }}
+      sentry-auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
