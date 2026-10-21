@@ -260,6 +260,30 @@ class ReviewAttendanceTest extends TestCase
         $this->assertSame(1, $this->inTenant(fn () => Punch::query()->whereKey($id)->count()));
     }
 
+    public function test_swap_peers_show_shifts_from_the_companys_day_not_utcs(): void
+    {
+        // HR-31: 00:30 on Tuesday 20 October 2026 in Nairobi; still Monday 19 October in UTC.
+        $this->travelTo(CarbonImmutable::parse('2026-10-19T21:30:00Z'));
+        $this->plan($this->amina, '2026-10-19');
+        $this->plan($this->amina, '2026-10-20');
+
+        $user = $this->userWith('employee_self_service', Scope::company($this->acme->id));
+        $this->employee(['first_name' => 'Me', 'location_id' => $this->locationA->id, 'user_id' => $user->id]);
+        $peers = collect($this->getJson('/api/v1/hr/me/swap-peers', $this->headersFor($user))->assertOk()->json('data'))->keyBy('id');
+        $this->assertSame(['2026-10-20'], array_column($peers[$this->amina->id]['shifts'], 'date'));
+    }
+
+    public function test_a_transfer_takes_shifts_from_the_companys_day_not_utcs(): void
+    {
+        // HR-02: 00:30 on Tuesday 20 October 2026 in Nairobi; still Monday 19 October in UTC.
+        $this->travelTo(CarbonImmutable::parse('2026-10-19T21:30:00Z'));
+        $yesterday = $this->plan($this->amina, '2026-10-19');
+        $today = $this->plan($this->amina, '2026-10-20');
+
+        $this->patchJson("/api/v1/hr/employees/{$this->amina->id}", ['location_id' => $this->locationB->id], $this->headersFor($this->hrOfficer))->assertOk();
+        $this->assertSame([$this->locationA->id, $this->locationB->id], $this->inTenant(fn () => [RosterShift::query()->find($yesterday)->location_id, RosterShift::query()->find($today)->location_id]));
+    }
+
     private function plan(Employee $employee, string $date): string
     {
         return $this->postJson('/api/v1/hr/roster-shifts', ['employee_id' => $employee->id, 'date' => $date, 'shift_id' => $this->day], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');

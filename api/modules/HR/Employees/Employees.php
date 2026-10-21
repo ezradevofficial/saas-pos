@@ -9,6 +9,7 @@ use App\Core\Limits\Units;
 use App\Core\Limits\UsageLimits;
 use App\Core\MasterData\Dimensions\Department;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
@@ -325,7 +326,8 @@ class Employees
      */
     private function transfer(Employee $employee): void
     {
-        $today = CarbonImmutable::now()->toDateString();
+        // The new place starts on its own day, not UTC's.
+        $today = CompanyClock::today($employee->company_id, $employee->branch_id);
         $place = ['branch_id' => $employee->branch_id, 'location_id' => $employee->location_id];
 
         foreach (LeaveRequest::query()->where('employee_id', $employee->id)->where('status', LeaveRequest::PENDING)->get() as $request) {
