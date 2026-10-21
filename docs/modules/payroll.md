@@ -504,7 +504,7 @@ Kenya (`api/country-packs/KE/payroll.json`, KES):
 1. PAYE monthly bands 10% to 24,000, 25% to 32,333, 30% to 500,000, 32.5% to 800,000, 35% above (medium: the rounding rule is medium).
 2. Personal relief 2,400 a month (high). Residency is not recorded: every employee gets it.
 3. Insurance relief 15% of premiums, at most 5,000 a month (medium). SHIF is treated as a deduction, not an insurance-relief item.
-4. Deductions before PAYE: SHIF, the housing levy, pension and NSSF together up to 30,000, post-retirement medical fund up to 15,000, mortgage interest up to 30,000 a month (high). Pay items say their category (`pre_tax_category`).
+4. Deductions before PAYE: SHIF, the housing levy, pension and NSSF together up to 30,000, post-retirement medical fund up to 15,000, mortgage interest up to 30,000 a month (high). Pay items say their category (`pre_tax_category`); where the company's pack has deduction limits, a pre-tax deduction without one is refused (`pre_tax_category_required`).
 5. SHIF 2.75% of gross, minimum 300, no cap, employee only (medium with rounding).
 6. Housing levy 1.5% + 1.5%, no cap; the employee part reduces taxable pay.
 7. NSSF year 3 to 2026-01-31 (8,000 / 72,000) and year 4 from 2026-02-01 (9,000 / 108,000), 6% + 6% per tier; reduces taxable pay.

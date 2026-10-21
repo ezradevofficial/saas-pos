@@ -17,6 +17,7 @@ return [
         'item_other_company' => 'Choose a pay item of the employee’s company.',
         'item_flag_kind' => 'The setting :flag doesn’t apply to this kind of item. Leave it off.',
         'pre_tax_category_needs_pre_tax' => 'A pre-tax category applies only to a deduction taken before tax. Turn on "Before tax" or clear the category.',
+        'pre_tax_category_required' => 'Choose the statutory limit this deduction falls under (pension, post-retirement medical fund or mortgage interest). A deduction outside them isn’t taken before tax.',
         'component_always_applies' => ':component can’t be marked not applicable: every company of this country owes it.',
         'component_confirmed' => ':component has a confirmed or researched value now, so it applies. There is nothing to mark.',
         'item_paid' => 'This one-off item was paid by a posted run, so it can’t change. Add a new item instead.',

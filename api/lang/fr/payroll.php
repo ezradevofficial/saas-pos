@@ -18,6 +18,7 @@ return [
         'item_other_company' => 'Choisissez une rubrique de la société de l’employé.',
         'item_flag_kind' => 'Le réglage :flag ne s’applique pas à ce type de rubrique. Laissez-le désactivé.',
         'pre_tax_category_needs_pre_tax' => 'Une catégorie avant impôt ne s’applique qu’à une retenue prise avant l’impôt. Activez « Avant impôt » ou retirez la catégorie.',
+        'pre_tax_category_required' => 'Choisissez le plafond légal dont relève cette retenue (retraite, fonds médical de retraite ou intérêts hypothécaires). Une retenue hors de ces catégories n’est pas déduite avant l’impôt.',
         'component_always_applies' => ':component ne peut pas être marqué non applicable : toutes les entreprises de ce pays en sont redevables.',
         'component_confirmed' => ':component a désormais une valeur confirmée ou recherchée : elle s’applique. Il n’y a rien à marquer.',
         'item_paid' => 'Cette rubrique ponctuelle a été payée par une paie comptabilisée et ne peut plus changer. Ajoutez-en une nouvelle.',

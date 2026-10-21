@@ -147,6 +147,11 @@ class ResearchedPackTest extends TestCase
     {
         $item = $this->postJson('/api/v1/payroll/items', ['company_id' => $this->acme->id, 'code' => 'PENSION', 'name' => 'Pension', 'kind' => 'deduction', 'pre_tax' => true, 'pre_tax_category' => 'pension'], $this->headersFor($this->officer))
             ->assertCreated()->assertJsonPath('data.pre_tax_category', 'pension')->json('data.id');
+        // S3: in Kenya a pre-tax deduction says which statutory limit applies.
+        $this->postJson('/api/v1/payroll/items', ['company_id' => $this->acme->id, 'code' => 'SACCO', 'name' => 'Sacco', 'kind' => 'deduction', 'pre_tax' => true], $this->headersFor($this->officer))
+            ->assertUnprocessable()->assertJsonPath('code', 'pre_tax_category_required');
+        $this->patchJson("/api/v1/payroll/items/{$item}", ['pre_tax_category' => null], $this->headersFor($this->officer))
+            ->assertUnprocessable()->assertJsonPath('code', 'pre_tax_category_required');
         // A category needs a pre-tax deduction.
         $this->postJson('/api/v1/payroll/items', ['company_id' => $this->acme->id, 'code' => 'LOAN', 'name' => 'Loan', 'kind' => 'deduction', 'pre_tax_category' => 'pension'], $this->headersFor($this->officer))
             ->assertUnprocessable()->assertJsonPath('code', 'pre_tax_category_needs_pre_tax');

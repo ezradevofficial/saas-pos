@@ -272,6 +272,19 @@ class SetupController
             if ($item?->pre_tax_category !== null) {
                 $data['pre_tax_category'] = null;
             }
+
+            return $data;
+        }
+
+        // S3, PAY-07: where the company's pack limits pre-tax deductions by category (KE), a pre-tax deduction
+        // says which limit applies; an uncategorised one would escape the limits.
+        $category = array_key_exists('pre_tax_category', $data) ? $data['pre_tax_category'] : $item?->pre_tax_category;
+        $companyId = $data['company_id'] ?? $item?->company_id;
+        $pack = app(PayrollPack::class)->of(Company::query()->whereKey($companyId)->value('country'));
+        $limited = collect($pack['components'] ?? [])->contains(fn (array $c) => ($c['kind'] ?? null) === 'deduction_limit');
+
+        if ($kind === Item::DEDUCTION && $limited && $category === null) {
+            throw Errors::make(422, 'pre_tax_category_required', field: 'pre_tax_category');
         }
 
         return $data;

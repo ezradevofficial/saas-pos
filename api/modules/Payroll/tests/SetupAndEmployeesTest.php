@@ -50,7 +50,7 @@ class SetupAndEmployeesTest extends TestCase
             ->assertCreated()->assertJsonPath('data.taxable', true);
         $this->postJson('/api/v1/payroll/items', ['company_id' => $this->acme->id, 'code' => 'PENSION', 'name' => 'Pension', 'kind' => 'deduction', 'taxable' => true], $headers)
             ->assertUnprocessable()->assertJsonPath('code', 'item_flag_kind');
-        $item = $this->postJson('/api/v1/payroll/items', ['company_id' => $this->acme->id, 'code' => 'PENSION', 'name' => 'Pension', 'kind' => 'deduction', 'pre_tax' => true], $headers)->assertCreated()->json('data.id');
+        $item = $this->postJson('/api/v1/payroll/items', ['company_id' => $this->acme->id, 'code' => 'PENSION', 'name' => 'Pension', 'kind' => 'deduction', 'pre_tax' => true, 'pre_tax_category' => 'pension'], $headers)->assertCreated()->json('data.id');
         $this->patchJson("/api/v1/payroll/items/{$item}", ['kind' => 'earning'], $headers)->assertUnprocessable();
         $this->postJson("/api/v1/payroll/items/{$item}/archive", [], $headers)->assertOk()->assertJsonPath('data.archived_at', fn ($v) => $v !== null);
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'payroll.item.create')->exists()));
