@@ -13,6 +13,8 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
@@ -88,6 +90,18 @@ class CrmServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/crm.php', 'crm');
+        // NFR-08: a lead converted to a customer is part of that customer's
+        // data; anonymising the customer clears the lead's contact details.
+        $this->callAfterResolving(PrivacySubjects::class, function (PrivacySubjects $subjects) {
+            $subjects->register(new SubjectSource(
+                subjectType: 'customer', table: 'crm_leads', match: 'party_id',
+                personal: ['name' => 'label', 'email' => 'null', 'phone' => 'null', 'organisation' => 'null', 'title' => 'null', 'notes' => 'null', 'custom' => 'null'],
+            ));
+            // Review H1: records about the customer (party_id), never those a user owns (owner_id).
+            foreach (['crm_opportunities', 'crm_quotes', 'crm_activities'] as $table) {
+                $subjects->register(new SubjectSource(subjectType: 'customer', table: $table, match: 'party_id', related: true));
+            }
+        });
         // Per request or job: they keep what they read (teams, companies set up).
         $this->app->scoped(CrmAccess::class);
         $this->app->scoped(CompanySetup::class);

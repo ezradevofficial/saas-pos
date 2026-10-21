@@ -495,6 +495,7 @@
     "webhooks": "Webhooks",
     "apiKeys": "API keys",
     "sso": "Single sign-on",
+    "privacy": "Privacy",
     "marketplace": "Marketplace",
     "installedApps": "Installed apps",
     "developerApps": "Developer apps"
@@ -13028,6 +13029,127 @@
       "lastUsed": "Last used {{when}}.",
       "unlink": "Unlink",
       "unlinkFor": "Unlink {{email}}"
+    }
+  },
+  "privacy": {
+    "title": "Privacy",
+    "description": "Requests from customers, employees and users about their personal data, and customers’ marketing consent.",
+    "tabs": {
+      "requests": "Data requests",
+      "consent": "Marketing consent"
+    },
+    "listLabel": "Data requests",
+    "empty": "No requests here.",
+    "filter": {
+      "label": "Show",
+      "open": "Open",
+      "completed": "Completed",
+      "rejected": "Rejected",
+      "all": "All"
+    },
+    "kinds": {
+      "access": "Access",
+      "correction": "Correction",
+      "deletion": "Deletion"
+    },
+    "kindHelp": {
+      "access": "Prepare a copy of everything held about the person.",
+      "correction": "Change details the person says are wrong.",
+      "deletion": "Anonymise the person’s details. Sales, invoices and other legal records are kept."
+    },
+    "subjectTypes": {
+      "customer": "Customer",
+      "employee": "Employee",
+      "user": "User"
+    },
+    "status": {
+      "received": "Received",
+      "approved": "Approved",
+      "completed": "Completed",
+      "rejected": "Rejected",
+      "overdue": "Overdue"
+    },
+    "row": {
+      "received": "Received {{date}}",
+      "due": "Due {{date}}",
+      "loggedBy": "Logged by {{name}}",
+      "rejected": "Rejected: {{reason}}",
+      "ownRequest": "You logged this request, so someone else approves it."
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "download": "Download report",
+      "execute": {
+        "access": "Prepare report",
+        "correction": "Apply corrections",
+        "deletion": "Anonymise"
+      }
+    },
+    "create": {
+      "open": "Log a request",
+      "title": "Log a data request",
+      "submit": "Log request"
+    },
+    "reject": {
+      "title": "Reject this request",
+      "reason": "Reason",
+      "reasonHelp": "Kept with the request, for example that the person’s identity was not confirmed."
+    },
+    "fields": {
+      "subjectType": "The request is about a",
+      "kind": "Request",
+      "note": "Note",
+      "noteHelp": "How the request arrived and how the person’s identity was checked.",
+      "corrections": "Corrected details",
+      "correctionsHelp": "Fill in only what changes."
+    },
+    "correctable": {
+      "name": "Name",
+      "legal_name": "Legal name",
+      "tax_id": "Tax ID",
+      "first_name": "First name",
+      "middle_name": "Middle name",
+      "last_name": "Last name",
+      "personal_email": "Personal email",
+      "personal_phone": "Personal phone",
+      "work_email": "Work email",
+      "work_phone": "Work phone"
+    },
+    "subject": {
+      "searchHelp": "Type part of their name.",
+      "pick": "Person",
+      "pickPlaceholder": "Choose a person",
+      "unknown": "Unknown person"
+    },
+    "consent": {
+      "intro": "Find a customer to see and record whether they agree to marketing messages.",
+      "current": "Current answer",
+      "granted": "Agreed",
+      "withdrawn": "Withdrawn",
+      "notAsked": "Not asked",
+      "record": "Record an answer",
+      "channel": "Channel",
+      "evidence": "What the customer said",
+      "evidenceHelp": "For example where and how they answered.",
+      "recordGrant": "Record agreement",
+      "recordWithdrawal": "Record withdrawal",
+      "history": "History",
+      "noHistory": "No answers recorded yet.",
+      "historyGranted": "Agreed to {{channel}}",
+      "historyWithdrawn": "Withdrew from {{channel}}"
+    },
+    "channels": {
+      "email": "Email",
+      "sms": "SMS",
+      "whatsapp": "WhatsApp",
+      "any": "All channels"
+    },
+    "sources": {
+      "back_office": "Back office",
+      "storefront": "Online shop",
+      "import": "Import",
+      "lead_form": "Lead form"
     }
   },
   "marketplace": {

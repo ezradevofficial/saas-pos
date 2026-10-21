@@ -29,7 +29,8 @@
           "recordAudioAndroid": false,
           "microphonePermission": false
         }
-      ]
+      ],
+      "@sentry/react-native"
     ]
   }
 }

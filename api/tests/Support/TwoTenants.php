@@ -32,6 +32,8 @@ use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Notifications\Notifier;
 use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
+use App\Core\Privacy\Models\PrivacyRequest;
+use App\Core\Privacy\PrivacyRequests;
 use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
@@ -692,6 +694,21 @@ final class TwoTenants
         $subscriptionSecret = $webhook->json('data.secret');
         $webhookDelivery = self::ok($test->postJson("/api/v1/webhooks/{$webhook->json('data.id')}/test", [], $owner), 202)->json('data.id');
 
+        // NFR-08: a data subject access request about the shared customer, and a
+        // marketing consent record for it.
+        $privacyRequest = self::ok($test->postJson('/api/v1/privacy/requests', [
+            'subject_type' => 'customer', 'subject_id' => $customer, 'kind' => 'access', 'note' => "Privacy {$upper}",
+        ], $owner), 201)->json('data.id');
+        // Approved by the manager (four eyes) and carried out, so its access report exists.
+        app(TenantContext::class)->run($tenantId, function () use ($privacyRequest, $managerId, $ownerId) {
+            $requests = app(PrivacyRequests::class);
+            $request = PrivacyRequest::query()->findOrFail($privacyRequest);
+            $requests->approve($request, User::query()->findOrFail($managerId));
+            $requests->execute($request, User::query()->findOrFail($ownerId));
+        });
+        self::ok($test->postJson('/api/v1/privacy/consents', [
+            'subject_type' => 'customer', 'subject_id' => $customer, 'purpose' => 'marketing', 'channel' => 'email', 'granted' => true, 'evidence' => "Consent {$upper}",
+        ], $owner), 201);
         // MKT-01, MKT-02 (ADR 024): a developer account with a draft app (its secrets are
         // shown once: B's must never reach A), and the shared listed app installed as
         // the fixture role at the location, its code exchanged for tokens.
@@ -802,6 +819,7 @@ final class TwoTenants
                 'app_installation' => $installed->json('data.installation_id'),
                 'webhook' => $webhook->json('data.id'),
                 'webhook_delivery' => $webhookDelivery,
+                'privacy_request' => $privacyRequest,
                 ...$dimensions,
                 ...$pos,
                 ...$inventory,

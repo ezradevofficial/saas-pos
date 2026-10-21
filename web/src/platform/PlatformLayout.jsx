@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { NavLink, Outlet } from 'react-router'
+import { NavLink } from 'react-router'
+import { PageOutlet } from '@/layouts/PageOutlet'
 import { Button } from '@/components/ds'
 import { LogoMark } from '@/layouts/Sidebar'
 import { cn } from '@/lib/utils'
@@ -60,7 +61,7 @@ export function PlatformLayout() {
       </header>
       <main className="min-w-0 flex-1 px-4 py-6 md:p-10">
         <div className="mx-auto flex max-w-content flex-col gap-6">
-          <Outlet />
+          <PageOutlet />
         </div>
       </main>
     </div>

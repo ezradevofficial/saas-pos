@@ -1,18 +1,24 @@
+import { lazy } from 'react'
 import { Navigate, Outlet } from 'react-router'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { PlatformAuthProvider, RequirePlatformAccess } from './PlatformAuth'
 import { PlatformLayout } from './PlatformLayout'
-import CatalogueConsole from './pages/CatalogueConsole'
-import MarketplaceConsole, { PayoutsConsole } from './pages/MarketplaceConsole'
-import PacksConsole from './pages/PacksConsole'
-import ReportsConsole from './pages/ReportsConsole'
-import StaffConsole from './pages/StaffConsole'
-import SupportConsole from './pages/SupportConsole'
-import NewTenant from './pages/NewTenant'
 import PlatformEnrol from './pages/PlatformEnrol'
 import PlatformSetup from './pages/PlatformSetup'
 import PlatformSignIn from './pages/PlatformSignIn'
-import { TenantDetail, TenantsList } from './pages/TenantsConsole'
+
+// NFR-02: the console's pages are their own chunks; PlatformLayout renders
+// them inside a Suspense boundary (PageOutlet).
+const CatalogueConsole = lazy(() => import('./pages/CatalogueConsole'))
+const PacksConsole = lazy(() => import('./pages/PacksConsole'))
+const MarketplaceConsole = lazy(() => import('./pages/MarketplaceConsole'))
+const PayoutsConsole = lazy(() => import('./pages/MarketplaceConsole').then((m) => ({ default: m.PayoutsConsole })))
+const ReportsConsole = lazy(() => import('./pages/ReportsConsole'))
+const StaffConsole = lazy(() => import('./pages/StaffConsole'))
+const SupportConsole = lazy(() => import('./pages/SupportConsole'))
+const NewTenant = lazy(() => import('./pages/NewTenant'))
+const TenantDetail = lazy(() => import('./pages/TenantsConsole').then((m) => ({ default: m.TenantDetail })))
+const TenantsList = lazy(() => import('./pages/TenantsConsole').then((m) => ({ default: m.TenantsList })))
 
 /**
  * ADR 013: the platform console at /platform, outside the tenant app shell,

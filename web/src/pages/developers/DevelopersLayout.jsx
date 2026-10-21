@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { Link, NavLink, Outlet } from 'react-router'
+import { Link, NavLink } from 'react-router'
+import { PageOutlet } from '@/layouts/PageOutlet'
 import { useAuth } from '@/auth/AuthProvider'
 import { LanguageSwitch } from '@/layouts/AuthLayout'
 import { LogoMark } from '@/layouts/Sidebar'
@@ -66,7 +67,7 @@ export function DevelopersLayout() {
           <SideLink to="/developers/changelog">{t('developers.nav.changelog')}</SideLink>
         </nav>
         <main className="flex min-w-0 flex-1 flex-col gap-6">
-          <Outlet />
+          <PageOutlet />
         </main>
       </div>
     </div>

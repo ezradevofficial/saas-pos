@@ -2,6 +2,7 @@
 
 namespace App\Core\Support\Console;
 
+use App\Core\Platform\PlatformDatabase;
 use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Support\EnvironmentGuard;
 use App\Core\Tenancy\TenantContext;
@@ -82,6 +83,24 @@ class Preflight extends Command
 
         $checks['Runtime database role'] = fn () => $this->role(TenantContext::CONNECTION, allowBypassRls: false);
         $checks['Owner database role'] = fn () => $this->role(SyncPermissions::OWNER_CONNECTION, allowBypassRls: true);
+        // ADR 013: platform staff sign in through their own role (DB_PLATFORM_*).
+        $checks['Platform database role'] = fn () => $config->get('database.connections.'.PlatformDatabase::CONNECTION.'.username')
+            ? $this->role(PlatformDatabase::CONNECTION, allowBypassRls: false)
+            : ['warn', 'DB_PLATFORM_* not set: the platform console cannot sign in'];
+
+        // NFR-10: reported, never fatal, so a host can go live before the owner chooses.
+        $checks['Error tracking'] = fn () => match (true) {
+            $development => ['skip', 'not needed here'],
+            filled($config->get('sentry.dsn')) => ['ok', 'Sentry on, release '.($config->get('sentry.release') ?: 'not set')],
+            default => ['warn', 'SENTRY_LARAVEL_DSN not set: errors are only in the logs'],
+        };
+        $checks['Metrics access'] = fn () => match (true) {
+            $development => ['skip', 'not needed here'],
+            // Review M1: an address allow-list alone can be bypassed by a misrouted proxy.
+            $this->laravel->environment('production') && ! filled($config->get('observability.metrics.token')) && $config->get('observability.metrics.allow') !== [] => ['fail', 'METRICS_ALLOW is set without METRICS_TOKEN: set a scrape token in production'],
+            filled($config->get('observability.metrics.token')) || $config->get('observability.metrics.allow') !== [] => ['ok', null],
+            default => ['warn', 'METRICS_TOKEN and METRICS_ALLOW not set: /metrics answers nobody'],
+        };
 
         return $checks;
     }

@@ -79,6 +79,8 @@ export function Board({ label, columns, cards, columnOf, cardLabel, renderCard, 
         const inColumn = cards.filter((card) => columnOf(card) === column.id)
         const titleId = `board-${column.id}`
         return (
+          // NFR-09: dragging is a shortcut; every card has move buttons for keyboard and screen reader users.
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
           <section
             key={column.id}
             aria-labelledby={titleId}
@@ -105,6 +107,7 @@ export function Board({ label, columns, cards, columnOf, cardLabel, renderCard, 
             {inColumn.length === 0 ? <p className="text-caption text-ink-muted">{t('crm.board.empty')}</p> : null}
             <ul className="flex flex-col gap-2">
               {inColumn.map((card) => (
+                // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
                 <li
                   key={card.id}
                   draggable

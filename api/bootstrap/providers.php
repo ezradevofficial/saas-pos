@@ -22,9 +22,11 @@ use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
 use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Numbering\NumberingServiceProvider;
+use App\Core\Observability\ObservabilityServiceProvider;
 use App\Core\Onboarding\OnboardingServiceProvider;
 use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Platform\PlatformServiceProvider;
+use App\Core\Privacy\PrivacyServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
 use App\Core\Sso\SsoServiceProvider;
 use App\Core\Sync\SyncServiceProvider;
@@ -49,6 +51,7 @@ use Modules\Stores\StoresServiceProvider;
 return [
     AppServiceProvider::class,
     CoreServiceProvider::class,
+    ObservabilityServiceProvider::class,
     IdentityServiceProvider::class,
     CurrencyServiceProvider::class,
     NumberingServiceProvider::class,
@@ -69,6 +72,7 @@ return [
     CustomFormsServiceProvider::class,
     ImportsServiceProvider::class,
     DataExportServiceProvider::class,
+    PrivacyServiceProvider::class,
     WebhooksServiceProvider::class,
     SyncServiceProvider::class,
     PaymentsServiceProvider::class,

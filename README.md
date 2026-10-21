@@ -125,7 +125,8 @@ Changes are audited as `core.settings.update` with the changed values before and
 | `web` | `oxlint`, Vitest, and the production build |
 | `pos` | Jest and `expo-doctor` (`npm run doctor -w pos`, version pinned) |
 | `tokens` | Rebuild, then fail if the committed `dist/` differs; then the tokens tests |
-| `i18n` | Missing or untranslated keys |
+| `i18n` | Missing or untranslated keys; the shared scrubber's fixtures and the security scripts' own tests |
+| `security (composer audit)`, `security (npm audit)`, `security (secret scan)` | Dependency advisories and committed secrets (NFR-06, docs/security.md) |
 
 A PR does not merge unless every job passes.
 
@@ -156,7 +157,7 @@ Repository **variables**:
 | `<ENV>_API_URL` | Public API URL baked into the web build (required) |
 | `APP_NAME` | Display name for the web build (optional, default `App`) |
 
-Prepare each host once:
+Prepare each host once (full provisioning steps, environment variables and owner inputs: [docs/deploy-linode.md](docs/deploy-linode.md)):
 
 - PHP 8.3 with `pdo_pgsql`, `intl`, `pcntl` and `posix` (Horizon), Composer, and a web server that serves:
   - `<path>/web` as the web app
@@ -216,7 +217,7 @@ Each deploy:
 
 #### Queue workers
 
-Jobs run on five Redis queues, each with its own Horizon supervisor (`api/config/horizon.php`), so a burst of one kind never delays the others:
+Jobs run on eight Redis queues, each with its own Horizon supervisor (`api/config/horizon.php`), so a burst of one kind never delays the others (`exports`, `imports` and `webhooks` are described in ADR 015, ADR 014 and ADR 021):
 
 | Queue | Jobs | Processes (dev, staging, production) |
 | --- | --- | --- |
@@ -225,6 +226,9 @@ Jobs run on five Redis queues, each with its own Horizon supervisor (`api/config
 | `automation` (`AUTOMATION_QUEUE`) | rule runs, timed-trigger scans, webhook deliveries | 1 to 6 |
 | `payments` (`PAYMENTS_QUEUE`) | STK timeouts and queries, checks of manual codes, POS payment follow-ups | 1 to 4 |
 | `fiscal` (`FISCAL_QUEUE`) | sending documents to KRA eTIMS / DGI, sending earlier sales | 1 to 4 |
+| `exports` (`DATA_EXPORT_QUEUE`) | full tenant exports (EXP-02), one at a time per process | 1 to 2 |
+| `imports` (`IMPORT_QUEUE`) | imports, dry runs and undos (IMP-03) | 1 to 2 |
+| `webhooks` (`WEBHOOKS_QUEUE`) | webhook fan-outs and signed deliveries (HOOK-01) | 1 to 6 |
 
 Each job has 60 seconds (a webhook gives up after 7), below the Redis `retry_after` of 90.
 
@@ -306,3 +310,5 @@ Only requests, queue workers and the scheduler run the environment guard. Every 
 - [006 Roles and permissions](docs/adr/006-rbac.md)
 
 Specs: [concept note](docs/concept-note.md), [platform core spec](docs/platform-core-spec.md).
+
+Operations (NFR-01 to NFR-11): [hardening matrix](docs/hardening.md), [observability](docs/observability.md), [security](docs/security.md), [backups](docs/backups.md), [privacy](docs/privacy.md), [performance](docs/performance.md), [scaling](docs/scaling.md), [accessibility](docs/accessibility.md), [deploying on Linode](docs/deploy-linode.md).

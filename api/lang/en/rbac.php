@@ -93,6 +93,8 @@ return [
                 'subscription' => 'Subscription and billing',
                 'support_access' => 'Support access',
                 'webhook' => 'Webhooks',
+                'privacy_request' => 'Data subject requests',
+                'consent' => 'Marketing consent',
                 'marketplace' => 'Marketplace apps',
                 'developer' => 'Developer apps',
             ],

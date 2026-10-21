@@ -104,6 +104,11 @@ class PermissionRegistry
         'support_access' => ['view', 'manage'],
         // HOOK-01: webhook subscriptions, their secrets, test events, the delivery log and replays (tenant scope; Owner, Admin).
         'webhook' => ['manage'],
+        // NFR-08: data subject requests (view; log and carry out: manage;
+        // approve or reject, never one's own: approve) and marketing consent
+        // records (tenant scope; Owner, Admin).
+        'privacy_request' => ['view', 'manage', 'approve'],
+        'consent' => ['view', 'manage'],
         // MKT-01, MKT-02 (ADR 024): browse the marketplace and see installed apps (view);
         // install, consent again and uninstall apps (install). Owner and Admin.
         'marketplace' => ['view', 'install'],

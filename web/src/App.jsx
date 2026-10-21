@@ -1,8 +1,9 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { createQueryClient } from './api/queryClient'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
+import { setSentryTenant } from './lib/sentry'
 import { routes } from './routes'
 import { Toaster } from './components/ui/sonner'
 import { ThemeProvider, useTheme } from './theme/ThemeProvider'
@@ -38,6 +39,8 @@ function BrandFavicon() {
 function UserTheme({ children }) {
   const { user } = useAuth()
   const brand = useBrand()
+  // NFR-10: error reports carry the tenant id, never a name.
+  useEffect(() => setSentryTenant(user?.tenant_id), [user?.tenant_id])
   return (
     <ThemeProvider userId={user?.id} brand={brand}>
       <BrandFavicon />
@@ -63,7 +66,9 @@ export default function App() {
   const [router] = useState(() => createBrowserRouter(routes))
   return (
     <AppProviders queryClient={queryClient}>
-      <RouterProvider router={router} />
+      <Suspense fallback={null}>
+        <RouterProvider router={router} />
+      </Suspense>
     </AppProviders>
   )
 }
