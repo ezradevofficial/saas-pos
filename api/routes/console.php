@@ -8,6 +8,12 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// NFR-01: the public status snapshot (status.json) from the readiness checks.
+Schedule::command('health:status')->everyMinute()->withoutOverlapping()->onOneServer();
+
+// NFR-10: Horizon's queue metrics (throughput and wait times in its dashboard).
+Schedule::command('horizon:snapshot')->everyFiveMinutes()->onOneServer();
+
 // CUR-03: reference rates, daily, for companies with a feed.
 Schedule::command('exchange-rates:fetch')->dailyAt('06:30')->withoutOverlapping()->onOneServer();
 

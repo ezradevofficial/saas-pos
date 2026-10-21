@@ -11,11 +11,14 @@ use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Numbering\NumberFormat;
 use App\Core\Payments\Events\PaymentIntentSettled;
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -82,6 +85,26 @@ class EcommerceServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/config/ecommerce.php', 'ecommerce');
+        // NFR-08: a storefront account is part of its customer's data;
+        // anonymising the customer clears it and archives the account.
+        $this->callAfterResolving(PrivacySubjects::class, function (PrivacySubjects $subjects) {
+            // Review M5: sign-in codes are keyed by the phone or email they went to:
+            // registered before the account, whose contact anonymisation clears.
+            $subjects->register(new SubjectSource(
+                subjectType: 'customer', table: 'ecom_customer_codes', match: 'contact', personal: ['contact' => 'label'],
+                matcher: fn (Builder $query, string $partyId) => $query->whereIn('contact', fn (Builder $sub) => $sub->from('ecom_customers')->where('party_id', $partyId)->whereNotNull('phone')->select('phone')
+                    ->union(DB::query()->from('ecom_customers')->where('party_id', $partyId)->whereNotNull('email')->select('email'))),
+            ));
+            $subjects->register(new SubjectSource(
+                subjectType: 'customer', table: 'ecom_customers', match: 'party_id',
+                personal: ['name' => 'label', 'email' => 'null', 'phone' => 'null'],
+            ));
+            $subjects->register(new SubjectSource(
+                subjectType: 'customer', table: 'ecom_addresses', match: 'customer_id', through: ['ecom_customers', 'party_id'],
+                personal: ['line' => 'empty_string', 'area' => 'null', 'notes' => 'null'],
+            ));
+            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'ecom_orders', match: 'party_id', related: true));
+        });
         $this->app->singleton(WhatsAppProviders::class);
     }
 

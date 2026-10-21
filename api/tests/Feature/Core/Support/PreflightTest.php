@@ -50,12 +50,27 @@ class PreflightTest extends TestCase
         [$code, $output] = $this->preflight();
 
         $this->assertSame(0, $code, $output);
-        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role'] as $label) {
+        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role', 'Platform database role', 'Error tracking', 'Metrics access'] as $label) {
             $this->assertStringContainsString($label, $output);
         }
         // No SMS provider yet: a warning, not a failure.
         $this->assertStringContainsString('SMS_DRIVER not set', $output);
         $this->assertStringContainsString('Ready.', $output);
+    }
+
+    /** Review M1: in production, /metrics behind an address allow-list alone is not enough. */
+    public function test_a_metrics_allow_list_without_a_token_fails_in_production(): void
+    {
+        $this->production(['observability.metrics.allow' => ['192.168.140.25/32'], 'observability.metrics.token' => null]);
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(1, $code, $output);
+        $this->assertMatchesRegularExpression('/Metrics access.*METRICS_TOKEN.*FAIL/s', $output);
+
+        $this->production(['observability.metrics.allow' => ['192.168.140.25/32'], 'observability.metrics.token' => 'a-long-random-scrape-token']);
+        [$code, $output] = $this->preflight();
+        $this->assertSame(0, $code, $output);
     }
 
     public function test_development_drivers_debug_and_a_missing_key_fail_in_production(): void

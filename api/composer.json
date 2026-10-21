@@ -25,6 +25,7 @@
         "picqer/php-barcode-generator": "^3.3",
         "pragmarx/google2fa": "^9.1",
         "predis/predis": "^3.6",
+        "sentry/sentry-laravel": "^4.29",
         "socialiteproviders/microsoft": "^4.10",
         "spatie/laravel-permission": "^8.3"
     },

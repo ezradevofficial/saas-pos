@@ -174,6 +174,7 @@ class TenantIsolationTest extends TestCase
         'pos_cash_movement' => 'pos_cash_movement', // H2: pos/cash-movements/{pos_cash_movement}/approve|reject
         'tenant_export' => 'tenant_export', // EXP-02: tenant-exports/{tenant_export}/link, the Owner's export request
         'webhook' => 'webhook', // HOOK-01: webhooks/{webhook}[/rotate-secret|test|archive]
+        'privacy_request' => 'privacy_request', // NFR-08: privacy/requests/{privacy_request}[/approve|reject|execute|report]
         'webhook_delivery' => 'webhook_delivery', // HOOK-01: webhook-deliveries/{webhook_delivery}[/replay]
         'tenant_domain' => 'tenant_domain', // BR-05: branding/domains/{tenant_domain}/check|archive
         'sso_connection' => 'sso_connection', // AUTH-11: sso/connections/{sso_connection}[/enable|disable|archive|test]
@@ -567,6 +568,8 @@ class TenantIsolationTest extends TestCase
         ['format' => 'csv', 'status' => 'all', 'sort' => '-created_at', 'columns' => ['name']],
         // NOT-06: the delivery log's channel filter (both tenants sent email).
         ['channel' => 'email', 'status' => 'all'],
+        // NFR-08: a customer's marketing consent (subject_id is sent with B's and A's ids through LIST_ID_QUERIES).
+        ['subject_type' => 'customer'],
         // AUTO-05: the run log's outcome filter (both tenants have a run that succeeded).
         ['outcome' => 'succeeded'],
         // API-03: requests per day over 7 days (both tenants used their key).
@@ -615,10 +618,10 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook', 'subject_id' => 'customer'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id'];
 
     private TwoTenants $tenants;
 
@@ -1767,6 +1770,9 @@ class TenantIsolationTest extends TestCase
             'PATCH api/v1/automation-rules/{automation_rule}' => ['company_id' => $tenant->id('company')],
             // HOOK-01: a webhook filtered to a company (or a branch).
             'POST api/v1/webhooks' => ['url' => 'https://hooks.example.com/hijack', 'events' => ['sale.completed.v1'], 'company_id' => $tenant->id('company')],
+            // NFR-08: a data request and a consent record about the shared customer.
+            'POST api/v1/privacy/requests' => ['subject_type' => 'customer', 'subject_id' => $tenant->id('customer'), 'kind' => 'access'],
+            'POST api/v1/privacy/consents' => ['subject_type' => 'customer', 'subject_id' => $tenant->id('customer'), 'purpose' => 'marketing', 'channel' => 'sms', 'granted' => true],
             'PATCH api/v1/webhooks/{webhook}' => ['branch_id' => $tenant->id('branch')],
             'POST api/v1/automation-rules/test' => [...self::automationRule(), 'company_id' => $tenant->id('company')],
             'POST api/v1/automation-rules/{automation_rule}/test' => ['document_id' => $tenant->id('document')],

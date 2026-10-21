@@ -494,7 +494,8 @@
     "supportAccess": "Accès du support",
     "webhooks": "Webhooks",
     "apiKeys": "Clés d’API",
-    "sso": "Authentification unique"
+    "sso": "Authentification unique",
+    "privacy": "Confidentialité"
   },
   "shell": {
     "account": "Menu du compte",
@@ -12942,6 +12943,127 @@
       "lastUsed": "Dernière utilisation {{when}}.",
       "unlink": "Délier",
       "unlinkFor": "Délier {{email}}"
+    }
+  },
+  "privacy": {
+    "title": "Confidentialité",
+    "description": "Les demandes des clients, employés et utilisateurs sur leurs données personnelles, et le consentement marketing des clients.",
+    "tabs": {
+      "requests": "Demandes sur les données",
+      "consent": "Consentement marketing"
+    },
+    "listLabel": "Demandes sur les données",
+    "empty": "Aucune demande ici.",
+    "filter": {
+      "label": "Afficher",
+      "open": "En cours",
+      "completed": "Terminées",
+      "rejected": "Rejetées",
+      "all": "Toutes"
+    },
+    "kinds": {
+      "access": "Accès",
+      "correction": "Rectification",
+      "deletion": "Effacement"
+    },
+    "kindHelp": {
+      "access": "Préparer une copie de tout ce qui est conservé sur la personne.",
+      "correction": "Modifier les informations que la personne dit inexactes.",
+      "deletion": "Anonymiser les informations de la personne. Les ventes, factures et autres documents légaux sont conservés."
+    },
+    "subjectTypes": {
+      "customer": "Client",
+      "employee": "Employé",
+      "user": "Utilisateur"
+    },
+    "status": {
+      "received": "Reçue",
+      "approved": "Approuvée",
+      "completed": "Terminée",
+      "rejected": "Rejetée",
+      "overdue": "En retard"
+    },
+    "row": {
+      "received": "Reçue le {{date}}",
+      "due": "Échéance le {{date}}",
+      "loggedBy": "Enregistrée par {{name}}",
+      "rejected": "Rejetée : {{reason}}",
+      "ownRequest": "Vous avez enregistré cette demande : une autre personne l’approuve."
+    },
+    "actions": {
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "download": "Télécharger le rapport",
+      "execute": {
+        "access": "Préparer le rapport",
+        "correction": "Appliquer les rectifications",
+        "deletion": "Anonymiser"
+      }
+    },
+    "create": {
+      "open": "Enregistrer une demande",
+      "title": "Enregistrer une demande sur les données",
+      "submit": "Enregistrer la demande"
+    },
+    "reject": {
+      "title": "Rejeter cette demande",
+      "reason": "Motif",
+      "reasonHelp": "Conservé avec la demande, par exemple que l’identité de la personne n’a pas été confirmée."
+    },
+    "fields": {
+      "subjectType": "La demande concerne un",
+      "kind": "Demande",
+      "note": "Note",
+      "noteHelp": "Comment la demande est arrivée et comment l’identité de la personne a été vérifiée.",
+      "corrections": "Informations rectifiées",
+      "correctionsHelp": "Ne remplissez que ce qui change."
+    },
+    "correctable": {
+      "name": "Nom",
+      "legal_name": "Raison sociale",
+      "tax_id": "Numéro fiscal",
+      "first_name": "Prénom",
+      "middle_name": "Deuxième prénom",
+      "last_name": "Nom de famille",
+      "personal_email": "E-mail personnel",
+      "personal_phone": "Téléphone personnel",
+      "work_email": "E-mail professionnel",
+      "work_phone": "Téléphone professionnel"
+    },
+    "subject": {
+      "searchHelp": "Saisissez une partie de son nom.",
+      "pick": "Personne",
+      "pickPlaceholder": "Choisissez une personne",
+      "unknown": "Personne inconnue"
+    },
+    "consent": {
+      "intro": "Trouvez un client pour voir et enregistrer s’il accepte les messages marketing.",
+      "current": "Réponse actuelle",
+      "granted": "Accepté",
+      "withdrawn": "Retiré",
+      "notAsked": "Non demandé",
+      "record": "Enregistrer une réponse",
+      "channel": "Canal",
+      "evidence": "Ce que le client a dit",
+      "evidenceHelp": "Par exemple où et comment il a répondu.",
+      "recordGrant": "Enregistrer l’accord",
+      "recordWithdrawal": "Enregistrer le retrait",
+      "history": "Historique",
+      "noHistory": "Aucune réponse enregistrée.",
+      "historyGranted": "A accepté : {{channel}}",
+      "historyWithdrawn": "S’est retiré : {{channel}}"
+    },
+    "channels": {
+      "email": "E-mail",
+      "sms": "SMS",
+      "whatsapp": "WhatsApp",
+      "any": "Tous les canaux"
+    },
+    "sources": {
+      "back_office": "Back-office",
+      "storefront": "Boutique en ligne",
+      "import": "Importation",
+      "lead_form": "Formulaire de prospects"
     }
   }
 }

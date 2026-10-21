@@ -54,6 +54,8 @@ class SettingsSource implements SnapshotSource
 
         return [[
             'id' => 'device',
+            // NFR-10: the till tags its error reports with its tenant id (never a name).
+            'tenant_id' => $scope->device->tenant_id,
             'device' => ['id' => $scope->device->id, 'name' => $scope->device->name],
             'location' => ['id' => $scope->location->id, 'name' => $scope->location->name, 'type' => $scope->location->type],
             'branch' => [

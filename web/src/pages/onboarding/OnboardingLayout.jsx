@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { Link, Outlet, useMatches } from 'react-router'
+import { Link, useMatches } from 'react-router'
+import { PageOutlet } from '@/layouts/PageOutlet'
 import { StageTracker } from '@/components/ds'
 import { TrialBadge } from '@/components/onboarding/TrialBanner'
 import { LanguageSwitch } from '@/layouts/AuthLayout'
@@ -34,7 +35,7 @@ export function OnboardingLayout() {
       <main className="flex-1 px-4 py-6 md:px-10 md:py-10">
         <div className="mx-auto flex max-w-content flex-col gap-10">
           <StageTracker stages={names} current={names[STAGES.indexOf(stage)]} />
-          <Outlet />
+          <PageOutlet />
         </div>
       </main>
     </div>
