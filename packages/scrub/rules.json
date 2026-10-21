@@ -256,6 +256,10 @@
     [
       "security",
       "credential"
+    ],
+    [
+      "code",
+      "verifier"
     ]
   ],
   "values": [
@@ -285,7 +289,7 @@
     },
     {
       "name": "query_secret",
-      "pattern": "((?:[?&]|^)(?:token|access_token|signature|key|api_key|code|password|secret|pin|otp)=)[^&#\\s\"']+",
+      "pattern": "((?:[?&\\s]|^)(?:\\w*_)?(?:token|access_token|signature|key|api_key|code|password|secret|pin|otp|verifier)=)[^&#\\s\"']+",
       "flags": "i",
       "replace": "$1[redacted]"
     },
