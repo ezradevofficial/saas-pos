@@ -40,7 +40,7 @@ class UsageLimits
     public const GUARDED = [
         Units::OUTLET => ['create an outlet location', 'change a location to an outlet', 'restore an archived outlet'],
         Units::DEVICE => ['add a device', 'issue a pairing code', 'pair a device', 'resume a suspended device'],
-        Units::USER => ['invite a user', 'reactivate a user'],
+        Units::USER => ['invite a user', 'reactivate a user', 'provision a user at SSO sign-in'],
         // HR-32: hiring and rehiring (HR's Employees service; the employees import hires through it).
         Units::EMPLOYEE => ['hire an employee', 'rehire an employee'],
     ];

@@ -10,7 +10,7 @@ use App\Core\Tenancy\TenantContext;
  * (`tenants.is_sandbox`, set at sign-up and never changed). A sandbox uses
  * the fake payment and fiscal drivers whatever is configured, is never
  * billed, metered or limited, and is isolated like any tenant. Memoised
- * per tenant id: the flag never changes.
+ * per tenant id for one request or job (scoped): the flag never changes.
  */
 class Sandbox
 {

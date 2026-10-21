@@ -40,9 +40,9 @@ class ApiServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        $this->app->singleton(ApiKeyContext::class);
+        $this->app->scoped(ApiKeyContext::class);
         $this->app->singleton(ApiScopes::class);
-        $this->app->singleton(Sandbox::class);
+        $this->app->scoped(Sandbox::class);
         $this->app->singleton(ApiKeyAuthenticator::class);
 
         // API-04: Scramble documents the public routes only; its own UI and
