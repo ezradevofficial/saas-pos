@@ -4,7 +4,7 @@ namespace Modules\Payroll\Loans;
 
 use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
-use Carbon\CarbonImmutable;
+use App\Core\Tenancy\CompanyClock;
 use Modules\Payroll\Models\Loan;
 use Modules\Payroll\Models\LoanEntry;
 use Modules\Payroll\Models\PayrollEmployee;
@@ -99,7 +99,7 @@ class Loans
             $balance = $loan->balance();
             LoanEntry::query()->create([
                 'loan_id' => $loan->id, 'kind' => LoanEntry::SETTLEMENT, 'amount_minor' => -$balance,
-                'entry_date' => $date ?? CarbonImmutable::now()->toDateString(), 'note' => $note, 'created_by' => $by->id,
+                'entry_date' => $date ?? CompanyClock::today($loan->company_id), 'note' => $note, 'created_by' => $by->id,
             ]);
             $loan->fill(['status' => Loan::SETTLED, 'settle_next_run' => false])->save();
             $this->auditor->record('payroll.loan.settle', $loan, null, ['method' => $method]);
@@ -137,7 +137,7 @@ class Loans
 
             LoanEntry::query()->create([
                 'loan_id' => $loan->id, 'kind' => LoanEntry::REVERSAL, 'amount_minor' => -$loan->balance(),
-                'entry_date' => CarbonImmutable::now()->toDateString(), 'note' => $reason, 'created_by' => $by->id,
+                'entry_date' => CompanyClock::today($loan->company_id), 'note' => $reason, 'created_by' => $by->id,
             ]);
             $loan->fill(['status' => Loan::CANCELLED])->save();
             $this->auditor->record('payroll.loan.cancel', $loan, null, ['reason' => $reason]);
