@@ -700,6 +700,8 @@ final class TwoTenants
             'slug' => "isolation-app-{$key}", 'name' => "Developer app {$upper}", 'description' => 'An app of the isolation fixture, never listed, never seen by the other tenant.',
             'category' => 'other', 'redirect_uris' => ["https://developer-{$key}.example.com/cb"], 'scopes' => ['core.item.read'], 'pricing' => ['model' => 'free'],
         ], $owner), 201);
+        // Its draft's logo (served to its developer only).
+        self::ok($test->post("/api/v1/developer/apps/{$developerApp->json('data.id')}/logo", ['logo' => UploadedFile::fake()->image("logo-{$key}.png", 128, 128)], [...$owner, 'Accept' => 'application/json']));
         $installed = self::ok($test->postJson('/api/v1/oauth/authorize', [
             'client_id' => self::MARKETPLACE_CLIENT, 'redirect_uri' => self::MARKETPLACE_REDIRECT, 'response_type' => 'code', 'state' => "state-{$key}",
             'code_challenge' => self::PKCE_CHALLENGE, 'code_challenge_method' => 'S256',
