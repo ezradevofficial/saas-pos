@@ -51,7 +51,9 @@ class RunResource extends JsonResource
             // CP-01: researched pack values the run used (the web app shows the notice), components left out
             // while unconfirmed and those the company marked not applicable.
             'statutory' => [
-                'researched' => $run->inputs['statutory']['researched'] ?? [],
+                // S1: each researched value with its component's name and its assumptions worded for people.
+                'researched' => array_map(fn (array $row) => [...$row, 'name' => PayrollPack::label('components', $row['component']),
+                    'assumed_names' => array_map(fn (string $f) => PayrollPack::assumedLabel($f), $row['assumed'] ?? [])], $run->inputs['statutory']['researched'] ?? []),
                 'not_applied' => $run->inputs['statutory']['not_applied'] ?? [],
                 // HR-12: statutory half-pay leave days (KE sick leave) paid in full for now: {days, employees}.
                 'half_pay_paid_in_full' => $run->inputs['statutory']['half_pay_paid_in_full'] ?? null,

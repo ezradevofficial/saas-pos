@@ -263,6 +263,17 @@ export function RunDetail() {
         {status === 'approved' ? <Alert tone="info" title={t('payroll.run.approvedTitle')}>{t('payroll.run.approvedHelp')}</Alert> : null}
         {status !== 'posted' && status !== 'cancelled' ? <RunReview review={run.review} /> : null}
         {run.uses_researched_values ? <ResearchedNotice to="/payroll/settings?tab=statutory" /> : null}
+        {run.statutory?.researched?.some((row) => row.assumed_names?.length) ? (
+          <Alert tone="info" title={t('payroll.run.assumedTitle')}>
+            <ul className="flex flex-col gap-1">
+              {run.statutory.researched
+                .filter((row) => row.assumed_names?.length)
+                .map((row) => (
+                  <li key={row.component}>{t('payroll.run.assumedItem', { component: row.name ?? row.component, assumptions: row.assumed_names.join(', ') })}</li>
+                ))}
+            </ul>
+          </Alert>
+        ) : null}
         {run.statutory?.half_pay_paid_in_full ? (
           <Alert tone="warning" title={t('payroll.run.halfPayTitle')}>
             {t('payroll.run.halfPayHelp', { days: run.statutory.half_pay_paid_in_full.days, count: run.statutory.half_pay_paid_in_full.employees })}

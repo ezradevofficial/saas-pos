@@ -184,6 +184,14 @@ return [
             'min_minor' => 'impôt minimum',
             'category' => 'catégorie avant impôt',
         ],
+        'assumed' => [
+            'base_cap_minor' => 'pas de plafond sur l’assiette',
+            'residency' => 'accordée à chaque salarié (la résidence n’est pas enregistrée)',
+            'min_order' => 'le minimum s’applique avant le plafond de 30 % (le plafond l’emporte)',
+            'min_monthly' => 'le minimum est mensuel',
+            'rounding' => 'règle d’arrondi',
+            'reduces_taxable' => 'réduction ou non du revenu imposable',
+        ],
         'returns' => [
             'paye' => 'Déclaration PAYE (P10)',
             'nssf' => 'Déclaration NSSF',

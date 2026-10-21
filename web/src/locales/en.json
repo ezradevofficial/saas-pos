@@ -10136,7 +10136,9 @@
       "notApplicable": "Marked not applicable for this company: {{components}}",
       "halfPayTitle": "Half-pay sick days paid in full",
       "halfPayHelp_one": "{{days}} days of sick leave are at half pay by statute, but this run pays them in full ({{count}} employee). Adjust them before filing if needed.",
-      "halfPayHelp_other": "{{days}} days of sick leave are at half pay by statute, but this run pays them in full ({{count}} employees). Adjust them before filing if needed."
+      "halfPayHelp_other": "{{days}} days of sick leave are at half pay by statute, but this run pays them in full ({{count}} employees). Adjust them before filing if needed.",
+      "assumedTitle": "Assumed until confirmed",
+      "assumedItem": "{{component}}: {{assumptions}}"
     },
     "kpi": {
       "employees": "Employees",

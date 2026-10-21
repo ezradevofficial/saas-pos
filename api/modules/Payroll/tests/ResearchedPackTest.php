@@ -86,6 +86,8 @@ class ResearchedPackTest extends TestCase
         $this->assertNotEmpty($researched['paye']['source']);
         // Conditional components no employee used are not recorded.
         $this->assertArrayNotHasKey('insurance_relief', $researched->all());
+        // S1: assumptions are recorded and worded on the run.
+        $this->assertSame(['given to every employee (residency not recorded)'], $researched['personal_relief']['assumed_names']);
     }
 
     public function test_leave_with_an_unconfirmed_pay_rate_blocks_the_line_and_half_pay_days_are_flagged(): void
@@ -222,7 +224,8 @@ class ResearchedPackTest extends TestCase
         $this->assertSame(['ipr_dependants'], $notices['not_applied']);
         $this->assertSame('inpp', $notices['not_applicable'][0]['component']);
         $cnss = collect($notices['researched'])->firstWhere('component', 'cnss');
-        $this->assertSame(['reduces_taxable', 'rounding'], $cnss['assumed']);
+        $this->assertSame(['reduces_taxable', 'rounding', 'base_cap_minor'], $cnss['assumed']);
+        $this->assertContains('no ceiling on the base', $cnss['assumed_names']);
 
         // Undoing the mark is audited and blocks again.
         $this->deleteJson("/api/v1/payroll/statutory/{$this->acme->id}/not-applicable/inpp", [], $this->headersFor())->assertOk();

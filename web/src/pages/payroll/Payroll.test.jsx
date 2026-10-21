@@ -230,7 +230,14 @@ describe('Payroll screens', () => {
       ...RUN,
       status: 'calculated',
       uses_researched_values: true,
-      statutory: { researched: [{ component: 'paye', confidence: 'medium' }], not_applied: [], not_applicable: [{ component: 'inpp', name: 'INPP', reason: 'Exempted by letter 2026/14' }] },
+      statutory: {
+        researched: [
+          { component: 'paye', name: 'PAYE', confidence: 'medium', assumed_names: [] },
+          { component: 'personal_relief', name: 'Personal relief', confidence: 'high', assumed_names: ['given to every employee (residency not recorded)'] },
+        ],
+        not_applied: [],
+        not_applicable: [{ component: 'inpp', name: 'INPP', reason: 'Exempted by letter 2026/14' }],
+      },
     }
     setup([['payroll/runs/r-1', { data: run }], [/^payroll\/runs\/r-1\/lines/, page([])]], [PERM.runView, PERM.runPrepare])
     renderApp('/payroll/runs/r-1')
@@ -238,6 +245,8 @@ describe('Payroll screens', () => {
     expect(screen.getByRole('link', { name: 'View statutory rates' })).toHaveAttribute('href', '/payroll/settings?tab=statutory')
     expect(screen.getByText('Marked not applicable for this company: INPP')).toBeInTheDocument()
     expect(screen.getByText('Exempted by letter 2026/14')).toBeInTheDocument()
+    // S1: every assumption is shown on the run.
+    expect(screen.getByText('Personal relief: given to every employee (residency not recorded)')).toBeInTheDocument()
   })
 
   it('lists each value’s research and marks a component not applicable with a reason (CP-01)', async () => {

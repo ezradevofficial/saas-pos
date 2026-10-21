@@ -257,6 +257,14 @@ class PayrollPack
         return $this->of($country)['payment_formats'][$key] ?? null;
     }
 
+    /** S1: an assumption worded for people (its own wording, else the field's). */
+    public static function assumedLabel(string $field): string
+    {
+        $label = self::label('assumed', $field);
+
+        return $label === $field ? self::label('fields', $field) : $label;
+    }
+
     /** The en/fr label of a pack component or return type. */
     public static function label(string $kind, string $code): string
     {

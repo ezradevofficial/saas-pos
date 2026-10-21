@@ -10136,7 +10136,9 @@
       "notApplicable": "Marqué non applicable pour cette entreprise : {{components}}",
       "halfPayTitle": "Jours de maladie à demi-salaire payés en entier",
       "halfPayHelp_one": "{{days}} jours de congé de maladie sont à demi-salaire selon la loi, mais cette paie les paie en entier ({{count}} salarié). Ajustez-les avant toute déclaration si nécessaire.",
-      "halfPayHelp_other": "{{days}} jours de congé de maladie sont à demi-salaire selon la loi, mais cette paie les paie en entier ({{count}} salariés). Ajustez-les avant toute déclaration si nécessaire."
+      "halfPayHelp_other": "{{days}} jours de congé de maladie sont à demi-salaire selon la loi, mais cette paie les paie en entier ({{count}} salariés). Ajustez-les avant toute déclaration si nécessaire.",
+      "assumedTitle": "Supposé jusqu’à confirmation",
+      "assumedItem": "{{component}} : {{assumptions}}"
     },
     "kpi": {
       "employees": "Employés",

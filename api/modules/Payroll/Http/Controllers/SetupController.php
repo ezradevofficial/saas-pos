@@ -76,7 +76,7 @@ class SetupController
                 'confidence' => $c['values']['confidence'] ?? null,
                 'researched_on' => $c['values']['researched_on'] ?? null,
                 'source' => array_values((array) ($c['values']['source'] ?? [])),
-                'assumed' => array_map(fn (string $f) => ['field' => $f, 'name' => PayrollPack::label('fields', $f)], array_values((array) ($c['values']['assumed'] ?? []))),
+                'assumed' => array_map(fn (string $f) => ['field' => $f, 'name' => PayrollPack::assumedLabel($f)], array_values((array) ($c['values']['assumed'] ?? []))),
                 'values' => self::values($c['values']),
                 'may_not_apply' => $c['may_not_apply'],
                 'not_applicable' => PayrollPack::notApplicable($c, array_keys($notApplicable)) ? $notApplicable[$c['code']] : null,

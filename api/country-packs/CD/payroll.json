@@ -118,7 +118,8 @@
                     },
                     "assumed": [
                         "reduces_taxable",
-                        "rounding"
+                        "rounding",
+                        "base_cap_minor"
                     ]
                 }
             ]

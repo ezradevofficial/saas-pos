@@ -22,9 +22,10 @@ use InvalidArgumentException;
  *
  * A row without `status` is read from `needs_confirmation` (packs written
  * before the status existed stay valid). A researched row may list in
- * `assumed` the fields whose value is a conservative default pending
- * confirmation (e.g. CNSS `reduces_taxable: false`); they are recorded
- * like researched values.
+ * `assumed` the fields whose value (or absence: CNSS `base_cap_minor`, no
+ * ceiling) is a default pending confirmation, or a named assumption
+ * (`residency`: KE personal relief for every employee); they are shown
+ * on the statutory rates page and recorded on each run.
  */
 final class ResearchStatus
 {
@@ -158,9 +159,10 @@ final class ResearchStatus
                 throw new InvalidArgumentException("{$where}: assumed lists the fields of a researched value that are defaults pending confirmation.");
             }
 
+            // A field the row has, or an absent optional one whose absence is the assumption (no ceiling).
             foreach ($assumed as $field) {
-                if (! is_string($field) || ! array_key_exists($field, $row)) {
-                    throw new InvalidArgumentException("{$where}: assumed names a field the row does not have.");
+                if (! is_string($field) || preg_match('/^[a-z][a-z0-9_]{0,59}\z/', $field) !== 1) {
+                    throw new InvalidArgumentException("{$where}: assumed lists field names (lower case, digits and _).");
                 }
             }
         }

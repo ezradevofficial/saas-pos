@@ -39,6 +39,8 @@ class ResearchStatusTest extends TestCase
         ResearchStatus::check(self::RESEARCHED, 'ok');
         ResearchStatus::check(['needs_confirmation' => true, 'confidence' => 'low', 'source' => ['https://example.org']], 'low kept for the reader');
         ResearchStatus::check(['reduces_taxable' => false, 'assumed' => ['reduces_taxable']] + self::RESEARCHED, 'assumed');
+        // S1: an absent optional field (no ceiling) or a named assumption can be listed.
+        ResearchStatus::check(['assumed' => ['base_cap_minor', 'residency']] + self::RESEARCHED, 'assumed absent');
 
         foreach ([
             'no source' => array_diff_key(self::RESEARCHED, ['source' => 1]),
@@ -48,7 +50,7 @@ class ResearchStatusTest extends TestCase
             'bad date' => ['researched_on' => '17/10/2026'] + self::RESEARCHED,
             'unknown status' => ['status' => 'guessed'] + self::RESEARCHED,
             'low value entered' => ['needs_confirmation' => false, 'confidence' => 'low'],
-            'assumed missing field' => ['assumed' => ['reduces_taxable']] + self::RESEARCHED,
+            'assumed bad name' => ['assumed' => ['Reduces taxable']] + self::RESEARCHED,
             'assumed on confirmed' => ['needs_confirmation' => false, 'status' => 'confirmed', 'rounding' => 1, 'assumed' => ['rounding']],
         ] as $case => $row) {
             try {

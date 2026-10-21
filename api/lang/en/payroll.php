@@ -183,6 +183,14 @@ return [
             'min_minor' => 'minimum tax',
             'category' => 'pre-tax category',
         ],
+        'assumed' => [
+            'base_cap_minor' => 'no ceiling on the base',
+            'residency' => 'given to every employee (residency not recorded)',
+            'min_order' => 'the minimum applies before the 30% cap (the cap wins)',
+            'min_monthly' => 'the minimum is per month',
+            'rounding' => 'rounding rule',
+            'reduces_taxable' => 'whether it reduces taxable pay',
+        ],
         'returns' => [
             'paye' => 'PAYE return (P10)',
             'nssf' => 'NSSF return',

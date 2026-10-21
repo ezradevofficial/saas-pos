@@ -88,7 +88,10 @@
                         "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/"
                     ],
                     "needs_confirmation": false,
-                    "amount_minor": "240000"
+                    "amount_minor": "240000",
+                    "assumed": [
+                        "residency"
+                    ]
                 }
             ]
         },
