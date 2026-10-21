@@ -2,6 +2,8 @@
 
 namespace App\Core\Billing\Http;
 
+use App\Core\Api\Sandbox\Sandbox;
+use App\Core\Api\Sandbox\SandboxCaps;
 use App\Core\Billing\Models\Subscription;
 use App\Core\Http\ApiException;
 use App\Core\Tenancy\Models\Tenant;
@@ -131,11 +133,26 @@ class EnforceSubscription
         'POST hr/device/punches' => self::POS_UPLOAD,
     ];
 
-    public function __construct(private readonly TenantContext $tenants) {}
+    /** API-05: writes that would start billing, refused in a developer sandbox (ADR 020). */
+    public const SANDBOX_REFUSED = ['PUT onboarding/modules'];
+
+    public function __construct(
+        private readonly TenantContext $tenants,
+        private readonly Sandbox $sandbox,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
         $class = self::classify($request->method(), $request->route());
+
+        if ($this->startsBilling($request, $class) && $this->sandbox->active()) {
+            throw new ApiException(403, 'sandbox_not_billed', __('api.errors.sandbox_not_billed'));
+        }
+
+        // API-05 (review): a sandbox's creations are capped (SandboxCaps).
+        if ($request->isMethod('POST') && $this->tenants->id() !== null && ! self::sandboxCapExempt($request) && $this->sandbox->active()) {
+            app(SandboxCaps::class)->assertCanCreateRecord();
+        }
 
         if ($class === self::ALLOWED || $this->tenants->id() === null) {
             return $next($request);
@@ -168,6 +185,28 @@ class EnforceSubscription
         }
 
         throw new ApiException(402, 'subscription_overdue', __('billing.read_only.message'));
+    }
+
+    /** Writes that are not new records: the account, keys, the sandbox's own reset, onboarding. */
+    private static function sandboxCapExempt(Request $request): bool
+    {
+        $uri = preg_replace('#^api/v1/#', '', (string) $request->route()?->uri());
+
+        foreach (['auth/', 'me', 'api-keys', 'sandbox/', 'onboarding', 'subscription'] as $prefix) {
+            if (str_starts_with($uri, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** A subscription write, or choosing modules (which starts a trial). */
+    private function startsBilling(Request $request, string $class): bool
+    {
+        $uri = preg_replace('#^api/v1/#', '', (string) $request->route()?->uri());
+
+        return $class === self::BILLING || in_array(strtoupper($request->method()).' '.$uri, self::SANDBOX_REFUSED, true);
     }
 
     /** ADM-01c: what a suspended tenant may still write (the read-only classes for billing, account, export, approvals and payroll). */

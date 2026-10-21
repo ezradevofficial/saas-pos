@@ -13,6 +13,7 @@
         "ext-intl": "*",
         "bacon/bacon-qr-code": "^3.1",
         "brick/math": "^1.0",
+        "dedoc/scramble": "^0.13.48",
         "dompdf/dompdf": "^3.1",
         "laravel/framework": "^13.17",
         "laravel/horizon": "^5.50",

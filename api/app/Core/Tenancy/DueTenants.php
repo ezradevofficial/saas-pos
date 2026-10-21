@@ -173,6 +173,18 @@ class DueTenants
         return $this->ids('app_active_tenant_ids()');
     }
 
+    /** @return list<string> active tenants with an API key not revoked (`api:flush-usage`, ADR 020) */
+    public function withApiKeys(): array
+    {
+        return $this->ids('app_tenants_with_api_keys()');
+    }
+
+    /** @return list<string> active developer sandboxes (`sandbox:expire`, API-05) */
+    public function sandboxes(): array
+    {
+        return $this->ids('app_sandbox_tenant_ids()');
+    }
+
     /**
      * @param  list<mixed>  $bindings
      * @return list<string>

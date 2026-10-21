@@ -49,8 +49,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
 
 // POS-12: the back office (people's tokens only).
 Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUserToken::class, EnsureFullAccessToken::class, 'module:pos'])->group(function () {
-    Route::get('pos/sales', [SaleController::class, 'index']);
-    Route::get('pos/sales/{pos_sale}', [SaleController::class, 'show']);
+    Route::get('pos/sales', [SaleController::class, 'index'])->middleware('public-api:pos.sale');
+    Route::get('pos/sales/{pos_sale}', [SaleController::class, 'show'])->middleware('public-api:pos.sale');
     // POS-10: the tax authority's answer for a sale, its refunds and void (the till's route is pos/sales/{id}/fiscal).
     Route::get('pos/sales/{pos_sale}/fiscal-status', [SaleController::class, 'fiscal']);
     Route::get('pos/shifts', [ShiftController::class, 'index']);

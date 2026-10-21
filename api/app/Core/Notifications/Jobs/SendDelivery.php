@@ -2,6 +2,7 @@
 
 namespace App\Core\Notifications\Jobs;
 
+use App\Core\Api\Sandbox\SandboxOutbox;
 use App\Core\Branding\BrandedSender;
 use App\Core\Identity\Models\User;
 use App\Core\Notifications\Channels;
@@ -195,6 +196,17 @@ class SendDelivery implements ShouldBeEncrypted, ShouldQueue
     /** The only retryable step: the mailer or the provider. */
     private function handOver(NotificationDelivery $delivery, ChannelDrivers $drivers, ?EventType $type): DriverResult
     {
+        // API-05 (review): a developer sandbox sends nothing; the message is kept in its outbox.
+        $outbox = app(SandboxOutbox::class);
+
+        if ($outbox->capturing()) {
+            $link = $this->reveal($delivery->link);
+            $outbox->record($delivery->channel, $delivery->recipient, $this->reveal($delivery->subject),
+                trim((string) $this->reveal($delivery->body)."\n".($link ?? '')), 'notification');
+
+            return new DriverResult('sandbox-outbox');
+        }
+
         if ($delivery->channel === Channels::EMAIL) {
             // Buttons such as single-use approve links are made now, never stored (MailActions).
             Mail::to($delivery->recipient)->send(new NotificationMail(

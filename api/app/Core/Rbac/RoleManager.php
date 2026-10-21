@@ -191,7 +191,16 @@ class RoleManager
     public function unassign(User $actor, RoleAssignment $assignment): void
     {
         $this->grants->assertCanRevoke($actor, $assignment);
+        $this->remove($assignment);
+    }
 
+    /**
+     * Remove an assignment whose removal the caller authorised itself (an
+     * API key's revocation by a key manager, ADR 020): owner safety still
+     * applies (RBAC-10), and the deletion is audited (RBAC-12).
+     */
+    public function remove(RoleAssignment $assignment): void
+    {
         $this->transaction(function () use ($assignment) {
             $this->owners->assertAssignmentRemovable($assignment);
             $assignment->delete();

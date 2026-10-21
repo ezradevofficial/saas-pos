@@ -40,7 +40,7 @@ class AssignmentRuleRequest extends SetupRequest
             'channels' => ['sometimes', 'nullable', 'array'],
             'channels.*' => ['string', 'distinct', Rule::in(Lead::CHANNELS)],
             'assignee_type' => [$creating ? 'required' : 'sometimes', 'string', Rule::in(['user', 'team'])],
-            'user_id' => ['required_if:assignee_type,user', 'nullable', 'uuid', Rule::exists('users', 'id')],
+            'user_id' => ['required_if:assignee_type,user', 'nullable', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
             'team_id' => ['required_if:assignee_type,team', 'nullable', 'uuid', Rule::exists('crm_teams', 'id')],
             'active' => ['sometimes', 'boolean'],
         ];

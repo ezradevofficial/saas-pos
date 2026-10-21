@@ -31,7 +31,7 @@ class SignUp
     ) {}
 
     /**
-     * @param  array{name: string, email?: ?string, phone?: ?string, password: string, country: string, locale: string, business_name: string}  $data
+     * @param  array{name: string, email?: ?string, phone?: ?string, password: string, country: string, locale: string, business_name: string, sandbox?: bool}  $data
      * @return array{user: User, challenge: VerificationChallenge}
      */
     public function handle(array $data): array
@@ -42,7 +42,7 @@ class SignUp
 
         try {
             [$user, $challenge, $code] = $this->tenants->run($tenantId, fn () => DB::transaction(function () use ($tenantId, $data, $email, $locale) {
-                ['tenant' => $tenant] = $this->provisioner->provision($tenantId, $data['business_name'], $data['country'], $locale);
+                ['tenant' => $tenant] = $this->provisioner->provision($tenantId, $data['business_name'], $data['country'], $locale, sandbox: (bool) ($data['sandbox'] ?? false));
 
                 $user = User::create([
                     'name' => $data['name'],

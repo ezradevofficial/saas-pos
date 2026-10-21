@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Api\ApiServiceProvider;
 use App\Core\Approvals\ApprovalsServiceProvider;
 use App\Core\Automation\AutomationServiceProvider;
 use App\Core\Billing\BillingServiceProvider;
@@ -85,5 +86,7 @@ return [
     CrmServiceProvider::class,
     EcommerceServiceProvider::class,
     PayrollServiceProvider::class,
+    // API-01..API-05: last, so the sandbox's set-up runs after every other sign-up listener.
+    ApiServiceProvider::class,
     HorizonServiceProvider::class,
 ];

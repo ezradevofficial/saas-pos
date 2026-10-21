@@ -18,7 +18,7 @@ class ChangePinRequest extends DeviceRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['required', 'uuid', Rule::exists('users', 'id')],
+            'user_id' => ['required', 'uuid', Rule::exists('users', 'id')->whereNot('status', 'service')],
             'pin' => ['required', 'string', 'max:6'],
             'new_pin' => ['required', 'string', 'max:6', 'different:pin', function (string $attribute, mixed $value, Closure $fail) {
                 try {

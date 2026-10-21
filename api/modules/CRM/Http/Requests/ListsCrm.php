@@ -56,7 +56,7 @@ trait ListsCrm
             'status' => ['sometimes', 'string', Rule::in([...$this->statuses(), 'all', ...($this->archivable() ? ['archived'] : [])])],
             'company' => ['sometimes', 'uuid', Rule::exists('companies', 'id')],
             'branch' => ['sometimes', 'uuid', Rule::exists('branches', 'id')],
-            'owner' => ['sometimes', 'uuid', Rule::exists('users', 'id')],
+            'owner' => ['sometimes', 'uuid', Rule::exists('users', 'id')->whereNot('status', 'service')],
             'party' => ['sometimes', 'uuid', Rule::exists('parties', 'id')],
             'from' => ['sometimes', 'date_format:Y-m-d'],
             'to' => ['sometimes', 'date_format:Y-m-d'],

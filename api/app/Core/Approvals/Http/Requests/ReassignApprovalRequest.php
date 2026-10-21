@@ -24,7 +24,7 @@ class ReassignApprovalRequest extends ApprovalItemRequest
     public function rules(): array
     {
         return [
-            'from_user_id' => ['present', 'nullable', 'uuid', Rule::exists('users', 'id')],
+            'from_user_id' => ['present', 'nullable', 'uuid', Rule::exists('users', 'id')->whereNot('status', 'service')],
             'to_user_id' => ['required', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
             'reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ];

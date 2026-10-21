@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { Button } from '@/components/ds'
 import { resolveLocale, setLocale } from '@/i18n'
 import { cn } from '@/lib/utils'
@@ -35,6 +35,8 @@ function Choice({ pressed, onClick, title, detail, lang }) {
 export default function Welcome() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // API-05: a developer sandbox, asked for from the developer portal, passes through to sign-up.
+  const sandbox = useSearchParams()[0].get('sandbox') === '1'
   const [locale, setChosenLocale] = useState(() => resolveLocale(typeof navigator === 'undefined' ? undefined : navigator.language))
   const [country, setCountry] = useState(() => (locale === 'fr' ? 'CD' : 'KE'))
 
@@ -75,7 +77,7 @@ export default function Welcome() {
           </div>
         </fieldset>
         <p className="text-caption text-ink-muted">{t('onboarding.welcome.trial')}</p>
-        <Button variant="primary" block size="lg" onClick={() => navigate(`/sign-up?country=${country}&locale=${locale}`)}>
+        <Button variant="primary" block size="lg" onClick={() => navigate(`/sign-up?country=${country}&locale=${locale}${sandbox ? '&sandbox=1' : ''}`)}>
           {t('onboarding.welcome.continue')}
         </Button>
       </div>

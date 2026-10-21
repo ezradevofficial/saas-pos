@@ -24,14 +24,16 @@ export default function SignUp() {
   const [params] = useSearchParams()
   const country = params.get('country')
   const locale = params.get('locale')
-  if (!COUNTRIES.includes(country) || !LOCALES.includes(locale)) return <Navigate to="/welcome" replace />
-  return <SignUpForm country={country} locale={locale} />
+  // API-05: a developer sandbox (from the developer portal): never billed, sample data, test keys.
+  const sandbox = params.get('sandbox') === '1'
+  if (!COUNTRIES.includes(country) || !LOCALES.includes(locale)) return <Navigate to={sandbox ? '/welcome?sandbox=1' : '/welcome'} replace />
+  return <SignUpForm country={country} locale={locale} sandbox={sandbox} />
 }
 
-function SignUpForm({ country, locale }) {
+function SignUpForm({ country, locale, sandbox = false }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [values, setValues] = useState({ name: '', contact: '', password: '', business_name: '', country, locale })
+  const [values, setValues] = useState({ name: '', contact: '', password: '', business_name: '', country, locale, ...(sandbox ? { sandbox: true } : {}) })
   useEffect(() => {
     setLocale(locale)
   }, [locale])
@@ -48,8 +50,8 @@ function SignUpForm({ country, locale }) {
 
   return (
     <AuthPage
-      title={t('auth.signUp.title')}
-      intro={t('auth.signUp.intro')}
+      title={sandbox ? t('auth.signUp.sandboxTitle') : t('auth.signUp.title')}
+      intro={sandbox ? t('auth.signUp.sandboxIntro') : t('auth.signUp.intro')}
       footer={
         <p>
           {t('auth.signUp.haveAccount')} <TextLink to="/sign-in">{t('auth.signUp.signIn')}</TextLink>

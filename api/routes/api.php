@@ -1,5 +1,10 @@
 <?php
 
+use App\Core\Api\ApiServiceProvider;
+use App\Core\Api\Http\Controllers\ApiKeyController;
+use App\Core\Api\Http\Controllers\OpenApiController;
+use App\Core\Api\Http\Controllers\SandboxController;
+use App\Core\Api\Models\ApiKey;
 use App\Core\Approvals\EmailApprovals;
 use App\Core\Approvals\Http\Controllers\ApprovalController;
 use App\Core\Approvals\Http\Controllers\AttachmentFileController;
@@ -136,7 +141,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 // Route keys are UUIDs: anything else is not found, never a database error.
-foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'tenant_domain', 'custom_field', 'import', 'tenant_export', 'export', 'webhook', 'webhook_delivery', ...array_keys(Dimensions::TYPES)] as $parameter) {
+foreach (['company', 'branch', 'location', 'device', 'user', 'role', 'invitation', 'assignment', 'tenant_currency', 'tax_code', 'tax_category', 'price_list', 'item_price', 'party', 'record', 'item', 'item_category', 'uom', 'item_image', 'payment_method', 'credit_limit_change', 'workflow', 'workflow_version', 'document', 'notification', 'approval', 'delegation', 'automation_rule', 'automation_run', 'payment_intent', 'payment_receipt', 'fiscal_submission', 'config_document', 'tenant_domain', 'custom_field', 'import', 'tenant_export', 'export', 'api_key', 'webhook', 'webhook_delivery', ...array_keys(Dimensions::TYPES)] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -158,6 +163,7 @@ Route::model('custom_field', CustomFieldDefinition::class);
 Route::model('custom_form_type', CustomFormType::class);
 Route::model('custom_form_record', CustomFormRecord::class);
 Route::model('import', Import::class);
+Route::model('api_key', ApiKey::class);
 Route::model('webhook', WebhookSubscription::class);
 Route::model('webhook_delivery', WebhookDelivery::class);
 
@@ -178,7 +184,7 @@ foreach (Dimensions::TYPES as $parameter => $model) {
 // Prefix /api/v1 (bootstrap/app.php). AUTH-01, AUTH-03, AUTH-04, AUTH-09, AUTH-10.
 Route::prefix('auth')->group(function () {
     // ONB-01: per IP, per email or phone number, and across the platform.
-    Route::post('sign-up', SignUpController::class)->middleware(['throttle:auth-ip', 'throttle:'.OnboardingServiceProvider::SIGN_UP_DESTINATION_LIMITER, 'throttle:'.OnboardingServiceProvider::SIGN_UP_GLOBAL_LIMITER]);
+    Route::post('sign-up', SignUpController::class)->middleware(['throttle:auth-ip', 'throttle:'.ApiServiceProvider::SANDBOX_SIGN_UP_LIMITER, 'throttle:'.OnboardingServiceProvider::SIGN_UP_DESTINATION_LIMITER, 'throttle:'.OnboardingServiceProvider::SIGN_UP_GLOBAL_LIMITER]);
     Route::post('verify', [VerifyController::class, 'verify'])->middleware('throttle:auth-ip');
     Route::post('verify/resend', [VerifyController::class, 'resend'])->middleware('throttle:auth-ip');
     Route::post('sign-in', SignInController::class)->middleware(['throttle:auth-ip', 'throttle:auth-login']);
@@ -225,6 +231,10 @@ Route::get('approval-files/{path}', AttachmentFileController::class)->where('pat
 // APR-08: an emailed approve/reject link; the single-use token is the credential.
 Route::get('approvals/email/{token}', [EmailApprovalController::class, 'show'])->middleware([NoReferrer::class, 'throttle:'.EmailApprovals::LIMITER])->where('token', '[A-Za-z0-9]{48}');
 Route::post('approvals/email/{token}', [EmailApprovalController::class, 'confirm'])->middleware([NoReferrer::class, 'throttle:'.EmailApprovals::LIMITER])->where('token', '[A-Za-z0-9]{48}');
+
+// API-04: the public API's OpenAPI document, for the developer portal (no
+// credential: it describes the public routes only; rate-limited per IP).
+Route::get('developers/openapi.json', OpenApiController::class)->middleware('throttle:'.ApiServiceProvider::DOCS_LIMITER);
 
 // TEN-05: a POS device exchanges its one-time pairing code for a token.
 Route::post('devices/pair', [DevicePairingController::class, 'pair'])->middleware('throttle:device-pair');
@@ -320,11 +330,12 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // TEN-02..TEN-06: the organisation. Lists show only what the user's
     // scopes reach (RBAC-04); records are archived, never deleted.
-    Route::get('branches', [BranchController::class, 'all']);
-    Route::get('locations', [LocationController::class, 'all']);
-    Route::apiResource('companies', CompanyController::class)->except('destroy');
-    Route::apiResource('companies.branches', BranchController::class)->shallow()->except('destroy');
-    Route::apiResource('branches.locations', LocationController::class)->shallow()->except('destroy');
+    // API-01: `public-api:<resource>` routes also take API keys (ADR 020).
+    Route::get('branches', [BranchController::class, 'all'])->middleware('public-api:core.branch');
+    Route::get('locations', [LocationController::class, 'all'])->middleware('public-api:core.location');
+    Route::apiResource('companies', CompanyController::class)->except('destroy')->middlewareFor(['index', 'show'], 'public-api:core.company');
+    Route::apiResource('companies.branches', BranchController::class)->shallow()->except('destroy')->middlewareFor(['index', 'show'], 'public-api:core.branch');
+    Route::apiResource('branches.locations', LocationController::class)->shallow()->except('destroy')->middlewareFor(['index', 'show'], 'public-api:core.location');
     Route::apiResource('locations.devices', DeviceController::class)->shallow()->except('destroy');
 
     foreach (['companies' => CompanyController::class, 'branches' => BranchController::class, 'locations' => LocationController::class] as $resource => $controller) {
@@ -336,7 +347,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // CUR-01, CUR-02: the ISO catalogue, the tenant's currencies (edited at
     // tenant scope) and each company's base and reporting currencies.
     Route::get('currencies', [CurrencyController::class, 'index']);
-    Route::get('tenant/currencies', [TenantCurrencyController::class, 'index']);
+    Route::get('tenant/currencies', [TenantCurrencyController::class, 'index'])->middleware('public-api:core.currency');
     Route::post('tenant/currencies', [TenantCurrencyController::class, 'store']);
     Route::patch('tenant/currencies/{tenant_currency}', [TenantCurrencyController::class, 'update']);
     Route::get('companies/{company}/currencies', [CompanyCurrencyController::class, 'show']);
@@ -344,9 +355,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // CUR-03, CUR-07: each company's rate history, shop rates (tolerance
     // alerts) and the rates in force.
-    Route::get('companies/{company}/exchange-rates', [ExchangeRateController::class, 'index']);
+    Route::get('companies/{company}/exchange-rates', [ExchangeRateController::class, 'index'])->middleware('public-api:core.exchange_rate');
     Route::post('companies/{company}/exchange-rates', [ExchangeRateController::class, 'store']);
-    Route::get('companies/{company}/exchange-rates/current', [ExchangeRateController::class, 'current']);
+    Route::get('companies/{company}/exchange-rates/current', [ExchangeRateController::class, 'current'])->middleware('public-api:core.exchange_rate');
 
     // CP-01, CP-03: the published country packs (global, read-only).
     Route::get('country-packs', [CountryPackController::class, 'index']);
@@ -354,33 +365,33 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // MD-03, CP-02: tax codes with effective-dated rates, copied from the
     // company's country pack; tax categories; price lists.
-    Route::get('companies/{company}/tax-codes', [TaxCodeController::class, 'index']);
+    Route::get('companies/{company}/tax-codes', [TaxCodeController::class, 'index'])->middleware('public-api:core.tax');
     Route::post('companies/{company}/tax-codes', [TaxCodeController::class, 'store']);
     Route::post('companies/{company}/tax-codes/apply-pack', [TaxCodeController::class, 'applyPack']);
-    Route::get('tax-codes/{tax_code}', [TaxCodeController::class, 'show']);
+    Route::get('tax-codes/{tax_code}', [TaxCodeController::class, 'show'])->middleware('public-api:core.tax');
     Route::patch('tax-codes/{tax_code}', [TaxCodeController::class, 'update']);
     Route::post('tax-codes/{tax_code}/rates', [TaxCodeController::class, 'storeRate']);
     Route::post('tax-codes/{tax_code}/archive', [TaxCodeController::class, 'archive']);
     Route::post('tax-codes/{tax_code}/restore', [TaxCodeController::class, 'restore']);
 
-    Route::get('tax-categories', [TaxCategoryController::class, 'index']);
+    Route::get('tax-categories', [TaxCategoryController::class, 'index'])->middleware('public-api:core.tax');
     Route::post('tax-categories', [TaxCategoryController::class, 'store']);
-    Route::get('tax-categories/{tax_category}', [TaxCategoryController::class, 'show']);
+    Route::get('tax-categories/{tax_category}', [TaxCategoryController::class, 'show'])->middleware('public-api:core.tax');
     Route::patch('tax-categories/{tax_category}', [TaxCategoryController::class, 'update']);
     Route::post('tax-categories/{tax_category}/archive', [TaxCategoryController::class, 'archive']);
     Route::post('tax-categories/{tax_category}/restore', [TaxCategoryController::class, 'restore']);
 
-    Route::get('companies/{company}/price-lists', [PriceListController::class, 'index']);
+    Route::get('companies/{company}/price-lists', [PriceListController::class, 'index'])->middleware('public-api:core.price_list');
     Route::post('companies/{company}/price-lists', [PriceListController::class, 'store']);
-    Route::get('price-lists/{price_list}', [PriceListController::class, 'show']);
+    Route::get('price-lists/{price_list}', [PriceListController::class, 'show'])->middleware('public-api:core.price_list');
     Route::patch('price-lists/{price_list}', [PriceListController::class, 'update']);
     Route::post('price-lists/{price_list}/archive', [PriceListController::class, 'archive']);
     Route::post('price-lists/{price_list}/restore', [PriceListController::class, 'restore']);
 
     // MD-03 follow-up: item prices per list and unit, effective-dated, with
     // quantity breaks; one or up to 500 at once (all or nothing).
-    Route::get('price-lists/{price_list}/prices', [ItemPriceController::class, 'index']);
-    Route::post('price-lists/{price_list}/prices', [ItemPriceController::class, 'store']);
+    Route::get('price-lists/{price_list}/prices', [ItemPriceController::class, 'index'])->middleware('public-api:core.price');
+    Route::post('price-lists/{price_list}/prices', [ItemPriceController::class, 'store'])->middleware('public-api:core.price');
     Route::post('price-lists/{price_list}/prices/bulk', [ItemPriceController::class, 'bulk']);
     Route::post('item-prices/{item_price}/archive', [ItemPriceController::class, 'archive']);
     Route::post('item-prices/{item_price}/restore', [ItemPriceController::class, 'restore']);
@@ -426,12 +437,14 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // MD-01, MD-06: parties (customers, suppliers, contacts, employee
     // links), shared or per company (TEN-08), with duplicate warnings.
-    Route::get('parties', [PartyController::class, 'index']);
-    Route::post('parties', [PartyController::class, 'store']);
-    Route::get('parties/{party}', [PartyController::class, 'show']);
-    Route::patch('parties/{party}', [PartyController::class, 'update']);
-    Route::post('parties/{party}/archive', [PartyController::class, 'archive']);
-    Route::post('parties/{party}/restore', [PartyController::class, 'restore']);
+    Route::middleware('public-api:core.party')->group(function () {
+        Route::get('parties', [PartyController::class, 'index']);
+        Route::post('parties', [PartyController::class, 'store']);
+        Route::get('parties/{party}', [PartyController::class, 'show']);
+        Route::patch('parties/{party}', [PartyController::class, 'update']);
+        Route::post('parties/{party}/archive', [PartyController::class, 'archive']);
+        Route::post('parties/{party}/restore', [PartyController::class, 'restore']);
+    });
 
     // MD-01, WF-01, WF-10, WF-11: credit limit change requests, decided
     // through their flow and applied to the party when approved.
@@ -443,26 +456,30 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // MD-02: units of measure (the tenant's), item categories and items,
     // shared or per company (TEN-08), with barcodes and images.
-    Route::get('uoms', [UomController::class, 'index']);
+    Route::get('uoms', [UomController::class, 'index'])->middleware('public-api:core.uom');
     Route::post('uoms', [UomController::class, 'store']);
-    Route::get('uoms/{uom}', [UomController::class, 'show']);
+    Route::get('uoms/{uom}', [UomController::class, 'show'])->middleware('public-api:core.uom');
     Route::patch('uoms/{uom}', [UomController::class, 'update']);
     Route::post('uoms/{uom}/archive', [UomController::class, 'archive']);
     Route::post('uoms/{uom}/restore', [UomController::class, 'restore']);
 
-    Route::get('item-categories', [ItemCategoryController::class, 'index']);
-    Route::post('item-categories', [ItemCategoryController::class, 'store']);
-    Route::get('item-categories/{item_category}', [ItemCategoryController::class, 'show']);
-    Route::patch('item-categories/{item_category}', [ItemCategoryController::class, 'update']);
-    Route::post('item-categories/{item_category}/archive', [ItemCategoryController::class, 'archive']);
-    Route::post('item-categories/{item_category}/restore', [ItemCategoryController::class, 'restore']);
+    Route::middleware('public-api:core.item_category')->group(function () {
+        Route::get('item-categories', [ItemCategoryController::class, 'index']);
+        Route::post('item-categories', [ItemCategoryController::class, 'store']);
+        Route::get('item-categories/{item_category}', [ItemCategoryController::class, 'show']);
+        Route::patch('item-categories/{item_category}', [ItemCategoryController::class, 'update']);
+        Route::post('item-categories/{item_category}/archive', [ItemCategoryController::class, 'archive']);
+        Route::post('item-categories/{item_category}/restore', [ItemCategoryController::class, 'restore']);
+    });
 
-    Route::get('items', [ItemController::class, 'index']);
-    Route::post('items', [ItemController::class, 'store']);
-    Route::get('items/{item}', [ItemController::class, 'show']);
-    Route::patch('items/{item}', [ItemController::class, 'update']);
-    Route::post('items/{item}/archive', [ItemController::class, 'archive']);
-    Route::post('items/{item}/restore', [ItemController::class, 'restore']);
+    Route::middleware('public-api:core.item')->group(function () {
+        Route::get('items', [ItemController::class, 'index']);
+        Route::post('items', [ItemController::class, 'store']);
+        Route::get('items/{item}', [ItemController::class, 'show']);
+        Route::patch('items/{item}', [ItemController::class, 'update']);
+        Route::post('items/{item}/archive', [ItemController::class, 'archive']);
+        Route::post('items/{item}/restore', [ItemController::class, 'restore']);
+    });
     Route::post('items/{item}/images', [ItemImageController::class, 'store']);
     Route::put('items/{item}/images/order', [ItemImageController::class, 'reorder']);
     Route::delete('item-images/{item_image}', [ItemImageController::class, 'destroy']);
@@ -641,6 +658,20 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // LIM-01, LIM-02: the plan's usage, overages and extra cost (Owners only).
     Route::get('usage', UsageController::class);
+
+    // API-02, API-03 (ADR 020): the tenant's API keys (people only, core.api_key.manage):
+    // the plain key only in the create and rotate answers. API-05: a sandbox's reset.
+    Route::get('api-keys', [ApiKeyController::class, 'index']);
+    Route::post('api-keys', [ApiKeyController::class, 'store']);
+    Route::get('api-keys/scopes', [ApiKeyController::class, 'scopes']);
+    Route::get('api-keys/usage', [ApiKeyController::class, 'usage']);
+    Route::get('api-keys/{api_key}', [ApiKeyController::class, 'show']);
+    Route::patch('api-keys/{api_key}', [ApiKeyController::class, 'update']);
+    Route::post('api-keys/{api_key}/rotate', [ApiKeyController::class, 'rotate']);
+    Route::post('api-keys/{api_key}/revoke', [ApiKeyController::class, 'revoke']);
+    Route::get('api-keys/{api_key}/usage', [ApiKeyController::class, 'usage']);
+    Route::post('sandbox/reset', [SandboxController::class, 'reset']);
+    Route::get('sandbox/outbox', [SandboxController::class, 'outbox']);
 
     // LAY-06, LAY-07: versioned configuration of a registered kind (themes,
     // layouts, templates): documents per key and scope, their versions, and

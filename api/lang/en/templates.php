@@ -40,6 +40,9 @@ return [
         'custom' => 'Custom fields',
     ],
 
+    // API-05: printed first on every document and receipt of a developer sandbox (locked, TPL-03).
+    'sandbox_stamp' => 'SANDBOX – not a fiscal receipt',
+
     'print' => [
         'fields' => [
             'company' => [

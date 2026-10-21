@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use App\Core\Api\Sandbox\SandboxOutbox;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Automation\Events\RecordChanged;
 use App\Core\Automation\Models\AutomationRun;
@@ -616,6 +617,20 @@ final class TwoTenants
         self::ok($test->patchJson("/api/v1/imports/{$import}", ['mode' => 'create'], $owner));
         self::ok($test->postJson("/api/v1/imports/{$import}/run", [], $owner), 202);
 
+        // API-01..API-03 (ADR 020): an API key with the Admin role, used once to list
+        // locations (a usage row) and once to create a customer with an Idempotency-Key
+        // (a stored response). B's plain key must never reach A.
+        $apiKey = self::ok($test->postJson('/api/v1/api-keys', [
+            'name' => "Integration {$upper}", 'role_id' => $roles['admin'], 'scope_type' => 'tenant',
+            'scopes' => ['core.location.read', 'core.party.write'],
+        ], $owner), 201);
+        $keyHeaders = ['Authorization' => 'Bearer '.$apiKey->json('secret'), 'Accept' => 'application/json'];
+        self::ok($test->getJson('/api/v1/locations', $keyHeaders));
+        // API-03: counted in the cache, written to api_key_usage_days by the scheduled flush.
+        $test->artisan('api:flush-usage')->assertSuccessful();
+        // API-05: an outbox message (the fixture tenants are live: written as a sandbox's outbox would).
+        app(TenantContext::class)->run($tenantId, fn () => app(SandboxOutbox::class)->record('email', "outbox-{$key}@example.com", "Outbox {$upper}", "Kept {$upper}", 'mail'));
+        self::ok($test->postJson('/api/v1/parties', ['kind' => 'person', 'name' => "API customer {$upper}", 'roles' => ['customer']], [...$keyHeaders, 'Idempotency-Key' => "isolation-{$key}"]), 201);
         // HOOK-01: a webhook subscription of the company (its URL carries a token, its
         // secret is shown once: neither may reach the other tenant) and a test delivery.
         $webhook = self::ok($test->postJson('/api/v1/webhooks', [
@@ -707,6 +722,7 @@ final class TwoTenants
                 'support_access_grant' => $supportGrant,
                 'billing_deal' => $billingDeal,
                 'import' => $import,
+                'api_key' => $apiKey->json('data.id'),
                 'webhook' => $webhook->json('data.id'),
                 'webhook_delivery' => $webhookDelivery,
                 ...$dimensions,
@@ -725,7 +741,7 @@ final class TwoTenants
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, $subscriptionSecret, "hook-token-{$key}", "path-token-{$key}", $callbackToken, ...$ecommerce['contacts']])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, $subscriptionSecret, "hook-token-{$key}", "path-token-{$key}", $callbackToken, $apiKey->json('secret'), ...$ecommerce['contacts']])),
         );
     }
 

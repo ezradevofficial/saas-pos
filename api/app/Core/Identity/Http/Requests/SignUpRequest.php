@@ -9,7 +9,7 @@ use App\Core\Identity\Support\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-/** AUTH-01: open to anyone (rate limited); creates a new tenant. */
+/** AUTH-01: open to anyone (rate limited); creates a new tenant, or a developer sandbox (API-05). */
 class SignUpRequest extends FormRequest
 {
     public function authorize(): bool
@@ -41,6 +41,8 @@ class SignUpRequest extends FormRequest
             'country' => ['required', 'string', Rule::in(array_keys(SignUp::COUNTRIES))],
             'locale' => ['required', 'string', Rule::in(['en', 'fr'])],
             'business_name' => ['required', 'string', 'max:255'],
+            // API-05: a developer sandbox (ADR 020): never billed, fake payment and fiscal drivers, sample data.
+            'sandbox' => ['sometimes', 'boolean'],
         ];
     }
 }

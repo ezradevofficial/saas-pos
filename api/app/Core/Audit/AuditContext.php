@@ -62,6 +62,19 @@ class AuditContext
         }
     }
 
+    /**
+     * Metadata recorded with every entry for the rest of the request (an
+     * API key's id, ADR 020); reset with the context.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public function setMetadata(array $metadata): static
+    {
+        $this->metadata = $metadata;
+
+        return $this;
+    }
+
     /** @return array<string, mixed> */
     public function metadata(): array
     {

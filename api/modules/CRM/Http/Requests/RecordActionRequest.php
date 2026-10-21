@@ -58,7 +58,7 @@ class RecordActionRequest extends ShowRecordRequest
     {
         return match ($this->resource().'.'.$this->action()) {
             'lead.assign' => [
-                'owner_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')],
+                'owner_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
                 'team_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('crm_teams', 'id')],
             ],
             'lead.convert' => [
