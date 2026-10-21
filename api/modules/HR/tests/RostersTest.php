@@ -6,6 +6,7 @@ use App\Core\Approvals\Models\ApprovalAssignment;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Rbac\Scope;
 use App\Core\Workflow\Calendar\BusinessCalendar;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
 use Modules\HR\Models\Employee;
@@ -37,6 +38,9 @@ class RostersTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // HR-20, HR-21: the fixed shift dates below are future (swappable) as of 14 October 2026.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14T09:00:00Z'));
 
         Notification::fake();
         $this->setUpHr();
