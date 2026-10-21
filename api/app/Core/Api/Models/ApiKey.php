@@ -7,6 +7,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Tenancy\BelongsToTenant;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,7 +37,12 @@ class ApiKey extends Model implements HasAbilities
 
     protected $table = 'api_keys';
 
-    protected $fillable = ['name', 'public_id', 'mode', 'secret_hash', 'principal_id', 'scopes', 'created_by', 'expires_at'];
+    public const KIND_KEY = 'key';
+
+    /** MKT-02: a marketplace install's principal (docs/adr/024), managed through its install, never in Settings, API keys. */
+    public const KIND_APP = 'app';
+
+    protected $fillable = ['name', 'kind', 'public_id', 'mode', 'secret_hash', 'principal_id', 'scopes', 'created_by', 'expires_at'];
 
     protected $hidden = ['secret_hash', 'previous_secret_hash'];
 
@@ -50,6 +56,12 @@ class ApiKey extends Model implements HasAbilities
             'rotated_at' => 'immutable_datetime',
             'revoked_at' => 'immutable_datetime',
         ];
+    }
+
+    /** Settings, API keys lists and manages only keys; an install's key is the install's (ADR 024). */
+    public function scopeKeys(Builder $query): Builder
+    {
+        return $query->where('kind', self::KIND_KEY);
     }
 
     public function principal(): BelongsTo

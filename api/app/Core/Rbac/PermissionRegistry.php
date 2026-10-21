@@ -101,6 +101,11 @@ class PermissionRegistry
         'support_access' => ['view', 'manage'],
         // HOOK-01: webhook subscriptions, their secrets, test events, the delivery log and replays (tenant scope; Owner, Admin).
         'webhook' => ['manage'],
+        // MKT-01, MKT-02 (ADR 024): browse the marketplace and see installed apps (view);
+        // install, consent again and uninstall apps (install). Owner and Admin.
+        'marketplace' => ['view', 'install'],
+        // MKT-01: the developer portal: the tenant's developer account and its apps (Owner, Admin).
+        'developer' => ['manage'],
     ];
 
     private const SEGMENT = '/^[a-z][a-z0-9_]*$/';

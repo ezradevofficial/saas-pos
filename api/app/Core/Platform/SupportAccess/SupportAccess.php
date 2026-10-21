@@ -73,6 +73,8 @@ class SupportAccess
         'crm.settings.manage', 'ecommerce.store.manage', 'pos.sale.share',
         'procurement.tender.create', 'procurement.rfq.create',
         'core.webhook.manage',
+        // MKT-01, MKT-02: installing an app grants a credential; the developer portal makes them.
+        'core.marketplace.install', 'core.developer.manage',
     ];
 
     /**

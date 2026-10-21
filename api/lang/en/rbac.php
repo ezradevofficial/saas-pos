@@ -92,6 +92,8 @@ return [
                 'subscription' => 'Subscription and billing',
                 'support_access' => 'Support access',
                 'webhook' => 'Webhooks',
+                'marketplace' => 'Marketplace apps',
+                'developer' => 'Developer apps',
             ],
             'pos' => [
                 'sale' => 'Sales',
@@ -150,6 +152,7 @@ return [
             ],
         ],
         'actions' => [
+            'install' => 'Install',
             'deliver' => 'Deliver',
             'reply' => 'Reply',
             'convert' => 'Convert',

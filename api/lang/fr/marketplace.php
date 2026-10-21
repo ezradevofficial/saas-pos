@@ -1,0 +1,46 @@
+<?php
+
+// MKT-01..MKT-04, ADM-05 (docs/adr/024-marketplace.md).
+return [
+    'scopes' => [
+        'read' => 'Voir : :resource',
+        'write' => 'Voir et modifier : :resource',
+    ],
+    'errors' => [
+        'not_installed' => 'Cette application n’est pas installée ici. Installez-la d’abord depuis le marketplace.',
+        'oauth_not_configured' => 'La connexion des applications n’est pas encore configurée sur ce serveur. Demandez à l’équipe de la plateforme d’ajouter ses clés de signature.',
+        'price_unavailable' => 'Cette application n’a pas de prix dans votre devise de facturation : elle ne peut pas être installée. Contactez le développeur.',
+        'cannot_install' => 'Vous ne pouvez pas installer d’applications. Demandez à un propriétaire ou à un administrateur.',
+        'cannot_pay' => 'Cette application s’ajoute à votre abonnement. Demandez à une personne qui gère l’abonnement de l’installer.',
+        'unavailable' => 'Cette application ne peut pas être installée pour le moment. Elle a peut-être été retirée ou n’est pas encore configurée.',
+        'too_many_apps' => 'Vous avez déjà :count applications. Archivez-en une avant d’en ajouter une autre.',
+        'slug_taken' => 'Une autre application utilise déjà ce nom d’adresse. Choisissez-en un autre.',
+        'app_suspended' => 'La plateforme a suspendu cette application. Contactez l’équipe de la plateforme.',
+        'app_not_suspended' => 'Cette application n’est pas suspendue.',
+        'version_incomplete' => 'Cette version n’est pas prête pour la revue. Corrigez les champs indiqués et soumettez-la de nouveau.',
+        'version_not_submitted' => 'Cette version n’attend pas de revue.',
+        'version_open' => 'Une version est déjà en cours de modification ou de revue. Terminez-la d’abord.',
+        'version_not_draft' => 'Seule une version brouillon peut être modifiée. Créez une nouvelle version pour la changer.',
+        'developer_suspended' => 'Votre compte développeur est suspendu. Contactez l’équipe de la plateforme.',
+        'developer_not_registered' => 'Inscrivez-vous comme développeur avant d’ajouter une application.',
+        'payout_over_balance' => 'Le montant dépasse ce qui est dû à ce développeur dans cette devise.',
+        'courier_not_configured' => 'Aucun transporteur n’est encore configuré. L’équipe de la plateforme doit ajouter un transporteur et ses identifiants.',
+        'shipment_not_found' => 'Le transporteur n’a aucune livraison avec cette référence.',
+        'invalid_client' => 'Cette application est inconnue ou n’est pas publiée. Vérifiez le lien suivi.',
+        'invalid_request' => 'L’application a envoyé une demande incomplète ou erronée. Retournez dans l’application et réessayez.',
+    ],
+    'validation' => [
+        'pricing_model' => 'Choisissez gratuit ou payant.',
+        'pricing_monthly' => 'Une application payante doit avoir un prix mensuel dans au moins une devise.',
+        'pricing_amount' => 'Saisissez un montant entier en unités mineures, supérieur à zéro.',
+        'pricing_currency' => 'Les prix sont en KES, USD ou CDF.',
+        'pricing_yearly_currency' => 'Indiquez un prix annuel seulement dans une devise qui a un prix mensuel.',
+        'logo_type' => 'Le logo doit être une image PNG, JPEG ou WebP.',
+        'description_short' => 'Décrivez ce que fait l’application en au moins 40 caractères.',
+        'scopes_required' => 'Choisissez au moins une autorisation dont l’application a besoin.',
+        'redirect_required' => 'Ajoutez au moins une URI de redirection.',
+        'webhook_url_required' => 'Ajoutez l’URL qui reçoit les événements webhook, ou retirez les événements.',
+        'support_email_required' => 'Ajoutez une adresse e-mail d’assistance.',
+        'redirect_uri' => 'Utilisez une adresse HTTPS, ou HTTP vers localhost, sans partie #.',
+    ],
+];

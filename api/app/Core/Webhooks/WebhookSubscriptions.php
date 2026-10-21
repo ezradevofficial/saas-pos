@@ -2,6 +2,7 @@
 
 namespace App\Core\Webhooks;
 
+use App\Core\Api\Models\ApiKey;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
@@ -31,6 +32,9 @@ use Illuminate\Support\Facades\DB;
  */
 class WebhookSubscriptions
 {
+    /** The principal type of a subscription owned by an API key (a marketplace install's, ADR 024). */
+    public const KEY_PRINCIPAL = 'api_key';
+
     /** @var array<string, array<string, true>> tenant id => subscribed type keys */
     private array $memo = [];
 
@@ -107,6 +111,58 @@ class WebhookSubscriptions
         $this->flush();
 
         return [$subscription, $secret];
+    }
+
+    /**
+     * MKT-02 (ADR 024): the subscription of a marketplace install, owned by
+     * its key (principal `api_key`) and signed with the app's own secret,
+     * which only its developer holds. Not counted against the tenant's cap:
+     * there is one per install, and it goes when the app is uninstalled.
+     *
+     * @param  array{url: string, description?: ?string, events: list<string>, company_id?: ?string, branch_id?: ?string}  $values
+     */
+    public function createForKey(ApiKey $key, array $values, User $by, string $secret): WebhookSubscription
+    {
+        $subscription = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($key, $values, $by, $secret) {
+            $subscription = WebhookSubscription::create([
+                'principal_type' => self::KEY_PRINCIPAL,
+                'principal_id' => $key->id,
+                'url' => $values['url'],
+                'url_display' => WebhookEndpoints::display($values['url']),
+                'description' => $values['description'] ?? null,
+                'events' => array_values(array_unique($values['events'])),
+                'active' => true,
+                'company_id' => $values['company_id'] ?? null,
+                'branch_id' => $values['branch_id'] ?? null,
+                'secret' => $secret,
+                'secret_rotated_at' => CarbonImmutable::now(),
+                'created_by' => $by->id,
+            ]);
+
+            $this->auditor->record('core.webhook.create', $subscription, null, $this->audited($subscription));
+
+            return $subscription;
+        });
+
+        $this->flush();
+
+        return $subscription;
+    }
+
+    /**
+     * MKT-02: the app's developer rolled its signing secret; the previous
+     * one keeps signing for the overlap, as for a rotation here.
+     */
+    public function rollSecret(WebhookSubscription $subscription, string $secret, CarbonImmutable $previousUntil): void
+    {
+        $subscription->forceFill([
+            'previous_secret' => $subscription->secret,
+            'previous_secret_expires_at' => $previousUntil,
+            'secret' => $secret,
+            'secret_rotated_at' => CarbonImmutable::now(),
+        ])->save();
+
+        $this->auditor->record('core.webhook.rotate_secret', $subscription, null, ['previous_valid_until' => $previousUntil->toIso8601String(), 'by_app' => true]);
     }
 
     /** @param  array<string, mixed>  $values */

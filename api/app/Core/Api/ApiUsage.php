@@ -100,7 +100,7 @@ class ApiUsage
             ->map(fn ($rows) => $rows->pluck('requests', 'api_key_id')->map(fn ($v) => (int) $v)->all())
             ->all();
 
-        $keyIds = $keyId !== null ? [$keyId] : ApiKey::query()->pluck('id')->all();
+        $keyIds = $keyId !== null ? [$keyId] : ApiKey::query()->keys()->pluck('id')->all();
 
         foreach ($this->cachedDays() as $day) {
             foreach ($keyIds as $id) {
