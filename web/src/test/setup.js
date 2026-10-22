@@ -1,6 +1,12 @@
 import '@testing-library/jest-dom/vitest'
 import { configure } from '@testing-library/react'
-import '../i18n'
+import { i18nReady, loadLocale } from '../i18n'
+
+// The app loads one catalogue at a time (NFR-02); screen tests switch with
+// i18n.changeLanguage, so both are loaded up front here. src/i18n/i18n.test.js
+// unloads French to cover the lazy switch.
+await i18nReady
+await loadLocale('fr')
 
 // CI runners are slower than a laptop: waitFor/findBy wait up to 4 s, not the default 1 s.
 configure({ asyncUtilTimeout: 4000 })
