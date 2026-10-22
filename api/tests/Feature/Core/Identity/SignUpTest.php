@@ -128,11 +128,13 @@ class SignUpTest extends TestCase
             $response = $this->signUp(['country' => $country, 'email' => strtolower($country).'@example.com'])->assertCreated();
             $this->enterChallengeTenant($response->json('challenge_id'));
 
-            // CP-01: copied in the sign-up transaction, unconfirmed rates still needed.
+            // CP-01: copied in the sign-up transaction. VAT_STD is the researched 16 % (not yet
+            // confirmed by an accountant, docs/country-packs-research-2026-10.md), so it is usable.
             $company = Company::sole();
             $this->assertSame($codes, TaxCode::where('company_id', $company->id)->orderBy('code')->pluck('code')->all());
             $std = TaxCode::where('code', 'VAT_STD')->sole()->rates()->sole();
-            $this->assertSame([null, true], [$std->rate, $std->needs_confirmation]);
+            $this->assertSame(['16.0000', false], [$std->rate, $std->needs_confirmation]);
+            $this->assertNotEmpty($std->research);
 
             app(TenantContext::class)->set(null);
         }
