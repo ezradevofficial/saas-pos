@@ -84,11 +84,11 @@ jobs:
       ref: ${{ needs.gate.outputs.sha }}
       api-url: ${{ vars.DEV_API_URL }}
     secrets:
-      host: ${{ secrets.DEV_LINODE_HOST }}
-      user: ${{ secrets.DEV_LINODE_USER }}
+      deploy-host: ${{ secrets.DEV_LINODE_HOST }}
+      deploy-user: ${{ secrets.DEV_LINODE_USER }}
       ssh-key: ${{ secrets.DEV_LINODE_SSH_KEY }}
       known-hosts: ${{ secrets.DEV_LINODE_KNOWN_HOSTS }}
-      path: ${{ secrets.DEV_DEPLOY_PATH }}
+      deploy-path: ${{ secrets.DEV_DEPLOY_PATH }}
       sentry-auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
   # Staging follows dev; when dev is skipped (no credentials) staging can
@@ -106,9 +106,9 @@ jobs:
       ref: ${{ needs.gate.outputs.sha }}
       api-url: ${{ vars.STAGING_API_URL }}
     secrets:
-      host: ${{ secrets.STAGING_LINODE_HOST }}
-      user: ${{ secrets.STAGING_LINODE_USER }}
+      deploy-host: ${{ secrets.STAGING_LINODE_HOST }}
+      deploy-user: ${{ secrets.STAGING_LINODE_USER }}
       ssh-key: ${{ secrets.STAGING_LINODE_SSH_KEY }}
       known-hosts: ${{ secrets.STAGING_LINODE_KNOWN_HOSTS }}
-      path: ${{ secrets.STAGING_DEPLOY_PATH }}
+      deploy-path: ${{ secrets.STAGING_DEPLOY_PATH }}
       sentry-auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
