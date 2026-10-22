@@ -53,4 +53,12 @@ return [
         'disk' => env('STATUS_DISK', 'local'),
         'path' => env('STATUS_PATH', 'status/status.json'),
     ],
+
+    // NFR-07, ADR 025: whether the host's backups (WAL-G and the nightly
+    // file copy, deploy/host) are on. Set by the owner in .env when
+    // provisioning turned them on; `app:preflight` warns in production
+    // while it is false.
+    'backups' => [
+        'enabled' => (bool) env('BACKUPS_ENABLED', false),
+    ],
 ];

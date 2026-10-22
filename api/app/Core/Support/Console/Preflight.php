@@ -6,6 +6,7 @@ use App\Core\Notifications\Sms\SmsSender;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Support\EnvironmentGuard;
+use App\Core\Support\SmtpProbe;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository;
@@ -84,6 +85,22 @@ class Preflight extends Command
             return ['ok', (string) $config->get('database.redis.client')];
         };
 
+        // ADR 025: the owner's own SMTP mailbox. A wrong password or a blocked
+        // port otherwise passes every check and the first verification code
+        // never arrives. Connects and signs in; sends nothing.
+        $checks['Mail server'] = function () use ($config, $development) {
+            $mailer = (string) $config->get('mail.default');
+            $probe = $this->laravel->make(SmtpProbe::class);
+
+            return match (true) {
+                $development => ['skip', 'not checked here'],
+                ! $probe->applies($mailer) => ['skip', "{$mailer} is not an SMTP mailer"],
+                default => ($problem = $probe->check($mailer)) === null
+                    ? ['ok', 'SMTP connection and sign-in accepted']
+                    : ['fail', "SMTP connection or sign-in failed: {$problem}"],
+            };
+        };
+
         $checks['Application key'] = fn () => filled($config->get('app.key'))
             ? ['ok', null]
             : ['fail', 'APP_KEY is not set (php artisan key:generate)'];
@@ -106,6 +123,15 @@ class Preflight extends Command
             $development => ['skip', 'not needed here'],
             filled($config->get('sentry.dsn')) => ['ok', 'Sentry on, release '.($config->get('sentry.release') ?: 'not set')],
             default => ['warn', 'SENTRY_LARAVEL_DSN not set: errors are only in the logs'],
+        };
+        // NFR-07, ADR 025: the host's database and file backups are declared on
+        // (BACKUPS_ENABLED) once deploy/host provisioning has turned them on.
+        // Staging and the pilot run without them; production warns, never fails.
+        $checks['Backups'] = fn () => match (true) {
+            $development => ['skip', 'not needed here'],
+            (bool) $config->get('observability.backups.enabled') => ['ok', 'declared on (BACKUPS_ENABLED)'],
+            $this->laravel->environment('production') => ['warn', 'Backups are off: enable before go-live (docs/backups.md)'],
+            default => ['skip', 'off outside production (docs/backups.md)'],
         };
         $checks['Metrics access'] = fn () => match (true) {
             $development => ['skip', 'not needed here'],
