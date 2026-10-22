@@ -544,6 +544,8 @@ return new class extends Migration
         Schema::dropIfExists('marketplace_app_secrets');
         Schema::dropIfExists('oauth_clients');
         DB::statement('alter table marketplace_apps drop constraint marketplace_apps_listed_fk');
+        // Phase 8 review L10: this policy reads marketplace_apps, so it goes before that table.
+        DB::statement('drop policy if exists developer_own on marketplace_developers');
         Schema::dropIfExists('marketplace_app_versions');
         Schema::dropIfExists('marketplace_apps');
         Schema::dropIfExists('marketplace_developers');
