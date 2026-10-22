@@ -24,7 +24,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Ecommerce\Events\ExchangeIssued;
 use Modules\Ecommerce\Events\OrderFulfilled;
+use Modules\Ecommerce\Events\OrderLinesReturned;
 use Modules\Ecommerce\Events\OrderReturned;
 use Modules\Inventory\Contracts\GoodsReceived;
 use Modules\Inventory\Dashboards\LowStock;
@@ -143,7 +145,7 @@ class InventoryServiceProvider extends ServiceProvider
         }
 
         // ECOM-18 (docs/modules/ecommerce.md): online orders' hand-overs and returns (while Inventory is active, checked per tenant).
-        foreach ([OrderFulfilled::class, OrderReturned::class] as $event) {
+        foreach ([OrderFulfilled::class, OrderReturned::class, OrderLinesReturned::class, ExchangeIssued::class] as $event) {
             Event::listen($event, [MoveStockForOrders::class, 'handle']);
         }
         // MFG-15: Manufacturing's issues, returns, receipts and recipe backflushes (raised only for Inventory-ledger documents).

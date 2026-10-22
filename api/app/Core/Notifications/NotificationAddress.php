@@ -18,8 +18,9 @@ final class NotificationAddress
         public readonly string $name,
         public readonly string $locale,
     ) {
-        if (! in_array($channel, [Channels::EMAIL, Channels::SMS], true)) {
-            throw new InvalidArgumentException("A notification address is an email address or a phone number, not [{$channel}].");
+        // ECOM-44: a phone number may also be reached on WhatsApp (through the channel's driver).
+        if (! in_array($channel, [Channels::EMAIL, Channels::SMS, Channels::WHATSAPP], true)) {
+            throw new InvalidArgumentException("A notification address is an email address or a phone number (SMS or WhatsApp), not [{$channel}].");
         }
     }
 }

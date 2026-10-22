@@ -59,7 +59,7 @@ class OrderController
     {
         $this->visible($request, $ecomOrder);
 
-        return response()->json(['data' => Present::order($ecomOrder)]);
+        return response()->json(['data' => Present::order($ecomOrder, $request->user())]);
     }
 
     /** ECOM-09: a cart priced for staff taking an order (problems listed, never thrown). */
@@ -155,7 +155,7 @@ class OrderController
             }
         }
 
-        return response()->json(['data' => [...Present::order($result['order']->refresh()), 'payment' => $payment]], $result['created'] ? 201 : 200);
+        return response()->json(['data' => [...Present::order($result['order']->refresh(), $request->user()), 'payment' => $payment]], $result['created'] ? 201 : 200);
     }
 
     private function act(Request $request, Order $order, string $permission, callable $fn): JsonResponse
@@ -163,7 +163,7 @@ class OrderController
         $this->visible($request, $order);
         $this->access->assertAtLocation($request->user(), $permission, $order->location_id);
 
-        return response()->json(['data' => Present::order($fn()->refresh())]);
+        return response()->json(['data' => Present::order($fn()->refresh(), $request->user())]);
     }
 
     private function visible(Request $request, Order $order): void

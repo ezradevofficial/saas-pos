@@ -97,7 +97,7 @@ class RiderTest extends TestCase
 
     public function test_a_locked_delivery_refuses_every_delivered_update_even_with_a_photo(): void
     {
-        Storage::fake('local');
+        Storage::fake('media');
         $delivery = $this->assigned();
         $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
         $wrong = $this->sentDeliveryCode() === '999999' ? '888888' : '999999';
@@ -133,7 +133,7 @@ class RiderTest extends TestCase
 
     public function test_a_photo_proves_delivery_and_a_failed_delivery_returns_the_order(): void
     {
-        Storage::fake('local');
+        Storage::fake('media');
         $first = $this->assigned();
         $this->updates([$this->update($first, 'status', ['status' => 'picked_up'])])->assertOk();
         $this->json('POST', "/api/v1/ecommerce/rider/deliveries/{$first->id}/photo", ['photo' => UploadedFile::fake()->image('door.jpg')], $this->headersFor($this->riderUser))->assertCreated();

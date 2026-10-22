@@ -180,11 +180,17 @@ final class OrderFlow
      * ECOM-18, ECOM-19: an order that left comes back: a failed delivery
      * (nothing was sold) or a return of a delivered order (refund due on
      * what was paid, the `ecommerce.return` posting, the fiscal credit
-     * note, Loyalty reversed). One return per order (decision 10).
+     * note, Loyalty reversed). The whole order at once (decision 10); part
+     * of it through Returns (ECOM-42), and then only that way.
      */
     public function return(Order $order, ?User $by, string $reason, bool $fee = false): Order
     {
         $delivered = $order->status === Order::DELIVERED;
+
+        // ECOM-42: after a partial return, the rest comes back through partial returns too (never twice).
+        if ($delivered && Returns::hasReturns($order)) {
+            throw EcomError::make('partial_returns_exist', status: 409);
+        }
 
         if ($delivered && $by !== null) {
             $this->assertRefundLimit($order, $by, $order->total_minor - ($fee ? 0 : $order->delivery_fee_minor + $order->delivery_tax_minor));

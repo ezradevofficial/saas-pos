@@ -26,7 +26,9 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Ecommerce\Console\ExpireCommand;
+use Modules\Ecommerce\Events\ExchangeIssued;
 use Modules\Ecommerce\Events\OrderEvent;
+use Modules\Ecommerce\Events\OrderLinesReturned;
 use Modules\Ecommerce\Events\OrderReturned;
 use Modules\Ecommerce\Http\Lists\OrderList;
 use Modules\Ecommerce\Integrations\EcommerceFiscalSource;
@@ -105,6 +107,13 @@ class EcommerceServiceProvider extends ServiceProvider
                 personal: ['line' => 'empty_string', 'area' => 'null', 'notes' => 'null'],
             ));
             $subjects->register(new SubjectSource(subjectType: 'customer', table: 'ecom_orders', match: 'party_id', related: true));
+            // ECOM-40, ECOM-26 (KE DPA): a rider is a user; their trail, the last position on their
+            // deliveries and their rider record are theirs (reported, and cleared when they are deleted).
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'ecom_delivery_locations', match: 'user_id',
+                personal: ['latitude' => 'null', 'longitude' => 'null']));
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'ecom_deliveries', match: 'rider_id', through: ['ecom_riders', 'user_id'],
+                personal: ['last_latitude' => 'null', 'last_longitude' => 'null']));
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'ecom_riders', match: 'user_id', personal: ['phone' => 'null', 'vehicle' => 'null']));
         });
         $this->app->singleton(WhatsAppProviders::class);
     }
@@ -133,6 +142,9 @@ class EcommerceServiceProvider extends ServiceProvider
         // ECOM-33, ECOM-35: after delivery and after a return of a delivered order.
         Event::listen(OrderEvent::class, OrderIntegrations::class);
         Event::listen(OrderReturned::class, OrderIntegrations::class);
+        // ECOM-42, ECOM-43: partial returns' credit notes and exchanges' invoices.
+        Event::listen(OrderLinesReturned::class, OrderIntegrations::class);
+        Event::listen(ExchangeIssued::class, OrderIntegrations::class);
 
         // LAY-04: lists with saved views.
         $lists = $this->app->make(ListViewCatalogue::class);

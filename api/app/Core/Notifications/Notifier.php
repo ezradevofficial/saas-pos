@@ -147,7 +147,8 @@ class Notifier
                     'recipient' => $address->to,
                 ];
 
-                $queue($address->channel === Channels::SMS && ! $this->drivers->available(Channels::SMS, $type)
+                // SMS and WhatsApp need their driver (NOT-01); without one the delivery is skipped, never queued.
+                $queue(in_array($address->channel, [Channels::SMS, Channels::WHATSAPP], true) && ! $this->drivers->available($address->channel, $type)
                     ? $this->skipped($row, NotificationDelivery::REASON_CHANNEL_UNAVAILABLE)
                     : NotificationDelivery::create([...$row, 'status' => NotificationDelivery::QUEUED]));
             }

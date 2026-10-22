@@ -7,6 +7,8 @@ use App\Core\MasterData\Items\Item;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
+use Brick\Math\BigDecimal;
+use Modules\Ecommerce\Delivery\ProofPhotos;
 use Modules\Ecommerce\Models\Cashup;
 use Modules\Ecommerce\Models\Conversation;
 use Modules\Ecommerce\Models\Customer;
@@ -20,6 +22,9 @@ use Modules\Ecommerce\Models\Product;
 use Modules\Ecommerce\Models\Rider;
 use Modules\Ecommerce\Models\Store;
 use Modules\Ecommerce\Models\Zone;
+use Modules\Ecommerce\Notifications\OrderNotices;
+use Modules\Ecommerce\Orders\Returns;
+use Modules\Ecommerce\Policies\DeliveryPolicy;
 use Modules\Ecommerce\Shop\ShopUrls;
 
 /**
@@ -70,6 +75,8 @@ final class Present
             'contact_email' => $store->contact_email,
             'whatsapp_number' => $store->whatsapp_number,
             'whatsapp_connected' => $store->whatsapp_token_hash !== null,
+            // ECOM-44: order messages on WhatsApp need the platform's provider driver (owner input).
+            'whatsapp_notifications' => app(OrderNotices::class)->whatsappAvailable() ? 'available' : 'not_configured',
             'delivery_tax_code_id' => $store->delivery_tax_code_id,
             'payment_methods' => $store->payment_methods ?? [],
             'archived_at' => self::at($store->archived_at),
@@ -138,9 +145,12 @@ final class Present
         ];
     }
 
-    public static function order(Order $order): array
+    public static function order(Order $order, ?User $viewer = null): array
     {
         $delivery = Delivery::query()->where('order_id', $order->id)->first();
+        $returned = Returns::returnedQty($order);
+        $left = fn (OrderLine $line) => $order->status === Order::DELIVERED
+            ? rtrim(rtrim((string) BigDecimal::of((string) $line->qty)->minus($returned[$line->id] ?? '0')->toScale(3), '0'), '.') ?: '0' : '0';
 
         return [
             ...self::orderSummary($order),
@@ -164,6 +174,8 @@ final class Present
                 'qty' => (string) $line->qty, 'unit_price_minor' => (string) $line->unit_price_minor, 'gross_minor' => (string) $line->gross_minor,
                 'discount_minor' => (string) $line->discount_minor, 'tax_minor' => (string) $line->tax_minor, 'total_minor' => (string) $line->total_minor,
                 'tax_rate' => $line->tax_rate === null ? null : (string) $line->tax_rate,
+                // ECOM-42: what came back already, and what may still come back (a delivered order only).
+                'returned_qty' => $returned[$line->id] ?? '0', 'returnable_qty' => $left($line),
             ])->values()->all(),
             'payments' => Payment::query()->where('order_id', $order->id)->orderBy('created_at')->orderBy('id')->get()->map(fn (Payment $p) => [
                 'id' => $p->id, 'kind' => $p->kind, 'payment_method_id' => $p->payment_method_id, 'currency' => $p->currency, 'amount_minor' => (string) $p->amount_minor,
@@ -172,7 +184,8 @@ final class Present
             'history' => OrderEvent::query()->where('order_id', $order->id)->orderBy('at')->orderBy('id')->get()->map(fn (OrderEvent $e) => [
                 'from' => $e->from, 'to' => $e->to, 'payment_status' => $e->payment_status, 'note' => $e->note, 'user' => self::named($e->user_id, User::class), 'at' => self::at($e->at),
             ])->values()->all(),
-            'delivery' => $delivery === null ? null : self::delivery($delivery, false),
+            'delivery' => $delivery === null ? null : self::delivery($delivery, false, $viewer),
+            'returns' => Returns::present($order),
             'times' => [
                 'paid_at' => self::at($order->paid_at), 'accepted_at' => self::at($order->accepted_at), 'picking_at' => self::at($order->picking_at),
                 'ready_at' => self::at($order->ready_at), 'dispatched_at' => self::at($order->dispatched_at), 'delivered_at' => self::at($order->delivered_at),
@@ -185,9 +198,15 @@ final class Present
         ];
     }
 
-    public static function delivery(Delivery $delivery, bool $withOrder = true): array
+    /**
+     * ECOM-40, ECOM-41: the position only for a viewer holding
+     * `ecommerce.delivery.track` at the delivery's location; the proof photo
+     * as a temporary link for the viewer.
+     */
+    public static function delivery(Delivery $delivery, bool $withOrder = true, ?User $viewer = null): array
     {
         $order = $withOrder ? Order::query()->find($delivery->order_id) : null;
+        $track = $viewer !== null && app(DeliveryPolicy::class)->track($viewer, $delivery);
 
         return [
             'id' => $delivery->id,
@@ -206,13 +225,25 @@ final class Present
             'failed_at' => self::at($delivery->failed_at),
             'reason' => $delivery->reason,
             'proof_kind' => $delivery->proof_kind,
-            'last_location' => $delivery->located_at === null ? null : ['latitude' => (string) $delivery->last_latitude, 'longitude' => (string) $delivery->last_longitude, 'at' => self::at($delivery->located_at)],
+            'can_track' => $track,
+            'last_location' => $track ? self::location($delivery) : null,
+            'proof_photo' => $viewer === null ? null : app(ProofPhotos::class)->present($delivery, $viewer),
             'currency' => $delivery->currency,
             'cod_due_minor' => (string) $delivery->cod_due_minor,
             'cod_collected_minor' => $delivery->cod_collected_minor === null ? null : (string) $delivery->cod_collected_minor,
             'cashup_id' => $delivery->cashup_id,
             'flags' => $delivery->flags ?? [],
         ];
+    }
+
+    /** @return array{latitude: string, longitude: string, at: ?string}|null the delivery's latest reported position */
+    public static function location(Delivery $delivery): ?array
+    {
+        if ($delivery->located_at === null || $delivery->last_latitude === null) {
+            return null;
+        }
+
+        return ['latitude' => (string) $delivery->last_latitude, 'longitude' => (string) $delivery->last_longitude, 'at' => self::at($delivery->located_at)];
     }
 
     public static function rider(Rider $rider): array

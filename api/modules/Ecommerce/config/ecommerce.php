@@ -40,5 +40,9 @@ return [
         // ECOM-28: status updates in one upload, and the largest proof photo (kilobytes).
         'max_updates' => 100,
         'max_photo_kb' => 4096,
+        // ECOM-41: the largest side of a proof photo (pixels); larger photos are refused.
+        'max_photo_pixels' => 6000,
+        // ECOM-40: trail points kept per active delivery (the oldest are dropped); cleared when it ends.
+        'max_trail_points' => 500,
     ],
 ];

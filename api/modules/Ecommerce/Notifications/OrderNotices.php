@@ -3,6 +3,7 @@
 namespace Modules\Ecommerce\Notifications;
 
 use App\Core\Notifications\Channels;
+use App\Core\Notifications\Drivers\ChannelDrivers;
 use App\Core\Notifications\EventType;
 use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\NotificationAddress;
@@ -19,6 +20,14 @@ use Modules\Ecommerce\Support\Amounts;
  * placed in. The tracking link and the delivery code are secrets: they
  * reach the message at hand-over only and are never stored (the order
  * keeps their hashes). A transport failure never fails the order.
+ *
+ * ECOM-44: a customer who ticked it at checkout also gets each message on
+ * WhatsApp, through the core notifier's WhatsApp driver, with the event's
+ * short text (its `sms` template, the tenant's override when set, NOT-03).
+ * Until the platform owner configures the driver
+ * (`notifications.drivers.whatsapp`), the channel is not configured:
+ * checkout does not offer it and nothing is queued. SMS and email go out as
+ * before (decision 17).
  */
 final class OrderNotices
 {
@@ -41,7 +50,13 @@ final class OrderNotices
         self::DISPATCHED => 'dispatched', self::DELIVERED => 'delivered', self::CANCELLED => 'cancelled',
     ];
 
-    public function __construct(private readonly Notifier $notifier) {}
+    public function __construct(private readonly Notifier $notifier, private readonly ChannelDrivers $drivers) {}
+
+    /** ECOM-44: whether order messages can go out on WhatsApp (a provider driver is configured). */
+    public function whatsappAvailable(): bool
+    {
+        return $this->drivers->available(Channels::WHATSAPP);
+    }
 
     public static function register(EventTypes $types): void
     {
@@ -53,7 +68,7 @@ final class OrderNotices
                     'tracking_url' => 'https://shop.example.com/shop/duka/orders/WEB-NBO-2026-00012?t=…', 'delivery_code' => '482913',
                 ],
                 defaultChannels: [Channels::SMS, Channels::EMAIL],
-                channels: [Channels::SMS, Channels::EMAIL],
+                channels: [Channels::SMS, Channels::EMAIL, Channels::WHATSAPP],
                 langKey: "ecommerce.notifications.{$name}",
                 system: true,
                 secrets: ['tracking_url', 'delivery_code'],
@@ -70,6 +85,10 @@ final class OrderNotices
 
         if ($order->contact_phone !== '') {
             $addresses[] = new NotificationAddress(Channels::SMS, $order->contact_phone, $order->contact_name, $locale);
+        }
+
+        if ($order->whatsapp_opt_in && $order->contact_phone !== '' && $this->whatsappAvailable()) {
+            $addresses[] = new NotificationAddress(Channels::WHATSAPP, $order->contact_phone, $order->contact_name, $locale);
         }
 
         if ($order->contact_email !== null && $order->contact_email !== '') {

@@ -3,6 +3,18 @@
 // E-commerce and delivery module (docs/modules/ecommerce.md).
 return [
     'errors' => [
+        'delivery_not_active' => 'This delivery is no longer active, so its location is not kept.',
+        'photo_not_stored' => 'The photo could not be saved. Try again.',
+        'photo_invalid' => 'This file is not a readable photo. Take the photo again.',
+        'photo_too_large' => 'The photo is larger than :max. Take it again at a lower size.',
+        'photo_type' => 'Send the photo as a JPEG, PNG or WebP image.',
+        'return_not_allowed' => 'Only a delivered order can take a return or exchange. This order is :status.',
+        'return_line_invalid' => 'Choose lines of this order, each once.',
+        'return_qty_invalid' => 'Enter a quantity of :product up to :qty (what has not come back yet), whole units for items counted by the piece.',
+        'return_lines_required' => 'Choose at least one line coming back.',
+        'partial_returns_exist' => 'Part of this order has already come back. Return the rest with a return, not the whole order.',
+        'collect_not_due' => 'Nothing is waiting to be collected on this exchange.',
+        'collect_method_invalid' => 'Choose an active payment method of this company in the order’s currency.',
         'forbidden' => 'You can’t do this here. Ask an administrator for access.',
         'product_unavailable' => 'This product is no longer sold online. Remove it from the cart.',
         'qty_invalid' => 'Enter a valid quantity for :product.',
@@ -77,6 +89,15 @@ return [
         'conversation_converted' => 'This chat already became an order.',
         'refund_not_due' => 'Nothing is waiting to be refunded on this order.',
         'loyalty_inactive' => 'Loyalty is not active.',
+    ],
+
+    'attributes' => [
+        'photo' => 'photo',
+    ],
+
+    'returns' => [
+        'history' => 'Return :number: :reason',
+        'refunded' => 'Return :number refunded',
     ],
 
     'statuses' => [
