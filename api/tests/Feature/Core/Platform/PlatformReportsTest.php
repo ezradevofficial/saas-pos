@@ -153,6 +153,25 @@ class PlatformReportsTest extends TestCase
         $this->assertCount(2, $mrr['by_module']);
     }
 
+    /** ADM-01, ADM-06: the console shows each account's MRR net of tax, as the MRR report counts it. */
+    public function test_the_tenants_console_shows_the_same_net_mrr_as_the_report(): void
+    {
+        $this->activate();
+        $trial = $this->otherTenant();
+        $this->asTenant($trial['user']->tenant_id, fn () => app(Subscriptions::class)->startTrial('KE', self::STARTER));
+        $support = $this->staffBearer($this->staff(PlatformUser::ROLE_SUPPORT));
+
+        // KES 3,900.00 less 433.33 at the pinned 12.5%; a trial pays nothing.
+        $list = collect($this->getJson('/api/v1/platform/tenants', $support)->assertOk()->json('data'))->keyBy('tenant_id');
+        $this->assertSame(['amount_minor' => 346667, 'currency' => 'KES'], $list[$this->owner->tenant_id]['mrr']);
+        $this->assertSame(0, $list[$trial['user']->tenant_id]['mrr']['amount_minor']);
+        $this->getJson("/api/v1/platform/tenants/{$this->owner->tenant_id}", $support)->assertOk()
+            ->assertJsonPath('data.account.mrr', ['amount_minor' => 346667, 'currency' => 'KES']);
+
+        $report = $this->getJson('/api/v1/platform/reports/summary', $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE)))->assertOk()->json('data.mrr.by_currency');
+        $this->assertSame(346667, $report[0]['amount_minor']);
+    }
+
     /** CP-02: with no rate on the invoice (none confirmed), MRR is left as billed, never guessed. */
     public function test_mrr_without_a_tax_rate_is_left_as_billed(): void
     {

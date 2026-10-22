@@ -63,8 +63,8 @@ class PlatformReports
     private function mrrRows(): array
     {
         $accounts = OperatorAccount::query()->whereIn('status', Accounts::PAYING)->get();
-        $invoices = $accounts->mapWithKeys(fn (OperatorAccount $a) => [$a->customer_tenant_id => $this->periodInvoice($a->customer_tenant_id)]);
-        $net = fn (OperatorAccount $a) => self::netOfTax((int) $a->mrr_minor, $invoices[$a->customer_tenant_id]);
+        $invoices = $this->periodInvoices($accounts->pluck('customer_tenant_id')->all());
+        $net = fn (OperatorAccount $a) => self::netOfTax((int) $a->mrr_minor, $invoices[$a->customer_tenant_id] ?? null);
         $sum = fn (Collection $rows, callable $key) => $rows->groupBy(fn (OperatorAccount $a) => $key($a).'|'.$a->currency)
             ->map(fn (Collection $group, string $k) => [...self::split($k), 'accounts' => $group->count(), 'amount_minor' => (int) $group->sum($net)])
             ->sortKeys()->values()->all();
@@ -72,7 +72,7 @@ class PlatformReports
         $byModule = [];
 
         foreach ($accounts as $account) {
-            $invoice = $invoices[$account->customer_tenant_id];
+            $invoice = $invoices[$account->customer_tenant_id] ?? null;
 
             // Review L5: the account's MRR shared out by its plan lines (overage left out), so
             // MRR by module adds up to MRR: the annual discount and coupons fall proportionally.
@@ -192,6 +192,45 @@ class PlatformReports
         $rows = DB::connection(TenantContext::CONNECTION)->select('select unit, tenants, total from public.app_platform_usage_totals(?::date)', [$on->toDateString()]);
 
         return array_map(fn ($r) => ['unit' => (string) $r->unit, 'tenants' => (int) $r->tenants, 'total' => (int) $r->total], $rows);
+    }
+
+    /**
+     * Each account's MRR net of tax, as the MRR report counts it, for the
+     * platform console (ADM-01): customer tenant id => minor units.
+     *
+     * @param  iterable<OperatorAccount>  $accounts
+     * @return array<string, int>
+     */
+    public function netMrr(iterable $accounts): array
+    {
+        $accounts = collect($accounts);
+
+        if ($accounts->isEmpty()) {
+            return [];
+        }
+
+        $invoices = $this->inOperator(fn () => $this->periodInvoices($accounts->pluck('customer_tenant_id')->all()), []);
+
+        return $accounts->mapWithKeys(fn (OperatorAccount $a) => [
+            $a->customer_tenant_id => self::netOfTax((int) $a->mrr_minor, $invoices[$a->customer_tenant_id] ?? null),
+        ])->all();
+    }
+
+    /**
+     * The accounts' latest period invoices (first or renewal, not void), in one query.
+     *
+     * @param  list<string>  $customerTenantIds
+     * @return array<string, OperatorInvoice>
+     */
+    private function periodInvoices(array $customerTenantIds): array
+    {
+        if ($customerTenantIds === []) {
+            return [];
+        }
+
+        return OperatorInvoice::query()->selectRaw('distinct on (customer_tenant_id) *')
+            ->whereIn('customer_tenant_id', $customerTenantIds)->whereIn('kind', ['first', 'renewal'])->where('status', '<>', 'void')
+            ->orderBy('customer_tenant_id')->orderByDesc('period_start')->get()->keyBy('customer_tenant_id')->all();
     }
 
     /** The account's latest period invoice (first or renewal, not void), issued by $before when given. */
