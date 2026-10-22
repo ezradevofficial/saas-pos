@@ -115,7 +115,8 @@ final class Postings
         }
 
         if ($return->collect_minor > 0 && $return->collect_payment_method_id !== null) {
-            self::add($amounts, 'tender.'.$return->collect_payment_method_id, $return->collect_minor);
+            // Review L5: a rider's cash waits in COD clearing for their cash-up, like cash on delivery.
+            self::add($amounts, Returns::riderCash($return) ? 'cod' : 'tender.'.$return->collect_payment_method_id, $return->collect_minor);
         }
 
         $this->raise($order, EcommercePosting::ORDER, (string) $return->exchange_sale_id, $return->exchange_posted_at ?? CarbonImmutable::now(), $amounts, $return->number);

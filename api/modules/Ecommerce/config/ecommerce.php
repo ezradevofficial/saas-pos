@@ -36,6 +36,11 @@ return [
         'per_ip_per_minute' => (int) env('ECOMMERCE_WHATSAPP_PER_IP_PER_MINUTE', 300),
     ],
 
+    // Review L6: order messages (SMS and WhatsApp) a phone gets in a day.
+    'notifications' => [
+        'per_phone_per_day' => 20,
+    ],
+
     'rider' => [
         // ECOM-28: status updates in one upload, and the largest proof photo (kilobytes).
         'max_updates' => 100,

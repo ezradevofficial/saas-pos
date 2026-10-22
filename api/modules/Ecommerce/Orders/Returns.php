@@ -6,6 +6,7 @@ use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Workflow\Runtime\WorkflowEngine;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
@@ -22,6 +23,7 @@ use Modules\Ecommerce\Models\OrderReturn;
 use Modules\Ecommerce\Models\Payment;
 use Modules\Ecommerce\Models\Product;
 use Modules\Ecommerce\Models\ReturnLine;
+use Modules\Ecommerce\Models\Rider;
 use Modules\Ecommerce\Models\Store;
 use Modules\Ecommerce\Support\EcomError;
 use Modules\Ecommerce\Support\Tx;
@@ -44,9 +46,13 @@ use Modules\Ecommerce\Support\Tx;
  * of the order's location under the stock locks. The difference is
  * refunded (refund due) or collected (collect due).
  *
- * Creating one (`ecommerce.order.manage`) keeps the refund within the
- * user's `max_refund_amount` (RBAC-06), is recorded in the order's history
- * and audited (AUD-01), and raises after commit OrderLinesReturned
+ * Creating one (`ecommerce.order.manage`) is recorded in the order's
+ * history and audited (AUD-01). Review H1: the refund is counted with the
+ * order's other refunds (refunded or due), so splitting a return never
+ * gets round the user's `max_refund_amount` (RBAC-06); above it, the return
+ * waits for approval (ReturnType, the approvals engine) and nothing of it
+ * moves until approved; a rejection gives its quantities back. Once
+ * committed (at once, or when approved) it raises after commit OrderLinesReturned
  * (Inventory brings the stock back, the fiscal credit note) and the
  * `ecommerce.return` posting. An exchange's item leaves, posts as a sale
  * and is fiscalised once nothing is left to collect (ExchangeIssued).
@@ -62,6 +68,7 @@ final class Returns
         private readonly Reservations $reservations,
         private readonly OrderFlow $flow,
         private readonly Postings $postings,
+        private readonly WorkflowEngine $engine,
     ) {}
 
     /**
@@ -98,9 +105,8 @@ final class Returns
             $at = CarbonImmutable::now();
             $quote = $this->compute($order, $input, $at);
 
-            if ($quote['refund_minor'] > 0) {
-                $this->flow->assertRefundLimit($order, $by, $quote['refund_minor']);
-            }
+            // Review H1: this refund with the order's other refunds (refunded or due), never on its own.
+            $needsApproval = $quote['refund_minor'] > 0 && ! $this->flow->withinRefundLimit($order, $by, self::refundsOf($order) + $quote['refund_minor']);
 
             $seq = (int) OrderReturn::query()->where('order_id', $order->id)->max('seq') + 1;
             $return = OrderReturn::create([
@@ -129,6 +135,8 @@ final class Returns
                 'exchange_sale_id' => $quote['out'] === [] ? null : (string) Str::uuid7(),
                 'created_by' => $by->id,
                 'at' => $at,
+                'approval_status' => $needsApproval ? 'pending' : 'none',
+                'approval_requested_by' => $needsApproval ? $by->id : null,
             ]);
 
             $no = 0;
@@ -140,25 +148,95 @@ final class Returns
                 ]);
             }
 
-            History::create(['order_id' => $order->id, 'from' => $order->status, 'to' => $order->status, 'payment_status' => $order->payment_status,
-                'note' => mb_substr(__('ecommerce.returns.history', ['number' => $return->number, 'reason' => $return->reason]), 0, 500), 'user_id' => $by->id, 'at' => $at]);
+            if ($needsApproval) {
+                History::create(['order_id' => $order->id, 'from' => $order->status, 'to' => $order->status, 'payment_status' => $order->payment_status,
+                    'note' => mb_substr(__('ecommerce.returns.awaiting_approval', ['number' => $return->number, 'reason' => $return->reason]), 0, 500), 'user_id' => $by->id, 'at' => $at]);
+                $this->engine->start(ReturnType::KEY, $return->id, $by);
 
-            $in = ReturnLine::query()->where('return_id', $return->id)->where('direction', ReturnLine::IN)->orderBy('line_no')->get();
-            OrderLinesReturned::dispatch($order->tenant_id, $return->id, $order->id, $return->number, $order->company_id, $order->branch_id, $order->location_id,
-                $at->toIso8601String(), $by->id, $in->map(fn (ReturnLine $l) => [
-                    'line_id' => $l->id, 'order_line_id' => (string) $l->order_line_id, 'item_id' => $l->item_id, 'uom_id' => $l->uom_id, 'qty' => (string) $l->qty, 'qty_base' => (string) $l->qty_base,
-                ])->values()->all());
-            OrderEvent::dispatch($order->tenant_id, OrderEvent::STATUS_CHANGED, $order->id, $order->company_id, $order->number, $order->currency, (string) $order->total_minor, $order->status, $order->status);
-            $this->postings->partialReturn($order, $return);
-
-            if ($return->exchange_sale_id !== null && $return->collect_status === 'none') {
-                $this->issue($order, $return, $by);
+                return $return;
             }
+
+            $this->commit($order, $return, $by, $at);
 
             return $return;
         });
 
         return $return->refresh();
+    }
+
+    /**
+     * Review H1: the approval flow's answer. Approved: a return that waited
+     * is committed now (a refund that waited may now be paid back by anyone
+     * with the permission). Rejected or cancelled: a return that waited
+     * gives its quantities back; a committed one keeps its refund due.
+     */
+    public function decided(string $returnId, bool $approved, ?string $userId): void
+    {
+        Tx::run(function () use ($returnId, $approved, $userId) {
+            $return = OrderReturn::query()->whereKey($returnId)->first();
+            $order = $return === null ? null : Order::query()->whereKey($return->order_id)->lockForUpdate()->first();
+            $return = $order === null ? null : OrderReturn::query()->whereKey($returnId)->lockForUpdate()->first();
+
+            if ($return === null || $return->approval_status !== 'pending') {
+                return;
+            }
+
+            $by = User::query()->find($userId ?? $return->approval_requested_by) ?? User::query()->findOrFail($return->created_by);
+
+            if ($approved) {
+                $return->forceFill(['approval_status' => 'approved'])->save();
+
+                if ($return->committed_at === null) {
+                    $this->commit($order, $return, $by, CarbonImmutable::now());
+                }
+
+                return;
+            }
+
+            $return->forceFill($return->committed_at === null
+                ? ['approval_status' => 'rejected', 'refund_status' => 'none', 'collect_status' => 'none']
+                : ['approval_status' => 'rejected'])->save();
+            History::create(['order_id' => $order->id, 'from' => $order->status, 'to' => $order->status, 'payment_status' => $order->payment_status,
+                'note' => mb_substr(__('ecommerce.returns.rejected', ['number' => $return->number]), 0, 500), 'user_id' => $userId, 'at' => CarbonImmutable::now()]);
+        });
+    }
+
+    /** The return's stock, posting and fiscal note (and an exchange's item once nothing is left to collect), once. */
+    private function commit(Order $order, OrderReturn $return, User $by, CarbonImmutable $at): void
+    {
+        if ($return->committed_at !== null) {
+            return;
+        }
+
+        $return->forceFill(['committed_at' => $at])->save();
+        History::create(['order_id' => $order->id, 'from' => $order->status, 'to' => $order->status, 'payment_status' => $order->payment_status,
+            'note' => mb_substr(__('ecommerce.returns.history', ['number' => $return->number, 'reason' => $return->reason]), 0, 500), 'user_id' => $by->id, 'at' => $at]);
+
+        $in = ReturnLine::query()->where('return_id', $return->id)->where('direction', ReturnLine::IN)->orderBy('line_no')->get();
+        OrderLinesReturned::dispatch($order->tenant_id, $return->id, $order->id, $return->number, $order->company_id, $order->branch_id, $order->location_id,
+            $at->toIso8601String(), $by->id, $in->map(fn (ReturnLine $l) => [
+                'line_id' => $l->id, 'order_line_id' => (string) $l->order_line_id, 'item_id' => $l->item_id, 'uom_id' => $l->uom_id, 'qty' => (string) $l->qty, 'qty_base' => (string) $l->qty_base,
+            ])->values()->all());
+        OrderEvent::dispatch($order->tenant_id, OrderEvent::STATUS_CHANGED, $order->id, $order->company_id, $order->number, $order->currency, (string) $order->total_minor, $order->status, $order->status);
+        $this->postings->partialReturn($order, $return);
+
+        if ($return->exchange_sale_id !== null && $return->collect_status === 'none') {
+            $this->issue($order, $return, $by);
+        }
+    }
+
+    /**
+     * Review H1: what the order gives back in all (minor units), refunded or
+     * due, over its returns not rejected (one left out: the one asked about).
+     */
+    public static function refundsOf(?Order $order, ?string $except = null): int
+    {
+        if ($order === null) {
+            return 0;
+        }
+
+        return (int) OrderReturn::query()->where('order_id', $order->id)->where('approval_status', '!=', 'rejected')
+            ->whereIn('refund_status', ['due', 'refunded'])->when($except !== null, fn ($q) => $q->whereKeyNot($except))->sum('refund_minor');
     }
 
     /**
@@ -176,6 +254,15 @@ final class Returns
                 throw EcomError::make('collect_not_due', status: 409);
             }
 
+            if ($return->approval_status === 'pending') {
+                throw EcomError::make('return_awaiting_approval', status: 409);
+            }
+
+            // Review L5: how the money was taken is always on record.
+            if ($reference === null || trim($reference) === '') {
+                throw EcomError::make('collect_reference_required', field: 'reference');
+            }
+
             $method = PaymentMethod::query()->whereKey($paymentMethodId)->where('company_id', $order->company_id)->where('active', true)->first();
 
             if ($method === null || ($method->currency !== null && $method->currency !== $order->currency)) {
@@ -184,7 +271,7 @@ final class Returns
 
             $return->forceFill([
                 'collect_status' => 'collected', 'collect_payment_method_id' => $method->id, 'collected_at' => CarbonImmutable::now(), 'collected_by' => $by->id,
-                'collect_reference' => $reference === null || trim($reference) === '' ? null : mb_substr(trim($reference), 0, 120),
+                'collect_reference' => mb_substr(trim($reference), 0, 120),
             ])->save();
             $this->issue($order, $return, $by);
 
@@ -271,6 +358,12 @@ final class Returns
 
             $after = $before->plus($qty);
             $share = fn (int $amount) => self::share($amount, $after, $total) - self::share($amount, $before, $total);
+            // Review M7: total, tax and gross are shared; net and discount follow from them, so net + tax = total
+            // (and gross − discount = net, or = total when the price includes tax) exactly on every return.
+            $lineTotal = $share($line->total_minor);
+            $lineTax = $share($line->tax_minor);
+            $lineGross = $share($line->gross_minor);
+            $lineNet = $lineTotal - $lineTax;
             $in[] = [
                 'direction' => ReturnLine::IN,
                 'order_line_id' => $line->id,
@@ -283,11 +376,11 @@ final class Returns
                     ? BigDecimal::of((string) $line->qty_base)->minus(BigDecimal::of((string) $line->qty_base)->multipliedBy($before)->dividedBy($total, 6, RoundingMode::HalfUp))
                     : BigDecimal::of((string) $line->qty_base)->multipliedBy($qty)->dividedBy($total, 6, RoundingMode::HalfUp)),
                 'unit_price_minor' => $line->unit_price_minor,
-                'gross_minor' => $share($line->gross_minor),
-                'discount_minor' => $share($line->discount_minor),
-                'net_minor' => $share($line->net_minor),
-                'tax_minor' => $share($line->tax_minor),
-                'total_minor' => $share($line->total_minor),
+                'gross_minor' => $lineGross,
+                'discount_minor' => max(0, $lineGross - ($line->tax_inclusive ? $lineTotal : $lineNet)),
+                'net_minor' => $lineNet,
+                'tax_minor' => $lineTax,
+                'total_minor' => $lineTotal,
                 'tax_code_id' => $line->tax_code_id,
                 'tax_rate' => $line->tax_rate === null ? null : (string) $line->tax_rate,
                 'tax_inclusive' => $line->tax_inclusive,
@@ -345,13 +438,25 @@ final class Returns
     public static function returned(Order $order): array
     {
         return ReturnLine::query()->where('order_id', $order->id)->where('direction', ReturnLine::IN)
+            ->whereIn('return_id', OrderReturn::query()->where('order_id', $order->id)->where('approval_status', '!=', 'rejected')->select('id'))
             ->selectRaw('order_line_id, sum(qty) as qty')->groupBy('order_line_id')->pluck('qty', 'order_line_id')
             ->map(fn ($qty) => (string) $qty)->all();
     }
 
     public static function hasReturns(Order $order): bool
     {
-        return OrderReturn::query()->where('order_id', $order->id)->exists();
+        return OrderReturn::query()->where('order_id', $order->id)->where('approval_status', '!=', 'rejected')->exists();
+    }
+
+    /** Review L5: cash a rider of the company took for an exchange (theirs to hand in at their cash-up). */
+    public static function riderCash(OrderReturn $return): bool
+    {
+        if ($return->collect_status !== 'collected' || $return->collected_by === null || $return->collect_payment_method_id === null) {
+            return false;
+        }
+
+        return PaymentMethod::query()->whereKey($return->collect_payment_method_id)->where('type', 'cash')->exists()
+            && Rider::query()->where('company_id', $return->company_id)->where('user_id', $return->collected_by)->exists();
     }
 
     /** round_half_up($amount × $part / $whole), in minor units. */
@@ -394,10 +499,11 @@ final class Returns
     public static function allocation(Order $order, OrderReturn $return): array
     {
         $rank = ['mpesa' => 0, 'card' => 1, 'cod' => 2, 'gift_card' => 3, 'points' => 4];
-        $payments = Payment::query()->where('order_id', $order->id)->whereIn('status', ['succeeded', 'collected', 'refunded', 'reversed'])->get()
+        // Review L4: only money the order actually holds can be given back.
+        $payments = Payment::query()->where('order_id', $order->id)->whereIn('status', ['succeeded', 'collected'])->get()
             ->sortBy(fn (Payment $p) => [$rank[$p->kind] ?? 9, $p->created_at?->getTimestamp() ?? 0, $p->id])->values();
         $left = $payments->mapWithKeys(fn (Payment $p) => [$p->id => $p->amount_minor])->all();
-        $earlier = OrderReturn::query()->where('order_id', $order->id)->where('seq', '<', $return->seq)->orderBy('seq')->pluck('returned_total_minor');
+        $earlier = OrderReturn::query()->where('order_id', $order->id)->where('seq', '<', $return->seq)->where('approval_status', '!=', 'rejected')->orderBy('seq')->pluck('returned_total_minor');
 
         foreach ([...$earlier->all(), $return->returned_total_minor] as $index => $amount) {
             $parts = [];
@@ -438,6 +544,7 @@ final class Returns
                 'collect_minor' => (string) $r->collect_minor,
                 'refund_status' => $r->refund_status,
                 'collect_status' => $r->collect_status,
+                'approval_status' => $r->approval_status,
                 'refund_reference' => $r->refund_reference,
                 'collect_reference' => $r->collect_reference,
                 'created_by' => ['id' => $r->created_by, 'name' => (string) User::query()->whereKey($r->created_by)->value('name')],

@@ -39,6 +39,9 @@ final class OnlineLoyalty
 {
     public const SOURCE = 'ecommerce_order';
 
+    /** ECOM-42 (review M6): a partial return of an online order. */
+    public const RETURN_SOURCE = 'ecommerce_return';
+
     public function __construct(
         private readonly ModuleRegistry $modules,
         private readonly Promotions $promotions,
@@ -251,6 +254,40 @@ final class OnlineLoyalty
             foreach (PointsEntry::query()->where('source_type', self::SOURCE)->where('source_id', $orderId)->where('kind', 'earn')->get() as $entry) {
                 $account = $this->ledgers->lockAccount($entry->account_id);
                 $this->ledgers->points($account, 'reverse_earn', (string) BigInteger::of((string) $entry->points)->negated(), ['source_type' => self::SOURCE, 'source_id' => $orderId]);
+            }
+        });
+    }
+
+    /**
+     * ECOM-42, LOY-04 (review M6): a partial return takes back its share of
+     * the points the order earned, pro rata to the money returned so far
+     * ($returnedMinor, every return of the order up to this one, of its
+     * $totalMinor), net of what earlier returns ($earlierReturnIds) took.
+     * Once per return; never more than was earned.
+     *
+     * @param  list<string>  $earlierReturnIds
+     */
+    public function reverseEarnShare(string $orderId, string $returnId, array $earlierReturnIds, string $totalMinor, string $returnedMinor): void
+    {
+        if (! $this->active()) {
+            return;
+        }
+
+        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($orderId, $returnId, $earlierReturnIds, $totalMinor, $returnedMinor) {
+            foreach (PointsEntry::query()->where('source_type', self::SOURCE)->where('source_id', $orderId)->where('kind', 'earn')->get() as $entry) {
+                $account = $this->ledgers->lockAccount($entry->account_id);
+
+                if (PointsEntry::query()->where('account_id', $account->id)->where('kind', 'reverse_earn')->where('source_type', self::RETURN_SOURCE)->where('source_id', $returnId)->exists()) {
+                    continue;
+                }
+
+                $before = BigInteger::of((string) (PointsEntry::query()->where('account_id', $account->id)->where('kind', 'reverse_earn')
+                    ->where('source_type', self::RETURN_SOURCE)->whereIn('source_id', $earlierReturnIds === [] ? ['00000000-0000-0000-0000-000000000000'] : $earlierReturnIds)->sum('points') ?: '0'))->abs();
+                $reverse = PromotionEngine::pointsToReverse((string) $entry->points, $totalMinor, $returnedMinor, (string) $before);
+
+                if ($reverse !== '0') {
+                    $this->ledgers->points($account, 'reverse_earn', '-'.$reverse, ['source_type' => self::RETURN_SOURCE, 'source_id' => $returnId]);
+                }
             }
         });
     }

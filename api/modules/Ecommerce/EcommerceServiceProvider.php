@@ -16,6 +16,9 @@ use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
+use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
+use App\Core\Workflow\Events\WorkflowCancelled;
+use App\Core\Workflow\Events\WorkflowCompleted;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Query\Builder;
@@ -34,8 +37,10 @@ use Modules\Ecommerce\Http\Lists\OrderList;
 use Modules\Ecommerce\Integrations\EcommerceFiscalSource;
 use Modules\Ecommerce\Listeners\OrderIntegrations;
 use Modules\Ecommerce\Listeners\SettleOrderPayment;
+use Modules\Ecommerce\Listeners\SettleReturn;
 use Modules\Ecommerce\Notifications\OrderNotices;
 use Modules\Ecommerce\Orders\Placement;
+use Modules\Ecommerce\Orders\ReturnType;
 use Modules\Ecommerce\Webhooks\EcommerceWebhookEvents;
 use Modules\Ecommerce\WhatsApp\WhatsAppProviders;
 
@@ -144,6 +149,11 @@ class EcommerceServiceProvider extends ServiceProvider
 
         // ECOM-35: delivered orders and returns for the fiscal queue.
         $this->app->make(FiscalSources::class)->register(EcommerceFiscalSource::KEY, EcommerceFiscalSource::class);
+
+        // Review H1 (APR, RBAC-06): returns whose refunds are above the user's limit go for approval.
+        $this->app->make(DocumentTypeRegistry::class)->register(ReturnType::class);
+        Event::listen(WorkflowCompleted::class, SettleReturn::class);
+        Event::listen(WorkflowCancelled::class, SettleReturn::class);
 
         // ECOM-15: provider results for orders and refunds.
         Event::listen(PaymentIntentSettled::class, SettleOrderPayment::class);

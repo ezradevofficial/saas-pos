@@ -2,9 +2,13 @@
 
 namespace Modules\Ecommerce\Tests;
 
+use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
 use App\Core\Fiscal\Models\FiscalSubmission;
+use App\Core\Identity\Models\User;
+use App\Core\MasterData\Prices\ItemPrice;
 use App\Core\Payments\Models\PaymentIntent;
+use App\Core\Rbac\LimitRules;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\TenantContext;
@@ -14,7 +18,10 @@ use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\OrderLine;
 use Modules\Ecommerce\Models\OrderReturn;
+use Modules\Ecommerce\Models\Payment;
 use Modules\Ecommerce\Models\ReturnLine;
+use Modules\Ecommerce\Models\Rider;
+use Modules\Ecommerce\Orders\Returns;
 use Modules\Ecommerce\Tests\Concerns\BuildsEcommerce;
 use Modules\Inventory\Contracts\StockLevels;
 use Modules\Inventory\Models\Movement;
@@ -75,11 +82,14 @@ class ReturnsTest extends TestCase
         $line = $this->inTenant(fn () => OrderLine::query()->where('order_id', $id)->sole());
         $body = ['reason' => 'Damaged', 'lines' => [['line_id' => $line->id, 'qty' => '1']]];
 
-        // RBAC-06: a cashier takes goods back (order.manage) but holds no refund limit.
+        // RBAC-06 (review H1): a cashier takes goods back (order.manage) but holds no refund limit: the return waits for approval.
         $cashier = $this->userWith('cashier', Scope::branch($this->branchA->id));
-        $this->api('POST', "ecommerce/orders/{$id}/returns", $body, $cashier)->assertForbidden()->assertJsonPath('code', 'refund_above_limit');
-
-        $return = $this->api('POST', "ecommerce/orders/{$id}/returns", $body, $this->manager)->assertCreated()->json('data.returns.0');
+        $pending = $this->api('POST', "ecommerce/orders/{$id}/returns", $body, $cashier)->assertStatus(202)->json('data.returns.0');
+        $this->assertSame(['pending', 'due'], [$pending['approval_status'], $pending['refund_status']]);
+        $this->api('POST', "ecommerce/returns/{$pending['id']}/refund", ['reference' => 'x'], $this->manager)->assertStatus(409)->assertJsonPath('code', 'return_awaiting_approval');
+        $this->approveReturn($pending['id']);
+        $return = $this->api('GET', "ecommerce/orders/{$id}", [], $this->manager)->json('data.returns.0');
+        $this->assertSame('approved', $return['approval_status']);
 
         // Cash on delivery goes back by hand: the reference is needed. The cashier may not refund at all.
         $this->api('POST', "ecommerce/returns/{$return['id']}/refund", [], $cashier)->assertForbidden();
@@ -136,7 +146,7 @@ class ReturnsTest extends TestCase
         $this->api('POST', "ecommerce/returns/{$return['id']}/collect", ['payment_method_id' => (string) Str::uuid7()], $this->manager)->assertUnprocessable();
         $this->api('POST', "ecommerce/returns/{$return['id']}/collect", ['payment_method_id' => $this->cash->id, 'reference' => 'TILL-7'], $this->manager)->assertOk()
             ->assertJsonPath('data.returns.0.collect_status', 'collected');
-        $this->api('POST', "ecommerce/returns/{$return['id']}/collect", ['payment_method_id' => $this->cash->id], $this->manager)->assertStatus(409);
+        $this->api('POST', "ecommerce/returns/{$return['id']}/collect", ['payment_method_id' => $this->cash->id, 'reference' => 'TILL-8'], $this->manager)->assertStatus(409);
         $this->assertSame('3', rtrim(rtrim($level(), '0'), '.'));
 
         $saleId = $this->inTenant(fn () => OrderReturn::query()->findOrFail($return['id'])->exchange_sale_id);
@@ -216,6 +226,143 @@ class ReturnsTest extends TestCase
         $returns = $this->shopCall('GET', "duka/orders/{$order->number}?t={$order->tracking_token_secret}")->assertOk()->json('data.returns');
         $this->assertSame([['number' => $order->number.'-R1', 'kind' => 'return', 'lines' => [['name' => 'Widget', 'qty' => '1', 'direction' => 'in']],
             'refund_minor' => '116000', 'collect_minor' => '0', 'refund_status' => 'due']], $returns);
+    }
+
+    public function test_splitting_a_return_never_gets_round_the_refund_limit(): void
+    {
+        // Review H1: the manager may refund up to 1,200 in all; three 1-unit returns of KES 1,160 each.
+        $this->inTenant(fn () => $this->roles->get('branch_manager')->setLimits(['max_refund_amount' => '1200']));
+        // A second Branch Manager to approve (APR-07: never the requester).
+        $approver = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $id = $this->delivered([[$this->widgetProduct, '3']]);
+        $line = $this->inTenant(fn () => OrderLine::query()->where('order_id', $id)->sole());
+        $one = fn (string $reason) => ['reason' => $reason, 'lines' => [['line_id' => $line->id, 'qty' => '1']]];
+
+        $first = $this->api('POST', "ecommerce/orders/{$id}/returns", $one('First'), $this->manager)->assertCreated()->json('data.returns.0');
+        $this->assertSame('none', $first['approval_status']);
+        // The second takes the order's refunds to 2,320: it waits; nothing of it moves.
+        $second = $this->api('POST', "ecommerce/orders/{$id}/returns", $one('Second'), $this->manager)->assertStatus(202)->json('data.returns.1');
+        $this->assertSame('pending', $second['approval_status']);
+        $this->assertNull($this->inTenant(fn () => OrderReturn::query()->findOrFail($second['id'])->committed_at));
+        $this->api('POST', "ecommerce/orders/{$id}/returns", $one('Third'), $this->manager)->assertStatus(202)->assertJsonPath('data.returns.2.approval_status', 'pending');
+
+        // Refunding the first now counts the others due: it goes for approval too, never paid at once.
+        $this->api('POST', "ecommerce/returns/{$first['id']}/refund", ['reference' => 'CASH-1'], $this->manager)->assertStatus(202)->assertJsonPath('data.returns.0.approval_status', 'pending');
+        $this->assertSame(0, $this->inTenant(fn () => OrderReturn::query()->where('refund_status', 'refunded')->count()));
+
+        // Another branch manager approves the second (APR-07: never the requester); it is committed then. The third is rejected: its unit is back to returnable.
+        $this->approveReturn($second['id'], $approver);
+        $this->assertNotNull($this->inTenant(fn () => OrderReturn::query()->findOrFail($second['id'])->committed_at));
+        $third = $this->inTenant(fn () => OrderReturn::query()->where('order_id', $id)->where('seq', 3)->sole());
+        $this->decideReturn($third->id, $approver, 'reject');
+        $order = $this->api('GET', "ecommerce/orders/{$id}", [], $this->manager)->json('data');
+        $this->assertSame(['rejected', 'none'], [$order['returns'][2]['approval_status'], $order['returns'][2]['refund_status']]);
+        $this->assertSame('1', $order['lines'][0]['returnable_qty']);
+        $this->api('POST', "ecommerce/returns/{$second['id']}/refund", ['reference' => 'CASH-2'], $this->manager)->assertOk()->assertJsonPath('data.returns.1.refund_status', 'refunded');
+    }
+
+    public function test_a_whole_return_after_a_partial_one_is_refused_under_the_orders_lock(): void
+    {
+        // Review H2: a partial return that lands between the checks and the lock (simulated: during the limit
+        // check, which now runs under the order's lock) is seen, and the whole-order return is refused.
+        $id = $this->delivered([[$this->widgetProduct, '2']]);
+        $line = $this->inTenant(fn () => OrderLine::query()->where('order_id', $id)->sole());
+        $limits = new class extends LimitRules
+        {
+            public $during;
+
+            public function __construct() {}
+
+            public function max(User $user, string $key, ?Scope $scope): ?string
+            {
+                if ($this->during !== null) {
+                    $during = $this->during;
+                    $this->during = null;
+                    $during();
+                }
+
+                return '100000';
+            }
+        };
+        $limits->during = fn () => app(Returns::class)->create(Order::query()->findOrFail($id), $this->manager,
+            ['reason' => 'Competing', 'lines' => [['line_id' => $line->id, 'qty' => '1']]]);
+        $this->app->instance(LimitRules::class, $limits);
+
+        $this->api('POST', "ecommerce/orders/{$id}/return", ['reason' => 'All of it'], $this->manager)->assertStatus(409)->assertJsonPath('code', 'partial_returns_exist');
+        $this->assertSame('delivered', $this->inTenant(fn () => Order::query()->findOrFail($id)->status));
+    }
+
+    public function test_net_plus_tax_is_the_total_on_every_return_and_the_journals_balance(): void
+    {
+        // Review M7: a sweep of prices, inclusive lists, odd quantities; three returns of 1, 2 and 4 of 7.
+        $this->withAccounting();
+        $this->inTenant(fn () => $this->list->forceFill(['tax_inclusive' => true])->save());
+
+        foreach (['1999', '33333', '100001', '7', '98765'] as $price) {
+            $this->inTenant(fn () => ItemPrice::query()->where('item_id', $this->widget->id)->update(['amount_minor' => $price]));
+            $id = $this->delivered([[$this->widgetProduct, '7']]);
+            $line = $this->inTenant(fn () => OrderLine::query()->where('order_id', $id)->sole());
+
+            foreach (['1', '2', '4'] as $qty) {
+                $this->api('POST', "ecommerce/orders/{$id}/returns", ['reason' => 'Sweep', 'lines' => [['line_id' => $line->id, 'qty' => $qty]]])->assertCreated();
+            }
+
+            foreach ($this->inTenant(fn () => ReturnLine::query()->where('order_id', $id)->get()) as $back) {
+                $this->assertSame($back->total_minor, $back->net_minor + $back->tax_minor, "price {$price}");
+                $this->assertSame($back->total_minor, $back->gross_minor - $back->discount_minor, "price {$price}");
+            }
+        }
+
+        $this->ledger('ecommerce.return'); // every journal balances (asserted in ledger())
+        $this->assertGreaterThan(0, $this->inTenant(fn () => Journal::query()->where('source_type', 'ecommerce.return')->count()));
+    }
+
+    public function test_only_money_the_order_holds_is_given_back(): void
+    {
+        // Review L4: a payment already paid back (or reversed) is no tender for a return.
+        $id = $this->delivered([[$this->widgetProduct, '2']]);
+        $line = $this->inTenant(fn () => OrderLine::query()->where('order_id', $id)->sole());
+        $this->inTenant(fn () => Payment::query()->where('order_id', $id)->update(['status' => 'reversed']));
+        $return = $this->api('POST', "ecommerce/orders/{$id}/returns", ['reason' => 'x', 'lines' => [['line_id' => $line->id, 'qty' => '1']]])->assertCreated()->json('data.returns.0');
+        $this->api('POST', "ecommerce/returns/{$return['id']}/refund", ['reference' => 'CASH-3'])->assertOk();
+        $detail = $this->inTenant(fn () => OrderReturn::query()->findOrFail($return['id']));
+        $this->assertSame([], $detail->refund_detail, 'nothing paid back from a reversed payment');
+        $this->assertContains('loyalty_share', array_column($detail->flags, 'code'));
+    }
+
+    public function test_a_riders_exchange_cash_needs_a_reference_and_joins_their_cash_up(): void
+    {
+        // Review L5.
+        $this->withAccounting();
+        $id = $this->delivered([[$this->widgetProduct, '1'], [$this->serviceProduct, '1']]);
+        $service = $this->inTenant(fn () => OrderLine::query()->where('order_id', $id)->where('item_id', $this->service->id)->sole());
+        $return = $this->api('POST', "ecommerce/orders/{$id}/returns", ['reason' => 'Swap', 'lines' => [['line_id' => $service->id, 'qty' => '1']],
+            'exchange' => [['product_id' => $this->widgetProduct->id, 'qty' => '1']]], $this->manager)->assertCreated()->json('data.returns.0');
+        $riderManager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $this->inTenant(fn () => Rider::create(['company_id' => $this->acme->id, 'user_id' => $riderManager->id, 'name' => 'Rider Manager', 'active' => true]));
+
+        $this->api('POST', "ecommerce/returns/{$return['id']}/collect", ['payment_method_id' => $this->cash->id], $riderManager)->assertUnprocessable()->assertJsonValidationErrors('reference');
+        $this->api('POST', "ecommerce/returns/{$return['id']}/collect", ['payment_method_id' => $this->cash->id, 'reference' => 'RCPT-9'], $riderManager)->assertOk();
+
+        $rider = $this->inTenant(fn () => Rider::query()->where('user_id', $riderManager->id)->sole());
+        $pending = collect($this->api('GET', 'ecommerce/cashups/pending', [], $this->manager)->json('data'))->firstWhere('rider.id', $rider->id)
+            ?? collect($this->api('GET', 'ecommerce/cashups/pending', [], $this->manager)->json('data'))->firstWhere('rider_id', $rider->id);
+        $this->assertSame('58000', $pending['expected_minor']);
+        $this->api('POST', 'ecommerce/cashups', ['rider_id' => $rider->id, 'currency' => 'KES', 'counted_minor' => '58000'], $this->manager)->assertCreated();
+        $this->assertNotNull($this->inTenant(fn () => OrderReturn::query()->findOrFail($return['id'])->cashup_id));
+        $this->ledger('ecommerce.order');
+        $this->ledger('ecommerce.cod_cashup');
+    }
+
+    private function approveReturn(string $returnId, ?User $as = null): void
+    {
+        $this->decideReturn($returnId, $as ?? $this->manager, 'approve');
+    }
+
+    private function decideReturn(string $returnId, User $as, string $action): void
+    {
+        $approval = $this->inTenant(fn () => ApprovalRequest::query()->where('document_id', $returnId)->where('status', 'pending')->sole()->id);
+        $this->api('POST', "approvals/{$approval}/{$action}", $action === 'reject' ? ['comment' => 'Not this time'] : [], $as)->assertOk();
     }
 
     /** A cash on delivery order of $lines, accepted, handed to the rider and confirmed delivered by the manager. */

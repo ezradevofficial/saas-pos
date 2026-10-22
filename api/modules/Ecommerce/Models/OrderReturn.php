@@ -28,7 +28,7 @@ class OrderReturn extends EcomModel
             'returned_net_minor' => 'integer', 'returned_tax_minor' => 'integer', 'returned_total_minor' => 'integer',
             'exchange_net_minor' => 'integer', 'exchange_tax_minor' => 'integer', 'exchange_total_minor' => 'integer',
             'refund_minor' => 'integer', 'collect_minor' => 'integer', 'base_returned_total_minor' => 'integer', 'base_exchange_total_minor' => 'integer',
-            'at' => 'immutable_datetime', 'refunded_at' => 'immutable_datetime', 'collected_at' => 'immutable_datetime', 'exchange_posted_at' => 'immutable_datetime',
+            'at' => 'immutable_datetime', 'refunded_at' => 'immutable_datetime', 'collected_at' => 'immutable_datetime', 'exchange_posted_at' => 'immutable_datetime', 'committed_at' => 'immutable_datetime',
         ];
     }
 

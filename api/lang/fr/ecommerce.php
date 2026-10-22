@@ -3,6 +3,8 @@
 // Module e-commerce et livraison (docs/modules/ecommerce.md).
 return [
     'errors' => [
+        'return_awaiting_approval' => 'Ce retour attend l’approbation de son remboursement. Réessayez une fois approuvé.',
+        'collect_reference_required' => 'Saisissez la référence du paiement encaissé (un reçu ou un numéro de transaction).',
         'photo_unavailable' => 'Les photos ne peuvent pas servir de preuve pour le moment. Utilisez le code de livraison du client, ou demandez à la boutique de confirmer la livraison.',
         'photo_pixels_too_large' => 'La photo est trop grande (plus de :max pixels de côté ou 12 mégapixels). Reprenez-la en plus petite taille.',
         'delivery_not_active' => 'Cette livraison n’est plus en cours : sa position n’est pas conservée.',
@@ -98,8 +100,27 @@ return [
     ],
 
     'returns' => [
+        'awaiting_approval' => 'Le retour :number attend l’approbation de son remboursement : :reason',
+        'rejected' => 'Le retour :number n’a pas été approuvé',
         'history' => 'Retour :number : :reason',
         'refunded' => 'Retour :number remboursé',
+    ],
+
+    'workflow' => [
+        'return' => [
+            'type' => 'Retour de commande en ligne',
+            'start' => 'Retour enregistré',
+            'approve' => 'Approuver le remboursement',
+            'approved' => 'Remboursement approuvé',
+            'rejected' => 'Remboursement refusé',
+        ],
+        'fields' => [
+            'refund' => 'Remboursement',
+            'order_refunds' => 'Remboursements de la commande',
+            'company' => 'Société',
+            'branch' => 'Succursale',
+            'currency' => 'Devise',
+        ],
     ],
 
     'statuses' => [

@@ -13,6 +13,7 @@ use Modules\Ecommerce\Events\OrderLinesReturned;
 use Modules\Ecommerce\Events\OrderReturned;
 use Modules\Ecommerce\Integrations\EcommerceFiscalSource;
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Models\OrderReturn;
 use Modules\Ecommerce\Models\Payment;
 use Modules\Loyalty\Contracts\OnlineLoyalty;
 
@@ -26,7 +27,8 @@ use Modules\Loyalty\Contracts\OnlineLoyalty;
  * points ledger by source).
  *
  * ECOM-42, ECOM-43: a partial return's credit note and an exchange's
- * invoice are queued too; Loyalty is left as it is (decision 16).
+ * invoice are queued too; a partial return takes back its share of the
+ * order's earned points while Loyalty is active (review M6).
  */
 class OrderIntegrations implements ShouldQueue
 {
@@ -52,6 +54,22 @@ class OrderIntegrations implements ShouldQueue
         };
     }
 
+    /** Review M6: the points share of every committed return of the order up to this one. */
+    private function reversePoints(OrderLinesReturned $event): void
+    {
+        $order = Order::query()->find($event->orderId);
+        $return = OrderReturn::query()->find($event->returnId);
+
+        if ($order === null || $return === null || $order->party_id === null) {
+            return;
+        }
+
+        $earlier = OrderReturn::query()->where('order_id', $order->id)->where('seq', '<', $return->seq)->whereNotNull('committed_at')->where('approval_status', '!=', 'rejected');
+        $points = (int) Payment::query()->where('order_id', $order->id)->where('kind', 'points')->where('status', 'succeeded')->sum('amount_minor');
+        app(OnlineLoyalty::class)->reverseEarnShare($order->id, $return->id, (clone $earlier)->pluck('id')->all(), (string) max(1, $order->total_minor - $points),
+            (string) ((int) (clone $earlier)->sum('returned_total_minor') + $return->returned_total_minor));
+    }
+
     public function handle(OrderEvent|OrderReturned|OrderLinesReturned|ExchangeIssued $event): void
     {
         if ($event instanceof OrderLinesReturned || $event instanceof ExchangeIssued) {
@@ -60,6 +78,10 @@ class OrderIntegrations implements ShouldQueue
                     $event instanceof OrderLinesReturned
                         ? $this->fiscal->enqueue(EcommerceFiscalSource::KEY, 'refund', $event->returnId, $event->companyId)
                         : $this->fiscal->enqueue(EcommerceFiscalSource::KEY, 'sale', $event->saleId, $event->companyId);
+
+                    if ($event instanceof OrderLinesReturned && class_exists(OnlineLoyalty::class)) {
+                        $this->reversePoints($event);
+                    }
                 }
             });
 

@@ -240,9 +240,12 @@ class DeliveryTrackingTest extends TestCase
         // Configured (the fake driver in testing) and asked for at checkout: SMS and WhatsApp.
         $this->assertTrue($this->shopCall('GET', 'duka')->json('data.whatsapp_notifications'));
         $this->assertSame('available', $this->api('GET', "ecommerce/stores/{$this->shop->id}", [], $this->manager)->json('data.whatsapp_notifications'));
-        $this->placeOrder($this->cart([[$this->widgetProduct, '1']]), extra: ['whatsapp_opt_in' => true])->assertCreated()->assertJsonPath('data.whatsapp_opt_in', true);
-        $this->assertSame(['email', 'sms', 'whatsapp'], $this->inTenant(fn () => NotificationDelivery::query()->where('event_type', 'ecommerce.order.placed')->orderBy('channel')->pluck('channel')->all()));
+        $number = $this->placeOrder($this->cart([[$this->widgetProduct, '1']]), extra: ['whatsapp_opt_in' => true])->assertCreated()->assertJsonPath('data.whatsapp_opt_in', true)->json('data.number');
+        // Review L6: a guest's number gets WhatsApp only once the order is paid or accepted.
+        $this->assertSame(['email', 'sms'], $this->inTenant(fn () => NotificationDelivery::query()->where('event_type', 'ecommerce.order.placed')->orderBy('channel')->pluck('channel')->all()));
+        $this->api('POST', 'ecommerce/orders/'.$this->orderId($number).'/accept', [], $this->manager)->assertOk();
         $whatsapp = $this->inTenant(fn () => NotificationDelivery::query()->where('channel', 'whatsapp')->sole());
+        $this->assertSame('ecommerce.order.accepted', $whatsapp->event_type);
         $this->assertSame(['+254712345678', 'delivered'], [$whatsapp->recipient, $whatsapp->status]);
 
         // Not asked for: no WhatsApp.
@@ -255,6 +258,20 @@ class DeliveryTrackingTest extends TestCase
         $this->assertSame('not_configured', $this->api('GET', "ecommerce/stores/{$this->shop->id}", [], $this->manager)->json('data.whatsapp_notifications'));
         $this->placeOrder($this->cart([[$this->widgetProduct, '1']]), key: 'third-order-key-00001', extra: ['whatsapp_opt_in' => true])->assertCreated();
         $this->assertSame(1, $this->inTenant(fn () => NotificationDelivery::query()->where('channel', 'whatsapp')->count()));
+    }
+
+    public function test_a_phone_gets_a_capped_number_of_order_messages_a_day(): void
+    {
+        // Review L6: orders naming one phone cannot turn the store into an SMS cannon; email still goes.
+        config(['ecommerce.notifications.per_phone_per_day' => 2]);
+
+        foreach ([1, 2, 3] as $n) {
+            $this->placeOrder($this->cart([[$this->widgetProduct, '1']]), key: "capped-order-key-000{$n}")->assertCreated();
+        }
+
+        $sent = $this->inTenant(fn () => NotificationDelivery::query()->where('event_type', 'ecommerce.order.placed')->get());
+        $this->assertSame(2, $sent->where('channel', 'sms')->count());
+        $this->assertSame(3, $sent->where('channel', 'email')->count());
     }
 
     public function test_a_photo_that_claims_a_huge_picture_is_refused_before_it_is_decoded(): void

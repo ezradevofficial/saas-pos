@@ -28,7 +28,8 @@ class ReturnActionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reference' => ['sometimes', 'nullable', 'string', 'max:120'],
+            // Review L5: collecting always names how the money was taken.
+            'reference' => [$this->collecting() ? 'required' : 'sometimes', 'nullable', 'string', 'max:120'],
             'payment_method_id' => [$this->collecting() ? 'required' : 'prohibited', 'uuid', Rule::exists('payment_methods', 'id')],
         ];
     }

@@ -112,6 +112,13 @@ return new class extends Migration
             $table->timestampTz('exchange_posted_at')->nullable();
             $userRef($table, 'created_by', nullable: false);
             $table->timestampTz('at');
+            // Review H1: a refund above the user's limit (counting the order's other refunds) goes for approval (APR).
+            $table->string('approval_status', 10)->default('none');
+            $userRef($table, 'approval_requested_by');
+            // When its stock, posting and fiscal note were raised (at once, or once approved).
+            $table->timestampTz('committed_at')->nullable();
+            // Review L5: cash a rider collected for an exchange goes into their cash-up.
+            $table->foreignUuid('cashup_id')->nullable()->constrained('ecom_cashups')->restrictOnDelete();
             $table->jsonb('flags')->default('[]');
             $table->timestampsTz();
 
@@ -120,10 +127,12 @@ return new class extends Migration
             $table->index(['tenant_id', 'company_id']);
             $table->index(['tenant_id', 'location_id']);
             $table->index(['tenant_id', 'collect_payment_method_id']);
+            $table->index(['tenant_id', 'cashup_id']);
         });
         $check('ecom_returns', 'kind', $in('kind', ['return', 'exchange']));
         $check('ecom_returns', 'refund_status', $in('refund_status', ['none', 'due', 'refunded']));
         $check('ecom_returns', 'collect_status', $in('collect_status', ['none', 'due', 'collected']));
+        $check('ecom_returns', 'approval_status', $in('approval_status', ['none', 'pending', 'approved', 'rejected']));
         $check('ecom_returns', 'amounts', 'seq >= 1 and returned_total_minor >= 0 and returned_tax_minor >= 0 and exchange_total_minor >= 0 and exchange_tax_minor >= 0'
             .' and refund_minor >= 0 and collect_minor >= 0 and (refund_minor = 0 or collect_minor = 0)'
             .' and returned_total_minor - exchange_total_minor = refund_minor - collect_minor');

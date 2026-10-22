@@ -6,6 +6,7 @@ use App\Core\Identity\Models\User;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Payments\PaymentIntents;
+use App\Core\Workflow\Runtime\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Modules\Ecommerce\Models\Order;
@@ -23,14 +24,19 @@ use Modules\Ecommerce\Support\Tx;
  * types. The amount goes back to the order's tenders in order (M-Pesa,
  * card, cash: Returns::allocation, net of what earlier returns took); a
  * part paid by points or a gift card is not paid out in money (flagged
- * `loyalty_share`, decision 16). Within the user's `max_refund_amount`
- * (RBAC-06); recorded in the order's history and audited (AUD-01).
+ * `loyalty_share`, decision 16). Recorded in the order's history and
+ * audited (AUD-01).
+ *
+ * Review H1 (RBAC-06): the order's refunds in all (refunded and due, this
+ * one included) must be within the user's `max_refund_amount`, unless the
+ * return was approved; above it the refund goes for approval (ReturnType)
+ * and waits (`approval_status` pending) instead of being refused.
  */
 final class ReturnRefunds
 {
     public const REFERENCE = 'ecommerce.return_refund';
 
-    public function __construct(private readonly PaymentIntents $intents, private readonly OrderFlow $flow) {}
+    public function __construct(private readonly PaymentIntents $intents, private readonly OrderFlow $flow, private readonly WorkflowEngine $engine) {}
 
     public function refund(OrderReturn $return, User $by, ?string $reference): OrderReturn
     {
@@ -42,7 +48,17 @@ final class ReturnRefunds
                 throw EcomError::make('refund_not_due', status: 409);
             }
 
-            $this->flow->assertRefundLimit($order, $by, $return->refund_minor);
+            if ($return->approval_status === 'pending' || $return->committed_at === null) {
+                throw EcomError::make('return_awaiting_approval', status: 409);
+            }
+
+            if ($return->approval_status !== 'approved' && ! $this->flow->withinRefundLimit($order, $by, Returns::refundsOf($order))) {
+                $return->forceFill(['approval_status' => 'pending', 'approval_requested_by' => $by->id])->save();
+                $this->engine->start(ReturnType::KEY, $return->id, $by);
+
+                return [];
+            }
+
             $detail = array_values(array_filter($return->refund_detail ?? [], fn (array $entry) => $entry['status'] !== 'failed'));
             $left = $return->refund_minor - (int) array_sum(array_column($detail, 'amount_minor'));
             $reference = $reference === null || trim($reference) === '' ? null : mb_substr(trim($reference), 0, 120);

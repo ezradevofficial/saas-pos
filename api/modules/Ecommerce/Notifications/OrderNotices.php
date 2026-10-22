@@ -9,6 +9,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\NotificationAddress;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\Notifier;
+use Illuminate\Support\Facades\RateLimiter;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\Store;
 use Modules\Ecommerce\Support\Amounts;
@@ -28,6 +29,12 @@ use Modules\Ecommerce\Support\Amounts;
  * (`notifications.drivers.whatsapp`), the channel is not configured:
  * checkout does not offer it and nothing is queued. SMS and email go out as
  * before (decision 17).
+ *
+ * Review L6: a guest's number (no signed-in customer proved it) gets
+ * WhatsApp only once the order is paid or accepted, so a stranger's
+ * number typed at checkout is not messaged on WhatsApp by an unpaid
+ * order; and a phone gets at most `ecommerce.notifications.per_phone_per_day`
+ * order messages a day (SMS and WhatsApp), however many orders name it.
  */
 final class OrderNotices
 {
@@ -87,8 +94,20 @@ final class OrderNotices
             $addresses[] = new NotificationAddress(Channels::SMS, $order->contact_phone, $order->contact_name, $locale);
         }
 
-        if ($order->whatsapp_opt_in && $order->contact_phone !== '' && $this->whatsappAvailable()) {
+        $proven = $order->customer_id !== null || in_array($order->payment_status, ['paid', 'cod_collected'], true) || $order->status !== Order::PLACED;
+
+        if ($order->whatsapp_opt_in && $order->contact_phone !== '' && $proven && $this->whatsappAvailable()) {
             $addresses[] = new NotificationAddress(Channels::WHATSAPP, $order->contact_phone, $order->contact_name, $locale);
+        }
+
+        if ($order->contact_phone !== '' && $addresses !== []) {
+            $key = 'ecom-notices|'.$order->tenant_id.'|'.hash('sha256', $order->contact_phone);
+
+            if (RateLimiter::tooManyAttempts($key, max(1, (int) config('ecommerce.notifications.per_phone_per_day', 20)))) {
+                $addresses = array_values(array_filter($addresses, fn (NotificationAddress $a) => $a->channel === Channels::EMAIL));
+            } else {
+                RateLimiter::hit($key, 86400);
+            }
         }
 
         if ($order->contact_email !== null && $order->contact_email !== '') {
