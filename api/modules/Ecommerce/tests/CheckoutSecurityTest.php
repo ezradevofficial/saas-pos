@@ -4,6 +4,7 @@ namespace Modules\Ecommerce\Tests;
 
 use App\Core\Http\ApiException;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -12,6 +13,7 @@ use Modules\Ecommerce\Customers\Customers;
 use Modules\Ecommerce\Models\Conversation;
 use Modules\Ecommerce\Models\Customer;
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Notifications\OrderNotices;
 use Modules\Ecommerce\Tests\Concerns\BuildsEcommerce;
 use Modules\Loyalty\Contracts\OnlineLoyalty;
 use Modules\Loyalty\GiftCards\GiftCards;
@@ -109,6 +111,31 @@ class CheckoutSecurityTest extends TestCase
         $verify()->assertUnprocessable();
         $verify()->assertUnprocessable();
         $verify()->assertStatus(429);
+    }
+
+    /** AUTH-01, ECOM-08: in email-only mode (no SMS provider) a code by SMS is refused; email works. */
+    public function test_a_sign_in_code_by_sms_is_refused_in_email_only_mode(): void
+    {
+        config(['services.sms.driver' => 'none']);
+
+        $this->shopCall('POST', 'duka/auth/code', ['contact' => '0712000621'])
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'sms_unavailable')
+            ->assertJsonValidationErrors(['contact' => __('auth.sms_unavailable.use_email')]);
+        $this->shopCall('POST', 'duka/auth/code', ['contact' => 'wanjiru@example.com'])->assertCreated();
+    }
+
+    /** NOT-01, ECOM-20: in email-only mode an order update's SMS is skipped and goes by WhatsApp where configured. */
+    public function test_in_email_only_mode_order_updates_skip_sms_and_go_by_whatsapp(): void
+    {
+        config(['services.sms.driver' => 'none']);
+
+        $this->placeOrder($this->cart([[$this->widgetProduct, '1']]))->assertCreated();
+
+        $placed = $this->inTenant(fn () => NotificationDelivery::query()->where('event_type', OrderNotices::PLACED)->get()->keyBy('channel'));
+        $this->assertSame(['skipped', 'sms_unavailable'], [$placed['sms']->status, $placed['sms']->reason]);
+        $this->assertSame($placed['sms']->recipient, $placed['whatsapp']->recipient);
+        $this->assertNotSame(NotificationDelivery::SKIPPED, $placed['whatsapp']->status);
     }
 
     public function test_after_a_few_codes_from_one_address_a_challenge_is_needed(): void

@@ -6,6 +6,7 @@ use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\ScopeResolver;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -122,11 +123,13 @@ class TwoFactor
     /**
      * Start (or restart) SMS enrolment: a code goes to the user's verified phone.
      *
-     * @throws ApiException 422 phone_required, 429 too_many_requests
+     * @throws ApiException 422 phone_required, 422 sms_unavailable, 429 too_many_requests
      */
     public function startSms(User $user): VerificationChallenge
     {
         $this->assertNotEnabled($user);
+        // AUTH-03: codes by SMS are not offered in email-only mode.
+        app(SmsAvailability::class)->assertAvailable(null, 'auth.sms_unavailable.two_factor');
 
         if ($user->phone === null || $user->phone_verified_at === null) {
             throw new ApiException(422, 'phone_required', __('auth.two_factor.phone_required'), ['phone' => [__('auth.two_factor.phone_required')]]);

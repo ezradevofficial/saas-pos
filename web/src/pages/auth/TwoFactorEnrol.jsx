@@ -5,6 +5,7 @@ import { api } from '@/api/client'
 import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
 import { Alert, Button } from '@/components/ds'
+import { useSmsAvailable } from '@/lib/useSmsAvailable'
 import { AuthForm, AuthPage } from './AuthPage'
 import { CodeField } from './CodeField'
 
@@ -33,7 +34,9 @@ export default function TwoFactorEnrol() {
   })
 
   const errors = formErrors(confirm.error ?? start.error, ['code'])
-  const canUseSms = Boolean(user?.phone && user?.phone_verified_at)
+  // AUTH-03: codes by SMS need a verified phone, and SMS itself (email-only mode hides the option).
+  const sms = useSmsAvailable()
+  const canUseSms = sms && Boolean(user?.phone && user?.phone_verified_at)
 
   return (
     <AuthPage
@@ -58,6 +61,7 @@ export default function TwoFactorEnrol() {
               {t('auth.enrol.useSms')}
             </Button>
           ) : null}
+          {!sms && user?.phone ? <p className="text-caption text-ink-muted">{t('auth.enrol.smsUnavailable')}</p> : null}
         </div>
       ) : (
         <AuthForm onSubmit={() => confirm.mutate()} error={errors.form} failure={confirm.error}>

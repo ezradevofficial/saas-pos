@@ -81,6 +81,8 @@ Today no module sends marketing yet (CRM campaigns and marketing lists are defer
 
 **Owner input: the SMS reply hook.** There is no inbound SMS path yet: the platform's SMS sender only sends. When an SMS provider is chosen, its delivery-report or inbound webhook must find the tenant the reply belongs to (a per-tenant shortcode, number or keyword) and call `ReceivesOptOutReplies::optOut('sms', $from, '<provider>')` in that tenant. A shared sender number cannot tell which business a STOP is for; the provider and numbering plan decide that. Likewise, marketing WhatsApp sent through the notification WhatsApp driver needs that provider's inbound webhook to call the same contract.
 
+**Email-only mode (owner decision 2026-10-22).** No SMS provider is configured yet, so the platform sends no text messages at all (docs/deploy-linode.md, Email-only mode). No phone number is passed to an SMS provider; an SMS delivery is recorded as skipped (`sms_unavailable`), like any other skipped delivery, and nothing leaves the platform by SMS. A transactional message falls back to WhatsApp (where configured) or email; a marketing message never changes channel, since consent is per channel. Opting out by SMS (STOP) is out of the current scope: with no SMS sent there is nothing to reply to.
+
 ## A closed business keeps a copy of its data
 
 A closed tenant refuses every sign-in (Phase 8 review H2), so its Owners could not export its data themselves. A business has a right to its data (data portability, Kenya Data Protection Act 2019, section 38). Built as the default; the owner to confirm (report, Decisions to confirm):

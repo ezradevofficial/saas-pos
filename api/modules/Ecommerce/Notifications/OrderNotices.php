@@ -16,7 +16,8 @@ use Modules\Ecommerce\Support\Amounts;
  * ECOM-20, NOT-02, ADR 009: what the customer hears about an order goes
  * through the core notifier as system messages to the order's contact
  * (SMS to the phone, email when given), in the language the order was
- * placed in. The tracking link and the delivery code are secrets: they
+ * placed in. In email-only mode the SMS is skipped (`sms_unavailable`) and
+ * goes by WhatsApp where configured; the email goes as usual. The tracking link and the delivery code are secrets: they
  * reach the message at hand-over only and are never stored (the order
  * keeps their hashes). A transport failure never fails the order.
  */
@@ -53,7 +54,8 @@ final class OrderNotices
                     'tracking_url' => 'https://shop.example.com/shop/duka/orders/WEB-NBO-2026-00012?t=…', 'delivery_code' => '482913',
                 ],
                 defaultChannels: [Channels::SMS, Channels::EMAIL],
-                channels: [Channels::SMS, Channels::EMAIL],
+                // NOT-01: WhatsApp only as the fallback for SMS in email-only mode (Notifier).
+                channels: [Channels::SMS, Channels::EMAIL, Channels::WHATSAPP],
                 langKey: "ecommerce.notifications.{$name}",
                 system: true,
                 secrets: ['tracking_url', 'delivery_code'],
