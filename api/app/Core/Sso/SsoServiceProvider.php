@@ -2,6 +2,8 @@
 
 namespace App\Core\Sso;
 
+use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\SubjectSource;
 use App\Core\Sso\Console\RefreshSamlMetadataCommand;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -16,6 +18,17 @@ class SsoServiceProvider extends ServiceProvider
 {
     /** Start, callbacks and completion: per address a minute. */
     public const LIMITER = 'sso';
+
+    public function register(): void
+    {
+        // NFR-08 (Phase 8 review L1): a user's links to identity providers are their data: in the
+        // access report, and on deletion the asserted email and subject go and the links are archived
+        // (TEN-06), so the IdP can no longer sign the anonymised account in.
+        $this->callAfterResolving(PrivacySubjects::class, fn (PrivacySubjects $subjects) => $subjects->register(new SubjectSource(
+            subjectType: 'user', table: 'sso_identities', match: 'user_id',
+            personal: ['email' => 'anon_email', 'subject' => 'label'],
+        )));
+    }
 
     public function boot(): void
     {

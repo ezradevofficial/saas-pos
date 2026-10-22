@@ -5,8 +5,13 @@ namespace Tests\Feature\Core\Privacy;
 use App\Core\Audit\AuditEntry;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
+use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Privacy\Models\PrivacyRequest;
+use App\Core\Privacy\SubjectData;
+use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
+use App\Core\Sso\Models\SsoConnection;
+use App\Core\Sso\Models\SsoIdentity;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -359,6 +364,79 @@ class DataSubjectRequestTest extends TestCase
             $this->getJson('/api/v1/privacy/subjects?type=customer&search=Other', $this->headersFor())->json('data'),
             fn ($s) => $s['id'] === $theirs->id,
         )));
+    }
+
+    /** Phase 8 review M7 (RBAC-05): fields the downloader's field rules hide are masked in the access report. */
+    public function test_the_access_report_applies_the_downloaders_field_rules(): void
+    {
+        $this->inTenant(function () {
+            FieldRule::query()->create(['role_id' => $this->roles->get('admin')->id, 'resource' => 'party', 'field' => 'tax_id', 'mode' => FieldRule::HIDDEN]);
+            FieldRule::query()->create(['role_id' => $this->roles->get('admin')->id, 'resource' => 'crm_lead', 'field' => 'phone', 'mode' => FieldRule::HIDDEN]);
+        });
+        $id = $this->completed('access');
+
+        $admin = $this->getJson("/api/v1/privacy/requests/{$id}/report", $this->headersFor($this->admin))->assertOk()->json();
+        $this->assertSame(SubjectData::HIDDEN, $admin['records']['parties'][0]['tax_id']);
+        $this->assertSame('Amina Otieno', $admin['records']['parties'][0]['name']);
+        $this->assertSame(SubjectData::HIDDEN, $admin['records']['crm_leads'][0]['phone']);
+        $this->assertStringNotContainsString('A012345678Z', json_encode($admin));
+
+        // The Owner's roles hide nothing.
+        $owner = $this->getJson("/api/v1/privacy/requests/{$id}/report", $this->headersFor())->assertOk()->json();
+        $this->assertSame('A012345678Z', $owner['records']['parties'][0]['tax_id']);
+        $this->assertSame('+254712345678', $owner['records']['crm_leads'][0]['phone']);
+    }
+
+    /** Phase 8 review L1 (AUTH-11): a user's SSO links are in their report, and archived (without the asserted email) on deletion. */
+    public function test_a_users_sso_links_are_reported_and_archived_on_deletion(): void
+    {
+        $clerk = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $link = $this->inTenant(function () use ($clerk) {
+            $connection = SsoConnection::query()->create(['provider' => 'saml', 'name' => 'Company IdP', 'settings' => ['idp_entity_id' => 'https://idp.example.com'], 'enabled' => true]);
+
+            return SsoIdentity::query()->create(['user_id' => $clerk->id, 'connection_id' => $connection->id, 'subject' => 'clerk@acme.co.ke', 'email' => 'clerk@acme.co.ke']);
+        });
+
+        $access = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $clerk->id, 'kind' => 'access'], $this->headersFor())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/privacy/requests/{$access}/approve", [], $this->headersFor($this->admin))->assertOk();
+        $this->postJson("/api/v1/privacy/requests/{$access}/execute", [], $this->headersFor())->assertOk();
+        $report = $this->getJson("/api/v1/privacy/requests/{$access}/report", $this->headersFor())->assertOk()->json();
+        $this->assertSame('clerk@acme.co.ke', $report['records']['sso_identities'][0]['subject']);
+
+        $deletion = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $clerk->id, 'kind' => 'deletion'], $this->headersFor())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/privacy/requests/{$deletion}/approve", [], $this->headersFor($this->admin))->assertOk();
+        $this->postJson("/api/v1/privacy/requests/{$deletion}/execute", [], $this->headersFor())->assertOk();
+
+        $this->inTenant(function () use ($link) {
+            $link = $link->fresh();
+            $this->assertNotNull($link->archived_at);
+            $this->assertStringEndsWith('@anonymised.invalid', $link->email);
+            $this->assertStringNotContainsString('clerk@acme.co.ke', $link->subject);
+        });
+    }
+
+    /** Phase 8 review L2 (NFR-08): API-key, app and support principals are not data subjects. */
+    public function test_principals_are_not_data_subjects(): void
+    {
+        [$service, $support] = $this->inTenant(function () {
+            $service = $this->colleague($this->owner, ['name' => 'Principal Integration', 'status' => User::STATUS_SERVICE]);
+            $grant = SupportAccessGrant::query()->create(['platform_user_id' => (string) Str::uuid7(), 'staff_name' => 'Agent', 'staff_email' => 'agent@platform.test', 'reason' => 'Help with an import', 'mode' => 'read', 'hours' => 1, 'requested_at' => now()]);
+            $support = $this->colleague($this->owner, ['name' => 'Principal Support']);
+            $support->forceFill(['support_grant_id' => $grant->id])->save();
+
+            return [$service, $support];
+        });
+
+        $this->getJson('/api/v1/privacy/subjects?type=user&search=principal', $this->headersFor())->assertOk()->assertJsonCount(0, 'data');
+        foreach ([$service, $support] as $principal) {
+            foreach (['access', 'deletion'] as $kind) {
+                $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $principal->id, 'kind' => $kind], $this->headersFor())
+                    ->assertStatus(422)->assertJsonPath('code', 'subject_not_found');
+            }
+            $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'user', 'subject_id' => $principal->id, 'kind' => 'correction', 'corrections' => ['name' => 'Renamed']], $this->headersFor())
+                ->assertStatus(422)->assertJsonPath('code', 'subject_not_found');
+        }
+        $this->getJson('/api/v1/privacy/subjects?type=user&search=colleague', $this->headersFor())->assertOk();
     }
 
     public function test_subjects_are_searched_by_name(): void
