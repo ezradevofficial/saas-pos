@@ -71,7 +71,7 @@ EXP-02 lets an Owner download a complete, machine-readable copy of their tenant'
 
 ### A closed tenant's export (NFR-08)
 
-When a tenant closes, its export is built once (`purpose = closing`) and each active Owner is emailed a signed link that works without signing in, for `data_export.closing_link_days` (30). The one-at-a-time rule applies to Owners' requests only. Details, refusals, staff resend and the sandbox exception: [docs/privacy.md](../privacy.md#a-closed-business-keeps-a-copy-of-its-data).
+When a tenant closes, its export is built once for that closing (`purpose = closing`, unique on the tenant and its closing time) and each active Owner is emailed a signed link that works without signing in, for `data_export.closing_link_days` (30). The one-at-a-time rule applies to Owners' requests only. Details, refusals, staff resend and the sandbox exception: [docs/privacy.md](../privacy.md#a-closed-business-keeps-a-copy-of-its-data).
 
 ## Consequences
 

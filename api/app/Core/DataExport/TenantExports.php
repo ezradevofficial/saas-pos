@@ -43,7 +43,9 @@ use Throwable;
  *   download (TenantExportController::download) checks the signed-for
  *   user is still an active Owner and is audited.
  * - requestOnClosing(): when the tenant closes (TenantClosed), its full
- *   export is built once (`purpose = closing`, a partial unique index), kept
+ *   export is built once per closing (`purpose = closing`, unique on the
+ *   tenant and its closing time, so a tenant reopened and closed again gets
+ *   a fresh one), kept
  *   `data_export.closing_link_days` (30), and each active Owner with an
  *   email is sent a signed link that works without signing in, since a
  *   closed tenant refuses sign-in (sendClosingLinks). Not for a developer
@@ -193,35 +195,40 @@ class TenantExports
     }
 
     /**
-     * The closing export of the tenant in context, queued once (the
-     * TenantClosed listener). Null for a developer sandbox or a tenant with
-     * no active Owner. Runs inside the closing transaction: the build is
-     * queued after it commits.
+     * The closing export of the tenant in context for its current closing,
+     * queued once per closing (the TenantClosed listener). A closing is
+     * named by the time the tenant closed (its updated_at as the status
+     * became closed): reopened and closed again, it gets a fresh export.
+     * Null for a tenant that is not closed, a developer sandbox, or a
+     * tenant with no active Owner. Runs inside the closing transaction:
+     * the build is queued after it commits.
      */
     public function requestOnClosing(): ?TenantExport
     {
         $tenant = Tenant::query()->whereKey($this->tenants->require())->first();
         $owners = $this->activeOwners();
 
-        if ($tenant === null || $tenant->is_sandbox || $owners === []) {
+        if ($tenant === null || $tenant->status !== 'closed' || $tenant->updated_at === null || $tenant->is_sandbox || $owners === []) {
             return null;
         }
 
-        $existing = TenantExport::query()->where('purpose', TenantExport::PURPOSE_CLOSING)->first();
+        $closedAt = CarbonImmutable::instance($tenant->updated_at);
+        $ofThisClosing = fn () => TenantExport::query()->where('purpose', TenantExport::PURPOSE_CLOSING)->where('closed_at', $closedAt)->first();
+        $existing = $ofThisClosing();
 
         if ($existing !== null) {
             return $existing;
         }
 
         try {
-            $export = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($owners) {
-                $export = TenantExport::query()->create(['requested_by' => $owners[0]->id, 'status' => TenantExport::QUEUED, 'purpose' => TenantExport::PURPOSE_CLOSING]);
-                $this->auditor->record('core.tenant_export.closing_request', $export, null, ['status' => TenantExport::QUEUED, 'purpose' => TenantExport::PURPOSE_CLOSING]);
+            $export = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($owners, $closedAt) {
+                $export = TenantExport::query()->create(['requested_by' => $owners[0]->id, 'status' => TenantExport::QUEUED, 'purpose' => TenantExport::PURPOSE_CLOSING, 'closed_at' => $closedAt]);
+                $this->auditor->record('core.tenant_export.closing_request', $export, null, ['status' => TenantExport::QUEUED, 'purpose' => TenantExport::PURPOSE_CLOSING, 'closed_at' => $closedAt->toIso8601String()]);
 
                 return $export;
             });
         } catch (UniqueConstraintViolationException) {
-            return TenantExport::query()->where('purpose', TenantExport::PURPOSE_CLOSING)->first();
+            return $ofThisClosing();
         }
 
         BuildTenantExport::dispatch($export->tenant_id, $export->id)->afterCommit();
@@ -262,7 +269,8 @@ class TenantExports
     /** Staff send the closing links again from the console (PlatformTenants::resendClosingExport), with a reason. */
     public function resendClosingLinks(string $reason): int
     {
-        $export = TenantExport::query()->where('purpose', TenantExport::PURPOSE_CLOSING)->first();
+        // The latest closing's export.
+        $export = TenantExport::query()->where('purpose', TenantExport::PURPOSE_CLOSING)->orderByDesc('closed_at')->first();
 
         if ($export === null) {
             throw new ApiException(409, 'closing_export_unavailable', __('data_export.errors.closing_unavailable'));
