@@ -39,6 +39,7 @@ The public API (API-01..05, branch `feat/public-api`) is being built in parallel
   | `purchase_order.approved.v1` | Procurement `PurchaseOrderApproved` | `procurement.po.view` | procurement |
   | `payroll.approved.v1` | Payroll `PayrollApproved` | `payroll.run.view` | payroll |
   | `order.placed.v1`, `order.paid.v1`, `order.status_changed.v1`, `order.completed.v1` | E-commerce `OrderEvent` | `ecommerce.order.view` | ecommerce |
+  | `order.ready_for_delivery.v1` (MKT-04) | E-commerce `OrderEvent` (status changed to ready, a delivery waiting for a rider or courier) | `ecommerce.order.view` | ecommerce |
   | `document.stage_changed.v1` | core `WorkflowStageEntered` | the document type's view permission and `sees()` | the document type's |
   | `webhook.test.v1` | the "send test event" action | none | core |
 

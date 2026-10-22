@@ -118,9 +118,30 @@ curl -X POST "https://api.example.com/api/v1/oauth/token" \\
 curl -X POST "https://api.example.com/api/v1/oauth/token" \\
   -d grant_type=refresh_token -d client_id=<client id> -d client_secret=<client secret> -d refresh_token=<refresh token>`,
   },
+  {
+    // MKT-04, HR-24: the courier and biometric attendance endpoints.
+    id: 'connectors',
+    paragraphs: ['p1', 'p2', 'p3', 'p4'],
+    code: `# Courier: orders waiting for a courier, then book one with your tracking.
+GET  /api/v1/ecommerce/courier/orders?status=ready
+POST /api/v1/ecommerce/courier/deliveries/{delivery}/booking
+     {"reference":"bk-0042","tracking_reference":"TRK-0042","tracking_url":"https://track.example.com/TRK-0042"}
+POST /api/v1/ecommerce/courier/deliveries/{delivery}/status
+     {"reference":"st-0042-1","status":"picked_up","occurred_at":"2026-10-22T09:15:00+03:00"}
+     {"reference":"st-0042-2","status":"delivered","code":"123456","occurred_at":"2026-10-22T10:02:00+03:00"}
+
+# Biometric attendance: the roster, the devices, then a device's punches.
+GET  /api/v1/hr/connector/employees
+GET  /api/v1/hr/connector/devices
+POST /api/v1/hr/connector/devices/{device}/punches
+     {"punches":[{"external_id":"ev-881","ref":"1001","kind":"auto","occurred_at":"2026-10-22T08:01:00+03:00"}]}`,
+  },
 ]
 
 export const guideById = (id) => GUIDES.find((guide) => guide.id === id) ?? null
 
 /** Changelog entries, newest first: a date and the keys of their text. */
-export const CHANGELOG = [{ id: 'v1-launch', date: '2026-10-16', items: ['keys', 'reference', 'sandbox'] }]
+export const CHANGELOG = [
+  { id: 'connectors', date: '2026-10-22', items: ['courier', 'attendance', 'event'] },
+  { id: 'v1-launch', date: '2026-10-16', items: ['keys', 'reference', 'sandbox'] },
+]

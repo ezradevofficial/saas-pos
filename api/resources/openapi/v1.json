@@ -1678,6 +1678,938 @@
                 }
             }
         },
+        "/ecommerce/courier/deliveries/{ecomDelivery}/booking": {
+            "post": {
+                "operationId": "ecommerce.courier_delivery.book",
+                "tags": [
+                    "ecommerce.delivery"
+                ],
+                "parameters": [
+                    {
+                        "name": "ecomDelivery",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BookDeliveryRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
+                    }
+                },
+                "summary": "Book a delivery with your tracking",
+                "description": "Hands a delivery that waits for a courier to you, with your tracking reference and link. Send your own `reference`: the same reference and tracking answer the same (200); the same reference with other tracking is refused with `reference_reused`; a new reference updates the tracking of a delivery you hold. 201 when booked.",
+                "x-scope": "ecommerce.delivery.write",
+                "x-i18n": {
+                    "fr": {
+                        "summary": "Réserver une livraison avec votre suivi",
+                        "description": "Vous confie une livraison qui attend un coursier, avec votre référence et votre lien de suivi. Envoyez votre propre `reference` : la même référence et le même suivi donnent la même réponse (200) ; la même référence avec un autre suivi est refusée avec `reference_reused` ; une nouvelle référence met à jour le suivi d’une livraison que vous détenez. 201 à la réservation."
+                    }
+                }
+            }
+        },
+        "/ecommerce/courier/deliveries/{ecomDelivery}/status": {
+            "post": {
+                "operationId": "ecommerce.courier_delivery.status",
+                "tags": [
+                    "ecommerce.delivery"
+                ],
+                "parameters": [
+                    {
+                        "name": "ecomDelivery",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CourierStatusRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`CourierOrderResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CourierOrderResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
+                    }
+                },
+                "summary": "Report a delivery’s progress",
+                "description": "`picked_up`, `delivered` (with the customer’s 6-digit delivery code) or `failed` (with a `reason`; before pick-up the delivery goes back to waiting, after it the order is returned). Send your own `reference`: sent again, the update answers the same; the same reference with other details is refused with `payload_mismatch`.",
+                "x-scope": "ecommerce.delivery.write",
+                "x-i18n": {
+                    "fr": {
+                        "summary": "Signaler l’avancement d’une livraison",
+                        "description": "`picked_up`, `delivered` (avec le code de livraison à 6 chiffres du client) ou `failed` (avec une `reason` ; avant la prise en charge la livraison revient en attente, après elle la commande est retournée). Envoyez votre propre `reference` : renvoyée, la mise à jour donne la même réponse ; la même référence avec d’autres détails est refusée avec `payload_mismatch`."
+                    }
+                }
+            }
+        },
+        "/ecommerce/courier/orders": {
+            "get": {
+                "operationId": "ecommerce.courier_order.index",
+                "tags": [
+                    "ecommerce.order"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "open",
+                                "ready",
+                                "handed",
+                                "all"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 200
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `CourierOrderResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CourierOrderResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
+                    }
+                },
+                "summary": "List online orders to deliver",
+                "description": "For a courier: orders waiting for a courier (accepted, being picked or ready, with no rider) and those handed to you, at the locations your role reaches. `status`: `open` (default), `ready`, `handed` or `all`. The customer’s name, phone, address and notes are given only for orders handed to you. Needs the E-commerce module.",
+                "x-scope": "ecommerce.order.read",
+                "x-i18n": {
+                    "fr": {
+                        "summary": "Lister les commandes en ligne à livrer",
+                        "description": "Pour un coursier : les commandes qui attendent un coursier (acceptées, en préparation ou prêtes, sans livreur) et celles qui vous sont confiées, dans les emplacements que votre rôle atteint. `status` : `open` (par défaut), `ready`, `handed` ou `all`. Le nom, le téléphone, l’adresse et les notes du client ne sont donnés que pour les commandes qui vous sont confiées. Nécessite le module E-commerce."
+                    }
+                }
+            }
+        },
+        "/ecommerce/courier/orders/{ecomOrder}": {
+            "get": {
+                "operationId": "ecommerce.courier_order.show",
+                "tags": [
+                    "ecommerce.order"
+                ],
+                "parameters": [
+                    {
+                        "name": "ecomOrder",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`CourierOrderResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CourierOrderResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
+                    }
+                },
+                "summary": "Get an online order to deliver",
+                "description": "The order, its parcel, what to collect and its delivery. The customer’s contact and the tracking only once the delivery is handed to you. A rider’s position is never part of it.",
+                "x-scope": "ecommerce.order.read",
+                "x-i18n": {
+                    "fr": {
+                        "summary": "Obtenir une commande en ligne à livrer",
+                        "description": "La commande, son colis, le montant à encaisser et sa livraison. Le contact du client et le suivi seulement une fois la livraison confiée à vous. La position d’un livreur n’en fait jamais partie."
+                    }
+                }
+            }
+        },
+        "/hr/connector/devices": {
+            "get": {
+                "operationId": "hr.attendance_connector.devices",
+                "tags": [
+                    "hr.device"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "suspended",
+                                "retired",
+                                "all"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 200
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `ConnectorDeviceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ConnectorDeviceResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
+                    }
+                },
+                "summary": "List attendance devices",
+                "description": "Biometric terminals and bridges, with their location and status (`status`: active by default, suspended, retired or all). Their tokens are never shown.",
+                "x-scope": "hr.device.read",
+                "x-i18n": {
+                    "fr": {
+                        "summary": "Lister les appareils de pointage",
+                        "description": "Les terminaux biométriques et passerelles, avec leur emplacement et leur statut (`status` : actifs par défaut, suspendus, retirés ou tous). Leurs jetons ne sont jamais affichés."
+                    }
+                }
+            }
+        },
+        "/hr/connector/devices/{hrAttendanceDevice}/punches": {
+            "post": {
+                "operationId": "hr.attendance_connector.punches",
+                "tags": [
+                    "hr.attendance"
+                ],
+                "parameters": [
+                    {
+                        "name": "hrAttendanceDevice",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConnectorPunchesRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "additionalProperties": {}
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
+                    }
+                },
+                "summary": "Send a device’s punches",
+                "description": "Up to 500 punches of one active device: its own event id (`external_id`), the employee’s enrolment reference (`ref`), `in`, `out` or `auto`, and the instant with its offset. One result per punch, the same however often it is sent: `stored`, or `rejected` with a code (`unknown_ref`, `punch_out_of_window`: more than 7 days old or ahead).",
+                "x-scope": "hr.attendance.write",
+                "x-i18n": {
+                    "fr": {
+                        "summary": "Envoyer les pointages d’un appareil",
+                        "description": "Jusqu’à 500 pointages d’un appareil actif : son propre identifiant d’événement (`external_id`), la référence d’enrôlement de l’employé (`ref`), `in`, `out` ou `auto`, et l’instant avec son décalage. Un résultat par pointage, le même quel que soit le nombre d’envois : `stored`, ou `rejected` avec un code (`unknown_ref`, `punch_out_of_window` : plus de 7 jours ou dans le futur)."
+                    }
+                }
+            }
+        },
+        "/hr/connector/employees": {
+            "get": {
+                "operationId": "hr.attendance_connector.roster",
+                "tags": [
+                    "hr.employee"
+                ],
+                "parameters": [
+                    {
+                        "name": "company",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "location",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 200
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `ConnectorEmployeeResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ConnectorEmployeeResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/RateLimited"
+                    }
+                },
+                "summary": "List the attendance roster",
+                "description": "Active employees with their id, display name and enrolment reference only, at the places your role reaches. Filter by `company` or `location`. Needs the HR module.",
+                "x-scope": "hr.employee.read",
+                "x-i18n": {
+                    "fr": {
+                        "summary": "Lister l’effectif pour le pointage",
+                        "description": "Les employés actifs avec seulement leur id, leur nom affiché et leur référence d’enrôlement, aux endroits que votre rôle atteint. Filtrez par `company` ou `location`. Nécessite le module RH."
+                    }
+                }
+            }
+        },
         "/inventory/stock": {
             "get": {
                 "operationId": "inventory.stock.index",
@@ -5613,6 +6545,34 @@
     },
     "components": {
         "schemas": {
+            "BookDeliveryRequest": {
+                "type": "object",
+                "properties": {
+                    "reference": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9._:\\-]+$",
+                        "minLength": 1,
+                        "maxLength": 120
+                    },
+                    "tracking_reference": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "tracking_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "reference",
+                    "tracking_reference"
+                ],
+                "title": "BookDeliveryRequest"
+            },
             "BranchResource": {
                 "type": "object",
                 "properties": {
@@ -5746,6 +6706,153 @@
                     "created_at"
                 ],
                 "title": "CompanyResource"
+            },
+            "ConnectorDeviceResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "company_id": {
+                        "type": "string"
+                    },
+                    "location": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name"
+                        ]
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "last_seen_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "company_id",
+                    "location",
+                    "status",
+                    "last_seen_at"
+                ],
+                "title": "ConnectorDeviceResource"
+            },
+            "ConnectorEmployeeResource": {
+                "type": "object",
+                "additionalProperties": {},
+                "title": "ConnectorEmployeeResource"
+            },
+            "ConnectorPunchesRequest": {
+                "type": "object",
+                "properties": {
+                    "punches": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "external_id": {
+                                    "type": "string",
+                                    "maxLength": 100
+                                },
+                                "ref": {
+                                    "type": "string",
+                                    "maxLength": 64
+                                },
+                                "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                        "in",
+                                        "out",
+                                        "auto"
+                                    ]
+                                },
+                                "occurred_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d{1,6})?)?(Z|[+-]\\d{2}:\\d{2})$"
+                                }
+                            },
+                            "required": [
+                                "external_id",
+                                "ref",
+                                "kind",
+                                "occurred_at"
+                            ]
+                        },
+                        "minItems": 1,
+                        "maxItems": 500,
+                        "uniqueItems": true
+                    }
+                },
+                "required": [
+                    "punches"
+                ],
+                "title": "ConnectorPunchesRequest"
+            },
+            "CourierOrderResource": {
+                "type": "object",
+                "additionalProperties": {},
+                "title": "CourierOrderResource"
+            },
+            "CourierStatusRequest": {
+                "type": "object",
+                "properties": {
+                    "reference": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9._:\\-]+$",
+                        "minLength": 1,
+                        "maxLength": 120
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "picked_up",
+                            "delivered",
+                            "failed"
+                        ]
+                    },
+                    "occurred_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^\\d{6}$"
+                    },
+                    "reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "reference",
+                    "status",
+                    "occurred_at"
+                ],
+                "title": "CourierStatusRequest"
             },
             "ExchangeRateResource": {
                 "type": "object",
@@ -7816,6 +8923,21 @@
         },
         {
             "name": "core.uom"
+        },
+        {
+            "name": "ecommerce.delivery"
+        },
+        {
+            "name": "ecommerce.order"
+        },
+        {
+            "name": "hr.attendance"
+        },
+        {
+            "name": "hr.device"
+        },
+        {
+            "name": "hr.employee"
         },
         {
             "name": "inventory.stock"

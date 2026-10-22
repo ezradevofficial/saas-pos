@@ -12685,6 +12685,7 @@
       "order_placed_v1": "Online order placed",
       "order_paid_v1": "Online order paid",
       "order_status_changed_v1": "Online order status changed",
+      "order_ready_for_delivery_v1": "Online order ready for delivery",
       "order_completed_v1": "Online order delivered",
       "document_stage_changed_v1": "Document moved to a stage",
       "webhook_test_v1": "Test event"
@@ -12909,6 +12910,14 @@
         "p2": "An organisation installs your app through the authorization code flow with PKCE (S256 only). Your app sends the user to the consent screen; they see what it asks for in plain words and choose the role it acts as. Your app can never do more than that role allows, nor more than its permissions.",
         "p3": "Exchange the code for an access token (one hour) and a refresh token (30 days, used once: each refresh gives a new one). Use the access token exactly like an API key on the public endpoints. A refresh token used twice revokes every token of that install.",
         "p4": "Webhook events go to your webhook URL with installation=<id> added. Each install signs with its own key: HMAC-SHA256 of 'install:' followed by the installation_id from the signed body, keyed with your app’s webhook secret (base64-decoded, without whsec_); check the signature with that key, never with the URL alone. A new version that asks for more permissions or events waits for each organisation’s consent; until then your app keeps what it was given. Uninstalling revokes its tokens at once."
+      },
+      "connectors": {
+        "title": "Courier and attendance connectors",
+        "summary": "Deliver online orders as a courier, and send punches from biometric terminals.",
+        "p1": "A courier reads the online orders waiting for a courier and books one with its tracking reference and link: the delivery is then handed to it, and only then does it see the customer’s name, phone, address and notes. It never sees where a rider is or has been.",
+        "p2": "The courier reports picked up, delivered with the customer’s 6-digit delivery code, or failed with a reason. Send your own reference with each booking and update: sent again it answers the same, and the same reference with other details is refused. The order.ready_for_delivery.v1 webhook event tells you when an order is ready for a courier.",
+        "p3": "A biometric bridge reads the active roster (id, name and enrolment reference only) and the attendance devices, then sends each device’s punches with the device’s own event id. A punch sent again answers the same; punches more than 7 days old, ahead of time or with an unknown reference are refused one by one.",
+        "p4": "The key or app needs the scopes of each endpoint, and a role that holds, at the places it serves, online orders view, deliveries assign and deliver for a courier, or employees view, attendance devices view and attendance manage for a biometric bridge."
       }
     },
     "errorCodes": {
@@ -12954,6 +12963,11 @@
       "noDeprecations": "Nothing is announced for removal.",
       "sunset": "Removed on {{date}}",
       "entries": {
+        "connectors": {
+          "courier": "Courier endpoints: online orders to deliver, booking with tracking and delivery updates.",
+          "attendance": "Attendance endpoints: the roster, attendance devices and their punches.",
+          "event": "The order.ready_for_delivery.v1 webhook event."
+        },
         "v1-launch": {
           "keys": "The public API v1: API keys with roles and scopes, rate limits, idempotent POSTs and problem JSON errors.",
           "reference": "The API reference and these guides, in English and French.",
