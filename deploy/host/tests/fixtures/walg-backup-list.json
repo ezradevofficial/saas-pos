@@ -1,0 +1,11 @@
+[
+  {"backup_name": "base_000000010000000000000010", "time": "2026-08-01T01:31:00Z", "finish_time": "2026-08-01T01:35:10.123456Z", "is_permanent": false},
+  {"backup_name": "base_000000010000000000000020", "time": "2026-08-02T01:31:00Z", "finish_time": "2026-08-02T01:35:00Z", "is_permanent": true},
+  {"backup_name": "base_000000010000000000000030", "time": "2026-09-01T01:31:00Z", "finish_time": "2026-09-01T01:35:00Z", "is_permanent": false},
+  {"backup_name": "base_000000010000000000000040", "time": "2026-09-30T01:31:00Z", "finish_time": "2026-09-30T01:35:00Z", "is_permanent": false},
+  {"backup_name": "base_000000010000000000000050", "time": "2026-10-10T01:31:00Z", "finish_time": "2026-10-10T01:35:00Z", "is_permanent": false},
+  {"backup_name": "base_000000010000000000000060", "time": "2026-10-14T01:31:00Z", "finish_time": "2026-10-14T01:35:00Z", "is_permanent": false},
+  {"backup_name": "base_000000010000000000000070", "time": "2026-10-15T01:31:00Z", "finish_time": "2026-10-15T01:35:00Z", "is_permanent": false},
+  {"backup_name": "base_000000010000000000000080", "time": "2026-10-21T01:31:00Z", "finish_time": "2026-10-21T01:35:00Z", "is_permanent": false},
+  {"backup_name": "base_000000010000000000000090", "time": "2026-10-22T01:31:00Z", "finish_time": "2026-10-22T01:35:00Z", "is_permanent": false}
+]

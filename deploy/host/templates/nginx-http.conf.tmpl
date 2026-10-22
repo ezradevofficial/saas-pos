@@ -1,0 +1,16 @@
+# ADR 025: port 80 answers Let's Encrypt's HTTP challenge and redirects
+# everything else to HTTPS. Written by provision-single-host.sh.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name @SERVER_NAMES@;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/acme;
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
