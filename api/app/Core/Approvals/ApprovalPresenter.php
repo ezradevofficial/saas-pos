@@ -19,7 +19,6 @@ use App\Core\Workflow\Models\DocumentWorkflowEvent;
 use App\Core\Workflow\Models\WorkflowVersion;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * What the approvals inbox shows (APR-04): a request as a list item for
@@ -188,16 +187,10 @@ class ApprovalPresenter
         ];
     }
 
-    /** A temporary URL for $viewer: the object store's own on s3, else the signed route bound to the viewer. */
+    /** A temporary URL for $viewer: the signed route bound to the viewer, which streams the file from its disk. */
     public function url(ApprovalAttachment $file, User $viewer): string
     {
         $expires = now()->addMinutes(self::URL_MINUTES);
-
-        if (config("filesystems.disks.{$file->disk}.driver") === 's3') {
-            return Storage::disk($file->disk)->temporaryUrl($file->path, $expires, [
-                'ResponseContentDisposition' => 'attachment; filename="'.addcslashes($file->name, '"\\').'"',
-            ]);
-        }
 
         return SignedUrls::temporary('approvals.attachment', $expires, ['path' => $file->path, 'user' => $viewer->id]);
     }
