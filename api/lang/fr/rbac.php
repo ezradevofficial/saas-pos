@@ -155,6 +155,8 @@ return [
                 'webhook' => 'Webhooks',
                 'privacy_request' => 'Demandes des personnes concernées',
                 'consent' => 'Consentement marketing',
+                'marketplace' => 'Applications du marketplace',
+                'developer' => 'Applications développeur',
             ],
             'pos' => [
                 'till' => 'Connexion à la caisse',
@@ -216,6 +218,7 @@ return [
             ],
         ],
         'actions' => [
+            'install' => 'Installer',
             'deliver' => 'Livrer',
             'reply' => 'Répondre',
             'convert' => 'Convertir',

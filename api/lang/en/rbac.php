@@ -155,6 +155,8 @@ return [
                 'webhook' => 'Webhooks',
                 'privacy_request' => 'Data subject requests',
                 'consent' => 'Marketing consent',
+                'marketplace' => 'Marketplace apps',
+                'developer' => 'Developer apps',
             ],
             'pos' => [
                 'till' => 'Till sign-in',
@@ -216,6 +218,7 @@ return [
             ],
         ],
         'actions' => [
+            'install' => 'Install',
             'deliver' => 'Deliver',
             'reply' => 'Reply',
             'convert' => 'Convert',

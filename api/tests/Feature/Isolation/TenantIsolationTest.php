@@ -57,6 +57,9 @@ class TenantIsolationTest extends TestCase
      */
     public const PUBLIC_ROUTES = [
         'POST api/v1/auth/sign-up' => 'creates a new tenant; reads nothing of an existing one',
+        // MKT-02, API-02 (ADR 024): OAuth for marketplace apps (OAuthInstallTest).
+        'POST api/v1/oauth/token' => 'API-02: the OAuth token endpoint; the client authenticates (its secret and the PKCE verifier) and the code or refresh token, stored only as sha256 of its identifier, names its tenant through a security-definer function that returns only the id; rate-limited per IP',
+        'GET api/v1/marketplace/logos/{version}' => 'MKT-01: the logo of an approved app version, global marketplace data the listing shows every tenant; no tenant row is read',
         'POST api/v1/auth/verify' => 'needs the challenge id and its one-time code',
         'POST api/v1/auth/verify/resend' => 'needs the challenge id; answers only a masked destination',
         'POST api/v1/auth/sign-in' => 'needs the login and password',
@@ -148,6 +151,8 @@ class TenantIsolationTest extends TestCase
         'item_image' => 'item_image',
         'item_price' => 'item_price', // MD-03 follow-up: item-prices/{item_price}/archive|restore
         'api_key' => 'api_key', // API-02: api-keys/{api_key}
+        'developer_app' => 'developer_app', // MKT-01: developer/apps/{developer_app}, the tenant's own draft app (global table, RLS on the developer tenant)
+        'app_installation' => 'app_installation', // MKT-02: apps/installed/{app_installation}, the shared app installed in each tenant
         'payment_method' => 'payment_method',
         'department' => 'department',
         'cost_centre' => 'cost_centre',
@@ -313,6 +318,7 @@ class TenantIsolationTest extends TestCase
         'event_type' => 'core.notification.test', // GET notification-templates/{event_type}: a registered event type key (NOT-03); the texts shown are the caller's tenant's
         'kind' => TestLayoutKind::KEY, // LAY-06: config/{kind}: a registered configuration kind; the documents shown are the caller's tenant's
         'dashboard_source' => 'approvals.mine', // LAY-01: dashboard/sources/{dashboard_source}: a registered data source key; the data is the caller's own
+        'marketplace_app' => TwoTenants::MARKETPLACE_APP, // MKT-01: marketplace/apps/{marketplace_app}: a listed app, global; what the page shows of the install is the caller's
         'importer' => 'customers', // IMP-01: imports/importers/{importer}/template: a registered importer key; custom field columns are the caller's tenant's
         'component' => 'inpp', // CP-01: payroll/statutory/{company}/not-applicable/{component}: a pack component code; the company is B's
     ];
@@ -543,6 +549,7 @@ class TenantIsolationTest extends TestCase
     /** Fields ending in `_id` that are not references to rows, with why. */
     public const NOT_REFERENCES = [
         'tax_id' => "a company's tax registration number, free text",
+        'client_id' => 'API-02 (ADR 024): an OAuth client id, a global marketplace client looked up under its own policy, never a tenant row',
         'sms_sender_id' => 'BR-06: the alphanumeric SMS sender name (3 to 11 letters), free text, never a row',
         'external_id' => 'HR-24: a biometric device\'s own event id, free text the device names; looked up only for that device under its tenant, never a reference to another row',
         'client_id' => 'AUTH-11: an identity provider\'s OAuth client id, free text registered at the IdP, never a row',
@@ -604,6 +611,10 @@ class TenantIsolationTest extends TestCase
         ['as_of' => '2100-01-01'],
         // ACC-08: a fiscal year's periods (both tenants have 2026).
         ['year' => '2026'],
+        // RBAC-04 (security review 5): the roles the user may grant, anywhere or tenant-wide, for an invite
+        // (a place of tenant B's is refused as not found: GrantableRolesTest).
+        ['grantable_at' => 'any'],
+        ['grantable_at' => 'tenant', 'grantable_for' => 'invite'],
         // STR-12, STR-14: consumption by cost centre (both tenants issued to theirs), the issue voucher.
         ['group' => 'cost_centre', 'document' => 'issue_voucher'],
         // MFG-05: an explosion for a quantity at a moment.
@@ -622,7 +633,11 @@ class TenantIsolationTest extends TestCase
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook', 'subject_id' => 'customer'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id'];
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id',
+        // MKT-02: the OAuth authorization request of the consent screen (no tenant ids).
+        'client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method',
+        // RBAC-04: role pickers' grantable roles.
+        'grantable_at', 'grantable_for'];
 
     private TwoTenants $tenants;
 
@@ -770,6 +785,9 @@ class TenantIsolationTest extends TestCase
             foreach ($this->methods($route) as $method) {
                 // A GET is also called with every list query (filters included).
                 foreach ($method === 'GET' ? self::LIST_QUERIES : [[]] as $query) {
+                    // Every list query is sent with B's and then A's ids, more than a per-user
+                    // `throttle:60,1` route allows a minute: the suite's own volume is never a 429.
+                    RateLimiter::clear(sha1((string) $a->id('user')));
                     $suffix = $query === [] ? '' : '?'.http_build_query($query);
                     $uri = $this->uriWith($route, $b).$suffix;
                     $response = $this->json($method, $uri, $method === 'GET' ? [] : $this->hijackBody($b), $this->bearerFor($route, $a));
@@ -1706,6 +1724,10 @@ class TenantIsolationTest extends TestCase
             'PUT api/v1/sso/settings' => ['jit_role_id' => $tenant->id('role'), 'jit_scope_type' => 'company', 'jit_scope_id' => $tenant->id('company')],
             // API-02: a key with the custom role at the outlet.
             'POST api/v1/api-keys' => ['name' => 'Hijack key', ...$assignment, 'scopes' => ['core.location.read']],
+            // MKT-02: consent to the shared app (again) as the fixture role at A's location.
+            'POST api/v1/oauth/authorize' => ['client_id' => TwoTenants::MARKETPLACE_CLIENT, 'redirect_uri' => TwoTenants::MARKETPLACE_REDIRECT, 'response_type' => 'code',
+                'code_challenge' => TwoTenants::PKCE_CHALLENGE, 'code_challenge_method' => 'S256', 'decision' => 'approve', ...$assignment],
+            'POST api/v1/apps/installed/{app_installation}/consent' => $assignment,
             // LOY-01: the programme's gift card item (A's item is shared, TEN-08).
             'PUT api/v1/companies/{company}/loyalty-programme' => ['gift_card_item_id' => $tenant->id('gift_card_item')],
             // LOY-13: a preview of a draft bundle for the customer at the branch.

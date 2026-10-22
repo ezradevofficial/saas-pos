@@ -330,7 +330,7 @@ describe('InviteUser', () => {
     )
   })
 
-  it('offers a Branch Manager only roles they hold and places in their branch', async () => {
+  it('offers a Branch Manager only the roles the API lets them give and places in their branch', async () => {
     const branch = (names) => names.map((name) => ({ name, scopes: [{ type: 'branch', id: 'b-1' }] }))
     users({
       permissions: branch(['core.company.view', 'core.branch.view', 'core.location.view', 'core.user.view', 'core.user.invite', 'core.role.view', 'core.role.assign']),
@@ -342,6 +342,11 @@ describe('InviteUser', () => {
             { id: 'r-admin', name: 'Admin', is_system: true, is_owner: false, permissions: ['core.location.view', 'core.company.create'] },
             { id: 'r-cashier', name: 'Cashier', is_system: true, is_owner: false, permissions: ['core.location.view'] },
           ],
+        },
+        // The API's answer (Grants): only the roles they may give, asked for invites.
+        'roles:grantable': (path) => {
+          expect(path).toContain('grantable_for=invite')
+          return { data: [{ id: 'r-cashier', name: 'Cashier', is_system: true, is_owner: false, permissions: ['core.location.view'] }] }
         },
         'branches?per_page=200': {
           data: [...BRANCHES, { id: 'b-2', company_id: 'c-1', company: { id: 'c-1', name: 'Amani Retail' }, name: 'Gombe', code: 'GMB' }],
@@ -358,6 +363,9 @@ describe('InviteUser', () => {
     expect(optionTexts(within(row).getByLabelText(/^Role/))).toEqual(['Cashier'])
     expect(optionTexts(within(row).getByLabelText(/Applies to/))).toEqual(['Branch', 'Location'])
     expect(optionTexts(within(row).getByLabelText(/^Location/))).not.toContain('Gombe till · Gombe')
+    // A chosen place asks the API what may be given there.
+    chooseOption(within(row).getByLabelText(/^Location/), 'Front till · Westlands')
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('roles?per_page=200&grantable_at=location%3Al-1&grantable_for=invite'))
     chooseOption(within(row).getByLabelText(/Applies to/), 'Branch')
     const branches = optionTexts(within(row).getByLabelText(/^Branch/))
     expect(branches).toContain('Westlands · Amani Retail')

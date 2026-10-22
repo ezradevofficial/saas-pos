@@ -4,6 +4,7 @@ namespace App\Core\Api\Auth;
 
 use App\Core\Api\ApiKeyAuthenticator;
 use App\Core\Api\ApiKeyToken;
+use App\Core\Marketplace\OAuth\OAuthAuthenticator;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\Guard;
 
@@ -23,6 +24,11 @@ class ApiKeyAwareGuard extends Guard
 
         if (ApiKeyToken::claims($bearer)) {
             return app(ApiKeyAuthenticator::class)->authenticate($request, (string) $bearer);
+        }
+
+        // MKT-02 (ADR 024): a marketplace app's OAuth access token acts as its install's key.
+        if (OAuthAuthenticator::claims($bearer)) {
+            return app(OAuthAuthenticator::class)->authenticate($request);
         }
 
         return parent::__invoke($request);

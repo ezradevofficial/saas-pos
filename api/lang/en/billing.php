@@ -70,6 +70,7 @@ return [
         'coupon' => 'Coupon :key',
         'rounding' => 'Rounding',
         'proration' => 'Plan change for the rest of the period',
+        'app' => 'App: :key',
         'proration_days' => ':days of :period days',
         'months' => ':months months',
         'included' => ':count included',

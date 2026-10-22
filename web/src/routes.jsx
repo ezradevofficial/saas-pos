@@ -315,6 +315,14 @@ const Webhooks = lazy(() => import('./pages/settings/webhooks/Webhooks'))
 const Privacy = lazy(() => import('./pages/settings/privacy/Privacy'))
 const SingleSignOn = lazy(() => import('./pages/settings/SingleSignOn'))
 const ApiKeys = lazy(() => import('./pages/settings/ApiKeys'))
+// MKT-01, MKT-02: the marketplace, the consent screen, installed apps and developer apps.
+const Marketplace = lazy(() => import('./pages/marketplace/Marketplace'))
+const MarketplaceApp = lazy(() => import('./pages/marketplace/Marketplace').then((m) => ({ default: m.MarketplaceApp })))
+const Consent = lazy(() => import('./pages/marketplace/Consent'))
+const InstalledApps = lazy(() => import('./pages/settings/apps/InstalledApps'))
+const InstalledApp = lazy(() => import('./pages/settings/apps/InstalledApps').then((m) => ({ default: m.InstalledApp })))
+const DeveloperApps = lazy(() => import('./pages/settings/apps/DeveloperApps'))
+const DeveloperApp = lazy(() => import('./pages/settings/apps/DeveloperApp'))
 const ApiReference = lazy(() => import('./pages/developers/ApiReference').then((m) => ({ default: m.ApiReference })))
 const Changelog = lazy(() => import('./pages/developers/DeveloperPages').then((m) => ({ default: m.Changelog })))
 const DevelopersHome = lazy(() => import('./pages/developers/DeveloperPages').then((m) => ({ default: m.DevelopersHome })))
@@ -441,6 +449,15 @@ export const routes = [
       </RequireAuth>
     ),
     children: [{ path: '/two-factor/enrol', element: <TwoFactorEnrol /> }],
+  },
+  // MKT-02, API-02: the OAuth consent screen an app sends the user to (signed in; outside the shell).
+  {
+    element: (
+      <RequireAuth>
+        <AuthLayout />
+      </RequireAuth>
+    ),
+    children: [{ path: '/oauth/authorize', element: <Consent /> }],
   },
   // ONB-02..ONB-05: onboarding screens, outside the app shell (OnboardBusiness, OnboardModules, OnboardSetup).
   {
@@ -863,6 +880,13 @@ export const routes = [
       { path: '/settings/domains', element: <RequirePermission permission="core.domain.manage" tenantWide><Domains /></RequirePermission> },
       // API-02, API-03, API-05: API keys, their usage and the sandbox reset.
       { path: '/settings/api-keys', element: <RequirePermission permission="core.api_key.manage" tenantWide><ApiKeys /></RequirePermission> },
+      // MKT-01, MKT-02: the marketplace, installed apps and the developer portal's apps.
+      { path: '/marketplace', element: <RequirePermission permission="core.marketplace.view" tenantWide><Marketplace /></RequirePermission> },
+      { path: '/marketplace/:appId', element: <RequirePermission permission="core.marketplace.view" tenantWide><MarketplaceApp /></RequirePermission> },
+      { path: '/settings/apps', element: <RequirePermission permission="core.marketplace.view" tenantWide><InstalledApps /></RequirePermission> },
+      { path: '/settings/apps/:installationId', element: <RequirePermission permission="core.marketplace.view" tenantWide><InstalledApp /></RequirePermission> },
+      { path: '/settings/developer-apps', element: <RequirePermission permission="core.developer.manage" tenantWide><DeveloperApps /></RequirePermission> },
+      { path: '/settings/developer-apps/:appId', element: <RequirePermission permission="core.developer.manage" tenantWide><DeveloperApp /></RequirePermission> },
       // EXP-02: the full data export (Owners only; the API also checks the Owner role).
       // SUB-02..SUB-06: the plan, invoices and payment methods.
       { path: '/settings/subscription', element: <RequirePermission permission="core.subscription.view" tenantWide><Subscription /></RequirePermission> },

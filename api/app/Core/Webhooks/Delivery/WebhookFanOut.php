@@ -76,7 +76,7 @@ class WebhookFanOut
                 continue;
             }
 
-            $rows[] = [$subscription, self::envelope($eventId, $type->key, $occurredAt, $type->visibleData($principal, $occurrence->data))];
+            $rows[] = [$subscription, self::envelope($eventId, $type->key, $occurredAt, $type->visibleData($principal, $occurrence->data), $principal->envelope())];
         }
 
         if ($rows === []) {
@@ -158,9 +158,10 @@ class WebhookFanOut
     }
 
     /** The body every delivery sends (Standard Webhooks style envelope). */
-    public static function envelope(string $eventId, string $type, string $occurredAt, array $data): array
+    /** @param  array<string, string>  $extra  the principal's own keys (WebhookPrincipal::envelope) */
+    public static function envelope(string $eventId, string $type, string $occurredAt, array $data, array $extra = []): array
     {
-        return ['id' => $eventId, 'type' => $type, 'occurred_at' => $occurredAt, 'data' => (object) $data];
+        return ['id' => $eventId, 'type' => $type, 'occurred_at' => $occurredAt, ...$extra, 'data' => (object) $data];
     }
 
     /**

@@ -16,6 +16,7 @@ use App\Core\Identity\IdentityServiceProvider;
 use App\Core\Imports\ImportsServiceProvider;
 use App\Core\Layouts\LayoutsServiceProvider;
 use App\Core\Limits\LimitsServiceProvider;
+use App\Core\Marketplace\MarketplaceServiceProvider;
 use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
 use App\Core\MasterData\Taxes\TaxServiceProvider;
@@ -92,6 +93,8 @@ return [
     CrmServiceProvider::class,
     EcommerceServiceProvider::class,
     PayrollServiceProvider::class,
+    // MKT-01..MKT-04 (ADR 024): the marketplace, OAuth for apps.
+    MarketplaceServiceProvider::class,
     // API-01..API-05: last, so the sandbox's set-up runs after every other sign-up listener.
     ApiServiceProvider::class,
     HorizonServiceProvider::class,

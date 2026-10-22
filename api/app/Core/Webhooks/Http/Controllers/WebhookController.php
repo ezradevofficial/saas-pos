@@ -101,7 +101,7 @@ class WebhookController
         $payload = WebhookFanOut::envelope($eventId, WebhookCatalogue::TEST, CarbonImmutable::now()->toIso8601ZuluString(), [
             'message' => __('webhooks.test_message'),
             'webhook_id' => $subscription->id,
-        ]);
+        ], $this->principals->of($subscription)?->envelope() ?? []);
         $delivery = $fanOut->single($subscription, $eventId, WebhookCatalogue::TEST, $payload, $request->user());
         if ($delivery === null) {
             throw new ApiException(409, 'principal_inactive', __('webhooks.errors.principal_inactive'));

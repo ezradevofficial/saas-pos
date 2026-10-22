@@ -37,4 +37,13 @@ interface WebhookPrincipal
 
     /** The user to tell when the subscription is switched off, if any. */
     public function notifiableUserId(): ?string;
+
+    /**
+     * Keys added to the signed envelope of every delivery (a marketplace
+     * install's id and tenant, ADR 024), so a receiver tells installs
+     * apart from signed data, never from the URL alone.
+     *
+     * @return array<string, string>
+     */
+    public function envelope(): array;
 }

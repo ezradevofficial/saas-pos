@@ -5,7 +5,7 @@ the phase 8 plan (`docs/superpowers/plans/2026-10-16-phase-8-platform-hardening.
 ADR 002 (tenancy and row-level security), ADR 007 (country packs), ADR 013
 (platform staff and catalogue), ADR 016 (billing), ADR 017 (onboarding),
 ADR 018 (usage limits). When this file and the core spec disagree, the
-core spec wins. ADM-05 (marketplace review) is stage 8B.
+core spec wins. ADM-05 (marketplace review) is stage 8B: docs/adr/024-marketplace.md.
 
 ## Scope
 
@@ -74,6 +74,9 @@ session the tenant approved.
 | `platform.packs.publish` | ✓ | | | | ✓ | |
 | `platform.reports.view` | ✓ | | ✓ | ✓ | ✓ | |
 | `platform.staff.manage` | ✓ | | | | | |
+| `platform.marketplace.view` (ADM-05, ADR 024) | ✓ | ✓ | | ✓ | ✓ | ✓ |
+| `platform.marketplace.review` (approve, reject, suspend, reinstate apps) | ✓ | | | | ✓ | ✓ |
+| `platform.marketplace.payouts` (MKT-03: balances, manual payouts) | ✓ | | | ✓ | | |
 
 The old roles map onto the new ones: `owner` stays, `billing` becomes
 `finance`, and `support` stays.

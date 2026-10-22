@@ -30,6 +30,8 @@ export function apiError(status, code, message, errors) {
   return new ApiError({ status, code, message, errors })
 }
 
+const isGrantable = (path) => path.startsWith('roles?per_page=200&grantable_at=')
+
 /** Default GET answers for a signed-in user; `extra` adds or replaces paths. */
 export function mockApi(api, { user = OWNER, permissions = ALL_CORE, modules = ['core'], companies = [], extra = {} } = {}) {
   api.get.mockImplementation(async (path) => {
@@ -37,6 +39,12 @@ export function mockApi(api, { user = OWNER, permissions = ALL_CORE, modules = [
       const answer = extra[path]
       if (answer instanceof Error) throw answer
       return typeof answer === 'function' ? answer() : answer
+    }
+    // Role pickers ask which roles may be granted at a place (security review 5):
+    // `roles:grantable` answers them (a function gets the path), else the role list.
+    if (isGrantable(path)) {
+      const answer = extra['roles:grantable'] ?? extra['roles?per_page=200']
+      if (answer !== undefined) return typeof answer === 'function' ? answer(path) : answer
     }
     if (path === 'me') return { data: user }
     if (path === 'me/permissions') return { permissions, modules }
@@ -88,6 +96,15 @@ export function mockRoutes(api, routes, options = {}) {
   mockApi(api, options)
   const fallback = api.get.getMockImplementation()
   api.get.mockImplementation(async (path) => {
+    // As mockApi: role pickers' grantable roles default to the role list.
+    if (isGrantable(path) && !routes.some(([match]) => match === 'roles:grantable' || (typeof match !== 'string' && match.test(path)))) {
+      const list = routes.find(([match]) => match === 'roles?per_page=200')
+      if (list) return typeof list[1] === 'function' ? list[1](path) : list[1]
+    }
+    if (isGrantable(path)) {
+      const own = routes.find(([match]) => match === 'roles:grantable')
+      if (own) return typeof own[1] === 'function' ? own[1](path) : own[1]
+    }
     for (const [match, answer] of routes) {
       if (typeof match === 'string' ? path === match : match.test(path)) {
         if (answer instanceof Error) throw answer

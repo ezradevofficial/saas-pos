@@ -14,6 +14,8 @@ const NAV = [
   { to: '/platform/support', label: 'admin.nav.support', permission: 'platform.support.request' },
   { to: '/platform/packs', label: 'admin.nav.packs', permission: 'platform.packs.view' },
   { to: '/platform/reports', label: 'admin.nav.reports', permission: 'platform.reports.view' },
+  { to: '/platform/marketplace', label: 'admin.nav.marketplace', permission: 'platform.marketplace.view' },
+  { to: '/platform/payouts', label: 'admin.nav.payouts', permission: 'platform.marketplace.payouts' },
   { to: '/platform/staff', label: 'admin.nav.staff', permission: 'platform.staff.manage' },
 ]
 

@@ -7,6 +7,8 @@ use App\Core\Billing\Console\CreateOperator;
 use App\Core\Billing\Console\ModulePurgeReport;
 use App\Core\Billing\Console\RunBillingCycleCommand;
 use App\Core\Billing\Console\SyncSubscriptionModules;
+use App\Core\Billing\Contracts\AddOnCharges;
+use App\Core\Billing\Contracts\NoAddOnCharges;
 use App\Core\Billing\Dunning\BillingNotices;
 use App\Core\Billing\Invoicing\BillingFiscalSource;
 use App\Core\Billing\Invoicing\Invoicing;
@@ -53,6 +55,8 @@ class BillingServiceProvider extends ServiceProvider
         $this->app->singleton(TrialExpiry::class, BillingTrial::class);
         // SUB-05: the till learns when selling stops through sync.
         $this->app->singleton(TillSellingState::class, BillingTillState::class);
+        // MKT-03: the marketplace binds its paid apps (bindIf here, so it wins whatever the order).
+        $this->app->bindIf(AddOnCharges::class, NoAddOnCharges::class);
     }
 
     public function boot(): void

@@ -5,6 +5,7 @@ namespace App\Core\Billing\Payments;
 use App\Core\Audit\Auditor;
 use App\Core\Billing\Dunning\BillingCycle;
 use App\Core\Billing\Dunning\BillingNotices;
+use App\Core\Billing\Events\OperatorInvoicePaid;
 use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\BillingPayment;
@@ -237,7 +238,8 @@ class BillingPayments
      */
     public function markPaid(OperatorInvoice $invoice, string $via, string $reference): OperatorInvoice
     {
-        $invoice = $this->operator->run(function () use ($invoice, $via, $reference) {
+        // The lock holds to commit, so the payables recorded with it (MKT-03) commit with the payment.
+        $invoice = $this->operator->run(fn () => DB::connection(TenantContext::CONNECTION)->transaction(function () use ($invoice, $via, $reference) {
             $fresh = OperatorInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
 
             if (! $fresh->isOpen()) {
@@ -245,7 +247,7 @@ class BillingPayments
             }
 
             return $this->markOperatorPaid($fresh, $via, $reference);
-        });
+        }));
 
         $this->tenants->run($invoice->customer_tenant_id, fn () => $this->copyPaid($invoice));
 
@@ -453,6 +455,9 @@ class BillingPayments
             'paid_via' => $via,
             'payment_reference' => mb_substr($reference, 0, 100),
         ])->save();
+
+        // MKT-03: in the same transaction, the developers' share of its app lines.
+        event(new OperatorInvoicePaid($invoice));
 
         return $invoice;
     }

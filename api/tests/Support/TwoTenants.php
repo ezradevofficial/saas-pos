@@ -23,6 +23,8 @@ use App\Core\Limits\Allowances;
 use App\Core\Limits\PlanAllowances;
 use App\Core\Limits\Units;
 use App\Core\Limits\UsageLimits;
+use App\Core\Marketplace\Connectors\FirstParty;
+use App\Core\Marketplace\Models\MarketplacePayable;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Notifications\Models\InAppNotification;
@@ -32,6 +34,7 @@ use App\Core\Notifications\Notifier;
 use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Privacy\Models\PrivacyRequest;
 use App\Core\Privacy\PrivacyRequests;
+use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Models\Role;
@@ -50,6 +53,7 @@ use App\Core\Workflow\Runtime\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
@@ -118,6 +122,26 @@ final class TwoTenants
 
     public const MODULE = 'isolation';
 
+    /**
+     * MKT-02 (ADR 024): a listed app both tenants install, committed on the
+     * schema owner's connection (review is the platform's, outside the test
+     * transaction) and removed after the test.
+     */
+    public const MARKETPLACE_APP = '019a0000-0000-7000-8000-0000000fe001';
+
+    public const MARKETPLACE_CLIENT = '019a0000-0000-7000-8000-0000000fe002';
+
+    public const MARKETPLACE_VERSION = '019a0000-0000-7000-8000-0000000fe003';
+
+    public const MARKETPLACE_SECRET = 'isolation-client-secret-0123456789abcdefghij';
+
+    public const MARKETPLACE_REDIRECT = 'https://isolation.example.com/callback';
+
+    /** RFC 7636 appendix B: the verifier and its S256 challenge. */
+    public const PKCE_VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+
+    public const PKCE_CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
+
     /** AUTH-06: the owner's POS PIN in both tenants (6 digits: owners approve overrides, AUTH-08). */
     public const PIN = '482619';
 
@@ -163,6 +187,12 @@ final class TwoTenants
         // SUB-03: the operator (the platform's seller), with fake fiscal and payment drivers.
         $test->artisan('platform:operator', ['--country' => ['KE'], '--fake' => true])->assertSuccessful();
         app(Operator::class)->forget();
+        self::marketplaceApp($test);
+        // MKT-03: a payout in the operator's developers' ledger.
+        app(TenantContext::class)->run((string) app(Operator::class)->id(), fn () => MarketplacePayable::query()->create([
+            'developer_id' => FirstParty::DEVELOPER, 'kind' => MarketplacePayable::PAYOUT, 'currency' => 'KES', 'amount_minor' => 100,
+            'reference' => 'ISOLATION-1', 'recorded_by' => (string) Str::uuid7(), 'occurred_at' => now(),
+        ]));
 
         return new self(
             self::tenant($test, 'a', ['email' => 'owner-a@example.com']),
@@ -678,6 +708,26 @@ final class TwoTenants
         self::ok($test->postJson('/api/v1/privacy/consents', [
             'subject_type' => 'customer', 'subject_id' => $customer, 'purpose' => 'marketing', 'channel' => 'email', 'granted' => true, 'evidence' => "Consent {$upper}",
         ], $owner), 201);
+        // MKT-01, MKT-02 (ADR 024): a developer account with a draft app (its secrets are
+        // shown once: B's must never reach A), and the shared listed app installed as
+        // the fixture role at the location, its code exchanged for tokens.
+        self::ok($test->putJson('/api/v1/developer', ['name' => "Developer {$upper}", 'email' => "developer-{$key}@example.com", 'accept_terms' => true], $owner));
+        $developerApp = self::ok($test->postJson('/api/v1/developer/apps', [
+            'slug' => "isolation-app-{$key}", 'name' => "Developer app {$upper}", 'description' => 'An app of the isolation fixture, never listed, never seen by the other tenant.',
+            'category' => 'other', 'redirect_uris' => ["https://developer-{$key}.example.com/cb"], 'scopes' => ['core.item.read'], 'pricing' => ['model' => 'free'],
+        ], $owner), 201);
+        // Its draft's logo (served to its developer only).
+        self::ok($test->post("/api/v1/developer/apps/{$developerApp->json('data.id')}/logo", ['logo' => UploadedFile::fake()->image("logo-{$key}.png", 128, 128)], [...$owner, 'Accept' => 'application/json']));
+        $installed = self::ok($test->postJson('/api/v1/oauth/authorize', [
+            'client_id' => self::MARKETPLACE_CLIENT, 'redirect_uri' => self::MARKETPLACE_REDIRECT, 'response_type' => 'code', 'state' => "state-{$key}",
+            'code_challenge' => self::PKCE_CHALLENGE, 'code_challenge_method' => 'S256',
+            'decision' => 'approve', 'role_id' => $role, 'scope_type' => 'location', 'scope_id' => $location,
+        ], $owner));
+        parse_str((string) parse_url($installed->json('data.redirect_to'), PHP_URL_QUERY), $redirect);
+        $appTokens = self::ok($test->post('/api/v1/oauth/token', [
+            'grant_type' => 'authorization_code', 'client_id' => self::MARKETPLACE_CLIENT, 'client_secret' => self::MARKETPLACE_SECRET,
+            'redirect_uri' => self::MARKETPLACE_REDIRECT, 'code' => $redirect['code'], 'code_verifier' => self::PKCE_VERIFIER,
+        ], ['Accept' => 'application/json']));
 
         // LIM-01, LIM-02: a day's usage metered against a plan of no devices: the paired till is over,
         // so the tenant has meter rows and an open overage (the Owner is warned).
@@ -764,6 +814,8 @@ final class TwoTenants
                 'billing_deal' => $billingDeal,
                 'import' => $import,
                 'api_key' => $apiKey->json('data.id'),
+                'developer_app' => $developerApp->json('data.id'),
+                'app_installation' => $installed->json('data.installation_id'),
                 'webhook' => $webhook->json('data.id'),
                 'webhook_delivery' => $webhookDelivery,
                 'privacy_request' => $privacyRequest,
@@ -783,7 +835,8 @@ final class TwoTenants
                 'challenge' => $challenge,
             ],
             tokens: ['owner' => $ownerToken, 'manager' => $accepted->json('token'), 'device' => $deviceToken],
-            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, $subscriptionSecret, "hook-token-{$key}", "path-token-{$key}", $callbackToken, $apiKey->json('secret'), ...$ecommerce['contacts']])),
+            contacts: array_values(array_filter([$login['email'] ?? null, $login['phone'] ?? null, $managerEmail, $inviteePhone, $partyPhone, $webhookSecret, $subscriptionSecret, "hook-token-{$key}", "path-token-{$key}", $callbackToken, $apiKey->json('secret'),
+                $developerApp->json('secrets.client_secret'), $developerApp->json('secrets.webhook_secret'), $appTokens->json('access_token'), $appTokens->json('refresh_token'), ...$ecommerce['contacts']])),
         );
     }
 
@@ -1653,6 +1706,54 @@ final class TwoTenants
             'payroll_payslip' => $payslip,
             'payroll_return' => $return,
         ];
+    }
+
+    /** The shared listed app, committed on the owner's connection and removed when the test ends. */
+    private static function marketplaceApp(TestCase $test): void
+    {
+        $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
+        $now = now();
+
+        $owner->transaction(function () use ($owner, $now) {
+            $owner->table('oauth_clients')->insert([
+                'id' => self::MARKETPLACE_CLIENT, 'name' => 'Isolation app', 'secret' => 'external',
+                'redirect_uris' => json_encode([self::MARKETPLACE_REDIRECT]), 'grant_types' => json_encode(['authorization_code', 'refresh_token']),
+                'revoked' => false, 'app_id' => self::MARKETPLACE_APP, 'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $owner->table('marketplace_apps')->insert([
+                'id' => self::MARKETPLACE_APP, 'developer_id' => FirstParty::DEVELOPER, 'slug' => 'isolation-listed-app', 'status' => 'active',
+                'client_id' => self::MARKETPLACE_CLIENT, 'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $owner->table('marketplace_app_secrets')->insert([
+                'app_id' => self::MARKETPLACE_APP, 'client_secret_sha256' => hash('sha256', self::MARKETPLACE_SECRET),
+                'webhook_key' => DB::raw("decode('".bin2hex(random_bytes(32))."', 'hex')"), 'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $owner->table('marketplace_app_versions')->insert([
+                'id' => self::MARKETPLACE_VERSION, 'app_id' => self::MARKETPLACE_APP, 'version' => 1, 'status' => 'draft', 'name' => 'Isolation app',
+                'description' => 'A listed app both fixture tenants install.', 'category' => 'other', 'redirect_uris' => json_encode([self::MARKETPLACE_REDIRECT]),
+                'scopes' => json_encode(['core.item.read', 'core.party.read']), 'webhook_events' => '[]', 'pricing' => json_encode(['model' => 'free']),
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $owner->table('marketplace_app_versions')->where('id', self::MARKETPLACE_VERSION)->update(['status' => 'submitted']);
+            $owner->table('marketplace_app_versions')->where('id', self::MARKETPLACE_VERSION)->update(['status' => 'approved']);
+            $owner->table('marketplace_apps')->where('id', self::MARKETPLACE_APP)->update(['listed_version_id' => self::MARKETPLACE_VERSION]);
+        });
+
+        // After the test's transaction has rolled back (no install references the app any more).
+        (fn () => $this->beforeApplicationDestroyed(function () {
+            $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
+            $owner->transaction(function () use ($owner) {
+                $owner->statement('alter table marketplace_app_versions disable trigger user');
+                $owner->statement('alter table marketplace_apps disable trigger user');
+                $owner->table('marketplace_apps')->where('id', TwoTenants::MARKETPLACE_APP)->update(['listed_version_id' => null]);
+                $owner->table('marketplace_app_versions')->where('app_id', TwoTenants::MARKETPLACE_APP)->delete();
+                $owner->table('marketplace_app_secrets')->where('app_id', TwoTenants::MARKETPLACE_APP)->delete();
+                $owner->table('marketplace_apps')->where('id', TwoTenants::MARKETPLACE_APP)->delete();
+                $owner->table('oauth_clients')->where('id', TwoTenants::MARKETPLACE_CLIENT)->delete();
+                $owner->statement('alter table marketplace_app_versions enable trigger user');
+                $owner->statement('alter table marketplace_apps enable trigger user');
+            });
+        }))->call($test);
     }
 
     private static function ok(TestResponse $response, int $status = 200): TestResponse

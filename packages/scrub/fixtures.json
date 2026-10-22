@@ -88,6 +88,14 @@
     [
       "signature=abc123&expires=1760000000",
       "signature=[redacted]&expires=1760000000"
+    ],
+    [
+      "POST /oauth/token grant_type=refresh_token&refresh_token=def5020abc&client_secret=Abc123xyz&code_verifier=dBjftJeZ4CVP",
+      "POST /oauth/token grant_type=refresh_token&refresh_token=[redacted]&client_secret=[redacted]&code_verifier=[redacted]"
+    ],
+    [
+      "token request client_secret=Abc123xyz failed",
+      "token request client_secret=[redacted] failed"
     ]
   ],
   "objects": [
@@ -250,7 +258,8 @@
     "passkey",
     "consumer_key",
     "security_credential",
-    "SecurityCredential"
+    "SecurityCredential",
+    "code_verifier"
   ],
   "plainKeys": [
     "name",

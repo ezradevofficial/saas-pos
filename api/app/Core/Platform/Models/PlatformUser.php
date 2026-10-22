@@ -83,6 +83,12 @@ class PlatformUser extends Authenticatable
         // ADM-06: revenue and usage reports.
         'platform.reports.view' => [self::ROLE_OWNER, self::ROLE_SALES, self::ROLE_FINANCE, self::ROLE_COMPLIANCE],
         'platform.staff.manage' => [self::ROLE_OWNER],
+        // ADM-05: the marketplace review queue (view); approve, reject, suspend and reinstate apps
+        // (review, a security review: compliance and engineering).
+        'platform.marketplace.view' => [self::ROLE_OWNER, self::ROLE_SUPPORT, self::ROLE_FINANCE, self::ROLE_COMPLIANCE, self::ROLE_ENGINEERING],
+        'platform.marketplace.review' => [self::ROLE_OWNER, self::ROLE_COMPLIANCE, self::ROLE_ENGINEERING],
+        // MKT-03: developers' payable balances and manual payouts.
+        'platform.marketplace.payouts' => [self::ROLE_OWNER, self::ROLE_FINANCE],
     ];
 
     /** ADR 013: staff writes go through the platform role; public reads use ::on(PlatformDatabase::READ). */

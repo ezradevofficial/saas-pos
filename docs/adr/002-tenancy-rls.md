@@ -73,6 +73,7 @@ Many tenants share one database. A missing `where tenant_id = ?` anywhere would 
 | `currencies` | The ISO 4217 catalogue (CUR-01), the same for every tenant and with no `tenant_id`. `app` may only read it; `currencies:sync` writes it as the owner. The currencies a tenant uses (`tenant_currencies`) and a company's reporting currencies (`company_reporting_currencies`) are tenant tables. |
 | `platform_*`, `catalogue_*` | Platform staff, their tokens and audit log, and the plan catalogue (ADR 013). No `tenant_id`; staff belong to no tenant and the catalogue is the same for every tenant. Listed in `GlobalTables::PLATFORM`. Grants keep them apart instead of RLS: only role `app_platform` reaches the staff tables and writes the catalogue; `app` only reads the catalogue. |
 | `country_pack_releases` | Country pack releases loaded and published by platform staff (ADM-04, ADR 022): reference data, the same for every tenant. The platform role writes it; `app` reads only published releases (a row-level security policy on status). Listed in `GlobalTables::PLATFORM`. |
+| `marketplace_developers`, `marketplace_apps`, `marketplace_app_versions`, `oauth_clients` | Developer-owned marketplace data published to every tenant (MKT-01, ADR 024). No `tenant_id`; forced row-level security keyed on `developer_tenant_id` instead: a tenant reads and writes its own rows and reads what is listed; the platform role reads all and changes only review columns. Nobody deletes. Listed in `GlobalTables::MARKETPLACE`; `RlsCoverageTest` checks the policies and grants. |
 
 - `personal_access_tokens` and `verification_challenges` carry a `tenant_id` column. They are listed in `api/tests/Support/GlobalTables.php`.
 - `RlsCoverageTest` fails if any other table with a `tenant_id` lacks forced RLS.
@@ -89,6 +90,7 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `auth_tenant_for_pairing(p_code_hash text)` | `devices` by pairing-code hash, unexpired codes only |
 | `api_key_tenant(p_public_id text, p_sandbox boolean)` | `api_keys` by key id, when the tenant's sandbox flag matches the key's `sk_test_` or `sk_live_` prefix (ADR 020) |
 | `crm_lead_form_tenant(p_token_hash text)` | `crm_lead_forms` by token hash, archived forms included (the controller refuses them; CRM-06) |
+| `oauth_token_tenant(p_kind text, p_id_hash text)` | `oauth_auth_codes`, `oauth_access_tokens` or `oauth_refresh_tokens` by the sha256 of a marketplace app's code or token identifier (ADR 024) |
 | `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | the active tenant whose slug or verified custom domain the storefront's host names and that has a live, not archived store with that handle (ECOM-06) |
 | `ecom_whatsapp_tenant(p_token_hash text)` | `ecom_stores` by WhatsApp webhook token hash, archived stores included (the controller refuses them; ECOM-24) |
 | `sso_tenant_for_email_domain(p_domain text)` | `sso_domains`: the active tenant with that verified, not archived email domain (AUTH-11 email discovery and sign-up's enforced-domain check; ADR 023) |
@@ -148,6 +150,15 @@ Two more functions answer for hosts, before any tenant is known:
 
 Every `security definer` function in `public`, with what it returns. `SecurityDefinerFunctionsTest` lists them from `pg_proc` and fails when one is missing here, lacks a pinned `search_path`, is executable by `PUBLIC`, or returns anything but `uuid` or `setof uuid`. The documented exceptions are `app_public_branding` (public fields of a sign-in page, above) and `app_platform_usage_totals` (ADM-06: totals per unit across tenants for the platform's reports, with no tenant id; the test pins its result type), and `app_prune_api_idempotency_keys` (ADR 020: deletes expired stored API responses of every tenant and returns only how many, below).
 
+The marketplace's secret functions are exceptions too (ADR 024, security review). An app's client-secret digest and webhook key live in `marketplace_app_secrets`, which neither the runtime nor the platform role can read; only these functions reach it, and none returns a stored secret:
+
+- `oauth_client_secret_ok` returns a `boolean`: whether the sha256 of a presented client secret matches. The digest never leaves the database.
+- `app_install_webhook_key` returns `text`: one install's own signing key, `HMAC-SHA256(app webhook key, 'install:' || install id)` as `whsec_` + base64, and only for an active install of the session's tenant (null for another tenant's install). It never returns the app's key, so one tenant holding its install's key learns nothing that signs for another install. The HMAC is computed by `marketplace_hmac_sha256(key, message)`, a plain (not security-definer) function on the built-in `sha256()`, since no crypto extension is installed; execute on it is revoked from `PUBLIC`.
+- `marketplace_store_app_secrets` returns an `integer` (how many rows changed): it sets an app's secret digest and/or webhook key, only from the app's developer tenant, or from the platform role for a first-party app.
+- `marketplace_developer_active` returns a `boolean`: whether a developer may serve (not suspended, its tenant not closed). It names nothing else.
+
+The test pins each one's result type. `app_tenants_with_app_installed` returns tenant ids, but only to the platform role (`session_user`) or to a session of the app's own developer tenant; any other tenant gets nothing, so a customer cannot list who else installed an app.
+
 | Function | Returns | Used for |
 | --- | --- | --- |
 | `auth_tenant_for_login(p_login text)` | `uuid` | sign-in by email or phone |
@@ -200,6 +211,12 @@ Every `security definer` function in `public`, with what it returns. `SecurityDe
 | `app_tenants_for_pack_updates()` | `setof uuid` | ADM-04 (ADR 022): every tenant that is not closed, suspended ones included, to receive a published tax release (one queued job per tenant) |
 | `app_tenants_with_expired_support_grants(p_at timestamptz)` | `setof uuid` | `support:expire`: support access approved and past its end (RBAC-13, docs/modules/platform-admin.md) |
 | `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `setof uuid` | `webhooks:sweep` (ADR 021) |
+| `oauth_token_tenant(p_kind text, p_id_hash text)` | `uuid` | the tenant of a marketplace app's authorization code, access or refresh token, by sha256 of its identifier (`auth_code`, `access_token`, `refresh_token`), for the token endpoint and the resource guard (API-02, MKT-02, ADR 024) |
+| `app_tenants_with_app_installed(p_app_id uuid)` | `setof uuid` | tenants (not closed) with an active install of an app: staff suspending or reinstating it audit each, and a rolled webhook secret reaches each (ADM-05, MKT-02, ADR 024); answers only the platform role and the app's developer tenant |
+| `oauth_client_secret_ok(p_client_id uuid, p_secret_sha256 text)` | `boolean` | the token endpoint's client-secret check, without the digest leaving the database (API-02, ADR 024); documented exception |
+| `app_install_webhook_key(p_installation_id uuid)` | `text` | an install's derived signing key, for an active install of the session's tenant only (MKT-02, ADR 024); documented exception |
+| `marketplace_store_app_secrets(p_app_id uuid, p_client_secret_sha256 text, p_webhook_key bytea)` | `integer` | setting an app's secrets, by its developer tenant or the platform role for first-party apps; returns how many rows changed (MKT-01, ADR 024); documented exception |
+| `marketplace_developer_active(p_developer_id uuid)` | `boolean` | whether a developer's apps may serve (MKT-01, ADM-05, ADR 024); documented exception |
 
 ### Nobody but the owner creates objects in `public`
 
