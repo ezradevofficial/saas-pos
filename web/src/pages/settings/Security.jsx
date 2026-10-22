@@ -9,6 +9,7 @@ import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useErrorFocus } from '@/lib/useErrorFocus'
+import { useSupportSession } from '@/auth/useSupportSession'
 import { MySsoLinks } from './sso/SsoLinks'
 
 const FIELDS = ['password_min_length', 'session_timeout_minutes', 'default_locale']
@@ -119,6 +120,7 @@ function SettingsForm({ settings }) {
 export default function Security() {
   const { t } = useTranslation()
   const { tenantWide } = usePermissions()
+  const support = useSupportSession()
   const settings = useQuery({ queryKey: ['tenant', 'settings'], queryFn: () => api.get('tenant/settings') })
 
   return (
@@ -149,7 +151,7 @@ export default function Security() {
         </Card>
       ) : null}
       {/* AUTH-11, ADR 023: link one's own account (how an Owner is linked). */}
-      <MySsoLinks />
+      {support.active ? null : <MySsoLinks />}
       {/* RBAC-13: who may see the organisation from our support team. */}
       {tenantWide('core.support_access.view') ? (
         <Card title={t('supportAccess.title')} subtitle={t('supportAccess.cardText')} actions={<Link to="/settings/security/support-access" className="rounded-sm text-label text-primary underline-offset-2 hover:underline">{t('supportAccess.open')}</Link>} />
