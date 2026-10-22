@@ -79,7 +79,7 @@ Required everywhere (`app:preflight` fails without them outside local and testin
 | `DB_PLATFORM_*` | `app_platform` (ADR 013) |
 | `CACHE_STORE=redis`, `QUEUE_CONNECTION=redis`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | Redis; `app:preflight` pings it. `REDIS_CLIENT` defaults to `predis` (set `phpredis` only where the extension is installed) |
 | `MAIL_MAILER` (a real mailer), `MAIL_FROM_ADDRESS` and the mailer's credentials | never `log` or `array` |
-| `SMS_DRIVER` and its credentials | never `log`. **No SMS provider is implemented yet**: leave it unset until one is (owner input); phone sign-up and SMS codes fail with `SmsNotConfigured`, email works. Preflight warns on an unset or unknown name |
+| `SMS_DRIVER` and its credentials | never `log`. **No SMS provider is implemented yet** (owner decision 2026-10-22: launch email-only): leave it empty, or set `none`. That is email-only mode, a supported setting, not a fault: see [Email-only mode](#email-only-mode-no-sms-provider) below. Preflight warns "SMS unavailable: email-only mode" and passes |
 | `HR_DIGEST_KEY` | a random 32-byte key, `base64:…`, separate from `APP_KEY` (docs/modules/hr.md) |
 | `TRUSTED_PROXIES` | the NodeBalancer's backend range `192.168.255.0/24`, or `none` when reached directly (staging on one host); empty logs a warning on every boot |
 | `PAYMENTS_CALLBACK_URL`, `MPESA_*`, `ETIMS_*` | docs/integrations.md |
@@ -129,3 +129,17 @@ A migration that alters a table needs a lock that a running transaction may hold
 - The secrets vault (docs/security.md) and the penetration-test firm.
 - Object Storage for media: approve `league/flysystem-aws-s3-v3`.
 - Legal confirmation of data subject request deadlines and retention periods (docs/privacy.md).
+
+## Email-only mode (no SMS provider)
+
+Until an SMS provider is implemented the platform runs email-only (AUTH-01 to AUTH-05, NOT-01, owner decision 2026-10-22). One check, `SmsAvailability` (`api/app/Core/Notifications/Sms/SmsAvailability.php`), answers whether text messages can be sent: only when `SMS_DRIVER` names a driver in `SmsSender::DRIVERS`. `log` counts only in `local` and `testing` (and is refused outside them by `EnvironmentGuard`); empty, `none` or an unknown name is email-only mode.
+
+In email-only mode:
+
+- **Refused with 422 `sms_unavailable`** ("Text messages aren’t available yet. Use your email address.", in English and French): sign-up with a phone number, password reset for a phone number (for every number alike, so the answer says nothing about accounts), inviting a user by phone, assisted onboarding with a phone contact, enrolling in two-step sign-in by text message, resending a code by SMS, and the storefront's sign-in code by SMS. Nothing is stored or sent.
+- **Sign-in**: an active user still signs in with a phone number and password (no code is needed). A user whose second step is by text message gets the code by verified email instead; with no verified email the sign-in is refused, never let through without its second step.
+- **Notifications**: every SMS delivery is written as skipped with the reason `sms_unavailable` (never counted as sent) and the message goes by WhatsApp where that channel is configured and the user has a verified phone, else by email. A customer's order update by SMS goes by WhatsApp where configured; its email goes as usual. Marketing never changes channel (consent is per channel). Notification preferences hide SMS.
+- **Apps**: `GET /api/v1/public/branding` returns `meta.sms_available`; the web app, the storefront and the POS rider sign-in ask for an email address only and say why.
+- **Phone-only users**: none can exist in production. Phone sign-up, phone invitations and phone onboarding are refused before any user is created, contacts cannot be changed afterwards, and production has never run with SMS. A sign-up left unverified is closed after 24 hours (`onboarding:prune-pending`). Anywhere one does exist (a local or staging database from before), an active one signs in with the password; one that needs a code (unverified, or two-step by text message with no verified email) is refused with "Ask your Owner or support to add an email address to your account."
+- **Turning SMS on later**: add the provider to `SmsSender::DRIVERS` and its binding in `IdentityServiceProvider`, then set `SMS_DRIVER`. Nothing else changes. Replies such as STOP by SMS are out of scope until then (docs/privacy.md).
+

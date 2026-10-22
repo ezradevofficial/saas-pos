@@ -167,6 +167,18 @@ class SmsUnavailableTest extends TestCase
         $this->assertCount(0, $sms->sent);
     }
 
+    /** NOT-01: the event types report SMS as unavailable, so the preferences screen hides it. */
+    public function test_the_event_types_report_sms_as_unavailable(): void
+    {
+        $sms = fn () => collect(collect($this->getJson('/api/v1/notification-event-types', $this->headersFor())->assertOk()->json('data'))
+            ->firstWhere('event_type', 'core.notification.test')['channels'])->firstWhere('channel', 'sms')['available'];
+
+        $this->assertFalse($sms());
+
+        config(['services.sms.driver' => 'log']);
+        $this->assertTrue($sms());
+    }
+
     public function test_the_skip_reason_reads_in_english_and_french(): void
     {
         $this->assertNotSame('notifications.reasons.sms_unavailable', __('notifications.reasons.sms_unavailable', [], 'en'));
