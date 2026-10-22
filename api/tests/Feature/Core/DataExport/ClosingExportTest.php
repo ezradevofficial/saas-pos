@@ -89,13 +89,28 @@ class ClosingExportTest extends TestCase
             $this->assertStringNotContainsString('signature', json_encode($sent->after));
         });
 
-        // Only one export per closing: closing again, or the listener running twice, builds nothing more.
-        $this->asTenant($this->owner->tenant_id, function () {
-            Tenant::query()->whereKey($this->owner->tenant_id)->firstOrFail()->forceFill(['status' => 'active'])->save();
-            Tenant::query()->whereKey($this->owner->tenant_id)->firstOrFail()->forceFill(['status' => 'closed'])->save();
-            app(TenantExports::class)->requestOnClosing();
-        });
+        // One export per closing: the listener running twice for this closing builds nothing more.
+        $this->asTenant($this->owner->tenant_id, fn () => app(TenantExports::class)->requestOnClosing());
         $this->assertCount(1, $this->closingExports());
+    }
+
+    /** Reopened and closed again, a tenant gets a fresh export; one closing never yields two. */
+    public function test_each_closing_gets_its_own_export_and_only_one(): void
+    {
+        $this->close($this->owner->tenant_id);
+        $this->travel(1)->minutes();
+        $this->asTenant($this->owner->tenant_id, fn () => Tenant::query()->whereKey($this->owner->tenant_id)->firstOrFail()->forceFill(['status' => 'active'])->save());
+        $this->travel(1)->minutes();
+        $this->close($this->owner->tenant_id);
+
+        $this->asTenant($this->owner->tenant_id, fn () => app(TenantExports::class)->requestOnClosing());
+        $exports = $this->closingExports();
+        $this->assertCount(2, $exports);
+        $this->assertSame([TenantExport::READY, TenantExport::READY], array_map(fn (TenantExport $export) => $export->status, $exports));
+        Notification::assertSentToTimes($this->owner, ClosingExportReady::class, 2);
+
+        // The latest closing's link is the one that downloads.
+        $this->get($this->linkFor($this->owner))->assertOk();
     }
 
     public function test_tampered_expired_and_other_tenants_links_are_refused(): void
