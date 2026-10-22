@@ -4,6 +4,7 @@ use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
 use Illuminate\Support\Facades\Route;
+use Modules\Ecommerce\EcommerceServiceProvider;
 use Modules\Ecommerce\Http\Controllers\CashupController;
 use Modules\Ecommerce\Http\Controllers\ConversationController;
 use Modules\Ecommerce\Http\Controllers\CustomerController;
@@ -120,8 +121,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // ECOM-28: the rider app.
     Route::get('ecommerce/rider/deliveries', [RiderAppController::class, 'deliveries']);
-    Route::post('ecommerce/rider/updates', [RiderAppController::class, 'updates']);
-    Route::post('ecommerce/rider/deliveries/{ecom_delivery}/photo', [RiderAppController::class, 'photo']);
+    // Review H3, M5: per rider, so a phone (or a stolen token) cannot flood the server.
+    Route::post('ecommerce/rider/updates', [RiderAppController::class, 'updates'])->middleware('throttle:'.EcommerceServiceProvider::RIDER_UPDATES_LIMITER);
+    Route::post('ecommerce/rider/deliveries/{ecom_delivery}/photo', [RiderAppController::class, 'photo'])->middleware('throttle:'.EcommerceServiceProvider::RIDER_PHOTOS_LIMITER);
 });
 
 // ECOM-41: a proof photo behind a temporary signed URL bound to the user (the

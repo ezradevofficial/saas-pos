@@ -3,6 +3,7 @@
 namespace Modules\Ecommerce\Tests;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Http\ApiException;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Privacy\PrivacySubjects;
 use App\Core\Rbac\ModuleRegistry;
@@ -12,10 +13,12 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Modules\Ecommerce\Delivery\ProofPhotos;
 use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\DeliveryLocation;
 use Modules\Ecommerce\Models\DeliveryUpdate;
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Models\Store;
 use Modules\Ecommerce\Tests\Concerns\BuildsEcommerce;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -174,6 +177,85 @@ class DeliveryTrackingTest extends TestCase
         $this->assertSame('not_configured', $this->api('GET', "ecommerce/stores/{$this->shop->id}", [], $this->manager)->json('data.whatsapp_notifications'));
         $this->placeOrder($this->cart([[$this->widgetProduct, '1']]), key: 'third-order-key-00001', extra: ['whatsapp_opt_in' => true])->assertCreated();
         $this->assertSame(1, $this->inTenant(fn () => NotificationDelivery::query()->where('channel', 'whatsapp')->count()));
+    }
+
+    public function test_a_photo_that_claims_a_huge_picture_is_refused_before_it_is_decoded(): void
+    {
+        // Review H3: a small file whose header claims 4000 × 3500 (14 MP) is refused from its header alone.
+        $delivery = $this->assigned();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
+        $url = "/api/v1/ecommerce/rider/deliveries/{$delivery->id}/photo";
+
+        $this->json('POST', $url, ['photo' => $this->pngHeader(4000, 3500)], $this->headersFor($this->riderUser))
+            ->assertUnprocessable()->assertJsonPath('code', 'photo_pixels_too_large');
+        $this->json('POST', $url, ['photo' => $this->pngHeader(5000, 100)], $this->headersFor($this->riderUser))
+            ->assertUnprocessable()->assertJsonValidationErrors('photo');
+        $this->assertNull($delivery->refresh()->proof_photo_path);
+
+        // What is kept is scaled down to 1600 pixels a side.
+        $this->json('POST', $url, ['photo' => UploadedFile::fake()->image('door.jpg', 2000, 1000)], $this->headersFor($this->riderUser))->assertCreated();
+        [$width, $height] = getimagesizefromstring(Storage::disk('media')->get($delivery->refresh()->proof_photo_path));
+        $this->assertSame([1600, 800], [$width, $height]);
+    }
+
+    public function test_without_gd_no_photo_is_stored(): void
+    {
+        // Review L2: never stored with its metadata.
+        $this->expectExceptionObject(new ApiException(503, 'photo_unavailable', __('ecommerce.errors.photo_unavailable')));
+        ProofPhotos::withoutMetadata('bytes', 'image/jpeg', gd: false);
+    }
+
+    public function test_the_proof_never_changes_once_delivered_and_uploads_are_limited_per_rider(): void
+    {
+        // Review L1: a photo only while picked up; the delivered proof stays.
+        $delivery = $this->assigned();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
+        $url = "/api/v1/ecommerce/rider/deliveries/{$delivery->id}/photo";
+        $this->json('POST', $url, ['photo' => UploadedFile::fake()->image('door.jpg')], $this->headersFor($this->riderUser))->assertCreated();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'delivered'])])->assertOk();
+        $proof = $delivery->refresh()->proof_photo_path;
+        $this->json('POST', $url, ['photo' => UploadedFile::fake()->image('other.jpg')], $this->headersFor($this->riderUser))->assertStatus(409)->assertJsonPath('code', 'delivery_status_invalid');
+        $this->assertSame($proof, $delivery->refresh()->proof_photo_path);
+        Storage::disk('media')->assertExists($proof);
+
+        // Review H3, M5: 20 photo uploads and 30 update uploads a minute per rider.
+        for ($i = 2; $i < 20; $i++) {
+            $this->json('POST', $url, [], $this->headersFor($this->riderUser))->assertUnprocessable();
+        }
+        $this->json('POST', $url, [], $this->headersFor($this->riderUser))->assertStatus(429);
+
+        for ($i = 0; $i < 28; $i++) {
+            $this->api('POST', 'ecommerce/rider/updates', [], $this->riderUser)->assertUnprocessable();
+        }
+        $this->api('POST', 'ecommerce/rider/updates', [], $this->riderUser)->assertStatus(429);
+    }
+
+    public function test_the_proof_photo_needs_the_orders_own_token_and_store(): void
+    {
+        $delivery = $this->assigned();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
+        $this->json('POST', "/api/v1/ecommerce/rider/deliveries/{$delivery->id}/photo", ['photo' => UploadedFile::fake()->image('door.jpg')], $this->headersFor($this->riderUser))->assertCreated();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'delivered'])])->assertOk();
+        $order = $this->inTenant(fn () => Order::query()->findOrFail($delivery->order_id));
+        $otherId = $this->orderId($this->placeOrder($this->cart([[$this->widgetProduct, '1']]))->assertCreated()->json('data.number'));
+        $other = $this->inTenant(fn () => Order::query()->findOrFail($otherId));
+        $this->inTenant(fn () => Store::create([...$this->shop->only(['company_id', 'branch_id', 'location_id', 'currency', 'price_list_id', 'payment_methods']),
+            'handle' => 'second', 'name' => 'Second', 'status' => 'live', 'delivery_enabled' => true]));
+
+        // Another order's token, and this order's token at another store of the tenant: not found.
+        $this->shopCall('GET', "duka/orders/{$order->number}/proof-photo?t={$other->tracking_token_secret}")->assertNotFound();
+        $this->shopCall('GET', "second/orders/{$order->number}/proof-photo?t={$order->tracking_token_secret}")->assertNotFound();
+        $this->shopCall('GET', "duka/orders/{$order->number}/proof-photo?t={$order->tracking_token_secret}")->assertOk();
+    }
+
+    /** A PNG that is only a header: it claims $width × $height pixels and holds none. */
+    private function pngHeader(int $width, int $height): UploadedFile
+    {
+        $chunk = fn (string $type, string $data) => pack('N', strlen($data)).$type.$data.pack('N', crc32($type.$data));
+        $path = tempnam(sys_get_temp_dir(), 'png');
+        file_put_contents($path, "\x89PNG\r\n\x1a\n".$chunk('IHDR', pack('NNCCCCC', $width, $height, 8, 2, 0, 0, 0)).$chunk('IDAT', (string) gzcompress('')).$chunk('IEND', ''));
+
+        return new UploadedFile($path, 'big.png', 'image/png', null, true);
     }
 
     private function assigned(): Delivery

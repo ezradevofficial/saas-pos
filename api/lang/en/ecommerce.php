@@ -3,6 +3,8 @@
 // E-commerce and delivery module (docs/modules/ecommerce.md).
 return [
     'errors' => [
+        'photo_unavailable' => 'Photos can’t be taken as proof right now. Use the customer’s delivery code, or ask the shop to confirm the delivery.',
+        'photo_pixels_too_large' => 'The photo is too large (more than :max pixels a side or 12 megapixels). Take it again at a lower size.',
         'delivery_not_active' => 'This delivery is no longer active, so its location is not kept.',
         'photo_not_stored' => 'The photo could not be saved. Try again.',
         'photo_invalid' => 'This file is not a readable photo. Take the photo again.',

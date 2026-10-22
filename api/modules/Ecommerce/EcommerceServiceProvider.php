@@ -62,6 +62,11 @@ class EcommerceServiceProvider extends ServiceProvider
 
     public const WHATSAPP_LIMITER = 'ecommerce-whatsapp';
 
+    /** Review H3, M5: a rider's uploads, per user. */
+    public const RIDER_UPDATES_LIMITER = 'ecommerce-rider-updates';
+
+    public const RIDER_PHOTOS_LIMITER = 'ecommerce-rider-photos';
+
     /** ECOM-08: sign-in code checks, apart from code requests. */
     public const VERIFY_LIMITER = 'ecommerce-verify';
 
@@ -169,6 +174,9 @@ class EcommerceServiceProvider extends ServiceProvider
         RateLimiter::for(self::CHECKOUT_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.checkout_per_ip_per_minute', 10))->by(self::CHECKOUT_LIMITER.'|'.$request->ip()));
         RateLimiter::for(self::CODES_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.codes_per_ip_per_minute', 10))->by(self::CODES_LIMITER.'|'.$request->ip()));
         RateLimiter::for(self::VERIFY_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.verify_per_ip_per_minute', 10))->by(self::VERIFY_LIMITER.'|'.$request->ip()));
+        $byUser = fn (Request $request, string $name) => $name.'|'.($request->user()?->getAuthIdentifier() ?? 'ip|'.$request->ip());
+        RateLimiter::for(self::RIDER_UPDATES_LIMITER, fn (Request $request) => Limit::perMinute($config('rider.updates_per_minute', 30))->by($byUser($request, self::RIDER_UPDATES_LIMITER)));
+        RateLimiter::for(self::RIDER_PHOTOS_LIMITER, fn (Request $request) => Limit::perMinute($config('rider.photos_per_minute', 20))->by($byUser($request, self::RIDER_PHOTOS_LIMITER)));
         // ECOM-24: per store token, and per calling address (unknown tokens included).
         RateLimiter::for(self::WHATSAPP_LIMITER, fn (Request $request) => [
             Limit::perMinute($config('whatsapp.per_minute', 120))->by(self::WHATSAPP_LIMITER.'|'.hash('sha256', (string) $request->route('token'))),

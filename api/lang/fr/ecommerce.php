@@ -3,6 +3,8 @@
 // Module e-commerce et livraison (docs/modules/ecommerce.md).
 return [
     'errors' => [
+        'photo_unavailable' => 'Les photos ne peuvent pas servir de preuve pour le moment. Utilisez le code de livraison du client, ou demandez à la boutique de confirmer la livraison.',
+        'photo_pixels_too_large' => 'La photo est trop grande (plus de :max pixels de côté ou 12 mégapixels). Reprenez-la en plus petite taille.',
         'delivery_not_active' => 'Cette livraison n’est plus en cours : sa position n’est pas conservée.',
         'photo_not_stored' => 'La photo n’a pas pu être enregistrée. Réessayez.',
         'photo_invalid' => 'Ce fichier n’est pas une photo lisible. Reprenez la photo.',

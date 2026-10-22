@@ -32,8 +32,19 @@ use Throwable;
  * KE DPA (minimum data): the photo is re-encoded before it is stored, so
  * what the camera wrote beside the picture (EXIF: the place it was taken,
  * the phone) never reaches the server's disk; the orientation is applied
- * first. A later photo of the same delivery replaces the earlier one (its
- * file removed once the change commits).
+ * first. A photo is taken only while the delivery is picked up (review
+ * L1): a later one replaces the earlier (its file removed once the change
+ * commits), and once delivered the proof never changes.
+ *
+ * Review H3: the size the file claims is read from its header before
+ * anything is decoded; more than MAX_SIDE pixels a side or MAX_PIXELS in
+ * all is refused (a small file can claim a huge picture), and what is kept
+ * is scaled down to STORED_SIDE. Without GD nothing is stored (review L2).
+ *
+ * The staff link (review L3) is a signed URL that names the user it was
+ * made for: whoever holds it can open the photo for 15 minutes, and only
+ * while that user may still see the delivery (ProofPhotoController). It is
+ * not tied to a session, since an image tag sends none.
  */
 final class ProofPhotos
 {
@@ -43,12 +54,18 @@ final class ProofPhotos
 
     public const EXTENSIONS = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
 
+    public const MAX_SIDE = 4096;
+
+    public const MAX_PIXELS = 12_000_000;
+
+    public const STORED_SIDE = 1600;
+
     public function __construct(private readonly TenantContext $tenants) {}
 
-    /** @throws ApiException 409 `delivery_status_invalid` unless the delivery is picked up or delivered */
+    /** @throws ApiException 409 `delivery_status_invalid` unless the delivery is picked up */
     public function store(Delivery $delivery, UploadedFile $file): Delivery
     {
-        if (! in_array($delivery->status, [Delivery::PICKED_UP, Delivery::DELIVERED], true)) {
+        if ($delivery->status !== Delivery::PICKED_UP) {
             throw EcomError::make('delivery_status_invalid', status: 409);
         }
 
@@ -64,7 +81,7 @@ final class ProofPhotos
             return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($delivery, $path, $mime, $bytes) {
                 $delivery = Delivery::query()->whereKey($delivery->id)->lockForUpdate()->firstOrFail();
 
-                if (! in_array($delivery->status, [Delivery::PICKED_UP, Delivery::DELIVERED], true)) {
+                if ($delivery->status !== Delivery::PICKED_UP) {
                     throw EcomError::make('delivery_status_invalid', status: 409);
                 }
 
@@ -119,18 +136,28 @@ final class ProofPhotos
     }
 
     /**
-     * The picture alone, as a JPEG: decoded and encoded again (GD), its EXIF
-     * orientation applied first, so no metadata survives. Without GD the
-     * bytes are kept as they are (logged: the server should have it).
+     * The picture alone, as a JPEG at most STORED_SIDE a side: its size
+     * checked from the header first, then decoded and encoded again (GD),
+     * its EXIF orientation applied, so no metadata survives.
      *
      * @return array{0: string, 1: string} the bytes and their type
      */
-    public static function withoutMetadata(string $bytes, string $mime): array
+    public static function withoutMetadata(string $bytes, string $mime, ?bool $gd = null): array
     {
-        if (! function_exists('imagecreatefromstring') || ! function_exists('imagejpeg')) {
-            Log::warning('ecommerce: proof photo stored with its metadata (the GD extension is missing)');
+        if (! ($gd ?? (function_exists('imagecreatefromstring') && function_exists('imagejpeg') && function_exists('imagescale')))) {
+            Log::error('ecommerce: proof photo refused: the GD extension is missing');
 
-            return [$bytes, $mime];
+            throw EcomError::make('photo_unavailable', status: 503);
+        }
+
+        $size = @getimagesizefromstring($bytes);
+
+        if (! is_array($size) || $size[0] < 1 || $size[1] < 1) {
+            throw EcomError::make('photo_invalid', field: 'photo');
+        }
+
+        if ($size[0] > self::MAX_SIDE || $size[1] > self::MAX_SIDE || $size[0] * $size[1] > self::MAX_PIXELS) {
+            throw EcomError::make('photo_pixels_too_large', ['max' => self::MAX_SIDE], 'photo');
         }
 
         $image = @imagecreatefromstring($bytes);
@@ -141,6 +168,22 @@ final class ProofPhotos
 
         if ($mime === 'image/jpeg') {
             $image = self::oriented($image, $bytes);
+        }
+
+        // Scaled down first, so the copies below stay small.
+        $width = imagesx($image);
+        $height = imagesy($image);
+
+        if (max($width, $height) > self::STORED_SIDE) {
+            $ratio = self::STORED_SIDE / max($width, $height);
+            $scaled = imagescale($image, max(1, (int) round($width * $ratio)), max(1, (int) round($height * $ratio)));
+            imagedestroy($image);
+
+            if (! $scaled instanceof GdImage) {
+                throw EcomError::make('photo_invalid', field: 'photo');
+            }
+
+            $image = $scaled;
         }
 
         // A transparent PNG or WebP gets a white ground, as on paper.
