@@ -115,17 +115,19 @@ class ResearchStatusTest extends TestCase
         $read = fn (string $country, string $kind) => json_decode((string) file_get_contents(base_path("country-packs/{$country}/{$kind}.json")), true, 32, JSON_THROW_ON_ERROR);
         $low = fn (array $result) => array_values(array_filter($result['warnings'], fn (string $w) => str_contains($w, 'low confidence')));
 
-        // CD payroll: IPR (minimum before the cap), its dependants reduction, CNSS (deducted from the IPR base), INPP.
+        // CD payroll: IPR 2025, CNSS (deducted from the IPR base), INPP 2025 and 2026 (IRPP 2026 and the dependants are medium).
         $cd = $validator->validate('CD', 'payroll', $read('CD', 'payroll'));
         $this->assertSame([], $cd['errors']);
         $this->assertCount(4, $low($cd));
-        $this->assertNotEmpty(array_filter($low($cd), fn (string $w) => str_starts_with($w, 'components.inpp')));
-        // CD HR: annual leave and maternity.
-        $this->assertCount(2, $low($validator->validate('CD', 'hr', $read('CD', 'hr'))));
-        // KE fixed assets: the eight classes and the year-of-acquisition rule.
+        $this->assertCount(2, array_filter($low($cd), fn (string $w) => str_starts_with($w, 'components.inpp')));
+        // CD HR: the under-18 annual days only (adults and maternity are medium).
+        $hr = $low($validator->validate('CD', 'hr', $read('CD', 'hr')));
+        $this->assertCount(1, $hr);
+        $this->assertStringContainsString('annual', $hr[0]);
+        // KE fixed assets: the year-of-acquisition rule only (the classes are medium).
         $ke = $validator->validate('KE', 'fixed_assets', $read('KE', 'fixed_assets'));
         $this->assertSame([], $ke['errors']);
-        $this->assertCount(9, $low($ke));
+        $this->assertCount(1, $low($ke));
         // Medium and high rows give no such warning.
         $this->assertSame([], $low($validator->validate('KE', 'payroll', $read('KE', 'payroll'))));
         $this->assertSame([], $low($validator->validate('KE', 'tax', $read('KE', 'pack'))));
@@ -160,9 +162,9 @@ class ResearchStatusTest extends TestCase
 
             foreach ($assets['classes'] as $row) {
                 ResearchStatus::check($row, "{$country} fixed assets {$row['key']}");
-                // KE: the Second Schedule classes, researched at low confidence (owner decision 2026-10-22).
+                // KE: the Second Schedule classes, researched at medium confidence (owner decision 2026-10-22).
                 // CD: no statutory table was found, so nothing is entered.
-                $this->assertSame($country === 'KE' ? ['straight_line', false, 'low'] : [null, true, null], [$row['method'], $row['needs_confirmation'], $row['confidence'] ?? null]);
+                $this->assertSame($country === 'KE' ? ['straight_line', false, 'medium'] : [null, true, null], [$row['method'], $row['needs_confirmation'], $row['confidence'] ?? null]);
             }
         }
     }

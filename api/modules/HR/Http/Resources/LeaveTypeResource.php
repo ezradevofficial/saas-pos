@@ -22,6 +22,7 @@ class LeaveTypeResource extends JsonResource
             'paid' => $this->paid,
             'pay_share' => $this->pay_share,
             'seniority' => $this->seniority,
+            'under_age' => $this->under_age,
             'accrual' => $this->accrual,
             'entitlement_days' => $this->entitlement_days === null ? null : (string) $this->entitlement_days,
             'days_needed' => (bool) $this->needs_confirmation,
@@ -36,7 +37,8 @@ class LeaveTypeResource extends JsonResource
             // CP-01: days from public research, not yet confirmed (the web app shows the notice).
             'researched' => $this->researched(),
             'research' => $this->research,
-            'low_confidence' => ResearchStatus::lowResearch($this->research),
+            // CP-01: its days, or its under-age days, are researched at low confidence.
+            'low_confidence' => ResearchStatus::lowResearch($this->research) || ($this->research !== null && ResearchStatus::lowResearch($this->under_age)),
             'archived_at' => Refs::at($this->archived_at),
         ];
     }

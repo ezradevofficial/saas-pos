@@ -1,18 +1,19 @@
 {
     "code": "CD",
-    "notes": "Payroll statutory structure and values for companies in the DR Congo (docs/modules/payroll.md, PAY-07, PAY-08, PAY-21). Each period has a status (ResearchStatus): 'researched' values come from public research (docs/country-packs-research-2026-10.md) with their confidence (high or medium), research date and sources; they are used, and every run that uses one records it and shows the 'from public research' notice until the owner confirms the value through a pack release (ADM-04). Owner decision 2026-10-22: researched values of low confidence are entered too and used, knowing they are not confirmed by an accountant; runs that use one show 'Researched, low confidence: not confirmed by an accountant'. 'assumed' lists a researched period's fields that are defaults pending confirmation (rounding to the franc, the currency's unit, where no rule was found; no ceiling on the CNSS base). A value that is null is 'rate needed' and blocks payroll runs; A component with 'unconfirmed: not_applied' is left out of runs while unconfirmed instead of blocking them (IPR dependants: no reduction until confirmed). A component with 'may_not_apply' may be marked 'not applicable' by a company in its payroll settings (audited); otherwise it blocks runs until confirmed (INPP). Every money figure is per month in minor units of the pack currency (CDF, no decimals) as a digit string; the IPR bands are the annual bands divided by 12 (exact). Rates are percentages as strings ('12.5' = 12.5 %). Salaries paid in another currency (e.g. USD) are converted to CDF at the company's rate on the pay date before these figures apply. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. rounding is {mode: half_up|down|up, unit_minor: digits} applied once to the component's result. Labels live in lang/{locale}/payroll.php (pack.*).",
+    "notes": "Payroll statutory structure and values for companies in the DR Congo (docs/modules/payroll.md, PAY-07, PAY-08, PAY-21). Each period has a status (ResearchStatus): 'researched' values come from public research (docs/country-packs-research-2026-10.md) with their confidence (high or medium), research date and sources; they are used, and every run that uses one records it and shows the 'from public research' notice until the owner confirms the value through a pack release (ADM-04). Owner decision 2026-10-22: researched values of low confidence are entered too and used, knowing they are not confirmed by an accountant; runs that use one show 'Researched, low confidence: not confirmed by an accountant'. 'assumed' lists a researched period's fields that are defaults pending confirmation (rounding to the franc, the currency's unit, where no rule was found; no ceiling on the CNSS base). A value that is null is 'rate needed' and blocks payroll runs; A component with 'unconfirmed: not_applied' is left out of runs while unconfirmed instead of blocking them (IPR dependants: no reduction until confirmed). A component with 'may_not_apply' may be marked 'not applicable' by a company in its payroll settings (audited); otherwise it blocks runs until confirmed (INPP). Every money figure is per month in minor units of the pack currency (CDF, no decimals) as a digit string; the IPR bands are the annual bands divided by 12 (exact). Rates are percentages as strings ('12.5' = 12.5 %). Salaries paid in another currency (e.g. USD) are converted to CDF at the company's rate on the pay date before these figures apply. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. rounding is {mode: half_up|down|up, unit_minor: digits} applied once to the component's result. display_code: the label a period is shown under (IRPP from 2026-01-01 for the ipr component and its dependants reduction; IPR before). Labels live in lang/{locale}/payroll.php (pack.*).",
     "sources": [
         "https://africarrieres.com/rd-congo/pt/guide/employeur-entreprise/charges-employeur",
         "https://business.monrespro.cd/blog/ipr-impot-professionnel-remunerations-rdc",
+        "https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/257552/democratic-republic-of-congo-drc-tax-reforms-affecting-payroll-law-no-23-053",
+        "https://payspace.com/blog/drc-inpp-contribution-rate-changes",
         "https://taxsummaries.pwc.com/democratic-republic-of-the-congo/individual/deductions",
         "https://taxsummaries.pwc.com/democratic-republic-of-the-congo/individual/other-taxes",
         "https://www.investindrc.cd/fr/spip.php?article181=&lang=fr"
     ],
     "todo": [
         "Confirm (accountant) every researched value, then publish it as confirmed through a pack release (ADM-04): the IPR bands (annual ÷ 12), the 30% cap and the CDF 2,000 minimum, CNSS 5% + 5% and its deduction from the IPR base, risks 1.5%, family 6.5%, ONEM 0.2%, INPP 3/2/1%, the IPR dependants reduction.",
-        "Low confidence (owner decision 2026-10-22, used and shown with the low-confidence notice): INPP 3/2/1% by headcount, the IPR dependants reduction (2% of IPR per dependant, at most 9), CNSS deducted from the IPR base, and the order minimum then 30% cap.",
-        "inpp: two payroll vendors (PaySpace, Sage) report a 3.5/3/2% scale from 2026-01-01 by interministerial order (recorded as rejected in the period). Find the order; if it applies, publish it as a period from 2026-01-01.",
-        "ipr: Law 23/053 replaces IPR with IRPP from 2026-01-01 (Sage, droitnumerique.cd): bands reported unchanged, the dependants rebate kept (art. 123, with no rebate above the third band, one source), and rounding to the nearest CDF then the nearest CDF 100 (art. 150). Not applied: confirm and publish.",
+        "Owner decision 2026-10-22 (low confidence, used with the low-confidence notice): INPP 3/2/1% by headcount until 2025-12-31 (PwC, ANAPI, Africarrières) and 3.5/3/2% from 2026-01-01 (PaySpace, Sage; the interministerial order itself was not found: find it and confirm), and CNSS deducted from the IPR base. Medium: IRPP from 2026-01-01 and its dependants reduction.",
+        "ipr: from 2026-01-01 the tax is IRPP (Law 23/053; Sage, droitnumerique.cd): same bands, the dependants rebate kept (art. 123), the monthly tax rounded to the nearest CDF 100 (applied once; art. 150 is reported as rounding to the franc then to CDF 100, which can differ at the boundary). Labelled IRPP from that date. Not applied: 'no rebate above the third band' (one source). Periods from 2025-01-01 are the earliest the pack carries, not the dates the laws took effect.",
         "ipr: a different '2026' scale is shown by one site without a legal source; it is not used. Confirm the scale in force.",
         "ipr and the contributions: the rounding rule (to the franc is assumed).",
         "cnss: whether a ceiling applies to the base (none found, none applied).",
@@ -33,8 +34,8 @@
             "required": true,
             "periods": [
                 {
-                    "effective_from": "2026-01-01",
-                    "effective_to": null,
+                    "effective_from": "2025-01-01",
+                    "effective_to": "2025-12-31",
                     "status": "researched",
                     "confidence": "low",
                     "researched_on": "2026-10-22",
@@ -71,6 +72,48 @@
                         "rounding",
                         "min_monthly"
                     ]
+                },
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "medium",
+                    "researched_on": "2026-10-22",
+                    "source": [
+                        "https://business.monrespro.cd/blog/ipr-impot-professionnel-remunerations-rdc",
+                        "https://taxsummaries.pwc.com/democratic-republic-of-the-congo/individual/deductions",
+                        "https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/257552/democratic-republic-of-congo-drc-tax-reforms-affecting-payroll-law-no-23-053",
+                        "https://droitnumerique.cd/wp-content/uploads/2026/01/N%C2%B014-I-NEWS-JURITECH-1.pdf"
+                    ],
+                    "needs_confirmation": false,
+                    "bands": [
+                        {
+                            "up_to_minor": "162000",
+                            "rate": "3"
+                        },
+                        {
+                            "up_to_minor": "1800000",
+                            "rate": "15"
+                        },
+                        {
+                            "up_to_minor": "3600000",
+                            "rate": "30"
+                        },
+                        {
+                            "up_to_minor": null,
+                            "rate": "40"
+                        }
+                    ],
+                    "max_rate": "30",
+                    "min_minor": "2000",
+                    "rounding": {
+                        "mode": "half_up",
+                        "unit_minor": "100"
+                    },
+                    "assumed": [
+                        "min_monthly"
+                    ],
+                    "display_code": "irpp"
                 }
             ]
         },
@@ -83,10 +126,10 @@
             "required": false,
             "periods": [
                 {
-                    "effective_from": "2026-01-01",
-                    "effective_to": null,
+                    "effective_from": "2025-01-01",
+                    "effective_to": "2025-12-31",
                     "status": "researched",
-                    "confidence": "low",
+                    "confidence": "medium",
                     "researched_on": "2026-10-22",
                     "source": [
                         "https://business.monrespro.cd/blog/ipr-impot-professionnel-remunerations-rdc",
@@ -96,6 +139,22 @@
                     "needs_confirmation": false,
                     "rate": "2",
                     "max_dependants": 9
+                },
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "medium",
+                    "researched_on": "2026-10-22",
+                    "source": [
+                        "https://business.monrespro.cd/blog/ipr-impot-professionnel-remunerations-rdc",
+                        "https://taxsummaries.pwc.com/democratic-republic-of-the-congo/individual/deductions",
+                        "https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/257552/democratic-republic-of-congo-drc-tax-reforms-affecting-payroll-law-no-23-053"
+                    ],
+                    "needs_confirmation": false,
+                    "rate": "2",
+                    "max_dependants": 9,
+                    "display_code": "irpp_dependants"
                 }
             ],
             "unconfirmed": "not_applied"
@@ -200,8 +259,8 @@
             "required": true,
             "periods": [
                 {
-                    "effective_from": "2026-01-01",
-                    "effective_to": null,
+                    "effective_from": "2025-01-01",
+                    "effective_to": "2025-12-31",
                     "status": "researched",
                     "confidence": "low",
                     "researched_on": "2026-10-22",
@@ -231,28 +290,41 @@
                     },
                     "assumed": [
                         "rounding"
+                    ]
+                },
+                {
+                    "effective_from": "2026-01-01",
+                    "effective_to": null,
+                    "status": "researched",
+                    "confidence": "low",
+                    "researched_on": "2026-10-22",
+                    "source": [
+                        "https://payspace.com/blog/drc-inpp-contribution-rate-changes",
+                        "https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/263531/democratic-republic-of-congo-drc-increase-in-national-institute-of-professional-preparation-inpp-contribution-rates"
                     ],
-                    "rejected": {
-                        "brackets": [
-                            {
-                                "up_to_employees": 50,
-                                "rate": "3.5"
-                            },
-                            {
-                                "up_to_employees": 300,
-                                "rate": "3"
-                            },
-                            {
-                                "up_to_employees": null,
-                                "rate": "2"
-                            }
-                        ],
-                        "source": [
-                            "https://payspace.com/blog/drc-inpp-contribution-rate-changes",
-                            "https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/263531/democratic-republic-of-congo-drc-increase-in-national-institute-of-professional-preparation-inpp-contribution-rates"
-                        ],
-                        "reason": "Owner decision 2026-10-22: the 3/2/1% scale (PwC, ANAPI, Africarrières) is used. Two payroll vendors report a 3.5/3/2% scale from 2026-01-01 by interministerial order, but the order itself was not found; confirm with an accountant and publish the order through a pack release if it applies."
-                    }
+                    "needs_confirmation": false,
+                    "brackets": [
+                        {
+                            "up_to_employees": 50,
+                            "rate": "3.5"
+                        },
+                        {
+                            "up_to_employees": 300,
+                            "rate": "3"
+                        },
+                        {
+                            "up_to_employees": null,
+                            "rate": "2"
+                        }
+                    ],
+                    "rounding": {
+                        "mode": "half_up",
+                        "unit_minor": "1"
+                    },
+                    "assumed": [
+                        "rounding",
+                        "legal_text"
+                    ]
                 }
             ],
             "may_not_apply": true
@@ -318,7 +390,13 @@
                 "national_id"
             ],
             "layout": null,
-            "needs_confirmation": true
+            "needs_confirmation": true,
+            "display": [
+                {
+                    "from": "2026-01-01",
+                    "code": "irpp"
+                }
+            ]
         },
         {
             "key": "cnss",

@@ -27,7 +27,7 @@ class LeaveTypes
     public const FIELDS = ['code', 'name', 'paid', 'pay_share', 'accrual', 'entitlement_days', 'count_basis', 'carry_over_max_days', 'allow_negative', 'requires_document', 'accrues_from', 'qualifying_months', 'half_pay_days', 'events'];
 
     /** CP-01: what re-applying the pack fills in on a type still "Days needed" (with `accrual`). */
-    private const DAYS_FIELDS = ['entitlement_days', 'needs_confirmation', 'qualifying_months', 'half_pay_days', 'events', 'research', 'accrues_from', 'seniority'];
+    private const DAYS_FIELDS = ['entitlement_days', 'needs_confirmation', 'qualifying_months', 'half_pay_days', 'events', 'research', 'accrues_from', 'seniority', 'under_age'];
 
     /** Fields that come from the pack: changing one makes the days the company's own (no longer researched, CP-01). */
     private const PACK_FIELDS = ['paid', 'pay_share', 'entitlement_days', 'count_basis', 'qualifying_months', 'half_pay_days', 'events'];
@@ -137,6 +137,9 @@ class LeaveTypes
             'events' => $usable ? ($type['events'] ?? null) : null,
             // HR-13: more days with seniority (CD: one working day per five years of service).
             'seniority' => $usable ? ($type['seniority'] ?? null) : null,
+            // HR-13: other yearly days for workers under an age (CD art. 141: 18 under 18), with its own research.
+            'under_age' => $usable && is_array($type['under_age'] ?? null) && ResearchStatus::usable($type['under_age'])
+                ? ['age' => (int) $type['under_age']['age'], 'days' => (int) $type['under_age']['days'], ...(ResearchStatus::research($type['under_age']) ?? [])] : null,
             'research' => $usable ? ResearchStatus::research($type) : null,
             'accrues_from' => $usable ? CompanyClock::today($companyId) : null,
         ];

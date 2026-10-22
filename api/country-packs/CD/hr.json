@@ -8,8 +8,8 @@
         "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
     ],
     "todo": [
-        "Confirm every researched value, then publish it as confirmed through a pack release (ADM-04): maternity 14 weeks (98 calendar days) at 2/3 of pay, annual leave 18 working days a year after 12 months with one more day per 5 years of service, and circumstantial leave (10 working days a year; own marriage 2, birth of a child 2).",
-        "annual (low confidence, owner decision 2026-10-22): 18 working days a year (1.5 a month) is used. The Code du travail text found (art. 141, Wikisource; a lawyer's note citing a 2015 ruling) gives adults at least 1 working day per month (12 a year) and workers under 18 at least 1.5 a month, plus 1 working day per 5 years of seniority. 18 days is above the adult minimum; confirm which the company owes.",
+        "Confirm every researched value, then publish it as confirmed through a pack release (ADM-04): maternity 14 weeks (98 calendar days) at 2/3 of pay, annual leave (art. 141: 12 working days a year for adults, 18 for workers under 18, one more day per 5 years of service, after 12 months), and circumstantial leave (10 working days a year; own marriage 2, birth of a child 2).",
+        "annual (owner decision 2026-10-22): adults 1 working day per month (12 a year, medium: the Code's text), workers under 18 1.5 a month (18 a year, low), both +1 day per 5 years of seniority. Under 18 is read from the employee's date of birth at the start of the accrual period; an employee without a date of birth takes the adult rate (assumed).",
         "sick: the Code du travail (art. 105) keeps 2/3 of cash pay for the whole suspension for ordinary illness, with no number of days; art. 106: 2/3 for the first six months for an occupational accident or disease; art. 60: the employer may end the contract after six months' uninterrupted incapacity. No day count is stated, so the type stays 'Days needed': each company sets its days (and pay).",
         "maternity: a 2023 private member's bill proposes full pay; not adopted as far as found.",
         "circumstantial: the other events (death of a spouse, child or parent, and so on) and their days, with legal references.",
@@ -37,24 +37,38 @@
             "accrual": "annual",
             "count_basis": "working_days",
             "paid": true,
-            "days": 18,
+            "days": 12,
             "qualifying_months": 12,
             "seniority": {
                 "every_years": 5,
                 "days": 1
             },
+            "under_age": {
+                "age": 18,
+                "days": 18,
+                "status": "researched",
+                "confidence": "low",
+                "researched_on": "2026-10-22",
+                "source": [
+                    "https://fr.wikisource.org/wiki/Code_du_Travail_de_la_R%C3%A9publique_d%C3%A9mocratique_du_Congo",
+                    "https://www.legavox.fr/blog/maxencekiyana/conge-droit-pour-travailleur-32101.htm"
+                ],
+                "needs_confirmation": false
+            },
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
-                "https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail",
                 "https://fr.wikisource.org/wiki/Code_du_Travail_de_la_R%C3%A9publique_d%C3%A9mocratique_du_Congo",
                 "https://www.legavox.fr/blog/maxencekiyana/conge-droit-pour-travailleur-32101.htm",
                 "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
             ],
             "needs_confirmation": false,
             "effective_from": "2026-01-01",
-            "effective_to": null
+            "effective_to": null,
+            "assumed": [
+                "date_of_birth"
+            ]
         },
         {
             "key": "maternity",
@@ -66,7 +80,7 @@
             "effective_from": "2026-01-01",
             "effective_to": null,
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
                 "https://actualite.cd/2023/05/01/rdc-que-dit-le-code-du-travail-au-sujet-de-la-maternite",

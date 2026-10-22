@@ -132,11 +132,14 @@ class ResearchedLeaveTest extends TestCase
         $worker = $this->employee(['first_name' => 'Joseph']);
         $types = $this->types();
 
-        // Owner decision 2026-10-22 (low confidence): annual leave 18 working days after 12 months, +1 day per 5 years.
+        // Owner decision 2026-10-22 (art. 141): adults 12 working days after 12 months (medium), under 18 18 days (low), +1 day per 5 years.
         $annual = $types['annual'];
-        $this->assertSame(['18.00', false, 12, 5, 1, 'low'], [(string) $annual->entitlement_days, $annual->needs_confirmation, $annual->qualifying_months, $annual->seniority['every_years'], $annual->seniority['days'], $annual->research['confidence']]);
+        $this->assertSame(['12.00', false, 12, 5, 1, 'medium'], [(string) $annual->entitlement_days, $annual->needs_confirmation, $annual->qualifying_months, $annual->seniority['every_years'], $annual->seniority['days'], $annual->research['confidence']]);
+        $this->assertSame([18, 18, 'low'], [$annual->under_age['age'], $annual->under_age['days'], $annual->under_age['confidence']]);
+        $this->assertSame(['date_of_birth'], $annual->research['assumed']);
         $listed = collect($this->getJson("/api/v1/hr/leave-types?company_id={$this->acme->id}", $this->headersFor($this->hrOfficer))->assertOk()->json('data'))->keyBy('statutory_key');
-        $this->assertSame([true, true, '2/3'], [$listed['annual']['low_confidence'], $listed['maternity']['low_confidence'], $listed['maternity']['pay_share']]);
+        // The annual type includes the low-confidence under-18 days; maternity at 2/3 is medium.
+        $this->assertSame([true, false, '2/3'], [$listed['annual']['low_confidence'], $listed['maternity']['low_confidence'], $listed['maternity']['pay_share']]);
         $this->assertFalse($listed['circumstantial']['low_confidence']);
         // Sick leave: the Code gives 2/3 pay for the whole incapacity but no number of days: still "Days needed".
         $this->assertTrue($types['sick']->needs_confirmation);
@@ -147,7 +150,7 @@ class ResearchedLeaveTest extends TestCase
         Event::fake([LeaveApproved::class]);
         $mother = $this->employee(['first_name' => 'Mother', 'hire_date' => '2025-01-06']);
         $maternity = $this->request($mother, $types['maternity'], '2026-11-02', '2026-11-30')->assertCreated()
-            ->assertJsonPath('data.researched', true)->assertJsonPath('data.low_confidence', true)->json('data.id');
+            ->assertJsonPath('data.researched', true)->assertJsonPath('data.low_confidence', false)->json('data.id');
         $this->inTenant(fn () => app(LeaveRequests::class)->completed($maternity, 'approved', null));
         Event::assertDispatched(LeaveApproved::class, fn (LeaveApproved $e) => $e->requestId === $maternity && $e->paid === true && $e->payShare === '2/3');
         // Payroll's sync reads it too (the HR contract), with its share of pay.
@@ -168,18 +171,26 @@ class ResearchedLeaveTest extends TestCase
             ->assertJsonPath('data.event', 'marriage')->assertJsonPath('data.event_label', 'Own marriage')->assertJsonPath('data.researched', true);
     }
 
-    public function test_congo_annual_leave_grows_one_day_per_five_years_of_service(): void
+    public function test_congo_annual_leave_by_age_and_seniority(): void
     {
         $this->inTenant(fn () => $this->acme->forceFill(['country' => 'CD', 'timezone' => 'Africa/Kinshasa'])->save());
-        $senior = $this->employee(['first_name' => 'Senior', 'hire_date' => '2015-06-01']);
-        $junior = $this->employee(['first_name' => 'Junior', 'hire_date' => '2024-01-01']);
+        $senior = $this->employee(['first_name' => 'Senior', 'hire_date' => '2015-06-01', 'date_of_birth' => '1980-02-01']);
+        $junior = $this->employee(['first_name' => 'Junior', 'hire_date' => '2024-01-01', 'date_of_birth' => '1990-05-01']);
+        // 16 on 1 January 2026: the under-18 days.
+        $minor = $this->employee(['first_name' => 'Minor', 'hire_date' => '2025-01-01', 'date_of_birth' => '2009-09-01']);
+        // Turns 18 on 2 January 2026: still 17 on 1 January, the start of the accrual period, so the under-18 days.
+        $almost = $this->employee(['first_name' => 'Almost', 'hire_date' => '2025-01-01', 'date_of_birth' => '2008-01-02']);
+        // No date of birth: the adult days (assumed).
+        $unknown = $this->employee(['first_name' => 'Unknown', 'hire_date' => '2025-01-01', 'date_of_birth' => null]);
         $annual = $this->types()['annual'];
         $this->patchJson("/api/v1/hr/leave-types/{$annual->id}", ['accrues_from' => '2026-01-01'], $this->headersFor($this->hrOfficer))->assertOk()
             ->assertJsonPath('data.researched', true);
         $this->inTenant(fn () => app(Accruals::class)->run(CarbonImmutable::parse('2026-10-14'), $this->acme->id));
         $balance = fn (Employee $e) => $this->inTenant(fn () => app(LeaveLedger::class)->balance($e->id, $annual->id, CarbonImmutable::parse('2026-12-31')));
-        // Hired 2015-06-01: 10 full years on 1 January 2026, so 18 + 2 = 20 days; hired 2024: 2 years, 18 days.
-        $this->assertSame(['20.00', '18.00'], [$balance($senior), $balance($junior)]);
+        // Adults: hired 2015-06-01, 10 full years on 1 January 2026, so 12 + 2 = 14 days; hired 2024: 2 years, 12 days.
+        $this->assertSame(['14.00', '12.00'], [$balance($senior), $balance($junior)]);
+        // Under 18 at the start of the year: 18 days; no date of birth: 12.
+        $this->assertSame(['18.00', '18.00', '12.00'], [$balance($minor), $balance($almost), $balance($unknown)]);
     }
 
     public function test_reapplying_the_pack_gives_an_old_copy_its_maternity_pay(): void
@@ -196,7 +207,7 @@ class ResearchedLeaveTest extends TestCase
 
         $this->postJson('/api/v1/hr/leave-types/apply-pack', ['company_id' => $this->acme->id], $this->headersFor($this->hrOfficer))->assertOk();
         $type = $this->inTenant(fn () => $maternity->refresh());
-        $this->assertSame([true, '2/3', 'low', '2026-10-22'], [$type->paid, $type->pay_share, $type->research['confidence'], $type->research['researched_on']]);
+        $this->assertSame([true, '2/3', 'medium', '2026-10-22'], [$type->paid, $type->pay_share, $type->research['confidence'], $type->research['researched_on']]);
 
         // A company that made the type its own (research cleared) keeps its pay.
         $this->inTenant(fn () => $type->forceFill(['paid' => null, 'pay_share' => null, 'research' => null])->save());

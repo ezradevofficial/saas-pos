@@ -8282,9 +8282,11 @@
         "qualifying_months": "months of service before it",
         "half_pay_days": "half-pay days",
         "events": "event days",
-        "count_basis": "how days are counted"
+        "count_basis": "how days are counted",
+        "date_of_birth": "an employee without a date of birth takes the adult days"
       },
-      "paidShare": "Paid at {{share}} of pay"
+      "paidShare": "Paid at {{share}} of pay",
+      "underAge": "Under {{age}}: {{days}} days a year"
     },
     "week": {
       "description": "Planned shifts by employee and day.",
@@ -10221,7 +10223,9 @@
         "cnss_family": "CNSS family benefits",
         "inpp": "INPP",
         "onem": "ONEM",
-        "family_allowance": "Family allowance"
+        "family_allowance": "Family allowance",
+        "irpp": "IRPP",
+        "irpp_dependants": "IRPP reduction for dependants"
       },
       "fields": {
         "period": "no period in force",

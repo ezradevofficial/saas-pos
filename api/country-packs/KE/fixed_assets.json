@@ -1,6 +1,6 @@
 {
     "code": "KE",
-    "notes": "Fixed assets tax book reference data for Kenyan companies (docs/modules/fixed-assets.md FA-20): the Income Tax Act Second Schedule classes, each with its method and annual rate. Owner decision 2026-10-22: the researched rates are used at low confidence (not confirmed by an accountant). The Second Schedule states every rate 'per year, in equal instalments' (straight line) or as a first-year rate; first_year_rate is the rate the year an asset enters service, then rate applies to the residue. A class with a null method or rate, or needs_confirmation true, is unconfirmed and the tax book is refused. Labels live in lang/{locale}/fixed_assets.php (tax_classes.*).",
+    "notes": "Fixed assets tax book reference data for Kenyan companies (docs/modules/fixed-assets.md FA-20): the Income Tax Act Second Schedule classes, each with its method and annual rate. Owner decision 2026-10-22: the researched rates are used at medium confidence (the consolidated Act and PwC agree; not confirmed by an accountant); the year-of-acquisition rule is low confidence (an inference). The Second Schedule states every rate 'per year, in equal instalments' (straight line) or as a first-year rate; first_year_rate is the rate the year an asset enters service, then rate applies to the residue. A class with a null method or rate, or needs_confirmation true, is unconfirmed and the tax book is refused. Labels live in lang/{locale}/fixed_assets.php (tax_classes.*).",
     "sources": [
         "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
         "https://taxsummaries.pwc.com/kenya/corporate/deductions",
@@ -8,7 +8,7 @@
         "https://www.rsm.global/kenya/sites/default/files/media/RSMEA%20Newsletter_%20Overview%20of%20The%20Kenya%20Finance%20Act%202023-24_0.pdf"
     ],
     "todo": [
-        "Confirm (accountant) every class, then publish it as confirmed through a pack release (ADM-04). Low confidence by owner decision 2026-10-22, although the consolidated Act (Kenya Law, 2026-07-01) and PwC agree.",
+        "Confirm (accountant) every class, then publish it as confirmed through a pack release (ADM-04). Medium confidence (owner decision 2026-10-22): the consolidated Act (Kenya Law, 2026-07-01) and PwC agree. The acquisition rule is low confidence.",
         "buildings: commercial buildings 10% straight line. Hotels, buildings used for manufacture, hospitals and petroleum or gas storage take 50% in the first year then 25% of the residue; educational and industrial buildings and docks 10%. Use another class key for those when a company has them.",
         "machinery: machinery used for manufacture (also hospital equipment, ships, aircraft): 50% in the first year of use, then 25% a year of the residue in equal instalments. Some summaries call the 25% reducing balance; the Act says equal instalments.",
         "motor_vehicles: 25% straight line (heavy earth-moving equipment too); the cost of a non-commercial vehicle is capped at KES 3 million (para 6), not applied.",
@@ -38,7 +38,7 @@
             "method": "straight_line",
             "rate": "10",
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
                 "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
@@ -56,7 +56,7 @@
             "rate": "25",
             "first_year_rate": "50",
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
                 "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
@@ -73,7 +73,7 @@
             "method": "straight_line",
             "rate": "25",
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
                 "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
@@ -89,7 +89,7 @@
             "method": "straight_line",
             "rate": "25",
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
                 "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
@@ -105,7 +105,7 @@
             "method": "straight_line",
             "rate": "25",
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
                 "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
@@ -121,7 +121,7 @@
             "method": "straight_line",
             "rate": "10",
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
                 "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
@@ -137,7 +137,7 @@
             "method": "straight_line",
             "rate": "10",
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
                 "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
@@ -153,7 +153,7 @@
             "method": "straight_line",
             "rate": "10",
             "status": "researched",
-            "confidence": "low",
+            "confidence": "medium",
             "researched_on": "2026-10-22",
             "source": [
                 "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",

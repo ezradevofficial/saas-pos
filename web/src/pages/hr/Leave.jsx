@@ -412,6 +412,7 @@ export function LeaveTypes() {
                 row.qualifying_months ? t('hr.types.qualifying', { count: row.qualifying_months }) : null,
                 Number(row.half_pay_days) > 0 ? t('hr.types.halfPay', { days: row.half_pay_days }) : null,
                 row.events?.length ? row.events.map((event) => t('hr.types.event', { event: event.label, days: event.days })).join(', ') : null,
+                row.under_age ? t('hr.types.underAge', { age: row.under_age.age, days: row.under_age.days }) : null,
               ]
                 .filter(Boolean)
                 .join(' · ') || '—',

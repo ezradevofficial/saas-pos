@@ -60,7 +60,9 @@ final class MissingValues
             $fields = self::fields($component);
 
             if ($fields !== []) {
-                $missing[] = ['component' => $component['code'], 'fields' => $fields];
+                // CP-01: `display`, when it differs, is the code it is shown under on the pay date (IRPP from 2026-01-01).
+                $display = PayrollPack::displayCode($component);
+                $missing[] = ['component' => $component['code'], ...($display === $component['code'] ? [] : ['display' => $display]), 'fields' => $fields];
             }
         }
 
@@ -233,7 +235,7 @@ final class MissingValues
     public static function describe(array $missing): string
     {
         return implode('; ', array_map(
-            fn (array $m) => PayrollPack::label('components', $m['component']).': '.implode(', ', array_map(fn (string $f) => PayrollPack::label('fields', $f), $m['fields'])),
+            fn (array $m) => PayrollPack::label('components', $m['display'] ?? $m['component']).': '.implode(', ', array_map(fn (string $f) => PayrollPack::label('fields', $f), $m['fields'])),
             $missing,
         ));
     }

@@ -56,6 +56,17 @@ final class HrPackSchema
         }
 
         foreach ($content['statutory_leave_types'] as $type) {
+            // HR-13: other yearly days under an age carry their own research status.
+            if (array_key_exists('under_age', $type)) {
+                $under = $type['under_age'];
+
+                if (! is_array($under) || ! is_int($under['age'] ?? null) || $under['age'] < 1 || $under['age'] > 30 || ! is_int($under['days'] ?? null) || $under['days'] < 0 || $under['days'] > 366) {
+                    throw new InvalidArgumentException("statutory_leave_types.{$type['key']}: under_age has an age (1 to 30) and days.");
+                }
+
+                ResearchStatus::check($under, "statutory_leave_types.{$type['key']}.under_age");
+            }
+
             if (array_key_exists('pay_share', $type)) {
                 [$numerator, $denominator] = array_map('intval', explode('/', (string) $type['pay_share']));
 

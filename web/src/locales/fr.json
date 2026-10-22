@@ -8282,9 +8282,11 @@
         "qualifying_months": "mois de service requis",
         "half_pay_days": "jours à demi-salaire",
         "events": "jours par évènement",
-        "count_basis": "mode de décompte des jours"
+        "count_basis": "mode de décompte des jours",
+        "date_of_birth": "un salarié sans date de naissance reçoit les jours des adultes"
       },
-      "paidShare": "Payé aux {{share}} de la rémunération"
+      "paidShare": "Payé aux {{share}} de la rémunération",
+      "underAge": "Moins de {{age}} ans : {{days}} jours par an"
     },
     "week": {
       "description": "Les quarts planifiés par employé et par jour.",
@@ -10221,7 +10223,9 @@
         "cnss_family": "CNSS prestations familiales",
         "inpp": "INPP",
         "onem": "ONEM",
-        "family_allowance": "Allocations familiales"
+        "family_allowance": "Allocations familiales",
+        "irpp": "IRPP",
+        "irpp_dependants": "Réduction d’IRPP pour charges de famille"
       },
       "fields": {
         "period": "aucune période en vigueur",

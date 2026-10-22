@@ -479,11 +479,13 @@ Open for the owner:
   `^[AP][0-9]{9}[A-Z]$` (high) and national ID `^[0-9]{7,9}$` (medium,
   format only). DR Congo circumstantial leave 10 working days a year with
   own marriage 2 and birth of a child 2 (medium).
-- Applied 2026-10-22 by owner decision (low confidence): DR Congo
-  maternity 14 weeks (98 calendar days) at 2/3 of pay (art. 130); annual
-  leave 18 working days a year after 12 months, plus one working day per
-  five years of service (art. 141; the Code's text gives adults at least
-  12 days, so 18 is above the minimum; confirm). Re-applying the pack
+- Applied 2026-10-22 by owner decision: DR Congo maternity 14 weeks (98
+  calendar days) at 2/3 of pay (art. 130, medium); annual leave after 12
+  months (art. 141): adults 12 working days a year (medium), workers under
+  18 18 days (`under_age`, low), both plus one working day per five years
+  of service. Under 18 is read from the employee's date of birth at the
+  start of the accrual period; without one the adult days apply (an
+  assumption the pack records). Re-applying the pack
   gives a maternity type copied with its pay unconfirmed the 2/3 pay, while
   the company has not made it its own.
 - Still needed: Kenya compassionate and pre-adoptive leave; DR Congo sick

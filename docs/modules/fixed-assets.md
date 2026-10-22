@@ -276,7 +276,7 @@ tokens only, en/fr.
 
 ## Tax data the owner must confirm (FA-20)
 
-**KE (applied 2026-10-22 by owner decision, low confidence).**
+**KE (applied 2026-10-22 by owner decision, medium confidence; the year-of-acquisition rule low).**
 `api/country-packs/KE/fixed_assets.json` carries the Income Tax Act
 Second Schedule classes as researched rows (Kenya Law consolidated text,
 PwC, the KRA capital deductions notice), every one straight line ("in
@@ -287,8 +287,8 @@ furniture and fittings 10%, telecommunication equipment 10%, other
 machinery 10%; the year of first use counts in full (`acquisition_rule:
 full_year`, an assumption: no apportionment was found). Rows start
 2026-01-01 (the pack's data start). The tax book can compute; the
-settings page shows each class with "Researched, low confidence: not
-confirmed by an accountant".
+settings page shows each class with its research status and the
+low-confidence notice (for the acquisition rule).
 
 **CD.** `api/country-packs/CD/fixed_assets.json` holds class keys only,
 every method and rate null and `needs_confirmation: true`: no statutory

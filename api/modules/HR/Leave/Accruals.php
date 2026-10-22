@@ -116,7 +116,7 @@ class Accruals
 
                 $daysInYear = $yearStart->daysInYear;
                 $employed = (int) $start->diffInDays($end) + 1;
-                $yearly = $entitlement->plus(self::seniorityDays($type, $employee, $start));
+                $yearly = self::baseDays($type, $employee, $start, $entitlement)->plus(self::seniorityDays($type, $employee, $start));
                 $amount = $employed >= $daysInYear ? $yearly : $yearly->multipliedBy($employed)->dividedBy($daysInYear, 10, RoundingMode::HalfUp);
                 $posted += $this->ledger->post($employee->id, $type->id, 'accrual', (string) $amount->toScale(2, RoundingMode::HalfUp), $start->toDateString(), "accrual:{$year}", researched: $researched) === null ? 0 : 1;
 
@@ -144,13 +144,37 @@ class Accruals
 
                 $daysInMonth = $month->daysInMonth;
                 $employed = (int) $s->diffInDays($e) + 1;
-                $monthly = $entitlement->plus(self::seniorityDays($type, $employee, $monthEnd))->dividedBy(12, 10, RoundingMode::HalfUp);
+                $monthly = self::baseDays($type, $employee, $s, $entitlement)->plus(self::seniorityDays($type, $employee, $monthEnd))->dividedBy(12, 10, RoundingMode::HalfUp);
                 $amount = $employed >= $daysInMonth ? $monthly : $monthly->multipliedBy($employed)->dividedBy($daysInMonth, 10, RoundingMode::HalfUp);
                 $posted += $this->ledger->post($employee->id, $type->id, 'accrual', (string) $amount->toScale(2, RoundingMode::HalfUp), $monthEnd->toDateString(), 'accrual:'.$month->format('Y-m'), researched: $researched) === null ? 0 : 1;
             }
         }
 
         return $posted;
+    }
+
+    /**
+     * HR-13: the yearly days for the employee at the start of the accrual
+     * period: the type's under-age days while the employee is younger than
+     * its age on $on (from the date of birth; without one, the adult days:
+     * an assumption the pack records), else $entitlement.
+     */
+    private static function baseDays(LeaveType $type, Employee $employee, CarbonImmutable $on, BigDecimal $entitlement): BigDecimal
+    {
+        $under = $type->under_age;
+
+        if (! is_array($under) || ! isset($under['age'], $under['days']) || $employee->date_of_birth === null) {
+            return $entitlement;
+        }
+
+        $age = (int) $employee->date_of_birth->diffInYears($on, true);
+
+        if ($employee->date_of_birth->greaterThan($on) || $age >= (int) $under['age']) {
+            return $entitlement;
+        }
+
+        // The under-age days replace the full-pay days; any half-pay days stay.
+        return $entitlement->minus((string) $type->entitlement_days)->plus((int) $under['days']);
     }
 
     /** HR-13: the type's extra yearly days for the employee's completed years of service on $on. */

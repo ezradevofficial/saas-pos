@@ -683,7 +683,7 @@ class RunCalculator
             if ($c['kind'] === 'allowance') {
                 // A statutory allowance is pay: it joins the earnings (its flags from the pack).
                 if ($employeePay !== '0') {
-                    $earnings[] = ['code' => $c['code'], 'name' => PayrollPack::label('components', $c['code']), 'source' => 'statutory', 'amount_minor' => $employeePay,
+                    $earnings[] = ['code' => $c['code'], 'name' => PayrollPack::label('components', $c['display_code'] ?? $c['code']), 'source' => 'statutory', 'amount_minor' => $employeePay,
                         'taxable' => (bool) ($c['trace']['taxable'] ?? false), 'contributory' => (bool) ($c['trace']['contributory'] ?? false)];
                 }
             } else {
@@ -692,7 +692,7 @@ class RunCalculator
 
             $employerTotal = $employerTotal->plus($employerPay);
             $statutory[] = [
-                'code' => $c['code'], 'kind' => $c['kind'], 'name' => PayrollPack::label('components', $c['code']),
+                'code' => $c['code'], 'kind' => $c['kind'], 'name' => PayrollPack::label('components', $c['display_code'] ?? $c['code']),
                 'employee_minor' => $employeePay, 'employer_minor' => $employerPay,
                 'employee_statutory_minor' => $c['employee_minor'], 'employer_statutory_minor' => $c['employer_minor'], 'base_statutory_minor' => $c['base_minor'],
                 'trace' => $c['trace'],

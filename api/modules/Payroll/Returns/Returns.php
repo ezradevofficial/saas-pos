@@ -37,7 +37,7 @@ class Returns
     public function types(Company $company): array
     {
         return array_map(fn (array $t) => [
-            'key' => $t['key'], 'name' => PayrollPack::label('returns', $t['key']), 'period' => $t['period'],
+            'key' => $t['key'], 'name' => PayrollPack::label('returns', PayrollPack::returnDisplay($t, CarbonImmutable::now($company->timezone ?: 'UTC'))), 'period' => $t['period'],
             'components' => $t['components'], 'needs_confirmation' => (bool) ($t['needs_confirmation'] ?? true) || ($t['layout'] ?? null) === null,
         ], $this->packs->returnTypes($company->country));
     }
@@ -69,7 +69,9 @@ class Returns
             'period_start' => $start->toDateString(),
             'period_end' => $end->toDateString(),
             'run_ids' => $runs,
-            'totals' => ['currency' => $this->packs->currency($company->country), 'components' => $totals],
+            // CP-01: the names the period shows (IRPP from 2026-01-01, IPR before), kept with the record.
+            'totals' => ['currency' => $this->packs->currency($company->country), 'components' => $totals,
+                'display' => PayrollPack::returnDisplay($definition, $end), 'display_codes' => PayrollPack::displayCodes((array) $this->packs->of($company->country, $end), $end)],
             'employee_count' => count($rows),
             'needs_confirmation' => (bool) ($definition['needs_confirmation'] ?? true) || ($definition['layout'] ?? null) === null,
             'generated_by' => $by->id,

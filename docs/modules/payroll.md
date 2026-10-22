@@ -521,14 +521,15 @@ DR Congo (`api/country-packs/CD/payroll.json`, CDF), all medium:
 1. IPR: annual bands ÷ 12 (3% to 162,000, 15% to 1,800,000, 30% to 3,600,000, 40% above, per month), minimum CDF 2,000, capped at 30% of taxable pay (the cap wins). Assumed until confirmed: the minimum is monthly and applies before the cap.
 2. CNSS pension 5% employee and 5% employer; occupational risks 1.5%; family benefits 6.5% (employer).
 3. ONEM 0.2% employer on the taxable base.
-4. Since 2026-10-22 (low confidence, owner decision): the employee's CNSS reduces the IPR base (PwC); the IPR reduction for dependants, 2% of IPR each, at most 9; INPP 3% (up to 50 employees), 2% (51 to 300), 1% (above 300), on gross (a 3.5/3/2% scale reported from 2026-01-01 is recorded as rejected in the period); the CDF 2,000 minimum before the 30% cap.
+4. Since 2026-10-22 (owner decision): the employee's CNSS reduces the IPR base (PwC; low); the reduction for dependants, 2% of the tax each, at most 9 (medium); INPP on gross 3/2/1% (up to 50 employees, 51 to 300, above 300) until 2025-12-31 and 3.5/3/2% from 2026-01-01 (low; the interministerial order itself was not found); the CDF 2,000 minimum before the 30% cap.
+   From 2026-01-01 the tax is **IRPP** (Law 23/053, medium): the same bands, the monthly tax rounded to the nearest CDF 100. The period's `display_code` (`irpp`, `irpp_dependants`) names it on run lines (and so payslips), the run's notices, the statutory rates page, missing-value messages and returns (`returns.*.display`, kept on each return record); before that date it is IPR, rounded to the franc.
 5. Assumed until confirmed: no CNSS ceiling; rounding to the franc.
 6. Leave paid at a share of pay (CD maternity at 2/3): HR sends the share with the approved request (`LeaveApproved::$payShare`), Payroll keeps `reduced_pay` days with their `pay_share`, and a monthly run deducts the rest of the daily rate as "Leave paid at 2/3 of pay".
 
 **Still needed** (null; the packs' `todo`):
 
 - KE: weekly and bi-weekly pay (`non_monthly`); other items (disability exemption); the return layouts (P10, NSSF, SHIF, housing levy, NITA, P9) and the M-Pesa B2C bulk file.
-- CD: the **family allowance** per child (runs with an employee who has children are refused); the IRPP that replaces IPR from 2026-01-01 (Law 23/053: rounding to CDF 100, no dependants rebate above the third band; not applied); `non_monthly`; the declaration layouts (IPR, CNSS, INPP, ONEM). INPP keeps its "not applicable" mark for a pack release that leaves it unconfirmed.
+- CD: the **family allowance** per child (runs with an employee who has children are refused); whether a dependants rebate applies above the third IRPP band (one source; not applied); `non_monthly`; the declaration layouts (IPR, CNSS, INPP, ONEM). INPP keeps its "not applicable" mark for a pack release that leaves it unconfirmed.
 - Payroll does not yet reduce pay for HR's half-pay sick days (KE): HR sends them with the approved request (`LeaveApproved::$halfPayDays`, the request's last days), Payroll keeps them as `half_pay` leave days, and each run records `inputs.statutory.half_pay_paid_in_full` (days, employees) and shows "Half-pay sick days paid in full".
 - Leave whose pay rate is not confirmed (a leave type with `paid` null) is copied as `pay_unconfirmed` days: the employee's line has the error `leave_pay_unconfirmed` ("Leave pay rate not confirmed"), so the run cannot be submitted until the leave type's pay is confirmed in HR (Payroll's copy follows on the next sync).
 

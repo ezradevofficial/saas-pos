@@ -115,6 +115,12 @@ Each publish (changed or not, so a run that stopped half-way is completed by the
   class's `first_year_rate` (KE machinery 50%, then the rate on the
   residue), and a holiday's `sunday_rule` (`next_free_day`, KE Public
   Holidays Act s. 4) with research fields on holiday rows.
+- A period may carry a `display_code`, the label it is shown under (CD
+  IRPP from 2026-01-01, Law 23/053; IPR before), and a return type a
+  dated `display`; a leave type may carry `under_age` days with their own
+  research (CD workers under 18, from the date of birth). One scale
+  replacing another (CD INPP 3/2/1% until 2025-12-31, 3.5/3/2% from
+  2026-01-01) is two effective-dated periods, never a "rejected" marking.
 - What was applied, with confidence and sources:
   docs/country-packs-research-2026-10.md, "Applied 2026-10-22 by owner
   decision".

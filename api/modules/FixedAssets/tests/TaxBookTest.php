@@ -77,7 +77,8 @@ class TaxBookTest extends TestCase
         $settings = $this->api('GET', "companies/{$this->acme->id}/settings")->assertOk()->json('data');
         $this->assertSame([], $settings['tax_unconfirmed']);
         $machinery = collect($settings['tax_classes'])->firstWhere('key', 'machinery');
-        $this->assertSame(['straight_line', '25', '50', 'researched', 'low'], [$machinery['method'], $machinery['rate'], $machinery['first_year_rate'], $machinery['status'], $machinery['confidence']]);
+        $this->assertSame(['straight_line', '25', '50', 'researched', 'medium'], [$machinery['method'], $machinery['rate'], $machinery['first_year_rate'], $machinery['status'], $machinery['confidence']]);
+        $this->assertSame('medium', $machinery['confidence']);
         $this->assertNotEmpty($machinery['source']);
         $this->api('PUT', "companies/{$this->acme->id}/settings", ['tax_book' => true])->assertOk();
 
