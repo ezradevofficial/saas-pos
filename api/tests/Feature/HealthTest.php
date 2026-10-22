@@ -16,6 +16,21 @@ class HealthTest extends TestCase
         $this->get('/up')->assertOk();
     }
 
+    /**
+     * NFR-01, NFR-06 (Phase 8 walkthrough): Laravel's /up HTML page loaded fonts from a
+     * third-party CDN. /up stays (it carries the sync lag headers, NFR-04, and is never in
+     * maintenance) but always answers JSON, with no page and no external resource.
+     */
+    public function test_up_answers_json_without_a_page_or_external_resources(): void
+    {
+        $response = $this->get('/up', ['Accept' => 'text/html'])->assertOk();
+
+        $response->assertExactJson(['status' => 'up']);
+        $this->assertStringStartsWith('application/json', (string) $response->headers->get('Content-Type'));
+        $this->assertStringNotContainsString('fonts.bunny.net', (string) $response->getContent());
+        $response->assertHeader('X-Sync-Lag-Seconds');
+    }
+
     public function test_tests_run_against_postgresql(): void
     {
         // Tenant isolation relies on PostgreSQL row-level security (TEN-01),
