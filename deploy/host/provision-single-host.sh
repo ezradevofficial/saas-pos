@@ -149,7 +149,9 @@ step_packages() {
   if ! is_dry_run; then
     # shellcheck disable=SC1091
     . /etc/os-release
-    [ "${ID:-}" = ubuntu ] && [ "${VERSION_ID:-}" = 24.04 ] || die "This script is for Ubuntu 24.04 LTS (found ${PRETTY_NAME:-unknown})."
+    if [ "${ID:-}" != ubuntu ] || [ "${VERSION_ID:-}" != 24.04 ]; then
+      die "This script is for Ubuntu 24.04 LTS (found ${PRETTY_NAME:-unknown})."
+    fi
   fi
   run apt-get update -q
   apt_install ca-certificates curl gnupg jq unzip ufw fail2ban unattended-upgrades ssl-cert
@@ -590,6 +592,14 @@ step_nginx() {
   ensure_dir /var/www/acme 0755 root:root
   write_file /etc/nginx/conf.d/tls.conf 0644 root:root <"$TEMPLATES/nginx-tls.conf.tmpl"
   local changed="$FILE_CHANGED" http
+  # Ubuntu's nginx.conf sets ssl_protocols (TLS 1.0 to 1.3) and
+  # ssl_prefer_server_ciphers in the http block. With conf.d/tls.conf the
+  # second one stops nginx, and the protocol lists add up, turning TLS 1.0
+  # and 1.1 back on. Comment both out there; tls.conf is the only source.
+  if grep -Eq '^[[:space:]]*(ssl_protocols|ssl_prefer_server_ciphers)[[:space:]]' "$(host_path /etc/nginx/nginx.conf)" 2>/dev/null; then
+    run sed -i -E 's/^([[:space:]]*)(ssl_protocols|ssl_prefer_server_ciphers)([[:space:]])/\1# \2\3/' /etc/nginx/nginx.conf
+    changed=$((changed + 1))
+  fi
   http="$(render_template "$TEMPLATES/nginx-http.conf.tmpl" SERVER_NAMES="$all_names")"
   printf '%s\n' "$http" | write_file /etc/nginx/sites-available/app-http 0644 root:root
   changed=$((changed + FILE_CHANGED))

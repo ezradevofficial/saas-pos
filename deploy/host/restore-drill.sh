@@ -78,7 +78,9 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-[[ "$DRILL_PORT" =~ ^[0-9]+$ ]] && [ "$DRILL_PORT" != "$PG_PORT" ] || die "DRILL_PORT must be a port other than the live cluster's ($PG_PORT)."
+if ! [[ "$DRILL_PORT" =~ ^[0-9]+$ ]] || [ "$DRILL_PORT" = "$PG_PORT" ]; then
+  die "DRILL_PORT must be a port other than the live cluster's ($PG_PORT)."
+fi
 [[ "$DRILL_RECOVERY_TIMEOUT" =~ ^[0-9]+$ ]] || die "DRILL_RECOVERY_TIMEOUT is a number of seconds."
 [[ "$tolerance" =~ ^0?\.[0-9]+$|^0$|^1$ ]] || die "--tolerance is a fraction, e.g. 0.05."
 [[ "$backup" =~ ^[A-Za-z0-9_]+$ ]] || die "Invalid --backup name."
@@ -86,7 +88,9 @@ case "$target_time" in *\'* | *\\*) die "Invalid --target-time." ;; esac
 if [ "$source_kind" = walg ]; then
   [ "${BACKUPS_ENABLED:-false}" = true ] || die "Backups are off (BACKUPS_ENABLED=false): nothing to restore from WAL-G. Use --source dir:<pg_basebackup dir> for a local copy."
 else
-  [ -d "$source_dir" ] && [ -f "$source_dir/PG_VERSION" ] || die "$source_dir is not a pg_basebackup directory."
+  if [ ! -d "$source_dir" ] || [ ! -f "$source_dir/PG_VERSION" ]; then
+    die "$source_dir is not a pg_basebackup directory."
+  fi
   [ -z "$wal_archive" ] || [ -d "$wal_archive" ] || die "No WAL archive at $wal_archive."
   [ -z "$target_time" ] || [ -n "$wal_archive" ] || die "--target-time with a dir source needs --wal-archive."
 fi
