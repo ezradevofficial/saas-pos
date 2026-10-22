@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\Currency\TenantCurrencies;
 use App\Core\MasterData\Taxes\PriceList;
 use App\Core\MasterData\Taxes\TaxCategory;
+use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\Scope;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\ReadsListExports;
@@ -71,8 +72,12 @@ class TaxListsTest extends TestCase
 
     public function test_a_tax_code_without_a_confirmed_rate_exports_as_rate_needed(): void
     {
-        // CP-01: the KE withholding rate is still needed in the shipped pack.
+        // CP-01: the shipped KE pack has no rate still needed since 2026-10-22 (withholding VAT is researched, 2%);
+        // a period without a figure is set up here to check the export.
         $url = "/api/v1/companies/{$this->acme->id}/tax-codes?format=csv&columns[]=code&columns[]=rate";
+        $rows = $this->csvRows($this->get("{$url}&search=VAT_WHT", $this->headersFor())->assertOk());
+        $this->assertSame([['Code', 'Rate'], ['VAT_WHT', '2% (researched)']], $rows);
+        $this->inTenant(fn () => TaxRate::query()->whereHas('taxCode', fn ($q) => $q->where('code', 'VAT_WHT'))->update(['rate' => null, 'needs_confirmation' => true, 'research' => null]));
         $rows = $this->csvRows($this->get("{$url}&search=VAT_WHT", $this->headersFor())->assertOk());
         $this->assertSame([['Code', 'Rate'], ['VAT_WHT', 'Rate needed']], $rows);
 

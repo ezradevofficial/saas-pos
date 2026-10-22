@@ -15,7 +15,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property CarbonImmutable $date
  * @property string $fraction
  * @property ?CarbonImmutable $cancelled_at
- * @property string $kind unpaid (deducted), pay_unconfirmed (blocks the run) or half_pay (CP-01)
+ * @property string $kind unpaid (deducted), pay_unconfirmed (blocks the run), half_pay or reduced_pay (CP-01)
+ * @property ?string $pay_share the share of pay kept on a reduced_pay day, an exact fraction ("2/3")
  */
 class LeaveDay extends Model
 {

@@ -153,7 +153,7 @@ function LeaveDetail({ row, onCancel, onClose }) {
         <Detail label={t('hr.leave.requestedBy')}>{row.requested_by?.name ?? '—'}</Detail>
         {row.cancel_reason ? <Detail label={t('hr.leave.cancelReason')}>{row.cancel_reason}</Detail> : null}
       </DetailGrid>
-      {row.researched ? <ResearchedNotice to="/hr/leave/types" className="mt-4" /> : null}
+      {row.researched ? <ResearchedNotice to="/hr/leave/types" low={Boolean(row.low_confidence)} className="mt-4" /> : null}
     </Dialog>
   )
 }
@@ -391,7 +391,7 @@ export function LeaveTypes() {
       />
       {pack.isError ? <Alert tone="danger" title={errorMessage(pack.error)} /> : null}
       {(query.data?.data ?? []).some((row) => row.days_needed && !row.archived_at) ? <Alert tone="warning" title={t('hr.types.daysNeededTitle')}>{t('hr.types.daysNeededHelp')}</Alert> : null}
-      {(query.data?.data ?? []).some((row) => row.researched && !row.archived_at) ? <ResearchedNotice /> : null}
+      {(query.data?.data ?? []).some((row) => row.researched && !row.archived_at) ? <ResearchedNotice low={(query.data?.data ?? []).some((row) => row.researched && row.low_confidence && !row.archived_at)} /> : null}
       <DataTable
         caption={t('hr.sections.leave.types')}
         loading={query.isLoading}
@@ -400,7 +400,7 @@ export function LeaveTypes() {
         columns={[
           { key: 'code', label: t('hr.columns.code'), render: (row) => <span className="font-medium tabular-nums">{row.code}</span> },
           { key: 'name', label: t('hr.types.name'), render: (row) => (row.statutory_label && row.statutory_label !== row.name ? `${row.name} · ${row.statutory_label}` : row.name) },
-          { key: 'paid', label: t('hr.types.paid'), render: (row) => (row.paid === null ? t('hr.types.paidUnconfirmed') : row.paid ? t('hr.types.paidYes') : t('hr.types.paidNo')) },
+          { key: 'paid', label: t('hr.types.paid'), render: (row) => (row.paid === null ? t('hr.types.paidUnconfirmed') : row.paid ? (row.pay_share ? t('hr.types.paidShare', { share: row.pay_share }) : t('hr.types.paidYes')) : t('hr.types.paidNo')) },
           { key: 'accrual', label: t('hr.types.accrual'), render: (row) => enumLabel(t, 'accruals', row.accrual) },
           { key: 'days', label: t('hr.types.entitlement'), align: 'end', render: (row) => <Days value={row.entitlement_days} /> },
           {
@@ -412,6 +412,7 @@ export function LeaveTypes() {
                 row.qualifying_months ? t('hr.types.qualifying', { count: row.qualifying_months }) : null,
                 Number(row.half_pay_days) > 0 ? t('hr.types.halfPay', { days: row.half_pay_days }) : null,
                 row.events?.length ? row.events.map((event) => t('hr.types.event', { event: event.label, days: event.days })).join(', ') : null,
+                row.under_age ? t('hr.types.underAge', { age: row.under_age.age, days: row.under_age.days }) : null,
               ]
                 .filter(Boolean)
                 .join(' · ') || '—',

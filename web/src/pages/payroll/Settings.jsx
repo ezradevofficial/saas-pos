@@ -413,7 +413,7 @@ function StatutoryPack({ query, company }) {
           </div>
         </Alert>
       )}
-      {pack.researched ? <ResearchedNotice /> : null}
+      {pack.researched ? <ResearchedNotice low={Boolean(pack.low_confidence)} /> : null}
       <Card title={t('payroll.statutory.title')} subtitle={t('payroll.statutory.help')}>
         <div className="flex flex-col gap-4">
           <dl className="grid gap-4 sm:grid-cols-3">

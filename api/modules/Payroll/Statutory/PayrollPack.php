@@ -238,7 +238,7 @@ class PayrollPack
             $research = $c['values'] === null ? null : ResearchStatus::research($c['values']);
 
             if ($research !== null) {
-                $notices['researched'][] = ['component' => $c['code'], 'effective_from' => $c['values']['effective_from'] ?? null, ...$research];
+                $notices['researched'][] = ['component' => $c['code'], 'display' => self::displayCode($c), 'effective_from' => $c['values']['effective_from'] ?? null, ...$research];
             }
         }
 
@@ -255,6 +255,49 @@ class PayrollPack
     public function paymentFormat(?string $country, string $key): ?array
     {
         return $this->of($country)['payment_formats'][$key] ?? null;
+    }
+
+    /**
+     * CP-01: the code a component is shown under, from its period in force
+     * (`display_code`: CD IRPP from 2026-01-01, Law 23/053), else its code.
+     */
+    public static function displayCode(array $component): string
+    {
+        $display = $component['values']['display_code'] ?? null;
+
+        return is_string($display) && preg_match('/^[a-z][a-z0-9_]{0,39}\z/', $display) === 1 ? $display : (string) $component['code'];
+    }
+
+    /** The en/fr label of a component as its period in force shows it (IRPP or IPR). */
+    public static function labelOf(array $component): string
+    {
+        return self::label('components', self::displayCode($component));
+    }
+
+    /** @return array<string, string> component code => the code it is shown under on $on */
+    public static function displayCodes(array $pack, CarbonImmutable $on): array
+    {
+        $codes = [];
+
+        foreach (self::inForce($pack, $on) as $component) {
+            $codes[$component['code']] = self::displayCode($component);
+        }
+
+        return $codes;
+    }
+
+    /** The code a return type is shown under on $on (`display: [{from, code}]`, the latest that has started), else its key. */
+    public static function returnDisplay(array $type, CarbonImmutable $on): string
+    {
+        $code = (string) $type['key'];
+
+        foreach ((array) ($type['display'] ?? []) as $step) {
+            if (is_array($step) && ($step['from'] ?? '9999-12-31') <= $on->toDateString() && is_string($step['code'] ?? null)) {
+                $code = $step['code'];
+            }
+        }
+
+        return $code;
     }
 
     /** S1: an assumption worded for people (its own wording, else the field's). */

@@ -101,7 +101,7 @@ class EmployeeCopy
     /** PAY-11: unpaid leave days (paid leave changes nothing). */
     public function leaveApproved(LeaveApproved $event): void
     {
-        $days = self::leaveDays($event->paid, $event->halfPayDays, $event->dates);
+        $days = self::leaveDays($event->paid, $event->halfPayDays, $event->dates, $event->payShare);
         $this->replaceHalfPay([[$event->requestId, $days]]);
 
         if ($days !== []) {
@@ -115,17 +115,23 @@ class EmployeeCopy
      * day of leave whose pay rate is not confirmed (`pay_unconfirmed`, the
      * run is blocked), and the last days of paid leave that are at half pay
      * by statute (`half_pay`, KE sick leave: paid in full for now and
-     * flagged on the run).
+     * flagged on the run). Every day of leave paid at a share of pay
+     * (`reduced_pay` with its `pay_share`, CD maternity at 2/3: the run
+     * deducts the rest of the daily rate).
      *
      * @param  list<array{date: string, fraction: string}>  $dates
-     * @return list<array{date: string, fraction: string, kind: string}>
+     * @return list<array{date: string, fraction: string, kind: string, pay_share?: string}>
      */
-    public static function leaveDays(?bool $paid, string $halfPayDays, array $dates): array
+    public static function leaveDays(?bool $paid, string $halfPayDays, array $dates, ?string $payShare = null): array
     {
         if ($paid !== true) {
             $kind = $paid === null ? 'pay_unconfirmed' : 'unpaid';
 
             return array_map(fn (array $d) => [...$d, 'kind' => $kind], array_values($dates));
+        }
+
+        if ($payShare !== null && preg_match('/^[1-9][0-9]?\/[1-9][0-9]?\z/', $payShare) === 1) {
+            return array_map(fn (array $d) => [...$d, 'kind' => 'reduced_pay', 'pay_share' => $payShare], array_values($dates));
         }
 
         $left = BigDecimal::of($halfPayDays === '' ? '0' : $halfPayDays);
@@ -306,7 +312,7 @@ class EmployeeCopy
 
         foreach ($requests as $r) {
             $days[$r['request_id']] = $r['status'] === 'approved'
-                ? self::leaveDays(array_key_exists('paid', $r) ? $r['paid'] : false, (string) ($r['half_pay_days'] ?? '0'), $r['dates'])
+                ? self::leaveDays(array_key_exists('paid', $r) ? $r['paid'] : false, (string) ($r['half_pay_days'] ?? '0'), $r['dates'], $r['pay_share'] ?? null)
                 : [];
         }
 
@@ -344,12 +350,12 @@ class EmployeeCopy
 
         foreach ($requests as [$requestId, $employeeId, $companyId, $dates]) {
             foreach ($dates as $day) {
-                $rows[] = ['request_id' => $requestId, 'date' => $day['date'], 'employee_id' => $employeeId, 'company_id' => $companyId, 'fraction' => (string) $day['fraction'], 'kind' => $day['kind'] ?? 'unpaid', 'cancelled_at' => null];
+                $rows[] = ['request_id' => $requestId, 'date' => $day['date'], 'employee_id' => $employeeId, 'company_id' => $companyId, 'fraction' => (string) $day['fraction'], 'kind' => $day['kind'] ?? 'unpaid', 'pay_share' => $day['pay_share'] ?? null, 'cancelled_at' => null];
             }
         }
 
-        // A tombstone (a cancelled day) is never brought back; a confirmed pay rate changes the day's kind.
-        Upserts::run('payroll_leave_days', $rows, ['request_id', 'date'], ['employee_id', 'company_id', 'fraction', 'kind'], 't.cancelled_at is null and (t.fraction is distinct from excluded.fraction or t.kind is distinct from excluded.kind)');
+        // A tombstone (a cancelled day) is never brought back; a confirmed pay rate changes the day's kind (and share).
+        Upserts::run('payroll_leave_days', $rows, ['request_id', 'date'], ['employee_id', 'company_id', 'fraction', 'kind', 'pay_share'], 't.cancelled_at is null and (t.fraction is distinct from excluded.fraction or t.kind is distinct from excluded.kind or t.pay_share is distinct from excluded.pay_share)');
     }
 
     /** @param list<array{0: string, 1: string, 2: string, 3: list<string>}> $requests [request, employee, company, dates] */

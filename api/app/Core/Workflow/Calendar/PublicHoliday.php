@@ -17,12 +17,13 @@ use Illuminate\Database\Eloquent\Model;
  * @property ?string $date
  * @property ?string $effective_from
  * @property ?string $effective_to
+ * @property ?string $sunday_rule next_free_day: on a Sunday it moves to the first following day that is not a holiday (CP-01)
  */
 class PublicHoliday extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['country', 'key', 'month', 'day', 'date', 'effective_from', 'effective_to'];
+    protected $fillable = ['country', 'key', 'month', 'day', 'date', 'effective_from', 'effective_to', 'sunday_rule'];
 
     protected function casts(): array
     {
