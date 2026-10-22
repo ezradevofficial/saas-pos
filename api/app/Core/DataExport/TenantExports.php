@@ -11,12 +11,16 @@ use App\Core\Identity\Models\User;
 use App\Core\Notifications\LocalDate;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\Notifier;
+use App\Core\Rbac\OwnerGuard;
+use App\Core\Tenancy\ClosedTenant;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Number;
 use Throwable;
 
@@ -38,6 +42,15 @@ use Throwable;
  *   an authenticated request and valid `data_export.link_minutes`. The
  *   download (TenantExportController::download) checks the signed-for
  *   user is still an active Owner and is audited.
+ * - requestOnClosing(): when the tenant closes (TenantClosed), its full
+ *   export is built once per closing (`purpose = closing`, unique on the
+ *   tenant and its closing time, so a tenant reopened and closed again gets
+ *   a fresh one), kept
+ *   `data_export.closing_link_days` (30), and each active Owner with an
+ *   email is sent a signed link that works without signing in, since a
+ *   closed tenant refuses sign-in (sendClosingLinks). Not for a developer
+ *   sandbox (sample data), nor a tenant with no active Owner (a pruned
+ *   sign-up). Staff may send the links again (resendClosingLinks).
  * - expireDue(): deletes files past their expiry and marks them expired
  *   (`core.tenant_export.expire`), keeping the row ready to retry when the
  *   delete fails; fails builds running since before the job timeout (plus
@@ -46,6 +59,9 @@ use Throwable;
 class TenantExports
 {
     public const READY_EVENT = 'core.tenant_export.ready';
+
+    /** The signed, sign-in-free download of a closed tenant's export. */
+    public const CLOSING_ROUTE = 'tenant_exports.closing_download';
 
     public function __construct(
         private readonly TenantContext $tenants,
@@ -72,7 +88,7 @@ class TenantExports
             // Serialise requests of one tenant: the checks below then see each other.
             DB::connection(TenantContext::CONNECTION)->select("select pg_advisory_xact_lock(hashtext('tenant-export:' || ?))", [$this->tenants->require()]);
 
-            if (TenantExport::query()->whereIn('status', TenantExport::ACTIVE)->exists()) {
+            if (TenantExport::query()->where('purpose', TenantExport::PURPOSE_REQUEST)->whereIn('status', TenantExport::ACTIVE)->exists()) {
                 throw new ApiException(409, 'export_in_progress', __('data_export.errors.in_progress'));
             }
 
@@ -143,7 +159,9 @@ class TenantExports
                     'row_count' => $built['rows'],
                     'file_count' => $built['files'],
                     'completed_at' => $now,
-                    'expires_at' => $now->addDays(max(1, (int) config('data_export.keep_days', 7))),
+                    'expires_at' => $export->purpose === TenantExport::PURPOSE_CLOSING
+                        ? $now->addDays(max(1, (int) config('data_export.closing_link_days', 30)))
+                        : $now->addDays(max(1, (int) config('data_export.keep_days', 7))),
                 ])->save();
 
                 $this->auditor->record('core.tenant_export.ready', $export, ['status' => TenantExport::RUNNING], [
@@ -166,7 +184,105 @@ class TenantExports
             }
         }
 
+        if ($export->purpose === TenantExport::PURPOSE_CLOSING) {
+            // A mail failure is reported, never retried as a build: staff can send the links again.
+            rescue(fn () => $this->sendClosingLinks($export), report: true);
+
+            return;
+        }
+
         $this->notifyReady($export);
+    }
+
+    /**
+     * The closing export of the tenant in context for its current closing,
+     * queued once per closing (the TenantClosed listener). A closing is
+     * named by the time the tenant closed (its updated_at as the status
+     * became closed): reopened and closed again, it gets a fresh export.
+     * Null for a tenant that is not closed, a developer sandbox, or a
+     * tenant with no active Owner. Runs inside the closing transaction:
+     * the build is queued after it commits.
+     */
+    public function requestOnClosing(): ?TenantExport
+    {
+        $tenant = Tenant::query()->whereKey($this->tenants->require())->first();
+        $owners = $this->activeOwners();
+
+        if ($tenant === null || $tenant->status !== 'closed' || $tenant->updated_at === null || $tenant->is_sandbox || $owners === []) {
+            return null;
+        }
+
+        $closedAt = CarbonImmutable::instance($tenant->updated_at);
+        $ofThisClosing = fn () => TenantExport::query()->where('purpose', TenantExport::PURPOSE_CLOSING)->where('closed_at', $closedAt)->first();
+        $existing = $ofThisClosing();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        try {
+            $export = DB::connection(TenantContext::CONNECTION)->transaction(function () use ($owners, $closedAt) {
+                $export = TenantExport::query()->create(['requested_by' => $owners[0]->id, 'status' => TenantExport::QUEUED, 'purpose' => TenantExport::PURPOSE_CLOSING, 'closed_at' => $closedAt]);
+                $this->auditor->record('core.tenant_export.closing_request', $export, null, ['status' => TenantExport::QUEUED, 'purpose' => TenantExport::PURPOSE_CLOSING, 'closed_at' => $closedAt->toIso8601String()]);
+
+                return $export;
+            });
+        } catch (UniqueConstraintViolationException) {
+            return $ofThisClosing();
+        }
+
+        BuildTenantExport::dispatch($export->tenant_id, $export->id)->afterCommit();
+
+        return $export;
+    }
+
+    /**
+     * Email each active Owner of the closed tenant a signed link to $export,
+     * valid until the export expires. Audited (the count, never a link).
+     * Returns how many were sent.
+     */
+    public function sendClosingLinks(TenantExport $export, string $action = 'core.tenant_export.closing_links', array $details = []): int
+    {
+        if ($export->purpose !== TenantExport::PURPOSE_CLOSING || ! $export->isDownloadable() || ! ClosedTenant::is($export->tenant_id)) {
+            throw new ApiException(409, 'closing_export_unavailable', __('data_export.errors.closing_unavailable'));
+        }
+
+        $tenant = Tenant::query()->whereKey($export->tenant_id)->firstOrFail();
+        $size = Number::fileSize((int) $export->size, 1, null);
+        $sent = 0;
+
+        foreach ($this->activeOwners() as $owner) {
+            if ($owner->email === null) {
+                continue;
+            }
+
+            $url = URL::temporarySignedRoute(self::CLOSING_ROUTE, $export->expires_at, ['export' => $export->id, 'tenant' => $export->tenant_id, 'user' => $owner->id]);
+            $owner->notify(new ClosingExportReady((string) $tenant->name, $url, LocalDate::format($export->expires_at, $owner->locale), $size));
+            $sent++;
+        }
+
+        $this->auditor->record($action, $export, null, ['recipients' => $sent, 'expires_at' => $export->expires_at?->toIso8601String(), ...$details]);
+
+        return $sent;
+    }
+
+    /** Staff send the closing links again from the console (PlatformTenants::resendClosingExport), with a reason. */
+    public function resendClosingLinks(string $reason): int
+    {
+        // The latest closing's export.
+        $export = TenantExport::query()->where('purpose', TenantExport::PURPOSE_CLOSING)->orderByDesc('closed_at')->first();
+
+        if ($export === null) {
+            throw new ApiException(409, 'closing_export_unavailable', __('data_export.errors.closing_unavailable'));
+        }
+
+        return $this->sendClosingLinks($export, 'core.tenant_export.closing_resend', ['reason' => $reason]);
+    }
+
+    /** @return list<User> the tenant's active Owners, oldest first */
+    private function activeOwners(): array
+    {
+        return User::query()->whereKey(app(OwnerGuard::class)->ownerIds())->where('status', User::STATUS_ACTIVE)->orderBy('created_at')->orderBy('id')->get()->all();
     }
 
     /** Fail $export and delete whatever its build stored (the file and its upload in progress). */

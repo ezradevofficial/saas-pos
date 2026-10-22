@@ -69,6 +69,10 @@ EXP-02 lets an Owner download a complete, machine-readable copy of their tenant'
 - It runs one process locally and up to two elsewhere. Each build holds one process for up to an hour and needs disk for the work directory and the zip, so scale it by worker disk and memory (256 MB), not by queue length.
 - Exports waiting behind a busy supervisor are failed after 24 hours, never left queued forever.
 
+### A closed tenant's export (NFR-08)
+
+When a tenant closes, its export is built once for that closing (`purpose = closing`, unique on the tenant and its closing time) and each active Owner is emailed a signed link that works without signing in, for `data_export.closing_link_days` (30). The one-at-a-time rule applies to Owners' requests only. Details, refusals, staff resend and the sandbox exception: [docs/privacy.md](../privacy.md#a-closed-business-keeps-a-copy-of-its-data).
+
 ## Consequences
 
 - A new tenant table is exported without code changes. A new secret-like or encrypted column fails CI until it is classified.

@@ -249,6 +249,9 @@ Route::get('custom-form-files/{path}', [CustomFormFileController::class, 'downlo
 // signed tenant and serves the zip only to that requester, still an active Owner.
 // A few downloads per export an hour (the signature is checked first).
 Route::get('tenant-exports/{export}/download', [TenantExportController::class, 'download'])->middleware(['signed', 'throttle:'.DataExportServiceProvider::DOWNLOAD_LIMITER])->name('tenant_exports.download');
+// NFR-08, EXP-02: a closed tenant's export, by the signed link its Owners were emailed. No sign-in
+// (a closed tenant refuses it): the controller checks the signature and its expiry itself (403, 410).
+Route::get('closed-tenant-exports/{export}/download', [TenantExportController::class, 'closingDownload'])->middleware(['throttle:'.DataExportServiceProvider::DOWNLOAD_LIMITER])->whereUuid('export')->name('tenant_exports.closing_download');
 Route::get('approval-files/{path}', AttachmentFileController::class)->where('path', 'tenants/.+')->middleware(['throttle:media', 'signed'])->name('approvals.attachment');
 
 // APR-08: an emailed approve/reject link; the single-use token is the credential.

@@ -2,6 +2,7 @@
 
 namespace App\Core\Tenancy\Models;
 
+use App\Core\Tenancy\Events\TenantClosed;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -49,6 +50,16 @@ class Tenant extends Model
             $id,
             fn () => tap(static::make(Arr::except($attributes, ['is_sandbox']))->forceFill(['id' => $id, 'is_sandbox' => $sandbox]))->save(),
         );
+    }
+
+    protected static function booted(): void
+    {
+        // TEN-06: every path that closes a tenant raises TenantClosed (the closing export, EXP-02).
+        static::updated(function (self $tenant) {
+            if ($tenant->wasChanged('status') && $tenant->status === 'closed') {
+                TenantClosed::dispatch((string) $tenant->id);
+            }
+        });
     }
 
     public function setting(string $key): mixed
