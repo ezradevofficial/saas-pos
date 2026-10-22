@@ -11676,13 +11676,14 @@
       "ready": "Marquer prête",
       "dispatch": "Remettre au livreur",
       "deliver": "Marquer livrée",
-      "return": "Retourner",
+      "return": "Marquer comme retournée",
       "cancel": "Annuler la commande",
       "cancelOrder": "Annuler cette commande",
       "returnOrder": "Retourner la commande",
       "refund": "Enregistrer le remboursement",
       "assign": "Affecter",
-      "back": "Retour"
+      "back": "Retour",
+      "returnPart": "Retour ou échange"
     },
     "columns": {
       "number": "Numéro",
@@ -11717,7 +11718,8 @@
       "stock": "Stock disponible",
       "fee": "Frais",
       "freeOver": "Gratuit dès",
-      "eta": "Délai de livraison"
+      "eta": "Délai de livraison",
+      "returned": "Retourné"
     },
     "filters": {
       "status": "Statut",
@@ -11944,7 +11946,12 @@
       "whatsappNotConnected": "Pas encore connecté.",
       "webhookOnce": "Donnez cette adresse à votre fournisseur WhatsApp. Elle n’est affichée qu’une fois.",
       "connectWebhook": "Connecter WhatsApp",
-      "rotateWebhook": "Remplacer l’adresse WhatsApp"
+      "rotateWebhook": "Remplacer l’adresse WhatsApp",
+      "whatsappOrders": "Messages de commande WhatsApp",
+      "whatsappAvailable": "Disponible",
+      "whatsappNotConfigured": "Non configuré",
+      "whatsappAvailableHelp": "Les clients qui le demandent à la commande en reçoivent le suivi sur WhatsApp.",
+      "whatsappNotConfiguredHelp": "Le propriétaire de la plateforme n’a pas configuré les identifiants du fournisseur WhatsApp : les clients reçoivent le suivi par SMS et e-mail uniquement."
     },
     "flags": {
       "overpaid": "Payée deux fois : le paiement en trop est retenu pour remboursement",
@@ -11952,6 +11959,80 @@
       "stock_short": "Payée après la fin de la réservation et le stock manque : remboursez ou annulez la commande",
       "paid_after_cancel": "Payée après son annulation",
       "payout_failed": "Le remboursement a échoué : réessayez ou remboursez manuellement"
+    },
+    "tracking": {
+      "title": "Suivi de la livraison",
+      "titleNamed": "Suivre {{number}}",
+      "track": "Suivre",
+      "trackNamed": "Suivre {{number}}",
+      "active": "En cours",
+      "ended": "Terminée",
+      "position": "Dernière position",
+      "reported": "Signalée",
+      "noPosition": "Aucune position signalée pour le moment.",
+      "latest": "Derniers signalements",
+      "sketch": "Trajet des {{total}} derniers signalements",
+      "cleared": "Le trajet n’est conservé que pendant la livraison. Il est effacé quand la livraison se termine.",
+      "proof": "Photo de preuve",
+      "proofAlt": "Photo prise à la livraison de la commande {{number}}",
+      "openProof": "Ouvrir la photo de preuve"
+    },
+    "returns": {
+      "title": "Retour ou échange d’articles de {{number}}",
+      "linesBack": "Articles rendus",
+      "upTo": "Jusqu’à {{qty}}",
+      "qtyFormat": "Saisissez une quantité avec 3 décimales au plus.",
+      "qtyAbove": "Seulement {{qty}} peuvent être rendus. Saisissez une quantité plus petite.",
+      "exchange": "Échanger contre un autre article",
+      "addExchange": "Ajouter un article",
+      "addExchangeMore": "Ajouter un autre article",
+      "chooseProduct": "Choisir un produit",
+      "removeExchange": "Retirer cet article",
+      "quote": "Montants",
+      "quoteHint": "Saisissez les quantités rendues et un motif pour voir les montants.",
+      "pricing": "Calcul des montants en cours",
+      "returnedValue": "Valeur rendue",
+      "exchangeValue": "Valeur de l’échange",
+      "difference": "Différence",
+      "refundAmount": "Rembourser {{amount}}",
+      "collectAmount": "Encaisser {{amount}}",
+      "noDifference": "Aucune différence",
+      "confirmReturn": "Enregistrer le retour",
+      "confirmRefund": "Rembourser {{amount}}",
+      "confirmCollect": "Encaisser {{amount}}",
+      "confirmExchange": "Enregistrer l’échange",
+      "recorded": "Retour enregistré.",
+      "listTitle": "Retours et échanges",
+      "kinds": {
+        "return": "Retour",
+        "exchange": "Échange"
+      },
+      "directions": {
+        "in": "Rendu",
+        "out": "Remis"
+      },
+      "refundStatuses": {
+        "due": "Remboursement dû",
+        "refunded": "Remboursé"
+      },
+      "collectStatuses": {
+        "due": "À encaisser",
+        "collected": "Encaissé"
+      },
+      "toRefund": "À rembourser",
+      "toCollect": "À encaisser",
+      "refund": "Rembourser",
+      "collect": "Encaisser",
+      "refundNamed": "Rembourser {{number}}",
+      "collectNamed": "Encaisser {{number}}",
+      "refundTitle": "Rembourser {{number}}",
+      "collectTitle": "Encaisser la différence de {{number}}",
+      "refundHelp": "L’argent est rendu par le moyen de paiement du client. Si ce n’est pas possible ici, remboursez à la main et saisissez la référence.",
+      "refunded": "Remboursement enregistré.",
+      "collected": "Paiement encaissé.",
+      "paymentMethod": "Moyen de paiement",
+      "chooseMethod": "Choisir un moyen de paiement",
+      "collectReference": "Référence du paiement"
     }
   },
   "shop": {
@@ -12020,7 +12101,9 @@
       "coupon": "Code promo",
       "payment": "Mode de paiement",
       "place": "Commander et payer {{amount}}",
-      "placeLoading": "Commander"
+      "placeLoading": "Commander",
+      "whatsapp": "Recevoir le suivi de la commande sur WhatsApp",
+      "whatsappHelp": "Au numéro de téléphone ci-dessus."
     },
     "payments": {
       "mpesa": "M-Pesa",
@@ -12059,7 +12142,27 @@
         "failed": "Paiement échoué",
         "refund_due": "Remboursement dû",
         "refunded": "Remboursée"
-      }
+      },
+      "riderPosition": "Dernière position de votre livreur",
+      "updated": "Mise à jour {{time}}",
+      "proof": "Preuve de livraison",
+      "proofAlt": "Photo prise à la livraison de la commande {{number}}",
+      "proofFailed": "La photo n’a pas pu être chargée. Actualisez la page pour réessayer.",
+      "returns": "Retours et échanges",
+      "returnKinds": {
+        "return": "Retour",
+        "exchange": "Échange"
+      },
+      "directions": {
+        "in": "Rendu",
+        "out": "Reçu"
+      },
+      "refund": "Remboursement",
+      "refundStatuses": {
+        "due": "Remboursement dû",
+        "refunded": "Remboursé"
+      },
+      "toPay": "À payer"
     },
     "account": {
       "title": "Compte",

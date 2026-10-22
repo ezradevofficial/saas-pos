@@ -4,12 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
-import { Alert, Button, Card, Money, Select, StatusBadge, TextField } from '@/components/ds'
+import { Alert, Button, Card, Checkbox, Money, Select, StatusBadge, TextField } from '@/components/ds'
+import { formatRelative } from '@/lib/dates'
 import { formatAmount } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
 import { useCart } from './cart'
-import { getShopSession, newOrderKey, requestCode, setShopSession, shop } from './shopClient'
+import { getShopSession, newOrderKey, requestCode, setShopSession, shop, shopBlob } from './shopClient'
 import { useShop } from './useShop'
 
 const TONES = { placed: 'warning', accepted: 'info', picking: 'info', ready: 'info', out_for_delivery: 'info', delivered: 'success', cancelled: 'neutral', returned: 'danger' }
@@ -222,6 +223,7 @@ export function ShopCheckout() {
     line: '',
     area: '',
     coupon: '',
+    whatsapp: false,
   })
   const set = (name, value) => setValues((current) => ({ ...current, [name]: value }))
   const cart = useMemo(() => ({
@@ -240,6 +242,8 @@ export function ShopCheckout() {
         contact: { name: values.name, phone: values.phone, email: values.email || undefined },
         address: values.fulfilment === 'delivery' ? { line: values.line, area: values.area || undefined } : undefined,
         expected_total_minor: priced.totals.total_minor,
+        // ECOM-20: asked only where the store can send WhatsApp messages.
+        ...(store.whatsapp_notifications ? { whatsapp_opt_in: values.whatsapp } : {}),
       },
       headers: { 'Idempotency-Key': orderKey },
     }),
@@ -295,6 +299,9 @@ export function ShopCheckout() {
               <TextField label={t('shop.checkout.email')} value={values.email} type="email" autoComplete="email" error={errors.fields['contact.email']} onChange={(event) => set('email', event.target.value)} />
               <TextField label={t('shop.checkout.coupon')} value={values.coupon} onChange={(event) => set('coupon', event.target.value)} />
             </div>
+            {store.whatsapp_notifications ? (
+              <Checkbox className="mt-4" label={t('shop.checkout.whatsapp')} help={t('shop.checkout.whatsappHelp')} checked={values.whatsapp} onChange={(event) => set('whatsapp', event.target.checked)} />
+            ) : null}
           </Card>
           <Card title={t('shop.checkout.payment')}>
             <div className="flex flex-col gap-2" role="radiogroup" aria-label={t('shop.checkout.payment')}>
@@ -323,6 +330,72 @@ export function ShopCheckout() {
         </Card>
       </div>
     </>
+  )
+}
+
+const REFUND_TONES = { due: 'warning', refunded: 'success' }
+const positive = (minor) => Boolean(minor) && minor !== '0' && !String(minor).startsWith('-')
+const qtyText = (qty) => (String(qty).includes('.') ? String(qty).replace(/\.?0+$/, '') : String(qty))
+
+/** ECOM-28: the photo taken at delivery, read through the shop client (same token, same host). */
+function ProofOfDelivery({ handle, number, token }) {
+  const { t } = useTranslation()
+  const [src, setSrc] = useState(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let url = null
+    let live = true
+    shopBlob(handle, `orders/${encodeURIComponent(number)}/proof-photo${token ? `?t=${token}` : ''}`)
+      .then((blob) => {
+        if (!live) return
+        url = URL.createObjectURL(blob)
+        setSrc(url)
+      })
+      .catch(() => live && setFailed(true))
+    return () => {
+      live = false
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [handle, number, token])
+  return (
+    <Card title={t('shop.order.proof')}>
+      {src ? <img src={src} alt={t('shop.order.proofAlt', { number })} className="h-auto w-full rounded-md border border-border" /> : null}
+      {!src && !failed ? <p className="text-body text-ink-muted">{t('common.loading')}</p> : null}
+      {failed ? <p className="text-body text-ink-muted">{t('shop.order.proofFailed')}</p> : null}
+    </Card>
+  )
+}
+
+/** ECOM-19: what went back and what came out, and the money each return leaves. */
+function OrderReturns({ order }) {
+  const { t } = useTranslation()
+  return (
+    <Card title={t('shop.order.returns')}>
+      <ul className="flex flex-col gap-4 text-body">
+        {order.returns.map((entry) => (
+          <li key={entry.number} className="flex flex-col gap-1">
+            <span className="flex flex-wrap items-center justify-between gap-3">
+              <span className="font-medium text-ink">{entry.number}</span>
+              <span className="text-caption text-ink-muted">{t(`shop.order.returnKinds.${entry.kind}`)}</span>
+            </span>
+            <ul className="flex flex-col">
+              {entry.lines.map((line, index) => (
+                <li key={index}><span className="text-ink-muted">{t(`shop.order.directions.${line.direction}`)}</span> {qtyText(line.qty)} × {line.name}</li>
+              ))}
+            </ul>
+            {positive(entry.refund_minor) ? (
+              <span className="flex flex-wrap items-center justify-between gap-3">
+                <span className="flex items-center gap-2"><span className="text-ink-muted">{t('shop.order.refund')}</span><Money amount={entry.refund_minor} currency={order.currency} /></span>
+                {REFUND_TONES[entry.refund_status] ? <StatusBadge tone={REFUND_TONES[entry.refund_status]}>{t(`shop.order.refundStatuses.${entry.refund_status}`)}</StatusBadge> : null}
+              </span>
+            ) : null}
+            {positive(entry.collect_minor) ? (
+              <span className="flex items-center gap-2"><span className="text-ink-muted">{t('shop.order.toPay')}</span><Money amount={entry.collect_minor} currency={order.currency} /></span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </Card>
   )
 }
 
@@ -387,8 +460,17 @@ export function ShopOrder() {
             ))}
           </ol>
           {order.rider ? <p className="mt-3 text-body">{t('shop.order.rider', { name: order.rider.first_name })}</p> : null}
-          {order.last_location_at ? <p className="text-caption text-ink-muted">{t('shop.order.lastSeen', { time: new Date(order.last_location_at).toLocaleTimeString(locale) })}</p> : null}
+          {order.status === 'out_for_delivery' && order.rider_location ? (
+            <div className="mt-3 flex flex-col gap-1 text-body">
+              <span className="text-ink-muted">{t('shop.order.riderPosition')}</span>
+              <span className="text-ink tabular-nums">{`${order.rider_location.latitude}, ${order.rider_location.longitude}`}</span>
+              <span className="text-caption text-ink-muted" title={new Date(order.rider_location.at).toLocaleString(locale)}>{t('shop.order.updated', { time: formatRelative(order.rider_location.at, locale) })}</span>
+            </div>
+          ) : null}
+          {!order.rider_location && order.last_location_at ? <p className="text-caption text-ink-muted">{t('shop.order.lastSeen', { time: new Date(order.last_location_at).toLocaleTimeString(locale) })}</p> : null}
         </Card>
+        {order.proof_photo ? <ProofOfDelivery handle={handle} number={order.number} token={token} /> : null}
+        {order.returns?.length ? <OrderReturns order={order} /> : null}
       </div>
     </div>
   )

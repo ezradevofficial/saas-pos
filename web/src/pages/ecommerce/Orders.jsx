@@ -20,11 +20,15 @@ import {
   ORDER_REFUND,
   ORDER_STATUSES,
   PAYMENT_STATUSES,
+  qtyText,
+  returnableLines,
   TONES,
   useEcomAction,
   useRiders,
   useStores,
 } from './ecommerceData'
+import { ReturnDialog, Returns } from './Returns'
+import { ProofPhoto, TrackDialog } from './Tracking'
 
 /** An order status as a dot and a word. */
 export function OrderStatus({ status }) {
@@ -134,7 +138,9 @@ export function OrderDetail() {
   if (manage && ['accepted', 'picking'].includes(order.status)) buttons.push(<Button key="ready" onClick={() => act('ready')}>{t('ecommerce.actions.ready')}</Button>)
   if (manage && !pickup && ['accepted', 'picking', 'ready'].includes(order.status)) buttons.push(<Button key="dispatch" variant="primary" disabled={!delivery?.rider} onClick={() => act('dispatch')}>{t('ecommerce.actions.dispatch')}</Button>)
   if (manage && ((pickup && ['accepted', 'picking', 'ready'].includes(order.status)) || order.status === 'out_for_delivery')) buttons.push(<Button key="deliver" variant="primary" onClick={() => act('deliver', collected ? { collected_minor: collected } : {})}>{t('ecommerce.actions.deliver')}</Button>)
-  if (manage && ['out_for_delivery', 'delivered'].includes(order.status)) buttons.push(<Button key="return" variant="danger" onClick={() => setDialog('return')}>{t('ecommerce.actions.return')}</Button>)
+  // ECOM-19: part of a delivered order back, or exchanged; the whole-order return stays for orders without partial returns.
+  if (manage && order.status === 'delivered' && returnableLines(order).length > 0) buttons.push(<Button key="partial" onClick={() => setDialog('partial')}>{t('ecommerce.actions.returnPart')}</Button>)
+  if (manage && ['out_for_delivery', 'delivered'].includes(order.status) && !(order.returns ?? []).length) buttons.push(<Button key="return" variant="danger" onClick={() => setDialog('return')}>{t('ecommerce.actions.return')}</Button>)
   if (can(ORDER_CANCEL) && before.includes(order.status)) buttons.push(<Button key="cancel" variant="danger" onClick={() => setDialog('cancel')}>{t('ecommerce.actions.cancel')}</Button>)
   // ECOM-19: a refund-due order, or money held beyond the order (a second settlement, a wrong amount).
   const refundDue = order.payment_status === 'refund_due' || (order.payments ?? []).some((payment) => payment.status === 'refund_due')
@@ -144,7 +150,10 @@ export function OrderDetail() {
   const totals = order.totals
   const lineColumns = [
     { key: 'name', label: t('ecommerce.columns.item'), render: (row) => row.name },
-    { key: 'qty', label: t('ecommerce.columns.qty'), align: 'end', render: (row) => <span className="tabular-nums">{row.qty.replace(/\.?0+$/, '')}</span> },
+    { key: 'qty', label: t('ecommerce.columns.qty'), align: 'end', render: (row) => <span className="tabular-nums">{qtyText(row.qty)}</span> },
+    ...(order.lines.some((line) => Number(line.returned_qty ?? 0) > 0)
+      ? [{ key: 'returned', label: t('ecommerce.columns.returned'), align: 'end', render: (row) => <span className="tabular-nums">{Number(row.returned_qty ?? 0) > 0 ? qtyText(row.returned_qty) : '—'}</span> }]
+      : []),
     { key: 'price', label: t('ecommerce.columns.price'), align: 'end', render: (row) => <Money amount={row.unit_price_minor} currency={order.currency} /> },
     { key: 'discount', label: t('ecommerce.columns.discount'), align: 'end', render: (row) => (row.discount_minor !== '0' ? <Money amount={row.discount_minor} currency={order.currency} /> : '—') },
     { key: 'total', label: t('ecommerce.columns.total'), align: 'end', render: (row) => <Money amount={row.total_minor} currency={order.currency} /> },
@@ -185,6 +194,7 @@ export function OrderDetail() {
               ))}
             </dl>
           </Card>
+          <Returns order={order} />
           <Card title={t('ecommerce.orders.history')}>
             <ol className="flex flex-col gap-2">
               {order.history.map((step, index) => (
@@ -215,6 +225,8 @@ export function OrderDetail() {
                 </div>
               ) : null}
             </dl>
+            {delivery?.proof_photo ? <div className="mt-4"><ProofPhoto photo={delivery.proof_photo} number={order.number} /></div> : null}
+            {delivery?.can_track ? <Button className="mt-4" onClick={() => setDialog('track')}>{t('ecommerce.tracking.track')}</Button> : null}
             {delivery && can(DELIVERY_ASSIGN) && ['unassigned', 'assigned'].includes(delivery.status) ? (
               <div className="mt-4 flex items-end gap-2">
                 <Select label={t('ecommerce.deliveries.rider')} placeholder={t('ecommerce.deliveries.chooseRider')} options={namedOptions(riders)} value={rider || delivery.rider?.id || ''} onChange={(event) => setRider(event.target.value)} />
@@ -246,6 +258,8 @@ export function OrderDetail() {
       {dialog === 'return' ? (
         <ReasonDialog title={t('ecommerce.orders.returnTitle')} label={t('ecommerce.fields.reason')} confirm={t('ecommerce.actions.returnOrder')} withFee={order.status === 'delivered'} pending={action.isPending} onClose={() => setDialog(null)} onConfirm={({ text, fee }) => act('return', { reason: text, refund_fee: fee })} />
       ) : null}
+      {dialog === 'partial' ? <ReturnDialog order={order} onClose={() => setDialog(null)} /> : null}
+      {dialog === 'track' && delivery ? <TrackDialog delivery={delivery} title={t('ecommerce.tracking.titleNamed', { number: order.number })} onClose={() => setDialog(null)} /> : null}
       {dialog === 'refund' ? (
         <ReasonDialog title={t('ecommerce.orders.refundTitle')} label={t('ecommerce.fields.reference')} confirm={t('ecommerce.actions.refund')} pending={action.isPending} onClose={() => setDialog(null)} onConfirm={({ text }) => act('refund', { reference: text })} />
       ) : null}
