@@ -185,7 +185,10 @@ jobs:
           # NFR-06: stop before migrating when the host is not ready (drivers,
           # APP_KEY, APP_DEBUG, database roles). Prints every check.
           php artisan app:preflight
-          php artisan migrate --database=pgsql_owner --force
+          # Phase 8 review L9: the owner connection gives up on a lock after
+          # DB_OWNER_LOCK_TIMEOUT (5s); a migration that timed out is tried
+          # again (3 attempts, 15 s apart). Any other failure stops here.
+          bash database/scripts/migrate-with-retry.sh
           php artisan permissions:sync
           php artisan currencies:sync
           php artisan country-packs:publish KE
