@@ -7161,7 +7161,11 @@
                                 "type": "string"
                             },
                             "research": {
-                                "type": "string"
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {}
                             }
                         },
                         "required": [
