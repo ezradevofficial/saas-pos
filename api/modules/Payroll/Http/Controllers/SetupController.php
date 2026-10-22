@@ -166,7 +166,7 @@ class SetupController
             return null;
         }
 
-        return array_diff_key($values, array_flip([...ResearchStatus::FIELDS, 'effective_from', 'effective_to', 'needs_confirmation']));
+        return array_diff_key($values, array_flip([...ResearchStatus::FIELDS, 'effective_from', 'effective_to', 'needs_confirmation', 'rejected']));
     }
 
     public function payGroups(SetupListRequest $request): AnonymousResourceCollection

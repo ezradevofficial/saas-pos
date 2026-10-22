@@ -3,6 +3,7 @@
 namespace Tests\Unit\CountryPacks;
 
 use App\Core\CountryPacks\PackFile;
+use App\Core\CountryPacks\PackValidator;
 use App\Core\CountryPacks\ResearchStatus;
 use InvalidArgumentException;
 use Modules\FixedAssets\TaxBook\FixedAssetsPackSchema;
@@ -13,9 +14,10 @@ use Tests\TestCase;
 
 /**
  * CP-01, CP-02: the `researched` value status. Researched values carry
- * their confidence (high or medium), research date and https sources, and
- * are usable; low-confidence values are never entered. The shipped packs
- * of every kind respect these rules.
+ * their confidence (high, medium or low: owner decision 2026-10-22),
+ * research date and https sources, and are usable; a low one is flagged
+ * (ResearchStatus::low) for the stronger notice and the release warning.
+ * The shipped packs of every kind respect these rules.
  */
 class ResearchStatusTest extends TestCase
 {
@@ -39,9 +41,14 @@ class ResearchStatusTest extends TestCase
         }
         $this->assertTrue(ResearchStatus::usable(self::RESEARCHED));
         $this->assertTrue(ResearchStatus::usable(['confidence' => 'high'] + self::RESEARCHED));
-        // Low confidence is never usable, even if someone marks it researched.
-        $this->assertFalse(ResearchStatus::usable(['confidence' => 'low'] + self::RESEARCHED));
+        // Owner decision 2026-10-22: a low-confidence researched row is usable, and flagged low.
+        $this->assertTrue(ResearchStatus::usable(['confidence' => 'low'] + self::RESEARCHED));
+        $this->assertTrue(ResearchStatus::low(['confidence' => 'low'] + self::RESEARCHED));
+        $this->assertFalse(ResearchStatus::low(self::RESEARCHED));
+        $this->assertTrue(ResearchStatus::lowResearch(ResearchStatus::research(['confidence' => 'low'] + self::RESEARCHED)));
+        // Research that was not entered stays unusable.
         $this->assertFalse(ResearchStatus::usable(['needs_confirmation' => true, 'confidence' => 'low']));
+        $this->assertFalse(ResearchStatus::low(['status' => 'needs_confirmation', 'needs_confirmation' => true, 'confidence' => 'low']));
 
         $this->assertSame(['confidence' => 'medium', 'researched_on' => '2026-10-17', 'source' => ['https://example.org/a'], 'assumed' => []], ResearchStatus::research(self::RESEARCHED));
         $this->assertNull(ResearchStatus::research(['needs_confirmation' => false]));
@@ -50,6 +57,7 @@ class ResearchStatusTest extends TestCase
     public function test_invalid_rows_are_refused(): void
     {
         ResearchStatus::check(self::RESEARCHED, 'ok');
+        ResearchStatus::check(['confidence' => 'low'] + self::RESEARCHED, 'low researched');
         ResearchStatus::check(['status' => 'needs_confirmation', 'needs_confirmation' => true, 'confidence' => 'low', 'source' => ['https://example.org']], 'low kept for the reader');
         ResearchStatus::check(['reduces_taxable' => false, 'assumed' => ['reduces_taxable']] + self::RESEARCHED, 'assumed');
         // S1: an absent optional field (no ceiling) or a named assumption can be listed.
@@ -58,7 +66,7 @@ class ResearchStatusTest extends TestCase
         foreach ([
             'no source' => array_diff_key(self::RESEARCHED, ['source' => 1]),
             'http source' => ['source' => ['http://example.org']] + self::RESEARCHED,
-            'low entered' => ['confidence' => 'low'] + self::RESEARCHED,
+            'no confidence' => array_diff_key(self::RESEARCHED, ['confidence' => 1]),
             'needs confirmation' => ['needs_confirmation' => true] + self::RESEARCHED,
             'bad date' => ['researched_on' => '17/10/2026'] + self::RESEARCHED,
             'unknown status' => ['status' => 'guessed'] + self::RESEARCHED,
@@ -80,8 +88,8 @@ class ResearchStatusTest extends TestCase
         $class = ['key' => 'computers', 'method' => 'reducing_balance', 'rate' => '25', 'needs_confirmation' => false];
         $this->assertTrue(TaxClasses::confirmed(['status' => 'confirmed'] + $class));
         $this->assertTrue(TaxClasses::confirmed(['status' => 'researched', 'confidence' => 'medium'] + $class));
-        // Low confidence is never computed from, even if a row says needs_confirmation false.
-        $this->assertFalse(TaxClasses::confirmed(['status' => 'researched', 'confidence' => 'low'] + $class));
+        // Owner decision 2026-10-22: low confidence is computed from too.
+        $this->assertTrue(TaxClasses::confirmed(['status' => 'researched', 'confidence' => 'low'] + $class));
         $this->assertFalse(TaxClasses::confirmed(['needs_confirmation' => true] + $class));
     }
 
@@ -93,9 +101,34 @@ class ResearchStatusTest extends TestCase
         $file = PackFile::fromArray($pack);
         $this->assertSame(['confidence' => 'medium', 'researched_on' => '2026-10-17', 'source' => ['https://example.org/a']], PackFile::research($file->taxCodes()[0]));
 
-        $this->expectException(InvalidArgumentException::class);
         $pack['tax_codes'][0]['confidence'] = 'low';
+        $this->assertSame('low', PackFile::research(PackFile::fromArray($pack)->taxCodes()[0])['confidence']);
+
+        $this->expectException(InvalidArgumentException::class);
+        $pack['tax_codes'][0]['confidence'] = 'certain';
         PackFile::fromArray($pack);
+    }
+
+    public function test_the_release_validator_warns_on_every_low_confidence_row(): void
+    {
+        $validator = app(PackValidator::class);
+        $read = fn (string $country, string $kind) => json_decode((string) file_get_contents(base_path("country-packs/{$country}/{$kind}.json")), true, 32, JSON_THROW_ON_ERROR);
+        $low = fn (array $result) => array_values(array_filter($result['warnings'], fn (string $w) => str_contains($w, 'low confidence')));
+
+        // CD payroll: IPR (minimum before the cap), its dependants reduction, CNSS (deducted from the IPR base), INPP.
+        $cd = $validator->validate('CD', 'payroll', $read('CD', 'payroll'));
+        $this->assertSame([], $cd['errors']);
+        $this->assertCount(4, $low($cd));
+        $this->assertNotEmpty(array_filter($low($cd), fn (string $w) => str_starts_with($w, 'components.inpp')));
+        // CD HR: annual leave and maternity.
+        $this->assertCount(2, $low($validator->validate('CD', 'hr', $read('CD', 'hr'))));
+        // KE fixed assets: the eight classes and the year-of-acquisition rule.
+        $ke = $validator->validate('KE', 'fixed_assets', $read('KE', 'fixed_assets'));
+        $this->assertSame([], $ke['errors']);
+        $this->assertCount(9, $low($ke));
+        // Medium and high rows give no such warning.
+        $this->assertSame([], $low($validator->validate('KE', 'payroll', $read('KE', 'payroll'))));
+        $this->assertSame([], $low($validator->validate('KE', 'tax', $read('KE', 'pack'))));
     }
 
     public function test_the_shipped_packs_respect_the_status_rules(): void
@@ -127,8 +160,9 @@ class ResearchStatusTest extends TestCase
 
             foreach ($assets['classes'] as $row) {
                 ResearchStatus::check($row, "{$country} fixed assets {$row['key']}");
-                // Tax depreciation research is low confidence: nothing is entered.
-                $this->assertSame([null, null, true], [$row['method'], $row['rate'], $row['needs_confirmation']]);
+                // KE: the Second Schedule classes, researched at low confidence (owner decision 2026-10-22).
+                // CD: no statutory table was found, so nothing is entered.
+                $this->assertSame($country === 'KE' ? ['straight_line', false, 'low'] : [null, true, null], [$row['method'], $row['needs_confirmation'], $row['confidence'] ?? null]);
             }
         }
     }

@@ -1,15 +1,16 @@
 {
     "code": "KE",
-    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %). A rate with status 'researched' comes from public research (docs/country-packs-research-2026-10.md): it is used, with its confidence, research date and sources, and what it taxes says so until the owner confirms it through a pack release (ADM-04).",
+    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %). A rate with status 'researched' comes from public research (docs/country-packs-research-2026-10.md): it is used, with its confidence, research date and sources, and what it taxes says so until the owner confirms it through a pack release (ADM-04). Owner decision 2026-10-22: low-confidence research is entered too, shown as 'Researched, low confidence: not confirmed by an accountant'.",
     "sources": [
         "https://aln.africa/wp-content/uploads/2026/04/Temporary-Reduction-of-VAT-on-Selected-Petroleum-Products-Legal-Alert-ALN-Kenya-17042026.pdf",
         "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/",
-        "https://orbitax.com/news/country/article/Kenya-Extends-Temporarily-Redu-62662"
+        "https://orbitax.com/news/country/article/Kenya-Extends-Temporarily-Redu-62662",
+        "https://www.kra.go.ke/images/publications/Overview-of-Withholding-VAT-December-2024.pdf"
     ],
     "todo": [
         "VAT_STD: confirm the researched 16% standard rate (VAT Act) with its legal reference; it is used now, marked researched.",
         "VAT_ZERO: confirm the researched 0% zero rate (VAT Act Second Schedule) and its official name.",
-        "VAT_WHT: the withholding VAT rate, with its legal reference and effective date, and who withholds it.",
+        "VAT_WHT: 2% of the taxable value, withheld by agents the Commissioner appoints (Tax Procedures Act s. 42A; rate from the Finance Act 2019; KRA overview of December 2024). Medium: no later change was found, but the Finance Act 2026 was not checked. Confirm, with who withholds it.",
         "Excise duty: which excise codes apply to the products sold, their rates or specific amounts, with legal references.",
         "fiscal_code: the KRA eTIMS tax band for each code (needed for the eTIMS integration, phase 4).",
         "VAT_EXEMPT: confirm the official name and that it maps to the eTIMS band."
@@ -75,12 +76,19 @@
         {
             "code": "VAT_WHT",
             "kind": "withholding",
-            "rate": null,
-            "needs_confirmation": true,
+            "rate": "2",
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
             "effective_to": null,
             "fiscal_code": null,
-            "status": "needs_confirmation"
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://www.kra.go.ke/images/publications/Overview-of-Withholding-VAT-December-2024.pdf",
+                "https://www.kra.go.ke/images/publications/Taxpayer-Guidelines-for-WHVAT.pdf",
+                "https://www.kra.go.ke/images/publications/Guidelines-ForAppointed-Vat-Withholding-Agents-061223.pdf"
+            ]
         }
     ]
 }

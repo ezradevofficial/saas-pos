@@ -129,7 +129,7 @@ class PackPropagationTest extends TestCase
         // Propagation touches rates only, never the tenant's name.
         $this->asTenant($untouched, fn () => $this->assertSame('Our VAT', TaxCode::where('code', 'VAT_STD')->sole()->name));
         // Other codes were already equal to the pack.
-        $this->assertSame([[null, '2026-01-01', null, true, 'pack']], $this->rates($untouched, 'VAT_WHT'));
+        $this->assertSame([['2.0000', '2026-01-01', null, false, 'pack']], $this->rates($untouched, 'VAT_WHT'));
 
         $this->asTenant($untouched, function () use ($untouched) {
             $entry = AuditEntry::where('action', 'core.tax.pack_update')->sole();

@@ -1,23 +1,242 @@
 {
     "code": "KE",
-    "notes": "Public holidays that fall on the same date every year. Movable and gazetted holidays are not entered until their dates are confirmed from an official source; they are listed in todo. Labels live in lang/{locale}/holidays.php.",
-    "sources": [],
+    "notes": "Public holidays of the Public Holidays Act (Cap. 110, consolidated 2024-04-26), Schedule Part I. Fixed dates every year; Good Friday and Easter Monday as single dates (computed from Easter, Western calendar) for 2026 to 2030. sunday_rule next_free_day (s. 4): a Part I day that falls on a Sunday moves to the first following day that is not itself a public holiday, and the Sunday is no longer a holiday; a Saturday holiday does not move. Each row is researched (owner decision 2026-10-22) with its confidence and sources. Gazetted holidays (Idd-ul-Fitr) are not entered until their date is gazetted; they are listed in todo. Labels live in lang/{locale}/holidays.php.",
+    "sources": [
+        "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26",
+        "https://www.the-star.co.ke/news/2024-04-24-october-10-utamaduni-day-renamed-mazingira-day"
+    ],
     "todo": [
-        "Cite the official source for every entry (Public Holidays Act, Cap. 110, and its amendments).",
-        "Good Friday and Easter Monday: movable (Easter); enter the dates per year or confirm a computation rule.",
-        "Idd-ul-Fitr: date set by gazette notice each year (lunar calendar).",
-        "Idd-ul-Azha: gazetted when declared; confirm whether it is a public holiday each year.",
-        "10 October (formerly Moi Day, then Utamaduni Day, recently re-designated): confirm its current status and name.",
-        "A holiday falling on a Sunday: confirm the rule that the following Monday is a public holiday, then implement it.",
-        "One-off holidays declared by gazette notice (e.g. national events): enter them as single dates when declared."
+        "Confirm (owner or accountant) the researched list, then publish it as confirmed through a pack release (ADM-04).",
+        "Idd-ul-Fitr (Part I): its date follows the moon and is gazetted each year; enter it as a single date once gazetted.",
+        "Idd-ul-Azha (Part II, Muslims only) and Diwali (Part III, Hindus only): holidays for those communities only; not entered as company-wide closures.",
+        "Good Friday and Easter Monday: add the dates after 2030.",
+        "Section 2: a general election day and the day a President-elect is sworn in are public holidays; enter them as single dates when known. Section 3: extra days gazetted by the Cabinet Secretary; enter them as single dates when declared."
     ],
     "holidays": [
-        {"key": "new_year", "month": 1, "day": 1},
-        {"key": "labour_day", "month": 5, "day": 1},
-        {"key": "madaraka_day", "month": 6, "day": 1},
-        {"key": "mashujaa_day", "month": 10, "day": 20},
-        {"key": "jamhuri_day", "month": 12, "day": 12},
-        {"key": "christmas_day", "month": 12, "day": 25},
-        {"key": "boxing_day", "month": 12, "day": 26}
+        {
+            "key": "new_year",
+            "month": 1,
+            "day": 1,
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "labour_day",
+            "month": 5,
+            "day": 1,
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "madaraka_day",
+            "month": 6,
+            "day": 1,
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "mazingira_day",
+            "month": 10,
+            "day": 10,
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26",
+                "https://www.the-star.co.ke/news/2024-04-24-october-10-utamaduni-day-renamed-mazingira-day"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "mashujaa_day",
+            "month": 10,
+            "day": 20,
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "jamhuri_day",
+            "month": 12,
+            "day": 12,
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "christmas_day",
+            "month": 12,
+            "day": 25,
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "boxing_day",
+            "month": 12,
+            "day": 26,
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "good_friday",
+            "date": "2026-04-03",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "easter_monday",
+            "date": "2026-04-06",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "good_friday",
+            "date": "2027-03-26",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "easter_monday",
+            "date": "2027-03-29",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "good_friday",
+            "date": "2028-04-14",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "easter_monday",
+            "date": "2028-04-17",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "good_friday",
+            "date": "2029-03-30",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "easter_monday",
+            "date": "2029-04-02",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "good_friday",
+            "date": "2030-04-19",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        },
+        {
+            "key": "easter_monday",
+            "date": "2030-04-22",
+            "sunday_rule": "next_free_day",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26"
+            ],
+            "needs_confirmation": false
+        }
     ]
 }
