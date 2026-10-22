@@ -3,9 +3,12 @@
 namespace Tests\Feature\Core\Taxes;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Currency\Money;
+use App\Core\MasterData\Taxes\TaxCalculator;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\Scope;
+use Carbon\CarbonImmutable;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -39,6 +42,20 @@ class TaxCodeApiTest extends TestCase
     {
         return $this->postJson('/api/v1/companies/'.($companyId ?? $this->acme->id).'/tax-codes/apply-pack', [], $this->headersFor())
             ->assertOk()->json('data');
+    }
+
+    public function test_kenyan_withholding_vat_is_two_percent_of_the_taxable_value(): void
+    {
+        // CP-01 (owner decision 2026-10-22): VAT_WHT 2% (KRA; Tax Procedures Act s. 42A), researched at medium confidence.
+        $ke = $this->postJson('/api/v1/companies', ['name' => 'Nairobi Ltd', 'country' => 'KE'], $this->headersFor())->assertCreated()->json('data.id');
+        $codes = $this->inTenant(fn () => TaxCode::query()->with('rates')->where('company_id', $ke)->whereIn('code', ['VAT_STD', 'VAT_WHT'])->orderBy('code')->get()->all());
+
+        // A purchase of KES 10,000.00 net: VAT 16% = 1,600.00 charged; the buyer withholds 2% of the taxable value = 200.00.
+        $result = app(TaxCalculator::class)->forLine(Money::ofMinor(1000000, 'KES'), $codes, false, CarbonImmutable::parse('2026-10-22'), includeWithholding: true);
+        $this->assertSame([['VAT_STD', '160000', true], ['VAT_WHT', '20000', true]], array_map(fn ($t) => [$t->code, $t->amount->minor(), $t->researched], $result->tax));
+        // On a sale line withholding is left out.
+        $sale = app(TaxCalculator::class)->forLine(Money::ofMinor(1000000, 'KES'), $codes, false, CarbonImmutable::parse('2026-10-22'));
+        $this->assertSame(['VAT_STD'], array_map(fn ($t) => $t->code, $sale->tax));
     }
 
     public function test_a_company_created_through_the_api_gets_its_country_pack_codes(): void

@@ -2,8 +2,8 @@
 
 namespace App\Core\MasterData\Taxes;
 
-use App\Core\CountryPacks\ResearchStatus;
 use App\Core\Audit\Audited;
+use App\Core\CountryPacks\ResearchStatus;
 use App\Core\Rbac\HasScope;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\BelongsToTenant;

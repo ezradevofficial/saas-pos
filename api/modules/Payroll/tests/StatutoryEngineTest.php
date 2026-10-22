@@ -122,9 +122,9 @@ class StatutoryEngineTest extends TestCase
         $on = CarbonImmutable::parse('2026-10-31');
         $all = ['insurance_premiums' => true, 'dependants' => true, 'children' => true, 'pension' => true, 'post_retirement_medical' => true, 'mortgage_interest' => true];
 
-        // CP-01: KE is complete from researched values; CD still lacks the low-confidence INPP and the family allowance
-        // (dependants are left out while unconfirmed, never blocking).
-        foreach (['KE' => [], 'CD' => ['inpp', 'family_allowance']] as $country => $expected) {
+        // CP-01: KE is complete from researched values; CD (INPP and dependants researched at low confidence since
+        // 2026-10-22) still lacks the family allowance.
+        foreach (['KE' => [], 'CD' => ['family_allowance']] as $country => $expected) {
             $pack = app(PayrollPack::class)->of($country);
             $this->assertNotNull($pack);
             $missing = MissingValues::check($pack, $on, 'monthly', $all);
@@ -148,7 +148,7 @@ class StatutoryEngineTest extends TestCase
                     }
 
                     $this->assertSame('researched', $period['status'], "{$country} {$component['code']}");
-                    $this->assertContains($period['confidence'], ['high', 'medium']);
+                    $this->assertContains($period['confidence'], ['high', 'medium', 'low']);
                     $this->assertNotEmpty($period['source']);
                 }
             }

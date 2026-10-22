@@ -166,23 +166,89 @@ class ResearchedPackTest extends TestCase
         $this->assertSame('1210835', $this->statutory($line)['paye']['employee']['amount_minor']);
     }
 
-    /** Acme moved to the DR Congo (CDF) with the shipped CD pack. */
-    private function congo(): void
+    /** The shipped CD pack with INPP back to "needs confirmation" (no brackets), to exercise the "not applicable" mark. */
+    private static function inppUnconfirmed(): array
+    {
+        $pack = self::shipped('CD');
+        $i = array_search('inpp', array_column($pack['components'], 'code'), true);
+        $pack['components'][$i]['periods'] = [['effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true, 'brackets' => null, 'rounding' => null, 'status' => 'needs_confirmation']];
+
+        return $pack;
+    }
+
+    /** Acme moved to the DR Congo (CDF) with the shipped CD pack (or $pack). */
+    private function congo(?array $pack = null): void
     {
         $this->inTenant(function () {
             $this->acme->forceFill(['base_currency' => 'CDF', 'country' => 'CD', 'timezone' => 'Africa/Kinshasa'])->save();
             app(TenantCurrencies::class)->provisionFor($this->acme);
             TenantCurrency::query()->whereIn('code', ['CDF'])->update(['active' => true]);
         });
-        app(PayrollPack::class)->fake('CD', self::shipped('CD'));
+        app(PayrollPack::class)->fake('CD', $pack ?? self::shipped('CD'));
+    }
+
+    public function test_congo_worked_example_with_the_low_confidence_values(): void
+    {
+        // Owner decision 2026-10-22: INPP 3/2/1%, the dependants reduction and CNSS deducted from the IPR base, low confidence.
+        $this->congo();
+        $joseph = $this->payrollEmployee('1000000', ['first_name' => 'Joseph'], 'CDF', ['dependants' => 2]);
+        $id = $this->calculatedRun();
+        $line = $this->lines($id)[$joseph->number];
+        $by = $this->statutory($line);
+        // CNSS 5% + 5%, risks 1.5%, family 6.5%, ONEM 0.2% on the taxable base; INPP 3% of gross (one employee, up to 50).
+        $this->assertSame(['50000', '50000'], [$by['cnss']['employee']['amount_minor'], $by['cnss']['employer']['amount_minor']]);
+        $this->assertSame(['15000', '65000', '2000', '30000'], [$by['cnss_risks']['employer']['amount_minor'], $by['cnss_family']['employer']['amount_minor'], $by['onem']['employer']['amount_minor'], $by['inpp']['employer']['amount_minor']]);
+        // CNSS now reduces the IPR base: taxable 1,000,000 − 50,000 = 950,000.
+        $this->assertSame('950000', $line['taxable_pay']['amount_minor']);
+        // IPR: 162,000 × 3% + 788,000 × 15% = 4,860 + 118,200 = 123,060; 2 dependants × 2% = 4,922.40 off: 118,137.60 → 118,138.
+        $this->assertSame('118138', $by['ipr']['employee']['amount_minor']);
+        $this->assertSame('831862', $line['net']['amount_minor']);
+        $this->assertSame('162000', $line['employer']['amount_minor']);
+
+        // CP-01: the run records the low-confidence values and says so.
+        $run = $this->getJson("/api/v1/payroll/runs/{$id}", $this->headersFor($this->officer))->assertOk()
+            ->assertJsonPath('data.uses_researched_values', true)->assertJsonPath('data.uses_low_confidence_values', true)->json('data.statutory');
+        $low = collect($run['researched'])->where('confidence', 'low')->pluck('component')->sort()->values()->all();
+        $this->assertSame(['cnss', 'inpp', 'ipr', 'ipr_dependants'], $low);
+        $this->assertSame([], $run['not_applied']);
+        $this->getJson("/api/v1/payroll/statutory/{$this->acme->id}", $this->headersFor())->assertOk()
+            ->assertJsonPath('data.low_confidence', true);
+    }
+
+    public function test_kenya_runs_show_no_low_confidence_notice(): void
+    {
+        $this->payrollEmployee('10000000');
+        $id = $this->calculatedRun();
+        $this->getJson("/api/v1/payroll/runs/{$id}", $this->headersFor($this->officer))->assertOk()
+            ->assertJsonPath('data.uses_researched_values', true)->assertJsonPath('data.uses_low_confidence_values', false);
+        $this->getJson("/api/v1/payroll/statutory/{$this->acme->id}", $this->headersFor())->assertOk()->assertJsonPath('data.low_confidence', false);
+    }
+
+    public function test_congo_maternity_is_paid_at_two_thirds(): void
+    {
+        $this->congo();
+        $marie = $this->payrollEmployee('3000000', ['first_name' => 'Marie'], 'CDF');
+        $this->putJson("/api/v1/payroll/settings/{$this->acme->id}", ['monthly_days' => '25'], $this->headersFor($this->officer))->assertOk();
+        $dates = [['date' => '2026-10-12', 'fraction' => '1.00'], ['date' => '2026-10-13', 'fraction' => '1.00'], ['date' => '2026-10-14', 'fraction' => '1.00']];
+        // HR's maternity type from the CD pack: paid at 2/3 (Code du travail art. 130).
+        event(new LeaveApproved($marie->tenant_id, (string) Str::uuid7(), 'LV-1', $marie->employee_id, $this->acme->id, (string) Str::uuid7(), 'MATERNITY', true, '2026-10-12', '2026-10-14', false, false, '3.00', $dates, '0', '2/3'));
+
+        $line = $this->lines($this->calculatedRun())[$marie->number];
+        $this->assertSame([], $line['errors']);
+        $reduced = collect($line['earnings'])->firstWhere('code', 'reduced_pay_leave');
+        // Daily rate CDF 3,000,000 ÷ 25 = 120,000; a third withheld for each of the 3 days = 120,000.
+        $this->assertSame(['-120000', '3.00'], [$reduced['amount']['amount_minor'], $reduced['quantity']]);
+        $this->assertSame('2880000', $line['gross']['amount_minor']);
+        $this->assertStringContainsString('2/3', $reduced['name']);
     }
 
     public function test_congo_inpp_blocks_until_marked_not_applicable_which_is_audited(): void
     {
-        $this->congo();
+        // A pack where INPP is not confirmed (as before the owner decision of 2026-10-22).
+        $this->congo(self::inppUnconfirmed());
         $joseph = $this->payrollEmployee('1000000', ['first_name' => 'Joseph'], 'CDF', ['dependants' => 2]);
 
-        // INPP is low confidence: not entered, so the run is refused.
+        // INPP unconfirmed: the run is refused.
         $id = $this->createRun()->assertCreated()->json('data.id');
         $refused = $this->postJson("/api/v1/payroll/runs/{$id}/calculate", [], $this->headersFor($this->officer))->assertUnprocessable()
             ->assertJsonPath('code', 'statutory_rates_missing')->json('missing');
@@ -207,29 +273,22 @@ class ResearchedPackTest extends TestCase
         $this->assertSame(['family_allowance'], array_column(array_filter($pack['components'], fn ($c) => $c['missing'] !== []), 'code'));
         $this->assertTrue($pack['researched']);
         $inpp = collect($pack['components'])->firstWhere('code', 'inpp');
-        $this->assertSame(['needs_confirmation', 'low', true], [$inpp['status'], $inpp['confidence'], $inpp['may_not_apply']]);
+        $this->assertSame(['needs_confirmation', null, true], [$inpp['status'], $inpp['confidence'], $inpp['may_not_apply']]);
         $this->assertSame('Exempted by INPP letter 2026/14', $inpp['not_applicable']['reason']);
 
-        // CD worked example at CDF 1,000,000 (no decimals).
+        // Marked not applicable: the run is calculated without INPP.
         $this->postJson("/api/v1/payroll/runs/{$id}/calculate", [], $this->headersFor($this->officer))->assertOk();
         $line = $this->lines($id)[$joseph->number];
         $by = $this->statutory($line);
-        // CNSS 5% + 5%, risks 1.5%, family 6.5%, ONEM 0.2% on the taxable base.
-        $this->assertSame(['50000', '50000'], [$by['cnss']['employee']['amount_minor'], $by['cnss']['employer']['amount_minor']]);
-        $this->assertSame(['15000', '65000', '2000'], [$by['cnss_risks']['employer']['amount_minor'], $by['cnss_family']['employer']['amount_minor'], $by['onem']['employer']['amount_minor']]);
         $this->assertArrayNotHasKey('inpp', $by);
-        // CNSS is not deducted from the IPR base (assumed until confirmed): taxable 1,000,000.
-        $this->assertSame('1000000', $line['taxable_pay']['amount_minor']);
-        // IPR: 162,000 × 3% + 838,000 × 15% = 4,860 + 125,700 = 130,560 (under the 30% cap); dependants give no reduction.
-        $this->assertSame('130560', $by['ipr']['employee']['amount_minor']);
-        $this->assertSame('819440', $line['net']['amount_minor']);
+        $this->assertSame('118138', $by['ipr']['employee']['amount_minor']);
         $this->assertSame('132000', $line['employer']['amount_minor']);
 
         $notices = $this->getJson("/api/v1/payroll/runs/{$id}", $this->headersFor($this->officer))->assertOk()->json('data.statutory');
-        $this->assertSame(['ipr_dependants'], $notices['not_applied']);
+        $this->assertSame([], $notices['not_applied']);
         $this->assertSame('inpp', $notices['not_applicable'][0]['component']);
         $cnss = collect($notices['researched'])->firstWhere('component', 'cnss');
-        $this->assertSame(['reduces_taxable', 'rounding', 'base_cap_minor'], $cnss['assumed']);
+        $this->assertSame(['rounding', 'base_cap_minor'], $cnss['assumed']);
         $this->assertContains('no ceiling on the base', $cnss['assumed_names']);
 
         // Undoing the mark is audited and blocks again.
@@ -241,7 +300,7 @@ class ResearchedPackTest extends TestCase
 
     public function test_only_holders_of_payroll_statutory_exempt_mark_not_applicable(): void
     {
-        $this->congo();
+        $this->congo(self::inppUnconfirmed());
         $url = "/api/v1/payroll/statutory/{$this->acme->id}/not-applicable";
         $viewer = $this->userWith('read_only_auditor', Scope::company($this->acme->id));
         $this->postJson($url, ['component' => 'inpp', 'reason' => 'Not owed'], $this->headersFor($viewer))->assertForbidden();
@@ -257,7 +316,7 @@ class ResearchedPackTest extends TestCase
 
     public function test_a_mark_is_voided_and_audited_once_its_period_becomes_usable(): void
     {
-        $this->congo();
+        $this->congo(self::inppUnconfirmed());
         $this->payrollEmployee('1000000', ['first_name' => 'Joseph'], 'CDF');
         $this->postJson("/api/v1/payroll/statutory/{$this->acme->id}/not-applicable", ['component' => 'inpp', 'reason' => 'Exempt'], $this->headersFor())->assertOk();
         $id = $this->calculatedRun();
@@ -274,7 +333,7 @@ class ResearchedPackTest extends TestCase
         });
 
         // Unconfirmed again (a later correction): the run blocks until someone marks it again.
-        app(PayrollPack::class)->fake('CD', self::shipped('CD'));
+        app(PayrollPack::class)->fake('CD', self::inppUnconfirmed());
         $this->postJson("/api/v1/payroll/runs/{$id}/calculate", [], $this->headersFor($this->officer))->assertUnprocessable()
             ->assertJsonPath('code', 'statutory_rates_missing');
         // A usable period cannot be marked.
@@ -315,22 +374,34 @@ class ResearchedPackTest extends TestCase
         $engine = new StatutoryEngine;
         $ipr = fn (string $pay, int $dependants = 0) => collect($engine->compute($components, new StatutoryInput(gross: $pay, taxableGross: $pay, contributoryGross: $pay, basic: $pay, dependants: $dependants))->components)->keyBy('code')['ipr'];
 
-        // 10,000,000: bands give 4,860 + 245,700 + 540,000 + 2,560,000 = 3,350,560, capped at 30% = 3,000,000.
-        $this->assertSame('3000000', $ipr('10000000')['employee_minor']);
-        // 20,000: 3% = 600, raised to the CDF 2,000 minimum.
+        // Since 2026-10-22 CNSS (5%) reduces the IPR base: taxable pay is 95% of pay below.
+        // 10,000,000 → 9,500,000: bands give 4,860 + 245,700 + 540,000 + 2,360,000 = 3,150,560, capped at 30% = 2,850,000.
+        $this->assertSame('2850000', $ipr('10000000')['employee_minor']);
+        // 20,000 → 19,000: 3% = 570, raised to the CDF 2,000 minimum.
         $this->assertSame('2000', $ipr('20000')['employee_minor']);
-        // S4: the minimum comes before the 30% cap, so the cap wins: 5,000 → 150 → 2,000 → capped at 1,500.
-        $this->assertSame('1500', $ipr('5000')['employee_minor']);
-        // Dependants: no reduction until confirmed.
-        $this->assertSame($ipr('1000000')['employee_minor'], $ipr('1000000', 3)['employee_minor']);
+        // S4 (researched, low): the minimum comes before the 30% cap, so the cap wins: 4,750 → 142.50 → 2,000 → capped at 1,425.
+        $this->assertSame('1425', $ipr('5000')['employee_minor']);
+        // Dependants: 2% of IPR each, at most 9. 1,000,000 → 950,000: 123,060; 3 dependants: 6% off = 115,676.40 → 115,676.
+        $this->assertSame('123060', $ipr('1000000')['employee_minor']);
+        $this->assertSame('115676', $ipr('1000000', 3)['employee_minor']);
+        // 12 dependants count as 9: 18% off = 100,909.20 → 100,909.
+        $this->assertSame('100909', $ipr('1000000', 12)['employee_minor']);
 
-        // Low-confidence values block: INPP always, the family allowance once an employee has children; dependants never do.
+        // INPP by headcount band (3% up to 50, 2% from 51 to 300, 1% above), on gross pay.
+        $all = PayrollPack::applicable(PayrollPack::inForce($pack, $on));
+        $inpp = fn (int $headcount) => collect($engine->compute($all, new StatutoryInput(gross: '1000000', taxableGross: '1000000', contributoryGross: '1000000', basic: '1000000', headcount: $headcount))->components)->keyBy('code')['inpp']['employer_minor'];
+        $this->assertSame(['30000', '30000', '20000', '20000', '10000'], [$inpp(1), $inpp(50), $inpp(51), $inpp(300), $inpp(301)]);
+
+        // Only the family allowance still blocks (once an employee has children).
         $missing = MissingValues::check($pack, $on, 'monthly', ['dependants' => true, 'children' => true]);
-        $this->assertSame(['inpp', 'family_allowance'], array_column($missing, 'component'));
-        $this->assertSame([], MissingValues::check($pack, $on, 'monthly', ['dependants' => true], ['inpp']));
-        // A researched value marked low confidence is never usable.
+        $this->assertSame(['family_allowance'], array_column($missing, 'component'));
+        $this->assertSame([], MissingValues::check($pack, $on, 'monthly', ['dependants' => true]));
+        // Owner decision 2026-10-22: a researched value marked low confidence is usable.
         $pack['components'][0]['periods'][0]['confidence'] = 'low';
-        $this->assertSame('ipr', MissingValues::check($pack, $on, 'monthly', [], ['inpp'])[0]['component']);
+        $this->assertSame([], MissingValues::check($pack, $on, 'monthly', []));
+        // A period still needing confirmation blocks.
+        $pack['components'][0]['periods'][0] = ['status' => 'needs_confirmation', 'needs_confirmation' => true] + $pack['components'][0]['periods'][0];
+        $this->assertSame('ipr', MissingValues::check($pack, $on, 'monthly', [])[0]['component']);
         // The shipped KE pack is complete for monthly runs.
         $this->assertSame([], MissingValues::check(self::shipped('KE'), $on, 'monthly', ['insurance_premiums' => true, 'pension' => true, 'post_retirement_medical' => true, 'mortgage_interest' => true]));
     }

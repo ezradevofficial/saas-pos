@@ -27,9 +27,11 @@ use Tests\TestCase;
  * values, docs/country-packs-research-2026-10.md): KE statutory leave
  * (annual 21 working days after 12 months, maternity 90 calendar days,
  * paternity 14, sick 30 full + 15 half after 2 months), CD maternity 14
- * weeks and circumstantial leave with its events, CD annual and sick still
- * "Days needed"; the KRA PIN and national ID formats; leave records say
- * when they used researched days.
+ * weeks at 2/3 of pay, annual 18 days after 12 months plus a day per five
+ * years of service (low confidence, owner decision 2026-10-22) and
+ * circumstantial leave with its events, CD sick still "Days needed"; the
+ * KRA PIN and national ID formats; leave records say when they used
+ * researched days, and when those are low confidence.
  */
 class ResearchedLeaveTest extends TestCase
 {
@@ -130,22 +132,27 @@ class ResearchedLeaveTest extends TestCase
         $worker = $this->employee(['first_name' => 'Joseph']);
         $types = $this->types();
 
-        // Low confidence: annual and sick leave stay "Days needed".
-        $this->assertTrue($types['annual']->needs_confirmation);
-        $this->assertNull($types['annual']->entitlement_days);
+        // Owner decision 2026-10-22 (low confidence): annual leave 18 working days after 12 months, +1 day per 5 years.
+        $annual = $types['annual'];
+        $this->assertSame(['18.00', false, 12, 5, 1, 'low'], [(string) $annual->entitlement_days, $annual->needs_confirmation, $annual->qualifying_months, $annual->seniority['every_years'], $annual->seniority['days'], $annual->research['confidence']]);
+        $listed = collect($this->getJson("/api/v1/hr/leave-types?company_id={$this->acme->id}", $this->headersFor($this->hrOfficer))->assertOk()->json('data'))->keyBy('statutory_key');
+        $this->assertSame([true, true, '2/3'], [$listed['annual']['low_confidence'], $listed['maternity']['low_confidence'], $listed['maternity']['pay_share']]);
+        $this->assertFalse($listed['circumstantial']['low_confidence']);
+        // Sick leave: the Code gives 2/3 pay for the whole incapacity but no number of days: still "Days needed".
         $this->assertTrue($types['sick']->needs_confirmation);
-        $this->request($worker, $types['annual'], '2026-10-26', '2026-10-27')->assertUnprocessable()->assertJsonPath('code', 'leave_days_needed');
+        $this->request($worker, $types['sick'], '2026-10-26', '2026-10-27')->assertUnprocessable()->assertJsonPath('code', 'leave_days_needed');
 
-        // Maternity 14 weeks; its pay rate is not confirmed (paid null): requests are taken, Payroll blocks the run.
-        $this->assertSame(['98.00', 'calendar_days', false, null], [(string) $types['maternity']->entitlement_days, $types['maternity']->count_basis, $types['maternity']->needs_confirmation, $types['maternity']->paid]);
+        // Maternity 14 weeks at 2/3 of pay (art. 130): requests are taken, and Payroll withholds the other third.
+        $this->assertSame(['98.00', 'calendar_days', false, true, '2/3'], [(string) $types['maternity']->entitlement_days, $types['maternity']->count_basis, $types['maternity']->needs_confirmation, $types['maternity']->paid, $types['maternity']->pay_share]);
         Event::fake([LeaveApproved::class]);
         $mother = $this->employee(['first_name' => 'Mother', 'hire_date' => '2025-01-06']);
-        $maternity = $this->request($mother, $types['maternity'], '2026-11-02', '2026-11-30')->assertCreated()->json('data.id');
+        $maternity = $this->request($mother, $types['maternity'], '2026-11-02', '2026-11-30')->assertCreated()
+            ->assertJsonPath('data.researched', true)->assertJsonPath('data.low_confidence', true)->json('data.id');
         $this->inTenant(fn () => app(LeaveRequests::class)->completed($maternity, 'approved', null));
-        Event::assertDispatched(LeaveApproved::class, fn (LeaveApproved $e) => $e->requestId === $maternity && $e->paid === null);
-        // Payroll's sync reads it too (the HR contract), with its unconfirmed pay.
+        Event::assertDispatched(LeaveApproved::class, fn (LeaveApproved $e) => $e->requestId === $maternity && $e->paid === true && $e->payShare === '2/3');
+        // Payroll's sync reads it too (the HR contract), with its share of pay.
         $records = $this->inTenant(fn () => collect(app(LeaveRecords::class)->unpaidOfCompany($this->acme->id))->keyBy('request_id'));
-        $this->assertNull($records[$maternity]['paid']);
+        $this->assertSame([true, '2/3'], [$records[$maternity]['paid'], $records[$maternity]['pay_share']]);
 
         // Circumstantial: 10 working days a year; own marriage 2, birth 2.
         $circumstantial = $types['circumstantial'];
@@ -159,6 +166,42 @@ class ResearchedLeaveTest extends TestCase
         $this->request($worker, $circumstantial, '2026-10-26', '2026-10-27', ['event' => 'funeral'])->assertUnprocessable()->assertJsonPath('code', 'leave_event_unknown');
         $this->request($worker, $circumstantial, '2026-10-26', '2026-10-27', ['event' => 'marriage'])->assertCreated()
             ->assertJsonPath('data.event', 'marriage')->assertJsonPath('data.event_label', 'Own marriage')->assertJsonPath('data.researched', true);
+    }
+
+    public function test_congo_annual_leave_grows_one_day_per_five_years_of_service(): void
+    {
+        $this->inTenant(fn () => $this->acme->forceFill(['country' => 'CD', 'timezone' => 'Africa/Kinshasa'])->save());
+        $senior = $this->employee(['first_name' => 'Senior', 'hire_date' => '2015-06-01']);
+        $junior = $this->employee(['first_name' => 'Junior', 'hire_date' => '2024-01-01']);
+        $annual = $this->types()['annual'];
+        $this->patchJson("/api/v1/hr/leave-types/{$annual->id}", ['accrues_from' => '2026-01-01'], $this->headersFor($this->hrOfficer))->assertOk()
+            ->assertJsonPath('data.researched', true);
+        $this->inTenant(fn () => app(Accruals::class)->run(CarbonImmutable::parse('2026-10-14'), $this->acme->id));
+        $balance = fn (Employee $e) => $this->inTenant(fn () => app(LeaveLedger::class)->balance($e->id, $annual->id, CarbonImmutable::parse('2026-12-31')));
+        // Hired 2015-06-01: 10 full years on 1 January 2026, so 18 + 2 = 20 days; hired 2024: 2 years, 18 days.
+        $this->assertSame(['20.00', '18.00'], [$balance($senior), $balance($junior)]);
+    }
+
+    public function test_reapplying_the_pack_gives_an_old_copy_its_maternity_pay(): void
+    {
+        // A CD company copied maternity before 2026-10-22, with its pay unconfirmed (paid null).
+        $this->inTenant(fn () => $this->acme->forceFill(['country' => 'CD', 'timezone' => 'Africa/Kinshasa'])->save());
+        $this->employee(['first_name' => 'Joseph']);
+        $maternity = $this->inTenant(function () {
+            $type = LeaveType::query()->where('company_id', $this->acme->id)->where('statutory_key', 'maternity')->sole();
+            $type->forceFill(['paid' => null, 'pay_share' => null, 'research' => ['confidence' => 'medium', 'researched_on' => '2026-10-17', 'source' => ['https://example.org'], 'assumed' => []]])->save();
+
+            return $type;
+        });
+
+        $this->postJson('/api/v1/hr/leave-types/apply-pack', ['company_id' => $this->acme->id], $this->headersFor($this->hrOfficer))->assertOk();
+        $type = $this->inTenant(fn () => $maternity->refresh());
+        $this->assertSame([true, '2/3', 'low', '2026-10-22'], [$type->paid, $type->pay_share, $type->research['confidence'], $type->research['researched_on']]);
+
+        // A company that made the type its own (research cleared) keeps its pay.
+        $this->inTenant(fn () => $type->forceFill(['paid' => null, 'pay_share' => null, 'research' => null])->save());
+        $this->postJson('/api/v1/hr/leave-types/apply-pack', ['company_id' => $this->acme->id], $this->headersFor($this->hrOfficer))->assertOk();
+        $this->assertNull($this->inTenant(fn () => $type->refresh()->paid));
     }
 
     public function test_reapplying_the_pack_fills_a_types_days_and_accrual_without_touching_company_edits(): void
