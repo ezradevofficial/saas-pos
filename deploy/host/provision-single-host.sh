@@ -149,7 +149,9 @@ step_packages() {
   if ! is_dry_run; then
     # shellcheck disable=SC1091
     . /etc/os-release
-    [ "${ID:-}" = ubuntu ] && [ "${VERSION_ID:-}" = 24.04 ] || die "This script is for Ubuntu 24.04 LTS (found ${PRETTY_NAME:-unknown})."
+    if [ "${ID:-}" != ubuntu ] || [ "${VERSION_ID:-}" != 24.04 ]; then
+      die "This script is for Ubuntu 24.04 LTS (found ${PRETTY_NAME:-unknown})."
+    fi
   fi
   run apt-get update -q
   apt_install ca-certificates curl gnupg jq unzip ufw fail2ban unattended-upgrades ssl-cert
