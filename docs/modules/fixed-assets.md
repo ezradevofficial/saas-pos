@@ -73,7 +73,7 @@ that data is confirmed (FA-20). Rates are never invented.
 | FA-17 | **Disposals with approval.** A disposal of an active asset is a `sale` (proceeds in any active currency, rate CUR-04, optional buyer party), `scrap` or `write_off` (no proceeds), on a date, with a reason (`fixed_assets.disposal.request`). It is numbered and runs through the `fixed_assets.disposal` flow (default WF-02 as transfers). Approved, it posts: depreciation from the day after the last charge to the disposal date (pro rata by the company's convention; `mid_month` takes half the disposal month), then the gain or loss (base proceeds less net book value), the release of any revaluation surplus to retained earnings, and the asset becomes `disposed` (FA-22). The disposal date must be after the asset's depreciated-to date (`period_depreciated`) and in an open period (`period_closed`); a disposal approved while its date is refused stays `approved` with the reason and posts again when asked (`POST …/post`). | Must |
 | FA-18 | **Meter readings.** Readings of an asset's meter (hours, kilometres, units) with a date and a value that never decreases (`reading_decreases`), dated after the asset's depreciated-to date (`reading_depreciated`: a charged span keeps the meter it used). They feed units-of-production depreciation (FA-09) and usage-based maintenance (FA-19). | Must |
 | FA-19 | **Maintenance.** Schedules per asset, by time (every N days, from the last done date or the in-service date) or by usage (every N units of the meter), with days of warning before a time-based due date. Work orders per asset (from a schedule or not): title, description, status (`open`, `in_progress`, `done`, `cancelled`), due date, assignee (a user), vendor (a party), completion date, meter reading, and the cost in minor units of any active currency with its base amount. Completing a work order of a schedule moves the schedule's next due date or meter. Work order costs are kept for the asset's history and reports; they post no journal (the vendor's bill is an Accounting supplier invoice). A daily command (`fixed-assets:maintenance-reminders`) tells the holders of `fixed_assets.maintenance.manage` at the asset's place, once per due date, through core notifications (NOT-02, in-app and email by default), when a schedule falls due within its warning days or its meter passes the next due reading. | Must |
-| FA-20 | **Tax book (optional).** Tax wear-and-tear classes per country are country-pack data (`api/country-packs/{KE,CD}/fixed_assets.json`, CP-01): key, method (`straight_line` or `reducing_balance`) and annual rate, effective-dated (one row per period; each year uses the row in force at its end), and the pack's `acquisition_rule` (`full_year`, or `pro_rata_months`: months in service over 12). They ship with **null rates and methods, `needs_confirmation`** until the owner confirms them from official sources (list below). Turning the tax book on for a company, and the tax book report, are refused (`tax_rates_unconfirmed`, naming the classes) while any row of a class used by the company's categories has no confirmed rate, while a category has no class, or while the acquisition rule is unconfirmed. With confirmed data the report gives per asset and year: the tax written-down value at the year's start, the allowance (half-up minor units; the remainder at the end of a straight-line class) and the value at the year's end. In the year of its disposal an asset takes no allowance and its row is marked disposed, with the base proceeds; no balancing allowance or charge is computed until the pack carries that rule. The tax book never posts journals. | Should |
+| FA-20 | **Tax book (optional).** Tax wear-and-tear classes per country are country-pack data (`api/country-packs/{KE,CD}/fixed_assets.json`, CP-01): key, method (`straight_line` or `reducing_balance`), annual rate and an optional `first_year_rate` (on cost the year an asset enters service, then the rate on the residue), effective-dated (one row per period; each year uses the row in force at its end), and the pack's `acquisition_rule` (`full_year`, or `pro_rata_months`: months in service over 12). CD ships with **null rates and methods, `needs_confirmation`** until the owner confirms them from official sources; KE ships the Second Schedule classes researched at low confidence (owner decision 2026-10-22; list below). Turning the tax book on for a company, and the tax book report, are refused (`tax_rates_unconfirmed`, naming the classes) while any row of a class used by the company's categories has no confirmed rate, while a category has no class, or while the acquisition rule is unconfirmed. With confirmed data the report gives per asset and year: the tax written-down value at the year's start, the allowance (half-up minor units; the remainder at the end of a straight-line class) and the value at the year's end. In the year of its disposal an asset takes no allowance and its row is marked disposed, with the base proceeds; no balancing allowance or charge is computed until the pack carries that rule. The tax book never posts journals. | Should |
 | FA-21 | **Capitalisation from Procurement.** Items are flagged as assets per company (`fa_item_categories`: an item, non-stock or service only, with its default category; `item_is_stock` otherwise). When a Procurement GRN posts (`GoodsReceiptPosted`), Fixed assets' listener creates one draft asset per whole unit accepted of each flagged line (at most 50 per line; a line with a fractional quantity or more than 50 units gives one draft for the whole line), at the receipt's location, with the base value and landed cost of the line split in integer minor units by largest remainder, the line's serials one per draft, the supplier and the GRN number as reference. When a Procurement supplier invoice is approved (`SupplierInvoiceApproved`), its flagged lines whose PO line has no drafts from a GRN give drafts the same way at the invoice's base net; a GRN line whose PO line already has drafts from an invoice gives none. Each line is handled under an advisory lock on its PO line, so a GRN and an invoice of the same line never both capitalise it. A cancelled GRN (`GoodsReceiptCancelled`) archives any drafts made from it. Each receipt or invoice line creates drafts once (`fa_assets` unique by source line), whatever the retries. Stock stays in the stock ledger (stage 7D closing review): a line Procurement booked as stock (`kind` `stock`), or whose item is a stock item now, gives no drafts, and while the module is active an item flagged as an asset cannot be made a stock item (`item_is_asset`, through core's item type guards; unflag it first). Nothing happens while Fixed assets is not active. Drafts are reviewed and activated by a person (FA-05). | Must |
 | FA-22 | **Accounting.** Activations (except opening register assets), runs (one source per branch and cost centre), run reversals, revaluations, impairments and disposals each raise an event carrying an ACC-07 source document in base currency: a posting id (the idempotency key), the date, amounts by field and the branch, cost centre and party dimensions. Every source balances by construction. Accounting's listener posts them through the company's rules when Accounting is active (queued, idempotent by source, a closed period kept as an exception, ACC-07); its default rules for KE and CD come with the chart templates. Fixed assets keeps every posting it raised (`fa_postings`) and replays them for the Accounting backfill (ACC-29). | Must |
 | FA-23 | **Custom fields** (CF-01 to CF-06): assets carry custom fields (`custom` jsonb, GIN index), entity `fixed_assets_asset`, while the module is active, in the asset form, detail, list filters and the label template. | Must |
@@ -276,31 +276,36 @@ tokens only, en/fr.
 
 ## Tax data the owner must confirm (FA-20)
 
-`api/country-packs/KE/fixed_assets.json` and
-`api/country-packs/CD/fixed_assets.json` hold class keys only, every
-method and rate null and `needs_confirmation: true`. Nothing is guessed.
+**KE (applied 2026-10-22 by owner decision, low confidence).**
+`api/country-packs/KE/fixed_assets.json` carries the Income Tax Act
+Second Schedule classes as researched rows (Kenya Law consolidated text,
+PwC, the KRA capital deductions notice), every one straight line ("in
+equal instalments"): buildings (commercial) 10%, machinery (used for
+manufacture) 50% in the first year of use (`first_year_rate`) then 25% a
+year of the residue, motor vehicles 25%, computers and software 25%,
+furniture and fittings 10%, telecommunication equipment 10%, other
+machinery 10%; the year of first use counts in full (`acquisition_rule:
+full_year`, an assumption: no apportionment was found). Rows start
+2026-01-01 (the pack's data start). The tax book can compute; the
+settings page shows each class with "Researched, low confidence: not
+confirmed by an accountant".
 
-Public research (2026-10-17, `docs/country-packs-research-2026-10.md`)
-was **low confidence** for both countries, so nothing was entered and the
-tax book stays refused: for KE, commonly cited rates are commercial
-buildings 10%, computers 25%, motor vehicles 25% and manufacturing
-machinery 50% in year 1 then 25%, but sources disagree on straight line
-against reducing balance and on later Finance Act changes; for CD no
-statutory class table was found (usual practice is straight line at
-commonly accepted rates). The packs' `todo` repeats this.
+**CD.** `api/country-packs/CD/fixed_assets.json` holds class keys only,
+every method and rate null and `needs_confirmation: true`: no statutory
+class table was found (research 2026-10-17 and 2026-10-22), so nothing is
+guessed and the tax book stays refused. The packs' `todo` repeats this.
 
 The owner must confirm, from official sources, with legal references and
 effective dates:
 
-- **KE** (Income Tax Act, Second Schedule, wear and tear and investment
-  deductions): the official classes and which assets fall in each
-  (buildings, machinery, motor vehicles, computers and peripherals,
-  furniture and fittings, telecommunication equipment, software and
-  intangibles, farm works, others); for each class the method (straight
-  line or reducing balance) and the annual rate; whether an investment
-  deduction applies in the first year and at what rate; the treatment in
-  the year of acquisition (`acquisition_rule`: `full_year` or
-  `pro_rata_months`) and on disposal (balancing allowance or charge).
+- **KE** (Income Tax Act, Second Schedule): confirm the applied classes
+  (an accountant), and the classes not modelled (hotels, manufacturing
+  buildings and hospitals at 50% then 25%, educational and industrial
+  buildings and docks 10%, filming equipment 25%, exploration machinery
+  and farm works 50% then 25%, fibre-optic IRU and spectrum 10%, the 100%
+  investment deduction of para 1A, the KES 3 million cap on
+  non-commercial vehicles); the year-of-acquisition rule; the treatment
+  on disposal (balancing allowance or charge).
 - **CD** (Code des impôts, amortissements fiscalement déductibles): the
   classes (constructions, matériel et outillage, matériel de transport,
   mobilier et matériel de bureau, matériel informatique, others); for each

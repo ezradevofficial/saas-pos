@@ -31,11 +31,13 @@ Accounting turns into journals when both modules are active.
   statutory tables (bands, reliefs, contribution rates, tiers, caps, levies,
   rounding rules) are effective-dated rows in
   `api/country-packs/{KE,CD}/payroll.json`. Each value is **confirmed**,
-  **researched** (public research, high or medium confidence, with its
+  **researched** (public research, high, medium or low confidence, with its
   sources: used, and recorded on every run that uses it, with a notice in
   the web app, CP-01) or null and "rate needed" until confirmed. Since
   2026-10-17 the researched values of `docs/country-packs-research-2026-10.md`
-  are shipped; low-confidence ones stay null. A run for a company whose
+  are shipped; since 2026-10-22 (owner decision) low-confidence ones are
+  shipped too, and runs that use one show "Researched, low confidence: not
+  confirmed by an accountant". A run for a company whose
   country has a required value missing is refused, naming what is missing
   (PAY-08). Tests inject their own fixture rates; they are never written
   to the packs.
@@ -99,12 +101,14 @@ A component of `payroll.json`:
 
 **Value status (CP-01, `App\Core\CountryPacks\ResearchStatus`).** A
 period is usable when confirmed (`needs_confirmation: false`) or
-`researched` with `confidence` high or medium, `researched_on` and https
-`source` URLs. Low-confidence research is never entered (the period stays
-`needs_confirmation`, and may say `confidence: low` with its sources).
-`assumed` lists a researched period's fields that are conservative
-defaults pending confirmation (CD: CNSS not deducted from the IPR base;
-rounding to the franc). A period takes the lowest confidence of its
+`researched` with `confidence` high, medium or low, `researched_on` and
+https `source` URLs. A low-confidence period (owner decision 2026-10-22)
+is used like the others; the run says `uses_low_confidence_values`, the
+statutory rates page `low_confidence`, and both show the stronger notice;
+the pack release validator warns on each such row. Research not entered
+stays `needs_confirmation` (and may say `confidence: low` with its
+sources). `assumed` lists a researched period's fields that are defaults
+pending confirmation (CD: no CNSS ceiling; rounding to the franc). A period takes the lowest confidence of its
 values. Every run records in `inputs.statutory` the researched periods it
 used (component, effective date, confidence, research date, sources,
 assumed fields), the components left out while unconfirmed and those the
@@ -517,14 +521,16 @@ DR Congo (`api/country-packs/CD/payroll.json`, CDF), all medium:
 1. IPR: annual bands ÷ 12 (3% to 162,000, 15% to 1,800,000, 30% to 3,600,000, 40% above, per month), minimum CDF 2,000, capped at 30% of taxable pay (the cap wins). Assumed until confirmed: the minimum is monthly and applies before the cap.
 2. CNSS pension 5% employee and 5% employer; occupational risks 1.5%; family benefits 6.5% (employer).
 3. ONEM 0.2% employer on the taxable base.
-4. Assumed until confirmed: the employee's CNSS does not reduce the IPR base; no CNSS ceiling; rounding to the franc.
+4. Since 2026-10-22 (low confidence, owner decision): the employee's CNSS reduces the IPR base (PwC); the IPR reduction for dependants, 2% of IPR each, at most 9; INPP 3% (up to 50 employees), 2% (51 to 300), 1% (above 300), on gross (a 3.5/3/2% scale reported from 2026-01-01 is recorded as rejected in the period); the CDF 2,000 minimum before the 30% cap.
+5. Assumed until confirmed: no CNSS ceiling; rounding to the franc.
+6. Leave paid at a share of pay (CD maternity at 2/3): HR sends the share with the approved request (`LeaveApproved::$payShare`), Payroll keeps `reduced_pay` days with their `pay_share`, and a monthly run deducts the rest of the daily rate as "Leave paid at 2/3 of pay".
 
 **Still needed** (null; the packs' `todo`):
 
 - KE: weekly and bi-weekly pay (`non_monthly`); other items (disability exemption); the return layouts (P10, NSSF, SHIF, housing levy, NITA, P9) and the M-Pesa B2C bulk file.
-- CD: **INPP** (sources conflict: low; runs are refused until confirmed, unless the company marks it not applicable); the **IPR reduction for dependants** (low; not applied, dependants give no reduction); the **family allowance** per child (runs with an employee who has children are refused); whether CNSS reduces the IPR base (low; not deducted); `non_monthly`; the declaration layouts (IPR, CNSS, INPP, ONEM).
+- CD: the **family allowance** per child (runs with an employee who has children are refused); the IRPP that replaces IPR from 2026-01-01 (Law 23/053: rounding to CDF 100, no dependants rebate above the third band; not applied); `non_monthly`; the declaration layouts (IPR, CNSS, INPP, ONEM). INPP keeps its "not applicable" mark for a pack release that leaves it unconfirmed.
 - Payroll does not yet reduce pay for HR's half-pay sick days (KE): HR sends them with the approved request (`LeaveApproved::$halfPayDays`, the request's last days), Payroll keeps them as `half_pay` leave days, and each run records `inputs.statutory.half_pay_paid_in_full` (days, employees) and shows "Half-pay sick days paid in full".
-- Leave whose pay rate is not confirmed (a leave type with `paid` null, CD maternity) is copied as `pay_unconfirmed` days: the employee's line has the error `leave_pay_unconfirmed` ("Leave pay rate not confirmed"), so the run cannot be submitted until the leave type's pay is confirmed in HR (Payroll's copy follows on the next sync).
+- Leave whose pay rate is not confirmed (a leave type with `paid` null) is copied as `pay_unconfirmed` days: the employee's line has the error `leave_pay_unconfirmed` ("Leave pay rate not confirmed"), so the run cannot be submitted until the leave type's pay is confirmed in HR (Payroll's copy follows on the next sync).
 
 ## Open for the owner
 

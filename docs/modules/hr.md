@@ -47,9 +47,14 @@ fixed below.
   public holidays from the core holiday calendar. Since 2026-10-17 the
   packs carry the **researched** statutory leave days and identifier
   formats of `docs/country-packs-research-2026-10.md` (CP-01: used, with
-  their confidence and sources, until the owner confirms them); values
-  whose research was low confidence stay "needs confirmation" and block the
-  actions that depend on them (HR-12). Overtime, night and holiday
+  their confidence and sources, until the owner confirms them). Since
+  2026-10-22 (owner decision) low-confidence research is entered too and
+  shown as "Researched, low confidence: not confirmed by an accountant";
+  values with no source stay "needs confirmation" and block the actions
+  that depend on them (HR-12). A type may be paid at a share of pay
+  (`pay_share`, CD maternity "2/3") and its yearly days may grow with
+  seniority (`seniority`, CD annual: one more working day per five
+  completed years of service, HR-13). Overtime, night and holiday
   classification thresholds are company data (time rules, HR-20); HR counts
   hours, Payroll applies rates.
 
@@ -472,16 +477,20 @@ Open for the owner:
   calendar days paid, paternity 14 days paid, sick 30 days full pay then
   15 at half pay after 2 months' service (medium); KRA PIN
   `^[AP][0-9]{9}[A-Z]$` (high) and national ID `^[0-9]{7,9}$` (medium,
-  format only). DR Congo maternity 14 weeks (98 calendar days; its pay is
-  null, "Pay not confirmed": requests are taken and Payroll blocks runs
-  with such days until the pay is confirmed) and circumstantial leave
-  10 working days a year with own marriage 2 and birth of a child 2
-  (medium).
-- Still needed: Kenya compassionate and pre-adoptive leave; DR Congo
-  annual and sick leave (low confidence, "Days needed"), the maternity pay
-  rate, the other circumstantial events; the DRC national ID and CNSS
-  number formats (none enforced); paying KE half-pay sick days at half in
-  Payroll.
+  format only). DR Congo circumstantial leave 10 working days a year with
+  own marriage 2 and birth of a child 2 (medium).
+- Applied 2026-10-22 by owner decision (low confidence): DR Congo
+  maternity 14 weeks (98 calendar days) at 2/3 of pay (art. 130); annual
+  leave 18 working days a year after 12 months, plus one working day per
+  five years of service (art. 141; the Code's text gives adults at least
+  12 days, so 18 is above the minimum; confirm). Re-applying the pack
+  gives a maternity type copied with its pay unconfirmed the 2/3 pay, while
+  the company has not made it its own.
+- Still needed: Kenya compassionate and pre-adoptive leave; DR Congo sick
+  leave ("Days needed": the Code keeps 2/3 of pay for the whole incapacity
+  but states no number of days), the other circumstantial events; the DRC
+  national ID and CNSS number formats (none enforced); paying KE half-pay
+  sick days at half in Payroll.
 - Decision 16 (next punch kind within 16 hours) against HR-24.
 
 ## Stage 7C closing review: Payroll-facing changes
