@@ -5,6 +5,8 @@ use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use Illuminate\Support\Facades\Route;
+use Modules\HR\HrServiceProvider;
+use Modules\HR\Http\Controllers\AttendanceConnectorController;
 use Modules\HR\Http\Controllers\AttendanceController;
 use Modules\HR\Http\Controllers\ContractController;
 use Modules\HR\Http\Controllers\DocumentController;
@@ -63,6 +65,15 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDev
 // HR-24: a biometric attendance device's punches (its own token).
 Route::middleware(['auth:sanctum', 'tenant', EnsureAttendanceDeviceToken::class, 'module:hr'])->group(function () {
     Route::post('hr/device/punches', [AttendanceController::class, 'devicePunches'])->middleware('throttle:device-sync');
+});
+
+// HR-24, MKT-04, API-01 (ADR 020, ADR 024): the attendance device API on the
+// public API, for the biometric connector and API keys (and people): the
+// active roster, the devices and a device's punches. Rate-limited per caller.
+Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUserToken::class, EnsureFullAccessToken::class, 'module:hr'])->group(function () {
+    Route::get('hr/connector/employees', [AttendanceConnectorController::class, 'roster'])->middleware(['throttle:'.HrServiceProvider::CONNECTOR_READS_LIMITER, 'public-api:hr.employee']);
+    Route::get('hr/connector/devices', [AttendanceConnectorController::class, 'devices'])->middleware(['throttle:'.HrServiceProvider::CONNECTOR_READS_LIMITER, 'public-api:hr.device']);
+    Route::post('hr/connector/devices/{hr_attendance_device}/punches', [AttendanceConnectorController::class, 'punches'])->middleware(['throttle:'.HrServiceProvider::CONNECTOR_PUNCHES_LIMITER, 'public-api:hr.attendance']);
 });
 
 // Owner decision B (docs/modules/hr.md): HR's employee records (employees,

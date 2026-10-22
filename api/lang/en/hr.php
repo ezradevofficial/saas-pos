@@ -65,6 +65,7 @@ return [
         'clock_pin_format' => 'A clock-in PIN has 4 to 6 digits.',
         'not_an_employee' => 'Your account isn’t linked to an employee record. Ask HR.',
         'device_inactive' => 'This device is retired.',
+        'device_not_active' => 'This device is suspended or retired. Resume it in HR, Attendance devices, then send its punches again.',
         'punch_id_taken' => 'This punch id is already used. Send a new id.',
         'not_at_device' => 'This employee doesn’t clock in at this device.',
         'unknown_ref' => 'No employee of this company has this enrolment reference.',

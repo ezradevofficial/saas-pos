@@ -23,8 +23,11 @@ use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\HR\Attendance\ClockAttempts;
@@ -71,6 +74,11 @@ class HrServiceProvider extends ServiceProvider
 {
     public const MODULE = 'hr';
 
+    /** HR-24, MKT-04: the attendance connector's reads (roster, devices) and punch uploads, per caller and route. */
+    public const CONNECTOR_READS_LIMITER = 'hr-connector-reads';
+
+    public const CONNECTOR_PUNCHES_LIMITER = 'hr-connector-punches';
+
     /** RBAC-01: the module's permission catalogue (`hr.resource.action`). */
     public const PERMISSIONS = [
         // HR-02, HR-05: `terminate` also rehires; `link` links a user (self-service, AUTH-12).
@@ -88,7 +96,8 @@ class HrServiceProvider extends ServiceProvider
         // HR-19: acts on the swap flow.
         'swap' => ['approve'],
         'attendance' => ['view', 'manage', 'close'],
-        'device' => ['manage'],
+        // HR-24, MKT-04: `view` reads the devices (the biometric connector).
+        'device' => ['view', 'manage'],
         'document' => ['view', 'manage'],
         'checklist' => ['view', 'manage'],
         'disciplinary' => ['view', 'manage'],
@@ -239,6 +248,11 @@ class HrServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([HrDailyCommand::class, RekeyDigestsCommand::class]);
         }
+
+        // HR-24, MKT-04: the connector routes' own limits, besides the public API's per key and tenant (API-03).
+        $by = fn (Request $request, string $name) => $name.'|'.($request->user()?->getAuthIdentifier() ?? 'ip|'.$request->ip()).'|'.($request->route()?->uri() ?? '');
+        RateLimiter::for(self::CONNECTOR_READS_LIMITER, fn (Request $request) => Limit::perMinute((int) config('hr.connector.reads_per_minute', 120))->by($by($request, self::CONNECTOR_READS_LIMITER)));
+        RateLimiter::for(self::CONNECTOR_PUNCHES_LIMITER, fn (Request $request) => Limit::perMinute((int) config('hr.connector.punches_per_minute', 120))->by($by($request, self::CONNECTOR_PUNCHES_LIMITER)));
 
         if (! $this->app->routesAreCached()) {
             Route::middleware('api')->prefix('api/v1')->group(__DIR__.'/routes/api.php');
