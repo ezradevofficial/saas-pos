@@ -144,6 +144,9 @@ final class ExportColumns
         'api_key_usage_days.api_key_id' => 'the id of an API key row, not the key (API-03)',
         'api_idempotency_keys.api_key_id' => 'the id of an API key row, not the key (API-01)',
         'api_idempotency_keys.request_hash' => 'idempotency fingerprint of a key\'s POST (API-01)',
+        // MKT-02 (ADR 024): an install's principal key row, and Passport's rows keyed by hashes of token identifiers.
+        'app_installations.api_key_id' => 'the id of the install\'s API key row, not a key (MKT-02)',
+        'oauth_refresh_tokens.access_token_id' => 'sha256 of an access token\'s identifier (API-02): the token is a signed JWT that cannot be rebuilt from it',
     ];
 
     /** @return list<string> the denied columns of $table */

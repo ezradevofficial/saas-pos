@@ -126,4 +126,9 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    // The load balancer's backend range, comma-separated, or `none` when the
+    // API is reached directly (App\Core\Support\TrustedProxies). Read from
+    // config, never env(), so it still applies once config is cached.
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
 ];

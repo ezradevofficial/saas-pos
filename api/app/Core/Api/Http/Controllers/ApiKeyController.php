@@ -37,7 +37,7 @@ class ApiKeyController
     public function index(ListApiKeysRequest $request): AnonymousResourceCollection
     {
         $now = now();
-        $query = ApiKey::query()->with(['assignment.role', 'creator']);
+        $query = ApiKey::query()->keys()->with(['assignment.role', 'creator']);
 
         match ($request->validated('status', 'all')) {
             'active' => $query->whereNull('revoked_at')->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', $now)),

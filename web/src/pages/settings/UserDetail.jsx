@@ -95,8 +95,8 @@ function RolesCard({ user, canAssign }) {
   const { t } = useTranslation()
   const locale = useLocale()
   const queryClient = useQueryClient()
-  const options = useGrantOptions()
   const [row, setRow] = useState(null)
+  const options = useGrantOptions({ rows: [row] })
   const [removing, setRemoving] = useState(null)
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['users'] })
 

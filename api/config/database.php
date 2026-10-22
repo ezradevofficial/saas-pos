@@ -192,7 +192,10 @@ return [
 
     'redis' => [
 
-        'client' => env('REDIS_CLIENT', 'phpredis'),
+        // NFR-01: predis is a dependency, so a host without the phpredis
+        // extension still reaches Redis (deploy rehearsal 2026-10-22). Set
+        // REDIS_CLIENT=phpredis where the extension is installed.
+        'client' => env('REDIS_CLIENT', 'predis'),
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),

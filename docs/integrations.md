@@ -440,3 +440,18 @@ fields.
   the plan or its bundle covers (for example `accounting_essentials` for
   Accounting) is switched on. It never switches a module off and is safe to
   run again. Run it by hand after installing a module outside a deploy.
+
+## Marketplace OAuth and connectors (MKT-01..MKT-04, ADR 024)
+
+- **Token signing keys.** Every API server needs the same RSA pair: `PASSPORT_PRIVATE_KEY` and `PASSPORT_PUBLIC_KEY` in the environment (newlines as `\n`), or the files `php artisan passport:keys` writes into `storage/`. Never commit them. Without them the OAuth endpoints answer 503 `oauth_not_configured`.
+- **First-party connectors.** Each runs as its own connector service. Set its redirect URI (and webhook URL) in the API host's environment, then run the set-up once:
+
+  | Connector | Environment | Set-up |
+  | --- | --- | --- |
+  | Courier | `CONNECTOR_COURIER_REDIRECT_URI`, `CONNECTOR_COURIER_WEBHOOK_URL`, `CONNECTOR_COURIER_DRIVER` (a courier adapter; `none` until one is chosen) | `php artisan marketplace:connector courier` |
+  | SMS and WhatsApp | `CONNECTOR_MESSAGING_REDIRECT_URI`, `CONNECTOR_MESSAGING_WEBHOOK_URL`, plus `NOTIFICATIONS_SMS_DRIVER` / `NOTIFICATIONS_WHATSAPP_DRIVER` | `php artisan marketplace:connector messaging` |
+  | Power BI and Excel | `CONNECTOR_BI_REDIRECT_URI` | `php artisan marketplace:connector bi` |
+  | Biometric attendance | `CONNECTOR_BIOMETRIC_REDIRECT_URI` | `php artisan marketplace:connector biometric` |
+
+  The command prints the client secret and the webhook signing secret once: put them in the connector service's configuration. `--rotate` issues new ones (installs get the new webhook secret with a 24-hour overlap); `--disable` switches the connector off and stops its tokens.
+- **Payouts** to developers are recorded by hand in the console (Marketplace, Payouts) until a payout provider is chosen.

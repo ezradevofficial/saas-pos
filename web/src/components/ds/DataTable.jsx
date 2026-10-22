@@ -16,7 +16,9 @@ function directionOf(sort, sortKey) {
  * `onSort` is given (EXP-01 lists): `sort` is the current key, "-key" when
  * descending, and the header carries aria-sort. `loading` shows the loading
  * text in the body while there are no rows yet; `stale` dims the rows shown
- * while the next page loads.
+ * while the next page loads. A column with `wrap` wraps its text; `wide`
+ * also keeps it at least a readable width, so long nowrap columns beside it
+ * can't squeeze it.
  */
 export function DataTable({ columns = [], rows = [], caption, emptyText, selectedId, onRowClick, sort, onSort, loading = false, stale = false, className }) {
   const { t } = useTranslation()
@@ -37,7 +39,7 @@ export function DataTable({ columns = [], rows = [], caption, emptyText, selecte
                   key={column.key}
                   scope="col"
                   aria-sort={canSort ? (direction ?? 'none') : undefined}
-                  className={cn('h-auto px-4 py-2 text-caption font-normal text-ink-muted', column.align === 'end' ? 'text-right' : 'text-left')}
+                  className={cn('h-auto px-4 py-2 text-caption font-normal text-ink-muted', column.align === 'end' ? 'text-right' : 'text-left', column.wide && 'min-w-56')}
                 >
                   {canSort ? (
                     <button
@@ -90,7 +92,7 @@ export function DataTable({ columns = [], rows = [], caption, emptyText, selecte
                   {columns.map((column) => (
                     <TableCell
                       key={column.key}
-                      className={cn('px-4 py-3', column.align === 'end' && 'text-right', column.numeric && 'tabular-nums', column.wrap && 'whitespace-normal')}
+                      className={cn('px-4 py-3', column.align === 'end' && 'text-right', column.numeric && 'tabular-nums', (column.wrap || column.wide) && 'whitespace-normal', column.wide && 'min-w-56')}
                     >
                       {column.render ? column.render(row) : row[column.key]}
                     </TableCell>

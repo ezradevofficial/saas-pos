@@ -71,6 +71,11 @@ class BillingFiscalSource implements FiscalDocumentSource
             return (string) ($name[$locale] ?? $name['en']);
         }
 
+        // MKT-03: an app line names the app (its key is the app's id).
+        if ($line['type'] === 'app') {
+            return __('billing.lines.app', ['key' => is_string($name) ? $name : ''], $locale);
+        }
+
         return __('billing.lines.'.$line['type'], ['key' => (string) ($line['key'] ?? '')], $locale);
     }
 }

@@ -55,8 +55,12 @@ class ReadQueryBudgetTest extends TestCase
         // Warm once: per-process caches (permissions, module flags) are not what is measured.
         $this->getJson($path, $headers)->assertOk();
         $count = 0;
+        // Sanctum writes a token's last_used_at only when the second has changed, so
+        // whether a measured request pays that write depends on the runner's speed.
         DB::listen(function (QueryExecuted $query) use (&$count) {
-            $count++;
+            if (! str_starts_with($query->sql, 'update "personal_access_tokens"')) {
+                $count++;
+            }
         });
         $this->getJson($path, $headers)->assertOk();
         DB::getEventDispatcher()->forget(QueryExecuted::class);

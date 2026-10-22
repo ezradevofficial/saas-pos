@@ -37,10 +37,13 @@ export function LanguageSwitch() {
  * Sign-in, sign-up and the other account pages: one centred column. On a
  * tenant's host (BR-04) the header shows that tenant's logo, and the page
  * its colours; "Powered by" stays unless the platform hid it (BR-07).
+ * The staff console's pages (ADR 013) pass `unbranded`: they always show the
+ * platform's own name, never the tenant of a session open in the same browser.
  */
-export function AuthLayout({ children }) {
+export function AuthLayout({ children, unbranded = false }) {
   const { t } = useTranslation()
-  const { theme, brand } = useTheme()
+  const { theme, brand: tenantBrand } = useTheme()
+  const brand = unbranded ? null : tenantBrand
   const logo = brandLogo(brand, isDarkTheme(theme))
   const background = brand?.assets?.background ?? null
   return (

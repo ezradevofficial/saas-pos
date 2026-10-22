@@ -11,6 +11,8 @@ import PlatformSignIn from './pages/PlatformSignIn'
 // them inside a Suspense boundary (PageOutlet).
 const CatalogueConsole = lazy(() => import('./pages/CatalogueConsole'))
 const PacksConsole = lazy(() => import('./pages/PacksConsole'))
+const MarketplaceConsole = lazy(() => import('./pages/MarketplaceConsole'))
+const PayoutsConsole = lazy(() => import('./pages/MarketplaceConsole').then((m) => ({ default: m.PayoutsConsole })))
 const ReportsConsole = lazy(() => import('./pages/ReportsConsole'))
 const StaffConsole = lazy(() => import('./pages/StaffConsole'))
 const SupportConsole = lazy(() => import('./pages/SupportConsole'))
@@ -32,7 +34,7 @@ export const platformRoutes = [
     ),
     children: [
       {
-        element: <AuthLayout />,
+        element: <AuthLayout unbranded />,
         children: [
           { path: 'sign-in', element: <PlatformSignIn /> },
           { path: 'setup/:token', element: <PlatformSetup /> },
@@ -58,6 +60,9 @@ export const platformRoutes = [
           { path: 'packs', element: <PacksConsole /> },
           { path: 'reports', element: <ReportsConsole /> },
           { path: 'staff', element: <StaffConsole /> },
+          // ADM-05, MKT-03: marketplace review and developers' payouts.
+          { path: 'marketplace', element: <MarketplaceConsole /> },
+          { path: 'payouts', element: <PayoutsConsole /> },
         ],
       },
     ],

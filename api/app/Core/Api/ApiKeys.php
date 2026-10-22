@@ -53,7 +53,7 @@ class ApiKeys
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($actor, $data, $role, $scope) {
             $tenant = Tenant::query()->whereKey($this->tenants->require())->lockForUpdate()->firstOrFail();
 
-            if (ApiKey::query()->whereNull('revoked_at')->count() >= (int) config('api.keys.max_active', 50)) {
+            if (ApiKey::query()->keys()->whereNull('revoked_at')->count() >= (int) config('api.keys.max_active', 50)) {
                 throw new ApiException(422, 'api_key_limit', __('api.errors.key_limit', ['max' => (int) config('api.keys.max_active', 50)]));
             }
 

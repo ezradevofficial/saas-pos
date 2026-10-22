@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Platform;
 
+use App\Core\Billing\Models\OperatorAccount;
 use App\Core\Billing\Models\OperatorInvoice;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\MasterData\Taxes\TaxCode;
@@ -170,6 +171,24 @@ class PlatformReportsTest extends TestCase
 
         $report = $this->getJson('/api/v1/platform/reports/summary', $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE)))->assertOk()->json('data.mrr.by_currency');
         $this->assertSame(346667, $report[0]['amount_minor']);
+    }
+
+    /**
+     * ADM-06, Phase 8 walkthrough: an account synced before operator_accounts.bundle existed
+     * has no bundle, and MRR by plan put its whole MRR under "custom" while revenue by plan
+     * (from the invoice's bundle line) said Starter. MRR by plan falls back to the period
+     * invoice's bundle line, as MRR by module already reads its lines.
+     */
+    public function test_mrr_by_plan_agrees_with_revenue_by_plan_when_the_account_has_no_bundle(): void
+    {
+        $this->activate();
+        $this->inOperator(fn () => OperatorAccount::query()->where('customer_tenant_id', $this->owner->tenant_id)->update(['bundle' => null]));
+
+        $data = $this->getJson('/api/v1/platform/reports/summary?from=2026-11-01&to=2026-11-30', $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE)))->assertOk()->json('data');
+
+        $this->assertSame(['starter'], array_column($data['mrr']['by_plan'], 'key'));
+        $this->assertSame(['starter'], array_column($data['revenue']['by_plan'], 'key'));
+        $this->assertSame(346667, $data['mrr']['by_plan'][0]['amount_minor']);
     }
 
     /** CP-02: with no rate on the invoice (none confirmed), MRR is left as billed, never guessed. */

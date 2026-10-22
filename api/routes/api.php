@@ -175,7 +175,8 @@ Route::model('custom_field', CustomFieldDefinition::class);
 Route::model('custom_form_type', CustomFormType::class);
 Route::model('custom_form_record', CustomFormRecord::class);
 Route::model('import', Import::class);
-Route::model('api_key', ApiKey::class);
+// ADR 024: an install's key (kind `app`) is managed through its install, never here.
+Route::bind('api_key', fn (string $value) => ApiKey::query()->keys()->findOrFail($value));
 Route::model('webhook', WebhookSubscription::class);
 Route::model('webhook_delivery', WebhookDelivery::class);
 
@@ -795,3 +796,5 @@ require __DIR__.'/platform.php';
 require __DIR__.'/billing.php';
 // RBAC-13, ADM-03: support access with consent (tenant, staff and the session's entry code).
 require __DIR__.'/support.php';
+// MKT-01..MKT-04, ADM-05: the marketplace and OAuth for apps (docs/adr/024-marketplace.md).
+require __DIR__.'/marketplace.php';

@@ -23,11 +23,11 @@ class PlatformStaffTest extends TestCase
     {
         $expected = [
             PlatformUser::ROLE_OWNER => array_keys(PlatformUser::PERMISSIONS),
-            PlatformUser::ROLE_SUPPORT => ['platform.tenants.view', 'platform.tenants.owner_search', 'platform.tenants.manage', 'platform.tenants.create', 'platform.catalogue.view', 'platform.billing.view', 'platform.support.request'],
+            PlatformUser::ROLE_SUPPORT => ['platform.tenants.view', 'platform.tenants.owner_search', 'platform.tenants.manage', 'platform.tenants.create', 'platform.catalogue.view', 'platform.billing.view', 'platform.support.request', 'platform.marketplace.view'],
             PlatformUser::ROLE_SALES => ['platform.tenants.view', 'platform.tenants.create', 'platform.catalogue.view', 'platform.billing.view', 'platform.deals.manage', 'platform.reports.view'],
-            PlatformUser::ROLE_FINANCE => ['platform.tenants.view', 'platform.tenants.manage', 'platform.catalogue.view', 'platform.catalogue.manage', 'platform.billing.view', 'platform.billing.manage', 'platform.deals.manage', 'platform.deals.approve', 'platform.reports.view'],
-            PlatformUser::ROLE_COMPLIANCE => ['platform.tenants.view', 'platform.tenants.owner_search', 'platform.catalogue.view', 'platform.billing.view', 'platform.packs.view', 'platform.packs.manage', 'platform.packs.approve', 'platform.packs.publish', 'platform.reports.view'],
-            PlatformUser::ROLE_ENGINEERING => ['platform.tenants.view', 'platform.catalogue.view', 'platform.support.request', 'platform.packs.view', 'platform.packs.manage', 'platform.packs.approve'],
+            PlatformUser::ROLE_FINANCE => ['platform.tenants.view', 'platform.tenants.manage', 'platform.catalogue.view', 'platform.catalogue.manage', 'platform.billing.view', 'platform.billing.manage', 'platform.deals.manage', 'platform.deals.approve', 'platform.reports.view', 'platform.marketplace.view', 'platform.marketplace.payouts'],
+            PlatformUser::ROLE_COMPLIANCE => ['platform.tenants.view', 'platform.tenants.owner_search', 'platform.catalogue.view', 'platform.billing.view', 'platform.packs.view', 'platform.packs.manage', 'platform.packs.approve', 'platform.packs.publish', 'platform.reports.view', 'platform.marketplace.view', 'platform.marketplace.review'],
+            PlatformUser::ROLE_ENGINEERING => ['platform.tenants.view', 'platform.catalogue.view', 'platform.support.request', 'platform.packs.view', 'platform.packs.manage', 'platform.packs.approve', 'platform.marketplace.view', 'platform.marketplace.review'],
         ];
 
         foreach ($expected as $role => $permissions) {

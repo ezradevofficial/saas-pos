@@ -495,7 +495,10 @@
     "webhooks": "Webhooks",
     "apiKeys": "Clés d’API",
     "sso": "Authentification unique",
-    "privacy": "Confidentialité"
+    "privacy": "Confidentialité",
+    "marketplace": "Place de marché",
+    "installedApps": "Applications installées",
+    "developerApps": "Applications développeur"
   },
   "shell": {
     "account": "Menu du compte",
@@ -10507,8 +10510,9 @@
       "valuesMissing_one": "{{count}} valeur manquante",
       "valuesMissing_other": "{{count}} valeurs manquantes",
       "complete": "Complet",
-      "todo": "Valeurs à confirmer",
-      "todoHelp": "La liste propre au pack pays, pour l’équipe de la plateforme.",
+      "todo": "Encore à confirmer",
+      "todoHelp_one": "{{count}} valeur légale de cette page n’est pas encore confirmée par un comptable. L’équipe de la plateforme la confirme dans le pack pays ; vérifiez-la avant toute déclaration.",
+      "todoHelp_other": "{{count}} valeurs légales de cette page ne sont pas encore confirmées par un comptable. L’équipe de la plateforme les confirme dans le pack pays ; vérifiez-les avant toute déclaration.",
       "returns": "Formats des déclarations",
       "markedNotApplicable": "Marqué non applicable.",
       "markedApplicable": "S’applique de nouveau.",
@@ -12198,7 +12202,9 @@
       "support": "Assistance",
       "packs": "Packs pays",
       "reports": "Rapports",
-      "staff": "Équipe"
+      "staff": "Équipe",
+      "marketplace": "Place de marché",
+      "payouts": "Versements"
     },
     "tenants": {
       "search": "Rechercher des comptes",
@@ -12367,6 +12373,7 @@
       "people": "Chargée par {{loaded}} · approuvée par {{approved}} · publiée par {{published}}",
       "errors": "Erreurs",
       "noErrors": "Aucune erreur. Elle peut être approuvée.",
+      "noErrorsDecided": "Aucune erreur.",
       "warnings": "Encore à confirmer",
       "diff": "Changements",
       "againstRelease": "Comparée à la version {{version}}",
@@ -12403,6 +12410,8 @@
       "revenueByCountry": "Revenus par pays",
       "revenueByModule": "Revenus par module",
       "revenueByPlan": "Revenus par offre",
+      "customPlan": "Sans formule (modules seuls)",
+      "extraOutlets": "Points de vente supplémentaires",
       "usage": "Utilisation de tous les comptes",
       "plan": "Offre",
       "country": "Pays",
@@ -12442,6 +12451,79 @@
       "lastSignIn": "Dernière connexion",
       "deactivate": "Désactiver",
       "reactivate": "Réactiver"
+    },
+    "marketplace": {
+      "title": "Examen de la place de marché",
+      "description": "Examinez les versions soumises avant leur publication, et suspendez les applications qui posent problème.",
+      "tabs": {
+        "submitted": "À examiner",
+        "listed": "Publiées",
+        "suspended": "Suspendues",
+        "all": "Toutes"
+      },
+      "empty": "Rien ici.",
+      "app": "Application",
+      "developer": "Développeur",
+      "status": "Statut",
+      "latest": "Dernière version",
+      "versionLabel": "Version {{version}} : {{status}}",
+      "appStatus": {
+        "active": "Active",
+        "suspended": "Suspendue",
+        "archived": "Archivée"
+      },
+      "versionStatus": {
+        "draft": "Brouillon",
+        "submitted": "En examen",
+        "approved": "Approuvée",
+        "rejected": "Refusée"
+      },
+      "client": "Identifiant client",
+      "redirects": "URI de redirection",
+      "none": "Aucune",
+      "versions": "Versions",
+      "version": "Version",
+      "scopes": "Autorisations",
+      "events": "Événements webhook",
+      "submitted": "Soumise",
+      "webhookUrl": "URL du webhook",
+      "changesTitle": "Ce que change la version {{version}}",
+      "needsConsent": "Elle demande plus que la version publiée : les installations gardent ce qu’elles avaient jusqu’à l’accord de chaque organisation.",
+      "pricingChanged": "Le prix change.",
+      "added": "Ajouté : {{entry}}",
+      "removed": "Retiré : {{entry}}",
+      "approve": "Approuver",
+      "approveTitle": "Approuver la version {{version}}",
+      "approveText": "Elle est publiée immédiatement et ses URI de redirection prennent effet.",
+      "note": "Note pour le développeur",
+      "reject": "Refuser",
+      "rejectTitle": "Refuser cette version",
+      "suspend": "Suspendre",
+      "suspendTitle": "Suspendre cette application",
+      "suspendText": "Ses jetons cessent de fonctionner immédiatement, elle quitte le catalogue et chaque organisation qui l’a installée est informée.",
+      "reinstate": "Rétablir",
+      "reinstateTitle": "Rétablir cette application"
+    },
+    "payouts": {
+      "title": "Versements aux développeurs",
+      "description": "Ce qui est dû à chaque développeur au titre des applications payantes, par devise. Les versements sont faits hors de la plateforme et enregistrés ici.",
+      "currency": "Devise",
+      "allCurrencies": "Toutes les devises",
+      "empty": "Aucun gain de développeur pour le moment.",
+      "developer": "Développeur",
+      "earned": "Gagné",
+      "paid": "Versé",
+      "balance": "Dû",
+      "lastPayout": "Dernier versement",
+      "never": "Jamais",
+      "actions": "Actions",
+      "record": "Enregistrer un versement",
+      "recordTitle": "Enregistrer un versement à {{name}}",
+      "recordText": "Enregistrez l’argent déjà envoyé. Le montant ne peut jamais dépasser ce qui est dû.",
+      "amount": "Montant",
+      "reference": "Référence",
+      "referenceHelp": "La référence bancaire ou mobile money",
+      "markPaid": "Marquer comme versé"
     }
   },
   "supportAccess": {
@@ -12899,6 +12981,14 @@
         "summary": "Des événements envoyés à vos systèmes dès qu’ils se produisent.",
         "p1": "Les webhooks envoient des événements signés, comme une vente terminée ou un document qui change d’étape, à l’URL de votre choix, avec de nouvelles tentatives et un journal des envois.",
         "p2": "Configurez-les dans Paramètres, Webhooks : choisissez les événements, copiez une fois le secret de signature et vérifiez la signature et l’horodatage de chaque requête avant de lui faire confiance."
+      },
+      "apps": {
+        "title": "Applications de la place de marché",
+        "summary": "Inscrivez-vous comme développeur, faites examiner votre application et connectez-la avec OAuth.",
+        "p1": "Inscrivez-vous comme développeur dans Paramètres, Applications développeur, depuis un bac à sable ou votre propre organisation. Créez une application pour obtenir son identifiant client, son secret client et son secret de signature des webhooks ; les secrets ne sont affichés qu’une fois. Décrivez l’application, choisissez les autorisations dont elle a besoin, ses URI de redirection, ses événements webhook et son prix, puis soumettez la version pour examen. Seules les versions approuvées sont publiées.",
+        "p2": "Une organisation installe votre application par le flux du code d’autorisation avec PKCE (S256 uniquement). Votre application envoie l’utilisateur vers l’écran de consentement ; il voit ce qu’elle demande en termes simples et choisit le rôle sous lequel elle agit. Votre application ne peut jamais faire plus que ce rôle, ni plus que ses autorisations.",
+        "p3": "Échangez le code contre un jeton d’accès (une heure) et un jeton d’actualisation (30 jours, à usage unique : chaque actualisation en donne un nouveau). Utilisez le jeton d’accès exactement comme une clé d’API sur les points d’accès publics. Un jeton d’actualisation utilisé deux fois révoque tous les jetons de cette installation.",
+        "p4": "Les événements webhook sont envoyés à votre URL de webhook avec installation=<id> ajouté. Chaque installation signe avec sa propre clé : HMAC-SHA256 de « install: » suivi de l’installation_id du corps signé, avec pour clé le secret webhook de votre application (décodé en base64, sans whsec_) ; vérifiez la signature avec cette clé, jamais avec l’URL seule. Une nouvelle version qui demande plus d’autorisations ou d’événements attend l’accord de chaque organisation ; d’ici là, votre application garde ce qu’elle a reçu. La désinstallation révoque ses jetons immédiatement."
       }
     },
     "errorCodes": {
@@ -13215,6 +13305,224 @@
       "storefront": "Boutique en ligne",
       "import": "Importation",
       "lead_form": "Formulaire de prospects"
+    }
+  },
+  "marketplace": {
+    "title": "Place de marché",
+    "description": "Des applications qui se connectent à votre organisation par l’API publique. Chacune demande ce dont elle a besoin, et vous choisissez le rôle sous lequel elle agit.",
+    "installedLink": "Applications installées",
+    "search": "Rechercher des applications",
+    "category": "Catégorie",
+    "allCategories": "Toutes les catégories",
+    "categories": {
+      "accounting": "Comptabilité",
+      "analytics": "Analyses et rapports",
+      "attendance": "Présence",
+      "commerce": "Vente en ligne",
+      "delivery": "Livraison",
+      "messaging": "Messagerie",
+      "payments": "Paiements",
+      "productivity": "Productivité",
+      "other": "Autre"
+    },
+    "empty": "Aucune application ne correspond. Essayez un autre nom ou une autre catégorie.",
+    "installed": "Installée",
+    "notConfigured": "Pas encore configurée",
+    "byPlatform": "Créée par l’équipe de la plateforme",
+    "by": "Par {{name}}",
+    "free": "Gratuite",
+    "priceUnavailable": "Non vendue dans votre devise de facturation",
+    "perMonth": "par mois",
+    "moduleOff": "module inactif ici",
+    "noScopes": "Cette application ne demande aucun accès.",
+    "noEvents": "Cette application ne reçoit aucun événement.",
+    "copy": "Copier",
+    "about": "À propos",
+    "permissions": "Ce qu’elle peut faire",
+    "permissionsText": "Jamais plus que ce que permet le rôle que vous lui donnez.",
+    "events": "Événements reçus",
+    "eventsText": "Envoyés à l’application au fil de l’eau, signés.",
+    "price": "Prix",
+    "billedWith": "Facturée avec votre abonnement, sur la même facture.",
+    "install": "Installation",
+    "manageInstall": "Gérer cette application",
+    "notConfiguredTitle": "Ce connecteur n’est pas encore configuré",
+    "notConfiguredText": "L’équipe de la plateforme doit encore le configurer. Vous pourrez l’installer dès qu’il sera prêt.",
+    "installText": "L’installation commence dans l’application : elle vous renvoie ici pour approuver ce qu’elle demande.",
+    "openApp": "Ouvrir l’application",
+    "missing": {
+      "connector_service": "Le service du connecteur n’est pas configuré.",
+      "courier_provider": "Aucun transporteur n’a encore été choisi.",
+      "message_provider": "Aucun fournisseur SMS ou WhatsApp n’est configuré."
+    },
+    "support": "Assistance",
+    "website": "Site web",
+    "supportEmail": "E-mail d’assistance",
+    "privacy": "Politique de confidentialité",
+    "version": "Version",
+    "consent": {
+      "errorTitle": "Cette application ne peut pas se connecter",
+      "title": "Connecter {{name}}",
+      "installed": "Cette application est installée. Approuver de nouveau enregistre votre accord pour sa version actuelle.",
+      "wants": "Elle pourra",
+      "events": "Elle recevra ces événements",
+      "actsAs": "Elle agit comme",
+      "actsAsHelp": "Choisissez un rôle et où il s’applique. L’application ne peut jamais faire plus que ce rôle, et vous ne pouvez choisir que ce que vous pourriez donner à une personne.",
+      "cannotInstall": "Vous ne pouvez pas installer d’applications. Demandez à un propriétaire ou à un administrateur.",
+      "cannotPay": "Cette application s’ajoute à votre abonnement. Demandez à une personne qui gère l’abonnement de l’installer.",
+      "deny": "Refuser",
+      "approve": "Approuver et installer",
+      "approveAgain": "Approuver"
+    }
+  },
+  "installedApps": {
+    "title": "Applications installées",
+    "description": "Les applications installées par cette organisation, ce que chacune a reçu et le rôle sous lequel elle agit.",
+    "browse": "Parcourir la place de marché",
+    "empty": "Aucune application installée pour le moment.",
+    "noRole": "Aucun rôle",
+    "version": "Version {{version}}",
+    "status": {
+      "active": "Active",
+      "needsConsent": "Attend votre accord",
+      "suspended": "Suspendue",
+      "uninstalled": "Désinstallée"
+    },
+    "fields": {
+      "app": "Application",
+      "status": "Statut",
+      "actsAs": "Agit comme",
+      "installed": "Installée"
+    },
+    "given": "Ce qu’elle a reçu",
+    "details": "Détails",
+    "installedBy": "{{when}} par {{name}}",
+    "usage": "Utilisation de l’API",
+    "requests_one": "{{total}} requête sur les 30 derniers jours",
+    "requests_other": "{{total}} requêtes sur les 30 derniers jours",
+    "suspendedTitle": "La plateforme a suspendu cette application",
+    "suspendedText": "Elle ne peut plus utiliser vos données ni recevoir d’événements tant qu’elle n’est pas rétablie.",
+    "needsConsentTitle": "La version {{version}} demande davantage",
+    "needsConsentText": "L’application garde ce que vous avez approuvé jusqu’à ce que vous approuviez la nouvelle version.",
+    "consent": {
+      "title": "Approuver {{name}}",
+      "confirm": "Approuver",
+      "newScopes": "Elle demande désormais aussi de",
+      "review": "Examiner et approuver",
+      "changeRole": "Changer son rôle"
+    },
+    "uninstall": {
+      "action": "Désinstaller",
+      "title": "Désinstaller {{name}}",
+      "confirm": "Désinstaller",
+      "body": "Son accès prend fin immédiatement et elle ne reçoit plus d’événements. Ce qu’elle a déjà créé reste. Une application payante n’est plus facturée à partir du prochain renouvellement."
+    }
+  },
+  "developerApps": {
+    "title": "Applications développeur",
+    "description": "Créez des applications pour le marketplace. Chaque version est examinée par l’équipe de la plateforme avant sa publication.",
+    "portal": "Portail développeur",
+    "empty": "Aucune application pour le moment. Créez-en une pour obtenir ses identifiants.",
+    "version": "Version {{version}} : {{status}}",
+    "versions": "Versions",
+    "clientIdIs": "Identifiant client {{id}}",
+    "inReview": "La version {{version}} est en cours d’examen.",
+    "suspendedTitle": "La plateforme a suspendu cette application",
+    "appStatus": {
+      "listed": "Publiée",
+      "unlisted": "Non publiée",
+      "archived": "Archivée",
+      "suspended": "Suspendue"
+    },
+    "versionStatus": {
+      "draft": "Brouillon",
+      "submitted": "En examen",
+      "approved": "Approuvée",
+      "rejected": "Refusée"
+    },
+    "register": {
+      "title": "S’inscrire comme développeur",
+      "text": "Votre nom public apparaît sur vos applications. Les applications payantes sont facturées aux organisations qui les installent.",
+      "terms": "J’accepte les conditions de la place de marché : les développeurs reçoivent {{share}} % de ce que rapportent les applications payantes, après remises et taxes.",
+      "submit": "S’inscrire"
+    },
+    "profile": {
+      "title": "Compte développeur",
+      "name": "Nom public",
+      "nameHelp": "Affiché sur vos applications",
+      "email": "E-mail de contact",
+      "website": "Site web",
+      "save": "Enregistrer"
+    },
+    "create": {
+      "action": "Nouvelle application",
+      "title": "Nouvelle application",
+      "submit": "Créer l’application"
+    },
+    "secrets": {
+      "title": "Les identifiants de votre application",
+      "once": "Copiez-les maintenant. Ils ne sont affichés qu’une fois.",
+      "done": "Je les ai copiés"
+    },
+    "credentials": {
+      "title": "Identifiants",
+      "text": "Un nouveau secret client arrête l’ancien immédiatement ; un nouveau secret webhook chevauche l’ancien pendant 24 heures, sauf si vous arrêtez l’ancien maintenant (pour un secret divulgué).",
+      "rotateClient": "Nouveau secret client",
+      "rotateWebhook": "Nouveau secret webhook",
+      "rotateWebhookNow": "Nouveau secret webhook, arrêter l’ancien maintenant"
+    },
+    "draft": {
+      "title": "Version {{version}} (brouillon)",
+      "text": "Rédigez-la une fois, dans votre langue. Soumettez-la quand elle est complète.",
+      "save": "Enregistrer le brouillon",
+      "submit": "Soumettre pour examen",
+      "saved": "Brouillon enregistré."
+    },
+    "actions": {
+      "newVersion": "Nouvelle version",
+      "withdraw": "Retirer de l’examen",
+      "archive": "Archiver",
+      "restore": "Restaurer"
+    },
+    "pricing": {
+      "free": "Gratuite",
+      "paid": "Payante",
+      "help": "Prix mensuel par devise, et un prix annuel si vous le souhaitez. Vous recevez {{share}} % après remises et taxes.",
+      "monthly": "Prix mensuel, {{currency}}",
+      "yearly": "Prix annuel, {{currency}}",
+      "yearlyHelp": "Douze mois si vide"
+    },
+    "fields": {
+      "name": "Nom",
+      "slug": "Nom d’adresse",
+      "slugHelp": "Lettres minuscules, chiffres et tirets",
+      "category": "Catégorie",
+      "description": "Description",
+      "descriptionHelp": "Ce que fait l’application, en au moins 40 caractères",
+      "tagline": "Accroche",
+      "supportEmail": "E-mail d’assistance",
+      "website": "Site web",
+      "privacy": "URL de la politique de confidentialité",
+      "logo": "Logo",
+      "logoHelp": "Une image carrée PNG, JPEG ou WebP, jusqu’à 512 Ko",
+      "logoSet": "Un logo est défini. Choisissez un fichier pour le remplacer.",
+      "redirectUris": "URI de redirection",
+      "redirectHelp": "Une par ligne. HTTPS, ou HTTP vers localhost.",
+      "scopes": "Autorisations",
+      "scopesHelp": "Seulement ce dont l’application a besoin",
+      "webhookUrl": "URL du webhook",
+      "webhookEvents": "Événements webhook",
+      "pricing": "Tarification",
+      "clientId": "Identifiant client",
+      "clientSecret": "Secret client",
+      "webhookSecret": "Secret de signature des webhooks",
+      "listing": "Publication",
+      "latest": "Dernière version",
+      "created": "Créée",
+      "version": "Version",
+      "status": "Statut",
+      "submitted": "Soumise",
+      "reviewNote": "Note de l’examinateur"
     }
   },
   "packs": {

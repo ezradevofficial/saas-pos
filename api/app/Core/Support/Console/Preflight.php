@@ -2,6 +2,7 @@
 
 namespace App\Core\Support\Console;
 
+use App\Core\Notifications\Sms\SmsSender;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Support\EnvironmentGuard;
@@ -9,6 +10,7 @@ use App\Core\Tenancy\TenantContext;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
 use Throwable;
 
 /**
@@ -67,9 +69,20 @@ class Preflight extends Command
                 $development => ['skip', 'development drivers allowed here'],
                 $problem !== null => ['fail', $problem],
                 $label === 'SMS driver' && $config->get('services.sms.driver') === null => ['warn', 'SMS_DRIVER not set: text messages fail with SmsNotConfigured'],
+                // Deploy rehearsal (2026-10-22): an unknown name passed as ready while sending nothing.
+                $label === 'SMS driver' && ! in_array($config->get('services.sms.driver'), SmsSender::DRIVERS, true) => ['warn', 'SMS_DRIVER '.$config->get('services.sms.driver').' is not a provider this release implements: text messages fail with SmsNotConfigured'],
                 default => ['ok', null],
             };
         }
+
+        // NFR-01 (deploy rehearsal 2026-10-22): the cache, queues, locks and
+        // metrics all live in Redis; a wrong client or password passed every
+        // other check and the first migration then failed.
+        $checks['Redis'] = function () use ($config) {
+            Redis::connection()->ping();
+
+            return ['ok', (string) $config->get('database.redis.client')];
+        };
 
         $checks['Application key'] = fn () => filled($config->get('app.key'))
             ? ['ok', null]

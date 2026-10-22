@@ -71,7 +71,7 @@ class BillingInvoicePdf
             [$qty, $unitPrice, $perUnit] = self::quantityAndPrice($line);
             $lines[] = [
                 'item_name' => BillingFiscalSource::name($line, $locale).self::detail($line, $perUnit, $locale),
-                'item_code' => strtoupper((string) ($line['key'] ?? $line['type'])),
+                'item_code' => $line['type'] === 'app' ? 'APP' : strtoupper((string) ($line['key'] ?? $line['type'])),
                 'qty' => (string) $qty,
                 'unit' => $perUnit && isset($line['unit']) ? __('billing.units.'.$line['unit'], [], $locale) : '',
                 'unit_price' => $money($unitPrice),
@@ -161,7 +161,7 @@ class BillingInvoicePdf
         $billable = (int) ($line['billable'] ?? $quantity);
         $parts = [];
 
-        if ($line['type'] === 'proration') {
+        if ($line['type'] === 'proration' || ($line['type'] === 'app' && isset($line['period_days']))) {
             $parts[] = __('billing.lines.proration_days', ['days' => $quantity, 'period' => (int) ($line['period_days'] ?? 0)], $locale);
         } elseif ($line['type'] === 'overage') {
             $parts[] = __('billing.lines.overage_days', ['quantity' => $quantity, 'unit' => __('billing.units.'.($line['unit'] ?? 'device'), [], $locale), 'days' => (int) ($line['days'] ?? 0), 'period' => (int) ($line['period_days'] ?? 0)], $locale);

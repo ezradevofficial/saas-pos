@@ -176,7 +176,7 @@ function ReleaseDialog({ id, onClose }) {
               <ul className="flex list-disc flex-col gap-1 px-9 py-4 text-body text-danger">{data.validation.errors.map((line) => <li key={line}>{line}</li>)}</ul>
             </Card>
           ) : (
-            <Alert tone="success" title={t('admin.packs.noErrors')} />
+            <Alert tone="success" title={t(data.status === 'draft' ? 'admin.packs.noErrors' : 'admin.packs.noErrorsDecided')} />
           )}
           {data.validation.warnings.length ? (
             <Card title={t('admin.packs.warnings')}>

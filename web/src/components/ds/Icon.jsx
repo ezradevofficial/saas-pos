@@ -1,5 +1,7 @@
 import {
   Code2,
+  LayoutGrid,
+  Store,
   CalendarDays,
   FilePen,
   Handshake,
@@ -232,6 +234,9 @@ const ICONS = {
   quotes: FilePen,
   calendar: CalendarDays,
   targets: Target,
+  // MKT-01, MKT-02: the marketplace and installed apps.
+  marketplace: Store,
+  apps: LayoutGrid,
 }
 
 /** Lucide line icon: 1.5 stroke, 16px in navigation, 18px in tools. Decorative only. */

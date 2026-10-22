@@ -18,6 +18,14 @@ use Illuminate\Support\Facades\DB;
 // (RoleTemplates::refresh), which every migrate ends with.
 return new class extends Migration
 {
+    // The tenant work runs on the tenant connection. Inside the migration's
+    // own transaction the owner connection would hold the lock from the
+    // `alter table limit_rules` while the tenant connection waits for it, and
+    // the idle-in-transaction timeout (60 s) ends the migration on any
+    // database that already has tenants. So no wrapping transaction: the
+    // constraint change commits first, and each tenant runs in its own.
+    public $withinTransaction = false;
+
     public function up(): void
     {
         DB::statement('alter table limit_rules drop constraint limit_rules_key_check');

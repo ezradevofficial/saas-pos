@@ -7,6 +7,7 @@ import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
 import { Widget } from '@/components/dashboard/widgets'
 import { Button } from '@/components/ds'
 import { GettingStarted } from '@/components/onboarding/GettingStarted'
+import { useSupportSession } from '@/auth/useSupportSession'
 import { resumePath, useOnboarding } from '@/pages/onboarding/useOnboarding'
 import { PageHeader } from '@/layouts/PageHeader'
 import { useNavigation } from '@/layouts/useNavigation'
@@ -16,6 +17,7 @@ import { useLocale } from '@/lib/useLocale'
 
 /** The dashboard, under a greeting; "Customise my dashboard" opens the user's own copy in the designer. */
 export default function Home() {
+  const { readOnly } = useSupportSession()
   const { t } = useTranslation()
   const { user } = useAuth()
   const location = useLocation()
@@ -48,12 +50,15 @@ export default function Home() {
         eyebrow={formatLongDate(now, locale)}
         title={dashboard?.title || greetings[partOfDay(now.getHours())]}
         actions={
-          <Button icon="layouts" onClick={() => navigate('/dashboard/customise')}>
-            {t('layouts.dashboard.customise')}
-          </Button>
+          readOnly ? null : (
+            <Button icon="layouts" onClick={() => navigate('/dashboard/customise')}>
+              {t('layouts.dashboard.customise')}
+            </Button>
+          )
         }
       />
-      <GettingStarted />
+      {/* RBAC-13: a read-only support session changes nothing, its own dashboard and onboarding steps included. */}
+      {readOnly ? null : <GettingStarted />}
       {isLoading ? (
         <p className="text-body text-ink-muted">{t('common.loading')}</p>
       ) : (
