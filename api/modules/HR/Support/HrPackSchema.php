@@ -35,6 +35,12 @@ final class HrPackSchema
             'statutory_leave_types' => ['present', 'array'],
             'statutory_leave_types.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/'],
             'statutory_leave_types.*.days' => ['present', 'nullable', 'integer', 'min:0', 'max:366'],
+            // CP-01: a paid type's share of pay as an exact fraction ("2/3"), less than 1.
+            'statutory_leave_types.*.pay_share' => ['sometimes', 'string', 'regex:/^[1-9][0-9]?\/[1-9][0-9]?\z/'],
+            // HR-13: more yearly days per completed years of service.
+            'statutory_leave_types.*.seniority' => ['sometimes', 'array'],
+            'statutory_leave_types.*.seniority.every_years' => ['required_with:statutory_leave_types.*.seniority', 'integer', 'min:1', 'max:50'],
+            'statutory_leave_types.*.seniority.days' => ['required_with:statutory_leave_types.*.seniority', 'integer', 'min:1', 'max:30'],
             'statutory_leave_types.*.needs_confirmation' => ['required', 'boolean'],
             'statutory_leave_types.*.effective_from' => ['required', 'date_format:Y-m-d'],
             'statutory_leave_types.*.effective_to' => ['present', 'nullable', 'date_format:Y-m-d'],
@@ -44,9 +50,30 @@ final class HrPackSchema
             throw new InvalidArgumentException(implode(' ', $validator->errors()->all()));
         }
 
-        // CP-01: researched rows carry their confidence (high or medium), date and sources.
+        // CP-01: researched rows carry their confidence (high, medium or low), date and sources.
         foreach ([...$content['identifier_types'], ...$content['statutory_leave_types']] as $row) {
             ResearchStatus::check($row, (string) $row['key']);
+        }
+
+        foreach ($content['statutory_leave_types'] as $type) {
+            // HR-13: other yearly days under an age carry their own research status.
+            if (array_key_exists('under_age', $type)) {
+                $under = $type['under_age'];
+
+                if (! is_array($under) || ! is_int($under['age'] ?? null) || $under['age'] < 1 || $under['age'] > 30 || ! is_int($under['days'] ?? null) || $under['days'] < 0 || $under['days'] > 366) {
+                    throw new InvalidArgumentException("statutory_leave_types.{$type['key']}: under_age has an age (1 to 30) and days.");
+                }
+
+                ResearchStatus::check($under, "statutory_leave_types.{$type['key']}.under_age");
+            }
+
+            if (array_key_exists('pay_share', $type)) {
+                [$numerator, $denominator] = array_map('intval', explode('/', (string) $type['pay_share']));
+
+                if (($type['paid'] ?? null) !== true || $numerator >= $denominator) {
+                    throw new InvalidArgumentException("statutory_leave_types.{$type['key']}: pay_share is a fraction below 1 of a paid type.");
+                }
+            }
         }
 
         foreach ($content['identifier_types'] as $type) {

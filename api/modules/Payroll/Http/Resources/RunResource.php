@@ -2,6 +2,7 @@
 
 namespace Modules\Payroll\Http\Resources;
 
+use App\Core\CountryPacks\ResearchStatus;
 use App\Core\Identity\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -52,7 +53,7 @@ class RunResource extends JsonResource
             // while unconfirmed and those the company marked not applicable.
             'statutory' => [
                 // S1: each researched value with its component's name and its assumptions worded for people.
-                'researched' => array_map(fn (array $row) => [...$row, 'name' => PayrollPack::label('components', $row['component']),
+                'researched' => array_map(fn (array $row) => [...$row, 'name' => PayrollPack::label('components', $row['display'] ?? $row['component']),
                     'assumed_names' => array_map(fn (string $f) => PayrollPack::assumedLabel($f), $row['assumed'] ?? [])], $run->inputs['statutory']['researched'] ?? []),
                 'not_applied' => $run->inputs['statutory']['not_applied'] ?? [],
                 // HR-12: statutory half-pay leave days (KE sick leave) paid in full for now: {days, employees}.
@@ -60,6 +61,8 @@ class RunResource extends JsonResource
                 'not_applicable' => array_map(fn (array $row) => [...$row, 'name' => PayrollPack::label('components', $row['component'])], $run->inputs['statutory']['not_applicable'] ?? []),
             ],
             'uses_researched_values' => ($run->inputs['statutory']['researched'] ?? []) !== [],
+            // CP-01: one of them is low confidence (the stronger notice).
+            'uses_low_confidence_values' => collect($run->inputs['statutory']['researched'] ?? [])->contains(fn (array $row) => ResearchStatus::lowResearch($row)),
             // Decisions 29, 33, 40: open attendance periods, late HR changes since the last run, employees without a pay group.
             'review' => [
                 'attendance_open' => $run->inputs['review']['attendance_open'] ?? [],

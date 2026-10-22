@@ -25,7 +25,7 @@ class ReturnResource extends JsonResource
             'id' => $r->id,
             'company_id' => $r->company_id,
             'type' => $r->type,
-            'name' => PayrollPack::label('returns', $r->type),
+            'name' => PayrollPack::label('returns', $r->totals['display'] ?? $r->type),
             'period_start' => $r->period_start->toDateString(),
             'period_end' => $r->period_end->toDateString(),
             'runs' => count($r->run_ids),
@@ -33,7 +33,7 @@ class ReturnResource extends JsonResource
             'needs_confirmation' => $r->needs_confirmation,
             ...(app(PayFields::class)->hides(PayFields::TOTALS, $request) ? [] : ['totals' => array_map(fn (string $code, array $t) => [
                 'code' => $code,
-                'name' => PayrollPack::label('components', $code),
+                'name' => PayrollPack::label('components', $r->totals['display_codes'][$code] ?? $code),
                 'employee' => Refs::money($t['employee_minor'], $currency),
                 'employer' => Refs::money($t['employer_minor'], $currency),
             ], array_keys($r->totals['components'] ?? []), array_values($r->totals['components'] ?? []))]),

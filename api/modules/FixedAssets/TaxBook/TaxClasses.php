@@ -11,7 +11,10 @@ use InvalidArgumentException;
  * from its pack (`api/country-packs/{CODE}/fixed_assets.json`): key,
  * method (`straight_line`, `reducing_balance`), annual rate (percent) and
  * the dates it is in force; a key may have several rows, one per period
- * (review #11). A class with a null method or rate, or flagged
+ * (review #11). A row may have a `first_year_rate` (KE: machinery used
+ * for manufacture, 50% in the first year of use): the year an asset
+ * enters service takes it on cost, and later years take `rate` on the
+ * residue (cost less that first allowance), straight line. A class with a null method or rate, or flagged
  * `needs_confirmation`, is unconfirmed: nothing is computed from it. The
  * pack's `acquisition_rule` says how the year an asset enters service
  * counts (`full_year`, or `pro_rata_months`: its months in service over
@@ -80,7 +83,7 @@ class TaxClasses
     /** Whether the class row can be computed from: a known method and rate, confirmed. */
     public static function confirmed(?array $class): bool
     {
-        // CP-01: confirmed, or researched at high or medium confidence (ResearchStatus), with a known method and rate.
+        // CP-01: confirmed, or researched at any confidence (ResearchStatus), with a known method and rate.
         return $class !== null && ResearchStatus::usable($class) && $class['rate'] !== null && in_array($class['method'], self::METHODS, true);
     }
 
@@ -124,8 +127,10 @@ class TaxClasses
                 'key' => $key,
                 'method' => $row['method'] ?? null,
                 'rate' => isset($row['rate']) ? (string) $row['rate'] : null,
+                // KE Second Schedule: a first-year rate (50% in the first year of use), then `rate` on the residue.
+                'first_year_rate' => isset($row['first_year_rate']) ? (string) $row['first_year_rate'] : null,
                 'needs_confirmation' => (bool) ($row['needs_confirmation'] ?? true),
-                ...array_intersect_key($row, array_flip(['status', 'confidence'])),
+                ...array_intersect_key($row, array_flip(['status', 'confidence', 'researched_on', 'source'])),
                 'effective_from' => $row['effective_from'] ?? null,
                 'effective_to' => $row['effective_to'] ?? null,
             ];

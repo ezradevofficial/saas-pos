@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Taxes;
 
 use App\Core\Audit\Audited;
+use App\Core\CountryPacks\ResearchStatus;
 use App\Core\Rbac\HasScope;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\BelongsToTenant;
@@ -56,6 +57,12 @@ class TaxRate extends Model implements HasScope
     public function isResearched(): bool
     {
         return $this->research !== null && ! $this->isNeeded();
+    }
+
+    /** CP-01: researched at low confidence (the stronger notice). */
+    public function isLowConfidence(): bool
+    {
+        return $this->isResearched() && ResearchStatus::lowResearch($this->research);
     }
 
     public function scope(): Scope

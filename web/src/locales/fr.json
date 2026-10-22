@@ -8282,8 +8282,11 @@
         "qualifying_months": "mois de service requis",
         "half_pay_days": "jours à demi-salaire",
         "events": "jours par évènement",
-        "count_basis": "mode de décompte des jours"
-      }
+        "count_basis": "mode de décompte des jours",
+        "date_of_birth": "un salarié sans date de naissance reçoit les jours des adultes"
+      },
+      "paidShare": "Payé aux {{share}} de la rémunération",
+      "underAge": "Moins de {{age}} ans : {{days}} jours par an"
     },
     "week": {
       "description": "Les quarts planifiés par employé et par jour.",
@@ -10220,7 +10223,9 @@
         "cnss_family": "CNSS prestations familiales",
         "inpp": "INPP",
         "onem": "ONEM",
-        "family_allowance": "Allocations familiales"
+        "family_allowance": "Allocations familiales",
+        "irpp": "IRPP",
+        "irpp_dependants": "Réduction d’IRPP pour charges de famille"
       },
       "fields": {
         "period": "aucune période en vigueur",
@@ -11619,7 +11624,9 @@
       "needsConfirmation": "À confirmer",
       "noClasses": "Ce pack pays n’a pas de classes fiscales.",
       "toConfirm": "Ce que le propriétaire doit confirmer",
-      "saved": "Paramètres enregistrés."
+      "saved": "Paramètres enregistrés.",
+      "firstYearRate": "{{first}} % la première année, puis {{rate}} % du reste",
+      "status": "Statut"
     }
   },
   "ecommerce": {
@@ -13444,7 +13451,11 @@
     "researched": {
       "title": "Valeurs issues de recherches publiques",
       "body": "Certaines valeurs légales proviennent de recherches publiques et n’ont pas été confirmées par un comptable. Vérifiez-les avant toute déclaration.",
-      "link": "Voir les taux légaux"
+      "link": "Voir les taux légaux",
+      "low": {
+        "title": "Recherché, confiance faible : non confirmé par un comptable",
+        "body": "Certaines valeurs utilisées proviennent de recherches publiques dont les sources se contredisent ou sont minces. Faites-les vérifier par un comptable avant toute déclaration ou tout paiement."
+      }
     },
     "status": {
       "researched": "Recherchée",
@@ -13459,7 +13470,8 @@
     },
     "researchedOn": "recherchée le {{date}}",
     "assumed": "Supposé jusqu’à confirmation : {{fields}}",
-    "lowConfidence": "Les sources se contredisent : aucune valeur n’est saisie."
+    "lowConfidence": "Les sources se contredisent : aucune valeur n’est saisie.",
+    "lowBadge": "Recherché, confiance faible : non confirmé par un comptable"
   },
   "optOut": {
     "title": "Ne plus recevoir d’e-mails marketing",

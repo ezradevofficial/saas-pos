@@ -21,9 +21,11 @@ final class LeaveRecords
      */
     public function unpaidOfCompany(string $companyId, ?DateTimeInterface $since = null): array
     {
-        // CP-01, HR-12: unpaid types, types whose pay is not confirmed (paid null), and requests with half-pay days.
-        $types = LeaveType::query()->where('company_id', $companyId)->pluck('paid', 'id')->all();
-        $watched = array_keys(array_filter($types, fn ($paid) => $paid !== true));
+        // CP-01, HR-12: unpaid types, types whose pay is not confirmed (paid null) or paid at a share, and requests with half-pay days.
+        $rows = LeaveType::query()->where('company_id', $companyId)->get(['id', 'paid', 'pay_share'])->keyBy('id');
+        $types = $rows->map(fn (LeaveType $t) => $t->paid)->all();
+        $shares = $rows->map(fn (LeaveType $t) => $t->paid === true ? $t->pay_share : null)->all();
+        $watched = array_keys(array_filter($types, fn ($paid, $id) => $paid !== true || $shares[$id] !== null, ARRAY_FILTER_USE_BOTH));
 
         return LeaveRequest::query()->where('company_id', $companyId)
             ->where(fn ($q) => $q->whereIn('leave_type_id', $watched)->orWhere('half_pay_days', '>', 0))
@@ -38,6 +40,7 @@ final class LeaveRecords
                 'dates' => array_values((array) $r->dates),
                 'paid' => array_key_exists($r->leave_type_id, $types) ? $types[$r->leave_type_id] : true,
                 'half_pay_days' => (string) ($r->half_pay_days ?? '0'),
+                'pay_share' => $shares[$r->leave_type_id] ?? null,
                 'updated_at' => $r->updated_at?->toIso8601String(),
             ])->all();
     }

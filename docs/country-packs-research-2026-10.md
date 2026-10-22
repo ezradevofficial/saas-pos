@@ -6,7 +6,7 @@ The owner asked for these values to be researched and used ("put what is current
 
 - **High**: several independent sources agree, or KRA/NSSF published it. **Applied.**
 - **Medium**: sources mostly agree, with a minor gap. **Applied** and marked `researched`. Runs show a "researched, not yet confirmed by an accountant" notice.
-- **Low**: sources conflict. **Not applied.** The value stays "needs confirmation" and blocks the action that depends on it, as before.
+- **Low**: sources conflict. **Not applied** (until 2026-10-22). The value stays "needs confirmation" and blocks the action that depends on it, as before. Since the owner decision of 2026-10-22, low-confidence values are applied too, with the stronger notice: see [Applied 2026-10-22 by owner decision](#applied-2026-10-22-by-owner-decision).
 
 Values go into the packs with their source and an effective date. When the owner confirms or corrects a value, it is published through the country pack release flow (ADM-04, ADR 022).
 
@@ -155,8 +155,10 @@ record it, and the web app shows the "from public research" notice.
 | CD `hr.json` | Maternity 14 weeks (98 calendar days; pay null: the pay rate is not confirmed, so payroll runs with maternity days are blocked) | Medium |
 | | Circumstantial leave 10 working days a year; own marriage 2, birth of a child 2 | Medium |
 
-Not applied (low confidence or not found), still null and
-`needs_confirmation`:
+Not applied on 2026-10-17 (low confidence or not found), still null and
+`needs_confirmation` then. Most of these were applied on 2026-10-22: see
+[Applied 2026-10-22 by owner decision](#applied-2026-10-22-by-owner-decision).
+
 
 - KE tax depreciation (fixed assets tax book stays refused).
 - CD INPP: blocks payroll runs of a company with employees until
@@ -185,6 +187,62 @@ Confirming or correcting a value: publish the pack with the row's
 pack release flow (ADM-04, ADR 022). Tax rate rows follow the new version
 (their research is cleared); HR leave types already copied keep their
 days and research until the company confirms or changes them.
+
+## Applied 2026-10-22 by owner decision
+
+On 2026-10-22 the owner decided to use the researched values for every
+statutory item that was still blocked, **knowing they have not been
+confirmed by an accountant**. This overrides, for these items only, the
+rule that low-confidence values are never entered. Every value is a pack
+row with `status: researched`, its `confidence`, `researched_on:
+2026-10-22` and its `source` URLs. Low-confidence rows are used like the
+others, and:
+
+- runs, tax codes, leave types and requests, the statutory rates page and
+  the fixed assets tax classes show "Researched, low confidence: not
+  confirmed by an accountant" (en, fr);
+- the pack release validator warns on every low-confidence row
+  (`country_packs.releases.low_confidence`), so approvers see each one.
+
+A research pass on 2026-10-22 checked the items. The owner then decided
+the points it raised (also 2026-10-22): INPP by date, CD annual leave by
+age, IRPP from 2026-01-01, and maternity, the dependants reduction and the
+KE tax classes raised to medium. The table shows the result.
+
+| Value applied | Confidence | Sources |
+| --- | --- | --- |
+| **CD INPP** (employer, on gross pay), until 2025-12-31: 3% up to 50 employees, 2% for 51 to 300, 1% above 300. | Low | ANAPI https://www.investindrc.cd/fr/spip.php?article181=&lang=fr; Africarrières https://africarrieres.com/rd-congo/pt/guide/employeur-entreprise/charges-employeur; PwC https://taxsummaries.pwc.com/democratic-republic-of-the-congo/individual/other-taxes |
+| **CD INPP** from 2026-01-01 (interministerial order, reported): 3.5% up to 50 employees, 3% for 51 to 300, 2% above 300. **The order itself was not found** (recorded as an assumption, `legal_text`). | Low | PaySpace https://payspace.com/blog/drc-inpp-contribution-rate-changes; Sage https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/263531/democratic-republic-of-congo-drc-increase-in-national-institute-of-professional-preparation-inpp-contribution-rates |
+| **CD IRPP** from 2026-01-01 (Law 23/053): the IPR bands, cap and minimum unchanged, the monthly tax rounded to the nearest CDF 100 (applied once; art. 150 is reported as rounding to the franc and then to CDF 100, which can differ at the boundary). Labelled IRPP from that date on lines, payslips, returns and screens (`display_code`); IPR before, rounded to the franc. The minimum-before-cap order (low on its own) sits in this medium period. | Medium (IPR until 2025-12-31: low) | Sage https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/257552/democratic-republic-of-congo-drc-tax-reforms-affecting-payroll-law-no-23-053; droitnumerique.cd https://droitnumerique.cd/wp-content/uploads/2026/01/N%C2%B014-I-NEWS-JURITECH-1.pdf; Monrespro; PwC deductions |
+| **CD IPR dependants reduction** 2% of IPR per dependant, at most 9. (PwC and Sage agree; "IRPP reduction for dependants" from 2026-01-01; a Sage note says no rebate above the third band, one source: not applied.) | Medium | Monrespro https://business.monrespro.cd/blog/ipr-impot-professionnel-remunerations-rdc; PwC https://taxsummaries.pwc.com/democratic-republic-of-the-congo/individual/deductions; Sage https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/257552/democratic-republic-of-congo-drc-tax-reforms-affecting-payroll-law-no-23-053 |
+| **CD CNSS deducted from the IPR base.** The quick pass found the sources leaning this way: PwC (reviewed April 2026) says the employee's share is deductible from the IPR base, and a net-pay calculator agrees; one other calculator disagrees. Applied (`reduces_taxable: true`). | Low | PwC https://taxsummaries.pwc.com/democratic-republic-of-the-congo/individual/deductions; Afrotools https://afrotools.com/fr/rdc/calculateur-salaire-net; ANAPI and Africarrières (rates) |
+| **CD IPR minimum against the 30% cap:** the current order is kept (the CDF 2,000 minimum first, the cap wins). Marked researched (the 2025 IPR period is low; from 2026 it sits in the medium IRPP period); rounding and the monthly minimum stay assumed. | Low | Monrespro; PwC deductions (above) |
+| **CD annual leave** (art. 141), after 12 months of service, plus 1 working day per 5 years of seniority: adults 1 working day per month, 12 a year. | Medium (the Code's text) | Code du travail (Wikisource) https://fr.wikisource.org/wiki/Code_du_Travail_de_la_R%C3%A9publique_d%C3%A9mocratique_du_Congo; Legavox https://www.legavox.fr/blog/maxencekiyana/conge-droit-pour-travailleur-32101.htm; ILO https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf |
+| **CD annual leave, under 18:** 1.5 working days per month, 18 a year (+1 per 5 years). Under-18 status comes from the employee's date of birth at the start of the accrual period; an employee without a date of birth takes the adult days (assumed, `date_of_birth`). | Low | Wikisource; Legavox |
+| **CD maternity pay** 2/3 of pay for the 14 weeks (98 calendar days), art. 130; replaces `paid: null`. Payroll withholds a third of the daily rate for each day. | Medium (the art. 130 text) | actualite.cd https://actualite.cd/2023/05/01/rdc-que-dit-le-code-du-travail-au-sujet-de-la-maternite and https://actualite.cd/2023/05/02/rdc-conge-de-maternite-faut-il-accorder-la-totalite-du-salaire-lemployee-des-kinois; Wikisource; Africarrières; ILO |
+| **KE tax depreciation** (Income Tax Act Second Schedule, all "in equal instalments", straight line): buildings (commercial) 10%; machinery (used for manufacture) 50% in the first year of use, then 25% a year of the residue; motor vehicles 25%; computers and software 25%; furniture and fittings 10%; telecommunication equipment 10%; other machinery 10%. The year of first use counts in full (an assumption, low confidence: no time apportionment found). The fixed assets tax book can compute. | Medium (the consolidated Act and PwC agree; the acquisition rule low) | Kenya Law, Income Tax Act as at 2026-07-01 https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01; PwC https://taxsummaries.pwc.com/kenya/corporate/deductions; KRA notice 1529 https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure; RSM on the Finance Act 2023 https://www.rsm.global/kenya/sites/default/files/media/RSMEA%20Newsletter_%20Overview%20of%20The%20Kenya%20Finance%20Act%202023-24_0.pdf |
+| **KE withholding VAT** 2% of the taxable value, withheld by agents the Commissioner appoints (Tax Procedures Act s. 42A; rate from the Finance Act 2019). No later change found; the Finance Act 2026 was not checked. | Medium | KRA https://www.kra.go.ke/images/publications/Overview-of-Withholding-VAT-December-2024.pdf, https://www.kra.go.ke/images/publications/Taxpayer-Guidelines-for-WHVAT.pdf, https://www.kra.go.ke/images/publications/Guidelines-ForAppointed-Vat-Withholding-Agents-061223.pdf |
+| **KE public holidays** (Public Holidays Act, Schedule Part I): New Year 1 Jan, Labour Day 1 May, Madaraka 1 June, Mazingira Day 10 Oct (formerly Utamaduni Day, renamed 2024), Mashujaa 20 Oct, Jamhuri 12 Dec, Christmas 25 Dec, Boxing Day 26 Dec; Good Friday and Easter Monday as dates for 2026 to 2030. Section 4: a Part I day on a Sunday moves to the first following day that is not a public holiday (`sunday_rule: next_free_day`); a Saturday holiday does not move. | High | Kenya Law, Public Holidays Act as at 2024-04-26 https://new.kenyalaw.org/akn/ke/act/1912/21/eng@2024-04-26; The Star https://www.the-star.co.ke/news/2024-04-24-october-10-utamaduni-day-renamed-mazingira-day |
+
+**Stayed blocked:**
+
+- **CD sick leave:** "Days needed". The Code (art. 105) keeps 2/3 of cash
+  pay for the whole incapacity for ordinary illness (art. 106: the first
+  six months for an occupational accident or disease; art. 60: the
+  contract may end after six months of incapacity), but no source states
+  a number of days. Each company sets its days.
+- **CD tax depreciation:** no statutory class table was found; the tax
+  book stays refused.
+- **CD ID formats** (national ID, CNSS number): no source; not enforced.
+- **KE national ID / Maisha Namba:** stays a warning only (no
+  authoritative source).
+- **KE Idd-ul-Fitr:** gazetted each year; entered when gazetted. Idd-ul-Azha
+  and Diwali are holidays for those communities only (Parts II and III).
+- Still not covered: CD family allowance per child; weekly and bi-weekly
+  pay rules; return and payment file layouts.
+
+**Found, not applied:** a Sage note that no IRPP dependants rebate applies
+above the third band (one source). In the CD payroll pack's `todo`.
 
 ## Sources
 

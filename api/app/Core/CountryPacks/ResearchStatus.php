@@ -12,13 +12,17 @@ use InvalidArgumentException;
  *   official source. `needs_confirmation: false`.
  * - `researched`: taken from public research (docs/country-packs-research-2026-10.md),
  *   not yet confirmed. `needs_confirmation: false`, with `source` (a list
- *   of https URLs), `researched_on` (a date) and `confidence` (`high` or
- *   `medium`). Usable: what uses it records that it did, and the web app
- *   shows the "from public research" notice.
+ *   of https URLs), `researched_on` (a date) and `confidence` (`high`,
+ *   `medium` or `low`). Usable: what uses it records that it did, and the
+ *   web app shows the "from public research" notice; a `low` row shows the
+ *   stronger "Researched, low confidence: not confirmed by an accountant"
+ *   notice, and the pack release validator warns on it (owner decision
+ *   2026-10-22: low-confidence research is entered, knowing it is not
+ *   confirmed by an accountant).
  * - `needs_confirmation`: no usable figure. `needs_confirmation: true`;
- *   figures stay null and block what needs them. A low-confidence research
- *   result is never entered: the row stays here, and may say
- *   `confidence: low` with its `source` for the reader.
+ *   figures stay null and block what needs them. The row may say
+ *   `confidence: low` with its `source` for the reader (research that was
+ *   not entered).
  *
  * Validation (check) requires an explicit `status` on every row; at run
  * time a row without one is read from `needs_confirmation`. A researched row may list in
@@ -37,8 +41,11 @@ final class ResearchStatus
 
     public const STATUSES = [self::CONFIRMED, self::RESEARCHED, self::NEEDS_CONFIRMATION];
 
-    /** Research confidence levels that are entered and used; `low` never is. */
-    public const USABLE_CONFIDENCE = ['high', 'medium'];
+    /** Research confidence levels that are entered and used (owner decision 2026-10-22: low too, with the stronger notice). */
+    public const USABLE_CONFIDENCE = ['high', 'medium', 'low'];
+
+    /** The confidence that shows the "Researched, low confidence" notice and a release warning. */
+    public const LOW = 'low';
 
     public const CONFIDENCE = ['high', 'medium', 'low'];
 
@@ -54,7 +61,7 @@ final class ResearchStatus
         return ($row['needs_confirmation'] ?? true) === false ? self::CONFIRMED : self::NEEDS_CONFIRMATION;
     }
 
-    /** True when the row's values may be used: confirmed, or researched at high or medium confidence. */
+    /** True when the row's values may be used: confirmed, or researched (at any confidence, with its source). */
     public static function usable(array $row): bool
     {
         if (($row['needs_confirmation'] ?? true) !== false) {
@@ -86,6 +93,18 @@ final class ResearchStatus
             'source' => array_values(array_map('strval', (array) ($row['source'] ?? []))),
             'assumed' => array_values(array_map('strval', (array) ($row['assumed'] ?? []))),
         ];
+    }
+
+    /** True when the row is researched at low confidence (the stronger notice, CP-01). */
+    public static function low(array $row): bool
+    {
+        return self::of($row) === self::RESEARCHED && ($row['confidence'] ?? null) === self::LOW;
+    }
+
+    /** True when a recorded research (from research()) is low confidence. */
+    public static function lowResearch(?array $research): bool
+    {
+        return ($research['confidence'] ?? null) === self::LOW;
     }
 
     /**
@@ -131,13 +150,15 @@ final class ResearchStatus
             }
 
             if (! in_array($row['confidence'] ?? null, self::USABLE_CONFIDENCE, true)) {
-                throw new InvalidArgumentException("{$where}: a researched value has confidence high or medium; low-confidence values are not entered.");
+                throw new InvalidArgumentException("{$where}: a researched value has confidence high, medium or low.");
             }
 
             if (! array_key_exists('source', $row) || ! array_key_exists('researched_on', $row)) {
                 throw new InvalidArgumentException("{$where}: a researched value has its source and researched_on.");
             }
-        } elseif (($row['confidence'] ?? null) !== null && $row['confidence'] !== 'low') {
+        } elseif ($status === self::CONFIRMED && ($row['confidence'] ?? null) !== null) {
+            throw new InvalidArgumentException("{$where}: a confirmed value has no research confidence.");
+        } elseif (($row['confidence'] ?? null) !== null && $row['confidence'] !== self::LOW) {
             throw new InvalidArgumentException("{$where}: confidence high or medium is only for a researched value.");
         }
 
@@ -147,10 +168,6 @@ final class ResearchStatus
 
         if ($status === self::NEEDS_CONFIRMATION && $needs !== true) {
             throw new InvalidArgumentException("{$where}: a value that needs confirmation has needs_confirmation true.");
-        }
-
-        if (($row['confidence'] ?? null) === 'low' && $needs !== true) {
-            throw new InvalidArgumentException("{$where}: a low-confidence value is not entered; it stays needs_confirmation.");
         }
 
         if (array_key_exists('assumed', $row)) {

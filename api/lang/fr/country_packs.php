@@ -24,6 +24,7 @@ return [
         'missing_value' => ':path est marqué comme confirmé mais n’a pas de valeur pour :fields. Saisissez les chiffres ou marquez-le comme à confirmer.',
         'needs_confirmation' => ':path doit encore être confirmé ; ce qui l’utilise reste bloqué jusqu’à sa confirmation.',
         'pay_needs_confirmation' => ':path : le taux de rémunération n’est pas confirmé ; les paies comprenant ce congé restent bloquées jusqu’à sa confirmation.',
+        'low_confidence' => ':path : recherché, confiance faible : non confirmé par un comptable. La valeur est utilisée ; approuver cette publication la met en vigueur.',
         'status_change' => ':path : :from → :to. Approuver cette publication certifie ce changement.',
         'missing_key' => ':key dans :path omet :fields. Chaque ligne de ce pack en a besoin ; utilisez null pour un chiffre encore à confirmer.',
         'supersede_notes' => 'Rétablit le contenu de la version :version.',

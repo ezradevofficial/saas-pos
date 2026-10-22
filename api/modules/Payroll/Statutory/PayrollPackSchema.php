@@ -48,6 +48,11 @@ final class PayrollPackSchema
             'components.*.periods.*.needs_confirmation' => ['required', 'boolean'],
             'returns' => ['present', 'array'],
             'returns.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/', 'distinct'],
+            // CP-01: the label a period or a return is shown under (CD IRPP from 2026-01-01).
+            'components.*.periods.*.display_code' => ['sometimes', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/'],
+            'returns.*.display' => ['sometimes', 'array'],
+            'returns.*.display.*.from' => ['required', 'date_format:Y-m-d'],
+            'returns.*.display.*.code' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/'],
             'payment_formats' => ['present', 'array'],
         ]);
 
@@ -71,7 +76,7 @@ final class PayrollPackSchema
             }
         }
 
-        // CP-01: a researched period carries its confidence (high or medium), date and sources; low confidence is never entered.
+        // CP-01: a researched period carries its confidence (high, medium or low), date and sources.
         foreach ($content['components'] as $component) {
             foreach ($component['periods'] as $period) {
                 ResearchStatus::check($period, "components.{$component['code']}.{$period['effective_from']}");

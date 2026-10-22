@@ -26,6 +26,7 @@ return [
         'missing_value' => ':path is marked confirmed but has no value for :fields. Enter the figures, or mark it as needing confirmation.',
         'needs_confirmation' => ':path still needs confirmation; what uses it stays blocked until it is confirmed.',
         'pay_needs_confirmation' => ':path: the pay rate is not confirmed; payroll runs with this leave are blocked until it is.',
+        'low_confidence' => ':path: researched, low confidence: not confirmed by an accountant. It is used; approving this release puts it in force.',
         'status_change' => ':path: :from → :to. Approving this release certifies the change.',
         'missing_key' => ':key in :path leaves out :fields. Every row of this pack needs them; use null for a figure still to confirm.',
         'supersede_notes' => 'Puts back the content of release :version.',

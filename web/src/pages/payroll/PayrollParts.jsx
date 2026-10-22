@@ -62,7 +62,7 @@ export function MissingRates({ message, items = [] }) {
         {items.length ? (
           <ul className="flex flex-col gap-1">
             {items.map((item) => (
-              <li key={item.component}>{t('payroll.missing.item', { component: label('components', item.component), fields: (item.fields ?? []).map((field) => label('fields', field)).join(', ') })}</li>
+              <li key={item.component}>{t('payroll.missing.item', { component: label('components', item.display ?? item.component), fields: (item.fields ?? []).map((field) => label('fields', field)).join(', ') })}</li>
             ))}
           </ul>
         ) : null}
