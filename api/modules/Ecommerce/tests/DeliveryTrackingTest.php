@@ -161,6 +161,11 @@ class DeliveryTrackingTest extends TestCase
         $this->updates([[...$point, 'latitude' => '-1.3']])->assertStatus(422)->assertJsonPath('results.0.error.code', 'payload_mismatch');
         $this->assertNull($this->inTenant(fn () => DeliveryUpdate::query()->find($point['id'])));
         $this->assertSame(1, $this->inTenant(fn () => DeliveryLocation::query()->count()), 'the resend added no second point');
+
+        // Review M5: a point dated a month back is held at eight days ago, never earlier.
+        $this->updates([$this->update($delivery, 'location', ['latitude' => '-1.2700', 'longitude' => '36.8100', 'occurred_at' => CarbonImmutable::now()->subMonth()->toIso8601String()])])->assertOk();
+        $oldest = $this->inTenant(fn () => DeliveryLocation::query()->orderBy('recorded_at')->firstOrFail()->recorded_at);
+        $this->assertTrue($oldest->greaterThanOrEqualTo(CarbonImmutable::now()->subDays(8)->subMinute()));
     }
 
     public function test_the_backfill_clears_old_positions_and_re_keys_old_fingerprints(): void
