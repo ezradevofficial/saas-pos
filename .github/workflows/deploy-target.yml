@@ -24,16 +24,19 @@ on:
         description: Public API base URL baked into the web build
         required: true
         type: string
+    # Not host, user or path: a workflow_call secret with one of those names
+    # replaced HOST, USER or PATH in the job (PATH became the deploy path, so
+    # npm found no sh).
     secrets:
-      host:
+      deploy-host:
         required: true
-      user:
+      deploy-user:
         required: true
       ssh-key:
         required: true
       known-hosts:
         required: true
-      path:
+      deploy-path:
         required: true
       # NFR-10: optional; source maps are uploaded to Sentry only when set.
       sentry-auth-token:
@@ -58,20 +61,7 @@ jobs:
           node-version: '24'
           cache: npm
 
-      # Only the web app is built here, and it needs no install scripts.
-      # On the staging runner @sentry/cli's postinstall failed with
-      # "spawn sh ENOENT" (the React Native SDK's CLI, unused in this job).
-      - run: npm ci --ignore-scripts
-
-      # Diagnostics: npm reported "spawn sh ENOENT" in this job only.
-      - name: Shell and toolchain
-        run: |
-          echo "PATH=$PATH"
-          command -v sh || echo "no sh on PATH"
-          ls -l /bin/sh /usr/bin/sh || true
-          echo "script-shell=$(npm config get script-shell)"
-          echo "node=$(node -v) npm=$(npm -v)"
-          env | cut -d= -f1 | sort | tr '\n' ' '
+      - run: npm ci
 
       # NFR-10: the release is the commit; Sentry is on only when the
       # environment's SENTRY_WEB_DSN variable is set. Hidden source maps are
@@ -129,9 +119,9 @@ jobs:
       # warns and continues, since that release is not serving anyway.
       - name: Put the API in maintenance mode
         env:
-          HOST: ${{ secrets.host }}
-          DEPLOY_USER: ${{ secrets.user }}
-          DEPLOY_PATH: ${{ secrets.path }}
+          HOST: ${{ secrets.deploy-host }}
+          DEPLOY_USER: ${{ secrets.deploy-user }}
+          DEPLOY_PATH: ${{ secrets.deploy-path }}
         run: |
           ssh -i "$HOME/.ssh/deploy_key" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$HOST" \
             "DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") bash -se" <<'REMOTE'
@@ -150,9 +140,9 @@ jobs:
       # excluded, so --delete never touches them.
       - name: Rsync build to host
         env:
-          HOST: ${{ secrets.host }}
-          DEPLOY_USER: ${{ secrets.user }}
-          DEPLOY_PATH: ${{ secrets.path }}
+          HOST: ${{ secrets.deploy-host }}
+          DEPLOY_USER: ${{ secrets.deploy-user }}
+          DEPLOY_PATH: ${{ secrets.deploy-path }}
         run: |
           ssh_cmd="ssh -i $HOME/.ssh/deploy_key -o StrictHostKeyChecking=yes"
           rsync -az --delete -e "$ssh_cmd" \
@@ -184,9 +174,9 @@ jobs:
       # README "If a deploy stops".
       - name: Install, migrate, restart workers and go live
         env:
-          HOST: ${{ secrets.host }}
-          DEPLOY_USER: ${{ secrets.user }}
-          DEPLOY_PATH: ${{ secrets.path }}
+          HOST: ${{ secrets.deploy-host }}
+          DEPLOY_USER: ${{ secrets.deploy-user }}
+          DEPLOY_PATH: ${{ secrets.deploy-path }}
         run: |
           ssh -i "$HOME/.ssh/deploy_key" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$HOST" \
             "DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") bash -se" <<'REMOTE'
