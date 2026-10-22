@@ -6,10 +6,15 @@ use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\CreditLimits\CreditLimitChangeAccess;
 use App\Core\MasterData\Parties\Http\Resources\PartyResource;
+use App\Core\Privacy\Contracts\ReceivesOptOutReplies;
+use App\Core\Privacy\Http\Controllers\OptOutController;
 use App\Core\Rbac\OwnerGuard;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -112,6 +117,10 @@ class PrivacyServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // NFR-08: inbound SMS and WhatsApp replies opt out through this contract.
+        $this->app->bindIf(ReceivesOptOutReplies::class, OptOuts::class);
+        RateLimiter::for(OptOutController::LIMITER, fn (Request $request) => Limit::perMinute(30)->by(OptOutController::LIMITER.'|'.$request->ip()));
+
         Route::middleware('api')->prefix('api/v1')->group(__DIR__.'/routes.php');
     }
 }

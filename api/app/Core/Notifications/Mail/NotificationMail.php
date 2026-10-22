@@ -8,6 +8,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 
 /**
  * NOT-01, NOT-03: a notification email, plain text and HTML, from a
@@ -17,6 +18,10 @@ use Illuminate\Mail\Mailables\Envelope;
  * BR-06: $from is the tenant's own sender (BrandingSettings::sender, an
  * address on a verified domain of the tenant); null sends from the
  * platform's MAIL_FROM_ADDRESS.
+ *
+ * NFR-08: a marketing email has an unsubscribe link (the web page) in its
+ * footer and `List-Unsubscribe` / `List-Unsubscribe-Post` headers for a
+ * one-click unsubscribe from the mail client (RFC 8058).
  */
 class NotificationMail extends Mailable
 {
@@ -28,6 +33,8 @@ class NotificationMail extends Mailable
         string $locale,
         public readonly array $actions = [],
         public readonly ?Address $sender = null,
+        public readonly ?string $unsubscribeUrl = null,
+        public readonly ?string $oneClickUrl = null,
     ) {
         $this->locale($locale);
     }
@@ -35,6 +42,14 @@ class NotificationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(from: $this->sender, subject: $this->mailSubject);
+    }
+
+    public function headers(): Headers
+    {
+        return new Headers(text: $this->oneClickUrl === null ? [] : [
+            'List-Unsubscribe' => '<'.$this->oneClickUrl.'>',
+            'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+        ]);
     }
 
     public function content(): Content
@@ -46,6 +61,7 @@ class NotificationMail extends Mailable
                 'html' => TemplateRenderer::toHtml($this->text),
                 'text' => $this->text,
                 'url' => self::absolute($this->link),
+                'unsubscribe' => $this->unsubscribeUrl,
                 'actions' => array_values(array_filter($this->actions, fn ($a) => is_string($a['url'] ?? null) && str_starts_with($a['url'], rtrim((string) config('app.frontend_url'), '/').'/'))),
             ],
         );

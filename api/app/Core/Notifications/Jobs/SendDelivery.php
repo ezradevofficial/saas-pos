@@ -15,6 +15,7 @@ use App\Core\Notifications\Mail\MailActions;
 use App\Core\Notifications\Mail\NotificationMail;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Privacy\Consents;
+use App\Core\Privacy\OptOuts;
 use App\Core\Tenancy\Jobs\TenantAware;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Bus\Queueable;
@@ -218,11 +219,17 @@ class SendDelivery implements ShouldBeEncrypted, ShouldQueue
         }
 
         if ($delivery->channel === Channels::EMAIL) {
+            // NFR-08: a marketing email carries its unsubscribe link and List-Unsubscribe headers.
+            $marketing = $delivery->consent_subject_id !== null;
+            $optOuts = app(OptOuts::class);
+
             // Buttons such as single-use approve links are made now, never stored (MailActions).
             Mail::to($delivery->recipient)->send(new NotificationMail(
                 (string) $this->reveal($delivery->subject), (string) $this->reveal($delivery->body), $this->reveal($delivery->link),
                 $delivery->locale, app(MailActions::class)->for($delivery),
                 BrandedSender::address(),
+                $marketing ? $optOuts->pageUrl($this->tenantId, $delivery) : null,
+                $marketing ? $optOuts->oneClickUrl($this->tenantId, $delivery) : null,
             ));
 
             return new DriverResult;

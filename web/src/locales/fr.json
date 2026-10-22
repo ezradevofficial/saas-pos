@@ -13450,5 +13450,12 @@
     "researchedOn": "recherchée le {{date}}",
     "assumed": "Supposé jusqu’à confirmation : {{fields}}",
     "lowConfidence": "Les sources se contredisent : aucune valeur n’est saisie."
+  },
+  "optOut": {
+    "title": "Ne plus recevoir d’e-mails marketing",
+    "intro": "Vous ne recevrez plus les offres et nouveautés de cette entreprise par e-mail. Les messages sur vos commandes vous parviennent toujours.",
+    "confirm": "Ne plus recevoir d’e-mails marketing",
+    "doneTitle": "Vous êtes désinscrit",
+    "doneText": "Vous ne recevrez plus d’offres ni de nouveautés par e-mail de cette entreprise. Pour les recevoir de nouveau, prévenez l’entreprise."
   }
 }

@@ -76,7 +76,7 @@ class NotificationDelivery extends Model
     protected $fillable = [
         'user_id', 'notification_id', 'digest_id', 'event_type', 'channel', 'status', 'reason', 'recipient',
         'locale', 'subject', 'body', 'link', 'digest', 'attempts', 'error', 'provider_message_id',
-        'next_attempt_at', 'sent_at', 'delivered_at', 'failed_at', 'consent_subject_id',
+        'next_attempt_at', 'sent_at', 'delivered_at', 'failed_at', 'consent_subject_id', 'opted_out_at',
     ];
 
     protected $attributes = ['attempts' => 0];
@@ -89,6 +89,7 @@ class NotificationDelivery extends Model
             'sent_at' => 'datetime',
             'delivered_at' => 'datetime',
             'failed_at' => 'datetime',
+            'opted_out_at' => 'datetime',
         ];
     }
 

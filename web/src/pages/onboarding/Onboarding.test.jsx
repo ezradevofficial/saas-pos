@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 import { chooseOption } from '@/test/combobox'
+import i18n, { setLocale } from '@/i18n'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -84,6 +85,22 @@ describe('Onboarding screens', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/onboarding/modules'))
     expect(api.put).toHaveBeenCalledWith('onboarding/business', { business_type: 'pharmacy', outlets: 2 })
+  })
+
+  it('fetches the business types again in the new language after a language switch (L10N-01)', async () => {
+    const names = { en: 'Pharmacy or agrovet', fr: 'Pharmacie ou agrovet' }
+    setUp(() => state({ business_types: [{ key: 'pharmacy', name: names[i18n.language] ?? names.en, description: '' }] }))
+    renderApp('/onboarding/business')
+
+    expect(await screen.findByRole('button', { name: /Pharmacy or agrovet/ })).toBeInTheDocument()
+    const fetches = () => api.get.mock.calls.filter(([path]) => path === 'onboarding').length
+    const before = fetches()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Français' }))
+    expect(await screen.findByRole('button', { name: /Pharmacie ou agrovet/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Pharmacy or agrovet/ })).not.toBeInTheDocument()
+    expect(fetches()).toBeGreaterThan(before)
+    await act(() => setLocale('en'))
   })
 
   it('prices the selection live, offers the cheaper bundle and starts the trial (ONB-03, ONB-04)', async () => {

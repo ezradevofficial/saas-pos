@@ -4,6 +4,7 @@
 return [
     'anonymised_label' => 'Anonymisé :ref',
     'errors' => [
+        'opt_out_link_invalid' => 'Ce lien de désinscription ne fonctionne pas. Utilisez le lien d’un e-mail récent, ou demandez à l’entreprise d’arrêter les messages.',
         'subject_not_found' => 'Cette personne n’existe pas dans cette entreprise. Choisissez-la de nouveau dans la liste.',
         'not_correctable' => 'Ce champ ne peut pas être rectifié par une demande. Modifiez-le directement sur la fiche.',
         'not_approved' => 'Cette demande n’est pas encore approuvée. Approuvez-la d’abord, puis exécutez-la.',

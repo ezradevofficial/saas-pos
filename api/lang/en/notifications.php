@@ -87,6 +87,12 @@ return [
         'intro' => 'Here is what happened since your last summary.',
     ],
 
+    'marketing' => [
+        'reply_stop' => 'Reply STOP to opt out.',
+        'unsubscribe' => 'Unsubscribe',
+        'footer' => 'You get this email because you agreed to receive offers and news. To stop them, use the unsubscribe link.',
+    ],
+
     'mail' => [
         'open' => 'Open',
         'footer' => 'You get this email because of your notification settings in :app. To change them, open Settings, then Notifications.',
