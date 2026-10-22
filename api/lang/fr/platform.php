@@ -43,6 +43,7 @@ return [
     // RBAC-13 : accès du support avec consentement.
     'support' => [
         'request_open' => 'Vous avez déjà une demande ou une session active pour ce compte. Utilisez-la ou terminez-la d’abord.',
+        'request_limit' => 'Vous avez demandé l’accès à ce compte :count fois au cours de la dernière heure. Attendez une heure ou contactez le client autrement.',
         'not_pending' => 'Cette demande a déjà été tranchée.',
         'not_granted' => 'Le compte n’a pas accordé cet accès, ou il a pris fin. Demandez-le de nouveau si vous en avez encore besoin.',
         'not_active' => 'Cet accès n’est plus actif.',

@@ -40,6 +40,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *   whole document in memory.
  * - At most 10 exports per user per minute (the `exports` rate limiter).
  * - A column list the user's field rules hide entirely is refused (422).
+ * - Never for a support principal (RBAC-13, 403 `support_route_refused`).
  */
 class ListExport
 {
@@ -77,6 +78,12 @@ class ListExport
      */
     public function download(FormRequest $request, Builder $query): StreamedResponse
     {
+        // RBAC-13 (Phase 8 review M4): list exports leave the platform; a support session never
+        // downloads one, however the format was asked for (query string or body).
+        if ($request->user()?->support_grant_id !== null) {
+            throw new ApiException(403, 'support_route_refused', __('platform.support.route_refused'));
+        }
+
         $list = $request->list();
         $format = $request->exportFormat();
         $tenantId = $this->tenants->require();

@@ -43,6 +43,7 @@ return [
     // RBAC-13: support access with consent.
     'support' => [
         'request_open' => 'You already have a request or an active session for this tenant. Use it, or end it first.',
+        'request_limit' => 'You have asked this tenant for access :count times in the last hour. Wait an hour, or contact the tenant another way.',
         'not_pending' => 'This request was already decided.',
         'not_granted' => 'The tenant hasn’t granted this access, or it has ended. Ask again if you still need it.',
         'not_active' => 'This access isn’t active any more.',

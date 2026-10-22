@@ -64,7 +64,7 @@ Approving creates, in one transaction (serialised per tenant and app):
 
 The resource guard (`OAuthAuthenticator`, inside the Sanctum guard next to API keys) turns a valid JWT into the install's principal with its key as the request's key. From there everything is ADR 020's: deny by default outside `public-api` routes (403 `api_key_route_refused`), scopes per route and per permission, rate limits, usage, idempotency, and audit metadata naming the key, the install and the app.
 
-**Permissions** (core, tenant scope; Owner and Admin templates): `core.marketplace.view` (the listing, an app's page, the consent screen, installed apps), `core.marketplace.install` (install, consent again, uninstall), `core.developer.manage` (the developer portal). Installing a paid app also needs `core.subscription.manage` (403 `app_payment_not_allowed`). Support sessions never hold `install` or `developer.manage` (RBAC-13d: they make credentials).
+**Permissions** (core, tenant scope; Owner and Admin templates): `core.marketplace.view` (the listing, an app's page, the consent screen, installed apps), `core.marketplace.install` (install, consent again, uninstall), `core.developer.manage` (the developer portal). Installing a paid app also needs `core.subscription.manage` (403 `app_payment_not_allowed`). Support sessions never hold `install`, `developer.manage` or `core.api_key.manage` (RBAC-13d: they make credentials; the last also resets a sandbox).
 
 ### Scope changes and consent
 
