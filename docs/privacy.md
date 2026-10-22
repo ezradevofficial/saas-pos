@@ -35,7 +35,7 @@ API-key and marketplace app principals (status `service`) and support principals
 
 | Subject | Replaced | Kept, and why |
 | --- | --- | --- |
-| Customer (party) | name → "Anonymised XXXXXXXX"; legal name, tax ID cleared; phones, emails, addresses, custom fields emptied; the party archived. CRM leads linked to it: name, email, phone, organisation, title, notes, custom fields. Storefront account: name, email, phone; archived | sales, invoices, payments, journals, loyalty ledgers, fiscal submissions: kept and still linked to the (now anonymous) party, for tax and accounting law. **Once the customer has fiscal documents, the party keeps its tax ID and legal name, and its name becomes the legal name** (the POS reads the live party when it sends later refunds and voids to KRA eTIMS or the DGI); this is recorded in the request and the access report as "retained for legal obligation" (`fiscal_records`). While any of their fiscal documents is queued, sending, retrying or needs attention, the deletion waits (`fiscal_pending`). Storefront addresses (line, area, notes) and sign-in codes are cleared too |
+| Customer (party) | name → "Anonymised XXXXXXXX"; legal name, tax ID cleared; phones, emails, addresses, custom fields emptied; the party archived. CRM leads linked to it: name, email, phone, organisation, title, notes, custom fields. Storefront account: name, email, phone; archived | sales, invoices, payments, journals, loyalty ledgers, fiscal submissions: kept and still linked to the (now anonymous) party, for tax and accounting law. **A customer with fiscal sales is fully anonymised too** (owner decision 2026-10-22): each POS sale keeps a buyer snapshot (`pos_sales.buyer_tax_id`, `buyer_name`, as printed), and its fiscal documents, refunds and void are built from the snapshot, never from the party. The snapshots are recorded in the request and the access report as "retained for legal obligation" (`fiscal_records`, table `pos_sales`). While any of their fiscal documents is queued, sending, retrying or needs attention, the deletion waits (`fiscal_pending`). Storefront addresses (line, area, notes) and sign-in codes are cleared too |
 | Employee | work and personal email and phone, address, emergency contacts, medical notes, biometric reference, custom fields | name, number, identifiers (KRA PIN, NSSF, SHIF...), dates and pay history: statutory employment and tax records. Payslips and statutory returns are kept as issued |
 | User | name → anonymised label; email → a unique address under the reserved `.invalid` domain; phone and two-step secret cleared; sign-in history keeps no IP address or browser; one-time code destinations cleared; single sign-on links archived, their asserted email and subject replaced, so the identity provider can no longer sign the account in; deactivated, password replaced, every session revoked | the user's id on records they created or approved (audit). The last active Owner can never be anonymised (RBAC-10) |
 
@@ -47,6 +47,7 @@ The anonymisation's audit entry names the tables and columns changed, never the 
 | --- | --- | --- |
 | Audit log (AUD-03) | append-only and hash-chained: its earlier entries keep the values as they were | kept: integrity of the audit trail is a legal and security obligation; access to the log is restricted (`core.audit.view`). Documented to the person on request |
 | Fiscal documents and submissions (KRA eTIMS, DRC DGI) | carry buyer name and tax ID as transmitted | kept for the statutory period; cannot be changed after transmission |
+| POS sales' buyer snapshot | the buyer's tax ID and name as printed on the receipt | kept with the sale for the statutory period (`fiscal_records`); the party itself is anonymised |
 | Accounting journals, invoices | reference the party | kept: they reference an id; the party itself is anonymised |
 | Payroll and statutory returns | name and identifiers | kept for the statutory period; employee identity fields stay |
 | Backups | restored data predates the anonymisation | after any restore, re-run completed deletion requests made after the restore point (docs/backups.md) |
@@ -83,7 +84,7 @@ Today no module sends marketing yet (CRM campaigns and marketing lists are defer
 
 ## A closed business keeps a copy of its data
 
-A closed tenant refuses every sign-in (Phase 8 review H2), so its Owners could not export its data themselves. A business has a right to its data (data portability, Kenya Data Protection Act 2019, section 38). Built as the default; the owner to confirm (report, Decisions to confirm):
+A closed tenant refuses every sign-in (Phase 8 review H2), so its Owners could not export its data themselves. A business has a right to its data (data portability, Kenya Data Protection Act 2019, section 38). Built as the default and accepted by the owner 2026-10-22:
 
 - **When a tenant closes**, by whichever path (`TenantClosed`, raised by the tenant model), its full export (EXP-02, ADR 015) is built once per closing: `purpose = closing`, unique on the tenant and the time it closed, so a tenant reopened and closed again gets a fresh export while one closing never yields two. A running Owner's request never blocks it.
 - **Each active Owner with an email** gets a mail (en or fr, by their language) with a link to `GET /api/v1/closed-tenant-exports/{id}/download`. The link is a Laravel temporary signed URL naming the tenant and the Owner, valid until the export expires: `data_export.closing_link_days`, default 30 (`DATA_EXPORT_CLOSING_LINK_DAYS`). It works without signing in. It is single-purpose: it serves only the closing export, only while the tenant is closed, only to a user who is still an active Owner. The link is never stored or audited; the audit records how many were sent.
@@ -95,24 +96,25 @@ A closed tenant refuses every sign-in (Phase 8 review H2), so its Owners could n
 - **Closing paths today**: an idle sandbox (`sandbox:expire`) and an unverified sign-up (`onboarding:prune-pending`) are the only ones, and neither gets an export. Staff do not close tenants, and dunning ends at read-only or suspended. Any later closing path gets the export without more code, since the tenant model raises the event.
 - Tests: `ClosingExportTest`.
 
-## Decisions to confirm
+## Decisions (accepted by the owner 2026-10-22)
 
-- **A buyer snapshot on each sale.** The alternative to keeping a fiscal customer's tax ID and legal name on the party: store the buyer's name and tax ID on each POS sale when it is made, so later refunds and voids read the snapshot and the party could be fully anonymised. It changes the POS schema (owner approval) and needs a backfill of existing sales.
-- **Storefront consent wording and scope.** The text (version `2026_10`) and its single box for all three channels (SMS, WhatsApp, email). Counsel may want one box per channel, or the store's identity as controller spelled out. A new text is a new version.
-- **A party created at sign-up when the box is ticked.** Consent is recorded on the customer's party, so a consenting shopper gets one at sign-up instead of at their first signed-in order. The alternative is to keep the answer on the storefront account until the party exists.
-- **An unticked box records nothing.** The alternative is to record a refusal, which would also withdraw a consent given at the till; we chose not to.
-- **No marketing sends exist yet.** The gate is in the Notifier for event types marked `marketing`; campaigns (CRM, deferred) must use it. Confirm that every future campaign goes through the Notifier rather than its own sender.
-- **The SMS opt-out route** (above): which SMS provider, and whether each tenant gets its own shortcode or number so a STOP reply can be matched to one business. Until then SMS customers opt out by the storefront account, the back office or the business.
-- **What a STOP withdraws**: the channel it arrived on only (a STOP by SMS leaves email and WhatsApp as they were). Counsel may prefer all channels.
-- **Opt-out keywords** (`privacy.opt_out_keywords`) and the link's lifetime (400 days).
-- **A closed business's export (above), built as the default.** Built once, with a signed link emailed to each active Owner for 30 days, resent by staff on request, none for sandboxes. The alternatives: no export (the Owner asks support), or a longer period. Owner and counsel to confirm the period and that a link by email is acceptable.
+All accepted by the owner on 2026-10-22, three of them with a change: STOP withdraws every channel, the storefront keeps one consent box for all channels, and a buyer snapshot on each sale replaces keeping a fiscal customer's tax ID on the party.
 
-- **Privacy duties while the tenant is read-only or suspended (Phase 8 review L8).** Logging, approving, rejecting and carrying out data subject requests, and recording a withdrawal of marketing consent, are allowed while the tenant is read-only for an unpaid invoice or suspended by platform staff (`EnforceSubscription`, class `privacy`). These are the tenant's legal obligations under the Kenya Data Protection Act 2019 and its deadlines keep running whatever the tenant owes. A new consent grant is still refused. Owner to confirm, with counsel, that the platform should keep these open in both states.
+- **A buyer snapshot on each sale (changed: accepted instead of keeping the tax ID on the party).** Each POS sale stores the buyer's tax ID and name when the customer has a tax ID (`buyer_tax_id`, `buyer_name`, from the till, else from the customer at upload); fiscal documents, refunds and voids read it; existing sales were backfilled in chunks. A customer with fiscal sales is now fully anonymised once no fiscal submission for them is pending (`fiscal_pending` stays). Tests: `BuyerSnapshotTest`, `PrivacyFiscalTest`.
+- **Storefront consent wording and scope (accepted: one box).** The text (version `2026_10`) with its single box for all three channels (SMS, WhatsApp, email). A new text is a new version.
+- **A party created at sign-up when the box is ticked.** Accepted.
+- **An unticked box records nothing.** Accepted: no refusal is recorded, so a consent given at the till is never withdrawn by it.
+- **No marketing sends exist yet.** Accepted: every future campaign goes through the Notifier's consent gate (event types marked `marketing`), never its own sender.
+- **The SMS opt-out route** (above). Accepted as built; the SMS provider, and whether each tenant gets its own shortcode or number, remain owner inputs. Until then SMS customers opt out by the storefront account, the back office or the business.
+- **What a STOP withdraws (changed: every channel).** A STOP by SMS or WhatsApp withdraws marketing on every channel (email, SMS and WhatsApp), not only the one it came by.
+- **Opt-out keywords** (`privacy.opt_out_keywords`) and the link's lifetime (400 days). Accepted.
+- **A closed business's export (above).** Accepted as built: once, with a signed link emailed to each active Owner for 30 days, resent by staff on request, none for sandboxes.
+- **Privacy duties while the tenant is read-only or suspended (Phase 8 review L8).** Accepted: logging, approving, rejecting and carrying out data subject requests, and recording a withdrawal of marketing consent, stay open while the tenant is read-only for an unpaid invoice or suspended by platform staff (`EnforceSubscription`, class `privacy`). A new consent grant is still refused.
 
 ## To confirm (owner and counsel)
 
-- **Deadlines.** `config/privacy.php` sets 7 days for KE and CD (`PRIVACY_DEADLINE_DAYS_KE`, `_CD`) as a conservative internal target. Counsel to confirm the statutory periods under the Kenya Data Protection Act 2019 and the Data Protection (General) Regulations 2021, and the DRC rules, per kind of request, and whether extensions are allowed.
+- **Deadlines.** `config/privacy.php` sets 7 days for KE and CD (`PRIVACY_DEADLINE_DAYS_KE`, `_CD`) as a conservative internal target (accepted by the owner 2026-10-22 until counsel answers). Counsel to confirm the statutory periods under the Kenya Data Protection Act 2019 and the Data Protection (General) Regulations 2021, and the DRC rules, per kind of request, and whether extensions are allowed.
 - **Retention periods** for tax, accounting, payroll and employment records in Kenya and the DRC, which bound what deletion may remove.
 - **Identity checks** expected before acting on a request.
-- Whether **employee** deletion requests should be refused outright while employment records must be kept, rather than partly anonymised.
+- Whether **employee** deletion requests should be refused outright while employment records must be kept, rather than partly anonymised. Partial anonymisation, as built, was accepted by the owner 2026-10-22; counsel may still advise otherwise.
 - Registration of tenants (and the platform) with Kenya's Office of the Data Protection Commissioner where required.

@@ -10,6 +10,11 @@ The owner asked for these values to be researched and used ("put what is current
 
 Values go into the packs with their source and an effective date. When the owner confirms or corrects a value, it is published through the country pack release flow (ADM-04, ADR 022).
 
+**Owner decisions, 2026-10-22.** The decisions below were accepted (Phase 8 report, Decisions), with two changes:
+
+- **Low-confidence values are applied too, with a notice**, instead of staying "needs confirmation" and blocking. They are marked `researched` with `confidence: low`, and runs, tax lines and leave records that use one show the "from public research, not yet confirmed" notice. They are applied on their own branch; until it merges, the "Not applied" entries below describe the packs as they are.
+- **DRC INPP uses the 3/2/1 % scale** by headcount (not 3.5/3/2 %).
+
 ## Kenya
 
 ### PAYE, monthly (Income Tax Act; unchanged by the Finance Act 2026 per the guides). High.

@@ -15,6 +15,17 @@ How to provision an environment (dev, staging, production) on Linode (Akamai Clo
 
 All in one region close to the users (for Kenya and the DRC: the nearest Linode region with Managed PostgreSQL; record which), on a VPC/private network. Only 80/443 (and 22 from the deploy runner and admins) are open publicly; PostgreSQL and Redis listen on the private network only.
 
+## Staging and pilot (owner decision 2026-10-22)
+
+The owner chose a smaller setup than the staging column above for staging and the pilot:
+
+- **One Linode** runs the whole stack: nginx and PHP-FPM, Horizon and the scheduler, Redis and PostgreSQL 16 on the same host, so the `app_owner`, `app` and `app_platform` roles (ADR 002) are made by `database/scripts/provision-db.sh` as the local superuser.
+- **Object Storage** for files (`MEDIA_DISK_DRIVER=s3`; it needs the `league/flysystem-aws-s3-v3` dependency, below).
+- **Email only.** No SMS provider (`SMS_DRIVER` unset, a preflight warning): phone sign-up and SMS codes fail, so testers sign up, receive codes and get notifications by email.
+- **Payments:** the Daraja (M-Pesa) sandbox.
+- **No backups yet.** Data on staging and the pilot can be lost; add backups (docs/backups.md) before the pilot holds data that must be kept.
+- **No Sentry for staging** (`SENTRY_LARAVEL_DSN` unset, a preflight warning); errors are read from the JSON logs (docs/observability.md).
+
 ## Provisioning steps
 
 1. **Account**: create an API token for the owner (not committed), a team user per admin with 2FA.
