@@ -22,4 +22,14 @@ return [
     'purposes' => ['marketing'],
     'channels' => ['email', 'sms', 'whatsapp', 'any'],
     'consent_sources' => ['back_office', 'storefront', 'import', 'lead_form'],
+
+    // NFR-08: the versions of each consent wording a form may show, the
+    // current one first. The text itself is in the app's catalogues under a
+    // key naming the version (web: shop.consent.marketing_<version>). A
+    // changed wording gets a new version here and a new key; earlier ones
+    // stay listed while cached pages may still show them, so each record
+    // names exactly the text the person saw.
+    'wording_versions' => [
+        'storefront_marketing' => ['2026_10'],
+    ],
 ];

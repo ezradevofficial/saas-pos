@@ -12073,7 +12073,13 @@
       "hello": "Hello {{name}}",
       "signOut": "Sign out",
       "orders": "Your orders",
-      "noOrders": "No orders yet."
+      "noOrders": "No orders yet.",
+      "marketing": "Offers and news",
+      "marketingOn": "You get offers and news. You can stop them here at any time.",
+      "marketingOff": "You don’t get offers or news."
+    },
+    "consent": {
+      "marketing_2026_10": "Send me offers and news from {{store}} by SMS, WhatsApp or email. I can stop them at any time in my account."
     }
   },
   "admin": {

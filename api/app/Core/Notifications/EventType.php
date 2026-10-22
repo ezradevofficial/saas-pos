@@ -27,6 +27,13 @@ use InvalidArgumentException;
  *   notification SMS driver is configured.
  * - `contactsOnly`: a system type sent only to contacts that are not
  *   users yet (invitations); left out of users' preferences.
+ * - `marketing` (NFR-08, KE DPA): a marketing message to customers (a
+ *   campaign, an offer by SMS, WhatsApp or email). It goes only to
+ *   customer contacts (NotificationAddress with the customer's party id,
+ *   never to users), and only to those who consented on that channel
+ *   (Consents::allows): the others get a skipped delivery `no_consent`,
+ *   and consent is checked again at hand-over. Transactional types (an
+ *   order update, a receipt) are not marketing and are unaffected.
  * - `secrets`: placeholders whose values are never stored. The stored
  *   text keeps `{name}`; the value travels only in the encrypted queued
  *   job and is filled in when the message is handed over (SendDelivery).
@@ -36,6 +43,9 @@ final class EventType
     private const KEY = '/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/';
 
     private const PLACEHOLDER = '/^[a-z][a-z0-9_]*$/';
+
+    /** The channels a marketing message may use: the consent channels (config privacy.channels). */
+    public const MARKETING_CHANNELS = [Channels::EMAIL, Channels::SMS, Channels::WHATSAPP];
 
     public readonly string $module;
 
@@ -57,6 +67,7 @@ final class EventType
         public readonly bool $system = false,
         public readonly array $secrets = [],
         public readonly bool $contactsOnly = false,
+        public readonly bool $marketing = false,
     ) {
         if (preg_match(self::KEY, $key) !== 1) {
             throw new InvalidArgumentException("Invalid notification event type [{$key}]: use module.resource.event.");
@@ -70,6 +81,10 @@ final class EventType
 
         if (array_diff($secrets, array_keys($placeholders)) !== []) {
             throw new InvalidArgumentException("Secret placeholders of [{$key}] must be declared placeholders.");
+        }
+
+        if ($marketing && ($system || $secrets !== [] || array_diff($channels, self::MARKETING_CHANNELS) !== [])) {
+            throw new InvalidArgumentException("Marketing event type [{$key}] is not a system type, has no secrets and goes by email, SMS or WhatsApp only.");
         }
 
         if (array_diff($channels, Channels::ALL) !== [] || array_diff($defaultChannels, $channels) !== []) {

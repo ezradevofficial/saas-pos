@@ -62,6 +62,9 @@ class NotificationDelivery extends Model
     /** The message holds a secret placeholder (an invitation link) the job no longer carries (ADR 009). */
     public const REASON_SECRET_MISSING = 'secret_missing';
 
+    /** NFR-08: a marketing message to a customer who has not consented on that channel (or withdrew). */
+    public const REASON_NO_CONSENT = 'no_consent';
+
     /** Safe error codes (notifications.delivery_errors.*): the mailer or provider refused it, or the job died. */
     public const ERROR_SEND_FAILED = 'send_failed';
 
@@ -73,7 +76,7 @@ class NotificationDelivery extends Model
     protected $fillable = [
         'user_id', 'notification_id', 'digest_id', 'event_type', 'channel', 'status', 'reason', 'recipient',
         'locale', 'subject', 'body', 'link', 'digest', 'attempts', 'error', 'provider_message_id',
-        'next_attempt_at', 'sent_at', 'delivered_at', 'failed_at',
+        'next_attempt_at', 'sent_at', 'delivered_at', 'failed_at', 'consent_subject_id',
     ];
 
     protected $attributes = ['attempts' => 0];
