@@ -12264,6 +12264,7 @@
       "people": "Loaded by {{loaded}} · approved by {{approved}} · published by {{published}}",
       "errors": "Errors",
       "noErrors": "No errors. It can be approved.",
+      "noErrorsDecided": "No errors.",
       "warnings": "Still to confirm",
       "diff": "Changes",
       "againstRelease": "Compared with release {{version}}",

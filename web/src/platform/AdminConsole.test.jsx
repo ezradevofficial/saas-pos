@@ -123,6 +123,20 @@ describe('Super-admin console', () => {
     expect(within(dialog).queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
   })
 
+  it('says a release can be approved only while it is a draft (Phase 8 walkthrough, ADM-04)', async () => {
+    const release = {
+      id: 'p-1', country: 'KE', kind: 'payroll', version: 1, status: 'approved', effective_from: '2026-12-01', validation: { errors: [], warnings: [] },
+      diff: { base: { source: 'shipped', version: null }, added: [], changed: [], removed: [] }, loaded_by: { id: 's-2', name: 'Otieno' }, approved_by: { id: 's-3', name: 'Akinyi' }, published_by: null,
+    }
+    mockConsole({ 'platform/packs': { data: [release] }, 'platform/packs/current': { data: [] }, 'platform/packs/p-1': { data: release } })
+    renderApp('/platform/packs')
+
+    fireEvent.click(await screen.findByText('Kenya · Payroll'))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText('No errors.')).toBeInTheDocument()
+    expect(within(dialog).queryByText('No errors. It can be approved.')).not.toBeInTheDocument()
+  })
+
   it('shows reports per currency and downloads a CSV', async () => {
     const summary = {
       from: '2026-11-01', to: '2026-11-30',

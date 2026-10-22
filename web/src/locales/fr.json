@@ -12264,6 +12264,7 @@
       "people": "Chargée par {{loaded}} · approuvée par {{approved}} · publiée par {{published}}",
       "errors": "Erreurs",
       "noErrors": "Aucune erreur. Elle peut être approuvée.",
+      "noErrorsDecided": "Aucune erreur.",
       "warnings": "Encore à confirmer",
       "diff": "Changements",
       "againstRelease": "Comparée à la version {{version}}",
