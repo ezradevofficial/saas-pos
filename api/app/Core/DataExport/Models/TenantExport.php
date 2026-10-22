@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $tenant_id
  * @property string $requested_by
  * @property string $status
+ * @property string $purpose
  * @property ?string $disk
  * @property ?string $path
  * @property ?int $size
@@ -48,7 +49,15 @@ class TenantExport extends Model
 
     public const ACTIVE = [self::QUEUED, self::RUNNING];
 
-    protected $fillable = ['requested_by', 'status'];
+    /** An Owner asked for it. */
+    public const PURPOSE_REQUEST = 'request';
+
+    /** Built once when the tenant closed, for its Owners' sign-in-free links. */
+    public const PURPOSE_CLOSING = 'closing';
+
+    protected $fillable = ['requested_by', 'status', 'purpose'];
+
+    protected $attributes = ['purpose' => self::PURPOSE_REQUEST];
 
     protected function casts(): array
     {

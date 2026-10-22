@@ -105,6 +105,14 @@ class PlatformTenantController
         return $this->detail($tenant);
     }
 
+    /** NFR-08: send a closed tenant's Owners their export links again, with a reason (audited). */
+    public function resendClosingExport(TenantActionRequest $request, string $tenant): JsonResponse
+    {
+        $sent = $this->platformTenants->resendClosingExport($tenant, (string) $request->validated('reason'), $request->staff());
+
+        return response()->json(['data' => ['recipients' => $sent]]);
+    }
+
     /** SUB-05: the tenant's own grace period, or null for the platform's. */
     public function grace(GraceOverrideRequest $request, string $tenant): JsonResponse
     {

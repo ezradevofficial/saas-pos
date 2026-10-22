@@ -74,6 +74,7 @@ class PlatformPermissionMatrixTest extends TestCase
         'POST tenants/{tenant}/deals/{deal}/approve' => 'platform.deals.approve',
         'POST tenants/{tenant}/deals/{deal}/reject' => 'platform.deals.approve',
         'POST tenants/{tenant}/deals/{deal}/end' => 'platform.deals.approve',
+        'POST tenants/{tenant}/closing-export/resend' => 'platform.tenants.manage',
         'POST tenants/{tenant}/grace' => 'platform.billing.manage',
         'POST tenants/{tenant}/reactivate' => 'platform.tenants.manage',
         'POST tenants/{tenant}/reinvite' => 'platform.tenants.create',

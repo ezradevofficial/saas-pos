@@ -10,6 +10,11 @@ return [
     'link_minutes' => (int) env('DATA_EXPORT_LINK_MINUTES', 5),
     'keep_days' => (int) env('DATA_EXPORT_KEEP_DAYS', 7),
 
+    // A closed tenant's export (built once when it closes) and the signed link
+    // emailed to each active Owner last this many days; then the link answers
+    // 410 and the file is deleted like any expired export.
+    'closing_link_days' => (int) env('DATA_EXPORT_CLOSING_LINK_DAYS', 30),
+
     // Downloads of one export per hour (the `tenant-export-download` limiter).
     'downloads_per_hour' => (int) env('DATA_EXPORT_DOWNLOADS_PER_HOUR', 5),
 
