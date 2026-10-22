@@ -115,7 +115,7 @@ Check a host with `nmap --script ssl-enum-ciphers -p 443 <host>` or SSL Labs: on
 
 ## Encryption at rest
 
-- **Database**: Linode Managed PostgreSQL encrypts its storage and its backups at rest (Linode's managed database service; confirm on the cluster's settings page when it is created). A self-managed PostgreSQL on a Linode instance must use an encrypted volume: Linode Block Storage volumes are encrypted at rest when the volume's encryption option is on (the default for new volumes in supported regions; check it when creating the volume, it cannot be turned on later).
+- **Database**: Linode Managed PostgreSQL encrypts its storage and its backups at rest (Linode's managed database service; confirm on the cluster's settings page when it is created). The staging and pilot host (ADR 025) keeps its database on the Linode's own disk: create the Linode with disk encryption on (Linode Disk Encryption, where the region offers it; it cannot be turned on later without rebuilding). A self-managed PostgreSQL on a separate volume must use an encrypted volume: Linode Block Storage volumes are encrypted at rest when the volume's encryption option is on (the default for new volumes in supported regions; check it when creating the volume, it cannot be turned on later).
 - **Linode instances**: create them with disk encryption on (Linode's local disk encryption, available in most regions); confirm per region.
 - **Object Storage** (media, exports, status): Linode Object Storage is encrypted at rest; buckets are private and URLs presigned for 15 minutes (MD-02, ADR 015).
 - **In the application**: the most sensitive fields are encrypted with the app key on top (payment provider credentials, webhook signing secrets, HR identifiers with a separate digest key `HR_DIGEST_KEY`); passwords, PINs and tokens are stored only as hashes.
@@ -123,7 +123,7 @@ Check a host with `nmap --script ssl-enum-ciphers -p 443 <host>` or SSL Labs: on
 
 ## Secrets in a vault
 
-Today secrets live in each host's `api/.env` (mode 600, owned by the deploy user) and in GitHub Actions secrets for the deploy. Options to move them to a vault, in order of effort:
+Today secrets live in each host's `api/.env` (owned by root, group = the deploy user, mode 0640; ADR 025), in `/root/provision.env` (root, 0600) on the single host, and in GitHub Actions secrets for the deploy. For staging and the pilot there is no vault: the owner keeps a copy of both files in their password manager (owner decision, 2026-10-22). Options to move them to a vault, in order of effort:
 
 1. **GitHub Actions environments as the source, rendered on deploy**: keep every production secret as an environment secret and have the deploy write `.env` from them. No new service; secrets are encrypted at rest by GitHub and visible to no one after saving. Weakest audit trail.
 2. **Doppler or Infisical (hosted)**: a secrets manager with audit logs, rotation and per-environment access; the host fetches at boot with a service token (`doppler run -- php artisan ...` or a rendered `.env`). Small monthly fee; Infisical can also be self-hosted.
