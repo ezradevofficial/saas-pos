@@ -18,8 +18,8 @@ use InvalidArgumentException;
  * codes have no rate; zero-rated codes are 0 by definition). A code's
  * periods never overlap, at most one is open-ended, and all have the same
  * kind. A rate may be `researched` (public research, not yet confirmed):
- * it then says its `confidence` (high or medium), `researched_on` and
- * `source` URLs (ResearchStatus); low-confidence figures are never entered.
+ * it then says its `confidence` (high, medium or low), `researched_on` and
+ * `source` URLs (ResearchStatus); a low one is used with the stronger notice.
  */
 final class PackFile
 {

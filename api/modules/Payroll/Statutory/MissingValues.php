@@ -14,9 +14,9 @@ use Carbon\CarbonImmutable;
  * is null, absent or malformed. Weekly and bi-weekly runs also need the
  * pack's `non_monthly` rule. Values are never guessed.
  *
- * CP-01: a period is usable when confirmed or `researched` at high or
- * medium confidence (ResearchStatus); low-confidence research is never
- * usable. A component the company marked not applicable (`may_not_apply`
+ * CP-01: a period is usable when confirmed or `researched` at any
+ * confidence (ResearchStatus; low since the owner decision of 2026-10-22,
+ * with the stronger notice). A component the company marked not applicable (`may_not_apply`
  * in the pack, payroll settings) is not checked, and one with
  * `unconfirmed: not_applied` is left out while unusable instead of
  * blocking the run (PayrollPack::applicable).

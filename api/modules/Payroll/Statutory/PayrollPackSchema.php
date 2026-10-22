@@ -71,7 +71,7 @@ final class PayrollPackSchema
             }
         }
 
-        // CP-01: a researched period carries its confidence (high or medium), date and sources; low confidence is never entered.
+        // CP-01: a researched period carries its confidence (high, medium or low), date and sources.
         foreach ($content['components'] as $component) {
             foreach ($component['periods'] as $period) {
                 ResearchStatus::check($period, "components.{$component['code']}.{$period['effective_from']}");

@@ -83,7 +83,7 @@ class TaxClasses
     /** Whether the class row can be computed from: a known method and rate, confirmed. */
     public static function confirmed(?array $class): bool
     {
-        // CP-01: confirmed, or researched at high or medium confidence (ResearchStatus), with a known method and rate.
+        // CP-01: confirmed, or researched at any confidence (ResearchStatus), with a known method and rate.
         return $class !== null && ResearchStatus::usable($class) && $class['rate'] !== null && in_array($class['method'], self::METHODS, true);
     }
 

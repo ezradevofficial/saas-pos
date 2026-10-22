@@ -50,7 +50,7 @@ final class HrPackSchema
             throw new InvalidArgumentException(implode(' ', $validator->errors()->all()));
         }
 
-        // CP-01: researched rows carry their confidence (high or medium), date and sources.
+        // CP-01: researched rows carry their confidence (high, medium or low), date and sources.
         foreach ([...$content['identifier_types'], ...$content['statutory_leave_types']] as $row) {
             ResearchStatus::check($row, (string) $row['key']);
         }

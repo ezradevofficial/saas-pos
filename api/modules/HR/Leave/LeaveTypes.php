@@ -16,7 +16,7 @@ use Modules\HR\Support\HrPack;
 /**
  * HR-12: leave types. Statutory ones are copied from the country pack
  * (missing ones only) with their days when the pack has usable ones
- * (confirmed, or researched at high or medium confidence: the type then
+ * (confirmed, or researched at any confidence: the type then
  * keeps the research, CP-01), else "needed" until a person confirms them;
  * days are never guessed. A type still "needed" takes the pack's days
  * when they become usable. Confirming or changing the days makes the
@@ -107,7 +107,7 @@ class LeaveTypes
         });
     }
 
-    /** A pack leave type's days are usable: given, and confirmed or researched at high or medium confidence (CP-01). */
+    /** A pack leave type's days are usable: given, and confirmed or researched (CP-01). */
     private static function usable(array $type): bool
     {
         return ($type['days'] ?? null) !== null && ResearchStatus::usable($type);
