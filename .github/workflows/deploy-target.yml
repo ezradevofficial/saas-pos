@@ -63,6 +63,16 @@ jobs:
       # "spawn sh ENOENT" (the React Native SDK's CLI, unused in this job).
       - run: npm ci --ignore-scripts
 
+      # Diagnostics: npm reported "spawn sh ENOENT" in this job only.
+      - name: Shell and toolchain
+        run: |
+          echo "PATH=$PATH"
+          command -v sh || echo "no sh on PATH"
+          ls -l /bin/sh /usr/bin/sh || true
+          echo "script-shell=$(npm config get script-shell)"
+          echo "node=$(node -v) npm=$(npm -v)"
+          env | cut -d= -f1 | sort | tr '\n' ' '
+
       # NFR-10: the release is the commit; Sentry is on only when the
       # environment's SENTRY_WEB_DSN variable is set. Hidden source maps are
       # built only when a Sentry token is set, uploaded, then deleted, so
