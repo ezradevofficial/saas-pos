@@ -126,7 +126,7 @@ function DraftEditor({ app, draft, catalogue }) {
         <MultiSelect
           label={t('developerApps.fields.scopes')}
           help={t('developerApps.fields.scopesHelp')}
-          options={catalogue.scopes.map((scope) => ({ value: scope, label: scope }))}
+          options={catalogue.scopes.map((scope) => ({ value: scope, label: catalogue.scope_labels?.[scope] ? `${catalogue.scope_labels[scope]} · ${scope}` : scope }))}
           value={form.scopes}
           onChange={set('scopes')}
           error={fieldError('scopes')}
