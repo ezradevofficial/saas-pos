@@ -70,9 +70,13 @@ class TaxListsTest extends TestCase
 
     public function test_a_tax_code_without_a_confirmed_rate_exports_as_rate_needed(): void
     {
-        $rows = $this->csvRows($this->get("/api/v1/companies/{$this->acme->id}/tax-codes?format=csv&search=VAT_STD&columns[]=code&columns[]=rate", $this->headersFor())->assertOk());
+        // CP-01: the KE withholding rate is still needed in the shipped pack; the standard rate is researched (16%).
+        $url = "/api/v1/companies/{$this->acme->id}/tax-codes?format=csv&columns[]=code&columns[]=rate";
+        $rows = $this->csvRows($this->get("{$url}&search=VAT_WHT", $this->headersFor())->assertOk());
+        $this->assertSame([['Code', 'Rate'], ['VAT_WHT', 'Rate needed']], $rows);
 
-        $this->assertSame([['Code', 'Rate'], ['VAT_STD', 'Rate needed']], $rows);
+        $rows = $this->csvRows($this->get("{$url}&search=VAT_STD", $this->headersFor())->assertOk());
+        $this->assertSame([['Code', 'Rate'], ['VAT_STD', '16%']], $rows);
     }
 
     public function test_tax_categories_search_sort_and_export(): void
