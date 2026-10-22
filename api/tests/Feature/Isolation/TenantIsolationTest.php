@@ -2117,7 +2117,7 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/ecommerce/orders/{ecom_order}/returns/quote' => ['lines' => [['line_id' => $tenant->id('ecom_order_line'), 'qty' => '1']],
                 'exchange' => [['product_id' => $tenant->id('ecom_product'), 'qty' => '1']]],
             'POST api/v1/ecommerce/returns/{ecom_return}/refund' => ['reference' => 'HIJACK-1'],
-            'POST api/v1/ecommerce/returns/{ecom_return}/collect' => ['payment_method_id' => $tenant->id('payment_method')],
+            'POST api/v1/ecommerce/returns/{ecom_return}/collect' => ['payment_method_id' => $tenant->id('payment_method'), 'reference' => 'HIJACK-2'],
             'POST api/v1/ecommerce/rider/updates' => ['updates' => [['id' => (string) Str::uuid7(), 'delivery_id' => $tenant->id('ecom_delivery'), 'kind' => 'location',
                 'latitude' => '-1.28', 'longitude' => '36.82', 'occurred_at' => now()->toIso8601String()]]],
             default => null,
