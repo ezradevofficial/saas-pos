@@ -32,7 +32,7 @@ export const platformRoutes = [
     ),
     children: [
       {
-        element: <AuthLayout />,
+        element: <AuthLayout unbranded />,
         children: [
           { path: 'sign-in', element: <PlatformSignIn /> },
           { path: 'setup/:token', element: <PlatformSetup /> },

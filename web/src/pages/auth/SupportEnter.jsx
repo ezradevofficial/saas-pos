@@ -6,11 +6,13 @@ import { errorMessage } from '@/api/errorMessage'
 import { useAuth } from '@/auth/AuthProvider'
 import { Alert } from '@/components/ds'
 
-/** The one-time code from the URL fragment, read once (the fragment is never sent to a server). */
+/**
+ * The one-time code from the URL fragment (never sent to a server). Reading
+ * has no side effect: React may call a state initializer again for a render
+ * it throws away, so the fragment is wiped in the effect, once committed.
+ */
 function readCode() {
-  const code = new URLSearchParams(window.location.hash.slice(1)).get('code')
-  window.history.replaceState(null, '', window.location.pathname)
-  return code
+  return new URLSearchParams(window.location.hash.slice(1)).get('code')
 }
 
 /**
@@ -28,6 +30,7 @@ export default function SupportEnter() {
   const started = useRef(false)
 
   useEffect(() => {
+    if (window.location.hash) window.history.replaceState(null, '', window.location.pathname)
     if (started.current || !code) return
     started.current = true
     api

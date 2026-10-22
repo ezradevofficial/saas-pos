@@ -24,4 +24,25 @@ class PermissionLabelsTest extends TestCase
 
         $this->assertSame([], $missing);
     }
+
+    // Phase 8 walkthrough: Accounting, Inventory, Stores, Fixed assets and
+    // Manufacturing (and pos.till, payroll.pay) showed raw keys in the API
+    // key scope picker and the roles screen. Every module and resource of
+    // the whole catalogue now has a label in both languages.
+    public function test_every_module_and_resource_of_the_catalogue_is_labelled_in_both_languages(): void
+    {
+        $missing = [];
+
+        foreach (app(PermissionRegistry::class)->all() as ['module' => $module, 'resource' => $resource]) {
+            foreach (['en', 'fr'] as $locale) {
+                foreach (["rbac.catalogue.modules.{$module}", "rbac.catalogue.resources.{$module}.{$resource}"] as $key) {
+                    if (! Lang::hasForLocale($key, $locale)) {
+                        $missing["{$locale}: {$key}"] = true;
+                    }
+                }
+            }
+        }
+
+        $this->assertSame([], array_keys($missing));
+    }
 }
