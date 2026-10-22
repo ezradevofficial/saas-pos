@@ -84,7 +84,7 @@ export default function Consent() {
         <section className="flex flex-col gap-2">
           <h2 className="text-label text-ink">{t('marketplace.consent.actsAs')}</h2>
           <p className="text-caption text-ink-muted">{t('marketplace.consent.actsAsHelp')}</p>
-          <AssignmentFields index={0} value={shownRow} onChange={setRow} options={options} errors={errors.fields} />
+          <AssignmentFields index={0} legend={t('marketplace.consent.roleLegend')} value={shownRow} onChange={setRow} options={options} errors={errors.fields} />
         </section>
       ) : (
         <Alert tone="warning" title={t('marketplace.consent.cannotInstall')} />

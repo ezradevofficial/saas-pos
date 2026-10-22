@@ -85,6 +85,9 @@ describe('Marketplace (MKT-01, MKT-02)', () => {
     await waitForOption(role, 'Integration')
     chooseOption(role, 'Integration')
     expect(within(role.closest('div').parentElement).queryByText('Owner')).not.toBeInTheDocument()
+    // Phase 8 Marketplace walkthrough: the single role row is named for the app, not "Role 1".
+    expect(screen.getByRole('group', { name: 'Role for this app' })).toBeInTheDocument()
+    expect(screen.queryByText('Role 1')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Approve and install' }))
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('oauth/authorize', expect.objectContaining({
