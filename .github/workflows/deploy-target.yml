@@ -124,6 +124,8 @@ jobs:
             "DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") bash -se" <<'REMOTE'
           set -uo pipefail
           cd "$DEPLOY_PATH/api" 2>/dev/null || { echo "First deploy: no API yet."; exit 0; }
+          # storage/ is never rsynced, so its skeleton exists only if a deploy made it.
+          mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
           if [ -f artisan ] && [ -f vendor/autoload.php ]; then
             php artisan down --retry=60 || echo "::warning::php artisan down failed; the previous release could not boot."
           else
@@ -180,6 +182,10 @@ jobs:
           # Drop the previous release's cached config and routes before
           # anything boots the new code (composer runs package:discover).
           rm -f bootstrap/cache/config.php bootstrap/cache/routes-*.php
+          # NFR-01: storage/ is excluded from the rsync, so a first deploy has
+          # none: Laravel needs this skeleton (maintenance flag, compiled mail
+          # views, logs). Found by the deploy rehearsal (2026-10-22).
+          mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
           composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader
           php artisan config:clear
           # NFR-06: stop before migrating when the host is not ready (drivers,

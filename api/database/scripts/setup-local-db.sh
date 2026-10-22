@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Creates the roles and (re)creates the databases owned by app_owner (TEN-01).
-# Used for local development and by CI (.github/workflows/ci.yml).
+# Used for local development and by CI (.github/workflows/ci.yml). Never on
+# a real environment: it drops the databases. Use provision-db.sh there.
 # Idempotent: existing databases are dropped and recreated, so run
 # migrations afterwards (composer migrate).
 #
@@ -49,15 +50,7 @@ for db in $DATABASES; do
   psql_su -d postgres \
     -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" \
     -c "CREATE DATABASE $db OWNER app_owner"
-  psql_su -d "$db" <<SQL
-ALTER SCHEMA public OWNER TO app_owner;
-GRANT USAGE ON SCHEMA public TO app;
--- ADR 013: no default privileges; the platform migrations grant its tables.
-GRANT USAGE ON SCHEMA public TO app_platform;
-ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app;
-ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app;
-ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO app;
-SQL
+  psql_su -d "$db" -f "$DIR/database-grants.sql"
   echo "Configured database $db"
 done
 echo "Done. Next: composer migrate"

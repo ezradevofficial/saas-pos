@@ -64,4 +64,22 @@ class BackfillSubscriptionsTest extends TestCase
         $this->assertSame([1, '2026-11-15'], $this->inTenant(fn () => [Subscription::query()->count(), Subscription::query()->sole()->trial_ends_at->toDateString()]));
         $this->assertSame(1, $this->asTenant($other['user']->tenant_id, fn () => Subscription::query()->count()));
     }
+
+    /**
+     * NFR-01 (deploy rehearsal 2026-10-22): before `platform:operator` the
+     * command fails and starts nothing, so the deploy keeps its once-only
+     * marker unset and runs it again on the next deploy.
+     */
+    public function test_it_fails_and_starts_nothing_before_the_operator_exists(): void
+    {
+        Mail::fake();
+        $this->setUpOrganisation();
+        $this->withoutOwnerConnection();
+
+        $this->artisan('billing:backfill-subscriptions')
+            ->expectsOutputToContain('No operator tenant yet')
+            ->assertFailed();
+
+        $this->assertSame(0, $this->inTenant(fn () => Subscription::query()->count()));
+    }
 }

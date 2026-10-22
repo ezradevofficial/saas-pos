@@ -28,6 +28,7 @@ class IdentityServiceProvider extends ServiceProvider
         $this->app->bindIf(SmsSender::class, function ($app) {
             $driver = config('services.sms.driver') ?? ($app->environment(['local', 'testing']) ? 'log' : null);
 
+            // Keep in step with SmsSender::DRIVERS (app:preflight warns on any other name).
             return match ($driver) {
                 'log' => new LogSmsSender,
                 default => new NullSmsSender,

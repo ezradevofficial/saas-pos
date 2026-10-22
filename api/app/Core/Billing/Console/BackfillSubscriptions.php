@@ -40,6 +40,17 @@ class BackfillSubscriptions extends Command
     public function handle(DueTenants $due, TenantContext $tenants, Subscriptions $subscriptions, ModuleRegistry $modules, UsageCounter $usage): int
     {
         $operator = $due->operator();
+
+        // Deploy rehearsal (2026-10-22): a first deploy has no operator yet.
+        // Succeeding then would write the deploy's once-only marker, and
+        // tenants signing up before `platform:operator` would never be
+        // backfilled. Failing makes the deploy warn and try again next time.
+        if ($operator === null) {
+            $this->components->error('No operator tenant yet: run php artisan platform:operator --country=KE --country=CD first. Nothing was backfilled.');
+
+            return self::FAILURE;
+        }
+
         $started = $skipped = $failed = 0;
 
         foreach ($due->active() as $tenantId) {

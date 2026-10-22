@@ -129,7 +129,26 @@ Today secrets live in each host's `api/.env` (mode 600, owned by the deploy user
 2. **Doppler or Infisical (hosted)**: a secrets manager with audit logs, rotation and per-environment access; the host fetches at boot with a service token (`doppler run -- php artisan ...` or a rendered `.env`). Small monthly fee; Infisical can also be self-hosted.
 3. **HashiCorp Vault (self-hosted on its own Linode)**: the most control (dynamic database credentials, leases), and the most operations work. Worth it once there is a team to run it.
 
-Recommendation: option 2 before production launch. Whatever is chosen: rotate `HR_DIGEST_KEY` with `hr:rekey-digests` and database passwords with `ALTER ROLE` (ADR 002). Rotating `APP_KEY` needs Laravel's `APP_PREVIOUS_KEYS` so values encrypted with the old key stay readable while they are re-saved; there is no bulk re-encrypt command yet (a follow-up).
+Recommendation: option 2 before production launch. Whatever is chosen: rotate `HR_DIGEST_KEY` with `hr:rekey-digests` and database passwords with `ALTER ROLE` (ADR 002). Rotating `APP_KEY` needs Laravel's `APP_PREVIOUS_KEYS` so values encrypted with the old key stay readable; there is no bulk re-encrypt command yet (a follow-up), so the old key must stay in `APP_PREVIOUS_KEYS` until one exists.
+
+### Rotating `APP_KEY` (rehearsed 2026-10-22)
+
+On every API and queue host of the environment, the same values:
+
+```sh
+cd <path>/api
+OLD="$(grep '^APP_KEY=' .env | cut -d= -f2-)"
+NEW="base64:$(openssl rand -base64 32)"
+# Keep any earlier keys: APP_PREVIOUS_KEYS is comma-separated, newest first.
+sed -i "s|^APP_KEY=.*|APP_KEY=$NEW|" .env
+grep -q '^APP_PREVIOUS_KEYS=' .env && sed -i "s|^APP_PREVIOUS_KEYS=|APP_PREVIOUS_KEYS=$OLD,|" .env || echo "APP_PREVIOUS_KEYS=$OLD" >> .env
+php artisan config:cache
+sudo systemctl reload php8.3-fpm
+php artisan horizon:terminate        # systemd starts Horizon on the new key
+php artisan app:preflight
+```
+
+What the rehearsal showed: with the old key in `APP_PREVIOUS_KEYS`, a device secret encrypted before the rotation still verified and sign-in worked. Without it, the same request answered 500 (`DecryptException: The MAC is invalid`): every encrypted column (device secrets, 2FA secrets, payment and SSO credentials, HR identifiers) becomes unreadable. Sign-in tokens are hashes and `HR_DIGEST_KEY` is separate, so neither changes. Record the rotation in the vault and keep the old key there.
 
 ## OWASP Top 10 (2021) and the controls that cover it
 
