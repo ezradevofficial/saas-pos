@@ -13273,8 +13273,7 @@
     "missing": {
       "connector_service": "Le service du connecteur n’est pas configuré.",
       "courier_provider": "Aucun transporteur n’a encore été choisi.",
-      "message_provider": "Aucun fournisseur SMS ou WhatsApp n’est configuré.",
-      "public_api": "L’API publique dont ce connecteur a besoin n’est pas encore disponible."
+      "message_provider": "Aucun fournisseur SMS ou WhatsApp n’est configuré."
     },
     "support": "Assistance",
     "website": "Site web",

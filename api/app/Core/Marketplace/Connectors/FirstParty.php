@@ -11,9 +11,10 @@ namespace App\Core\Marketplace\Connectors;
  *
  * `available` (Phase 8 review L6): a connector whose scopes have no public
  * API route yet cannot work, so it is not listed, not shown, not installable
- * and cannot be set up (`marketplace:connector`) until its routes exist. The
- * courier connector needs the e-commerce deliveries and orders, and the
- * biometric one the HR attendance device API, on `public-api` routes.
+ * and cannot be set up (`marketplace:connector`) until its routes exist.
+ * Every connector is available: the courier works through the e-commerce
+ * courier routes (`ecommerce/courier/*`) and the biometric one through the
+ * HR attendance device API on the public API (`hr/connector/*`).
  * ConnectorsTest fails when an available connector asks for a scope that no
  * public route (or webhook event it receives) serves.
  */
@@ -34,7 +35,7 @@ final class FirstParty
             'category' => 'delivery',
             'scopes' => ['core.location.read', 'core.party.read', 'ecommerce.delivery.write', 'ecommerce.order.read'],
             'events' => ['order.paid.v1', 'order.status_changed.v1'],
-            'available' => false,
+            'available' => true,
         ],
         'messaging' => [
             'app' => '019a0000-0000-7000-8000-00000000a002',
@@ -73,7 +74,7 @@ final class FirstParty
             'category' => 'attendance',
             'scopes' => ['hr.attendance.write', 'hr.device.read', 'hr.employee.read'],
             'events' => [],
-            'available' => false,
+            'available' => true,
         ],
     ];
 

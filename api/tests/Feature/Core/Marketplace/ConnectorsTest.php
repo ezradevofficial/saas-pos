@@ -60,7 +60,8 @@ class ConnectorsTest extends TestCase
         $this->get("/api/v1/marketplace/logos/{$app['version_id']}")->assertNotFound();
 
         $status = collect($this->getJson('/api/v1/marketplace/connectors', $this->headersFor())->assertOk()->json('data'))->keyBy('key');
-        $this->assertSame(['public_api', 'connector_service', 'courier_provider'], $status['courier']['missing']);
+        $this->assertSame(['connector_service', 'courier_provider'], $status['courier']['missing']);
+        $this->assertSame(['connector_service'], $status['biometric']['missing']);
         $this->assertSame(['connector_service'], $status['bi']['missing']);
 
         // Not configured: nobody can install it.
@@ -69,30 +70,30 @@ class ConnectorsTest extends TestCase
             ->assertStatus(400);
     }
 
-    /** Phase 8 review L6: a connector whose scopes have no public route is not listed, shown, set up or installed. */
-    public function test_connectors_not_available_yet_are_not_listed_shown_set_up_or_installable(): void
+    /**
+     * MKT-04 (Phase 8 review L6 closed): the courier and biometric connectors have their public
+     * routes, so they are listed, shown and can be set up like the others; nothing names the
+     * public API as missing.
+     */
+    public function test_the_courier_and_biometric_connectors_are_listed_shown_and_can_be_set_up(): void
     {
         $listed = array_column($this->getJson('/api/v1/marketplace/apps', $this->headersFor())->assertOk()->json('data'), 'id');
         $status = collect($this->getJson('/api/v1/marketplace/connectors', $this->headersFor())->assertOk()->json('data'))->keyBy('key');
 
         foreach (['courier', 'biometric'] as $key) {
             $connector = FirstParty::CONNECTORS[$key];
-            $this->assertFalse($connector['available']);
-            $this->assertNotContains($connector['app'], $listed);
-            $this->getJson("/api/v1/marketplace/apps/{$connector['app']}", $this->headersFor())->assertNotFound();
-            $this->assertFalse($status[$key]['available']);
-            $this->assertSame('public_api', $status[$key]['missing'][0]);
+            $this->assertTrue($connector['available']);
+            $this->assertFalse(FirstParty::unavailable($connector['app']));
+            $this->assertContains($connector['app'], $listed);
+            $this->getJson("/api/v1/marketplace/apps/{$connector['app']}", $this->headersFor())->assertOk()->assertJsonPath('data.id', $connector['app']);
+            $this->assertTrue($status[$key]['available']);
+            $this->assertNotContains('public_api', $status[$key]['missing']);
 
             config(["marketplace.connectors.{$key}.redirect_uri" => "https://{$key}.example.com/cb"]);
-            $this->artisan('marketplace:connector', ['connector' => $key])->assertFailed();
-            $this->assertTrue((bool) DB::connection(SyncPermissions::OWNER_CONNECTION)->table('oauth_clients')->where('id', $connector['client'])->value('revoked'));
-
-            $pkce = $this->pkce();
-            $this->getJson('/api/v1/oauth/authorize?'.http_build_query($this->authorizeQuery($connector['client'], $pkce['challenge'], ['redirect_uri' => "https://{$key}.example.com/cb"])), $this->headersFor())
-                ->assertStatus(400);
+            $this->artisan('marketplace:connector', ['connector' => $key])->assertSuccessful();
+            $this->assertFalse((bool) DB::connection(SyncPermissions::OWNER_CONNECTION)->table('oauth_clients')->where('id', $connector['client'])->value('revoked'));
         }
-        $this->assertTrue($status['bi']['available']);
-        $this->assertTrue($status['messaging']['available']);
+        $this->assertSame([], FirstParty::unavailableAppIds());
     }
 
     /**
