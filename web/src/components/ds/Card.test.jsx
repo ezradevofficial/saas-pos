@@ -23,4 +23,16 @@ describe('Card', () => {
     const { container } = render(<Card>Only body</Card>)
     expect(container.querySelector('header')).toBeNull()
   })
+
+  it('has no empty body or divider when it has only a header (Phase 8 walkthrough: Settings, Security, Support access)', () => {
+    const { container } = render(<Card title="Support access" subtitle="Requests from our support team" actions={<a href="/x">Open</a>} />)
+    expect(container.querySelector('[data-slot="card-content"]')).toBeNull()
+    expect(container.querySelector('header')).not.toHaveClass('border-b')
+  })
+
+  it('keeps the divider when it has a body', () => {
+    const { container } = render(<Card title="Users">Body</Card>)
+    expect(container.querySelector('header')).toHaveClass('border-b')
+    expect(container.querySelector('[data-slot="card-content"]')).toHaveTextContent('Body')
+  })
 })
