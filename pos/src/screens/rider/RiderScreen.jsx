@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, ScrollView, Text, View } from 'react-native';
+import { AppState, FlatList, Linking, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Alert } from '../../components/ds/Alert';
 import { Button } from '../../components/ds/Button';
@@ -11,10 +11,111 @@ import { SyncStatus } from '../../components/ds/SyncStatus';
 import { TextField } from '../../components/ds/TextField';
 import { decimalsOf, formatAmount, toMinor } from '../../lib/money';
 import { parseAmount } from '../../pos/input';
+import { createLocationTracker } from '../../rider/locationTracker';
+import { ACTIVE } from '../../rider/rider';
 import { useServices } from '../../services/services';
+import { DeliveryPhoto, PHOTO_PROOF } from './DeliveryPhoto';
 
 const TONES = { assigned: 'info', picked_up: 'warning', delivered: 'success', failed: 'danger' };
 const REFRESH_MS = 30000;
+
+let locationModule;
+function loadLocation() {
+  // Loaded when the rider's deliveries open; without it the rider still works, only no position is shared.
+  if (locationModule === undefined) {
+    try {
+      locationModule = require('expo-location');
+    } catch {
+      locationModule = null;
+    }
+  }
+  return locationModule;
+}
+
+/**
+ * ECOM-29, KE DPA minimum data: the rider's position, shared in the
+ * foreground only while a delivery is active. The OS prompt comes only after
+ * the in-app explanation; "Not now" or a refusal leaves the rider working.
+ * share: 'checking' | 'explain' | 'on' | 'off' | 'blocked' | 'unavailable'.
+ */
+function useRiderLocation(rider) {
+  const location = loadLocation();
+  const [share, setShare] = useState(location ? 'checking' : 'unavailable');
+  const tracker = useRef(null);
+
+  useEffect(() => {
+    if (!location) return undefined;
+    let active = true;
+    const current = createLocationTracker({ rider, location });
+    tracker.current = current;
+    current.setForeground(AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
+    current.start().catch(() => {});
+    const subscription = AppState.addEventListener('change', (next) => current.setForeground(next === 'active'));
+    location
+      .getForegroundPermissionsAsync()
+      .then((permission) => {
+        if (!active) return;
+        if (permission?.granted) {
+          current.setPermitted(true);
+          setShare('on');
+        } else setShare(permission?.status === 'denied' ? (permission.canAskAgain === false ? 'blocked' : 'off') : 'explain');
+      })
+      .catch(() => active && setShare('unavailable'));
+    return () => {
+      active = false;
+      subscription?.remove?.();
+      current.dispose();
+      tracker.current = null;
+    };
+  }, [rider, location]);
+
+  const allow = useCallback(async () => {
+    try {
+      const permission = await location.requestForegroundPermissionsAsync();
+      tracker.current?.setPermitted(Boolean(permission?.granted));
+      setShare(permission?.granted ? 'on' : permission?.canAskAgain === false ? 'blocked' : 'off');
+    } catch {
+      setShare('off');
+    }
+  }, [location]);
+
+  return { share, allow, notNow: () => setShare('off') };
+}
+
+/** ECOM-29: the explanation before the OS prompt, and the quiet note once sharing is off. */
+function LocationConsent({ share, onAllow, onNotNow }) {
+  const { t } = useTranslation();
+  if (share === 'explain') {
+    return (
+      <View testID="location-consent" className="gap-3 rounded-lg border border-border bg-surface-200 p-4">
+        <Text accessibilityRole="header" className="font-sans text-body-lg font-medium text-ink">
+          {t('rider.location.title')}
+        </Text>
+        <Text className="font-sans text-body text-ink-muted">{t('rider.location.body')}</Text>
+        <View className="flex-row flex-wrap gap-3">
+          <Button variant="primary" className="flex-1" onPress={onAllow}>
+            {t('rider.location.allow')}
+          </Button>
+          <Button variant="ghost" className="flex-1" onPress={onNotNow}>
+            {t('rider.location.notNow')}
+          </Button>
+        </View>
+      </View>
+    );
+  }
+  if (share === 'off' || share === 'blocked') {
+    return (
+      <View className="flex-row flex-wrap items-center gap-3">
+        <Text className="min-w-0 flex-1 font-sans text-caption text-ink-muted">{t(share === 'off' ? 'rider.location.off' : 'rider.location.blocked')}</Text>
+        <Button variant="ghost" onPress={share === 'off' ? onAllow : () => Linking.openSettings().catch(() => {})}>
+          {t(share === 'off' ? 'rider.location.allow' : 'rider.location.openSettings')}
+        </Button>
+      </View>
+    );
+  }
+  if (share === 'on') return <Text className="font-sans text-caption text-ink-muted">{t('rider.location.on')}</Text>;
+  return null;
+}
 
 /** ECOM-28: the rider signs in as themselves with their email or phone and password (decision 7). */
 function RiderSignIn({ onSignedIn, onBack }) {
@@ -64,15 +165,27 @@ function RiderSignIn({ onSignedIn, onBack }) {
   );
 }
 
-/** ECOM-29: proof of delivery by the customer's code, and the cash collected on a cash on delivery order. */
+/**
+ * ECOM-28, ECOM-29: proof of delivery by the customer's code or a photo of
+ * the parcel, and the cash collected on a cash on delivery order.
+ */
 function DeliveredDialog({ delivery, onClose, onConfirm }) {
   const { t, i18n } = useTranslation();
   const decimals = decimalsOf(delivery.currency);
   const due = toMinor(delivery.collect_minor);
+  const [proof, setProof] = useState('code');
   const [code, setCode] = useState('');
+  const [photo, setPhoto] = useState(null);
   const [collected, setCollected] = useState(due > 0n ? formatAmount(delivery.collect_minor, delivery.currency, i18n.language) : '');
   const collectedMinor = due > 0n ? parseAmount(collected, decimals) : null;
-  const valid = /^\d{6}$/.test(code) && (due === 0n || collectedMinor !== null);
+  const proven = proof === 'photo' ? Boolean(photo) : /^\d{6}$/.test(code);
+  const valid = proven && (due === 0n || collectedMinor !== null);
+  const collectedExtra = { collected_minor: due > 0n ? collectedMinor : null };
+
+  function confirm() {
+    if (proof === 'photo') onConfirm({ photo_uri: photo.uri, taken_at: photo.taken_at, ...collectedExtra });
+    else onConfirm({ code, ...collectedExtra });
+  }
 
   return (
     <Dialog
@@ -80,20 +193,43 @@ function DeliveredDialog({ delivery, onClose, onConfirm }) {
       title={t('rider.delivered.title', { number: delivery.order_number })}
       onClose={onClose}
       footer={
-        <Button variant="pay" block disabled={!valid} onPress={() => onConfirm({ code, collected_minor: due > 0n ? collectedMinor : null })}>
+        <Button variant="pay" block disabled={!valid} onPress={confirm}>
           {t('rider.delivered.confirm')}
         </Button>
       }
     >
       <View className="gap-4">
-        <TextField
-          label={t('rider.delivered.code')}
-          help={t('rider.delivered.codeHelp')}
-          value={code}
-          onChangeText={(text) => setCode(text.replace(/\D/g, '').slice(0, 6))}
-          keyboardType="number-pad"
-          maxLength={6}
-        />
+        {PHOTO_PROOF ? (
+          <View className="gap-2">
+            <Text className="font-sans text-body font-medium text-ink">{t('rider.delivered.proof.label')}</Text>
+            <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-3">
+              {['code', 'photo'].map((kind) => (
+                <Button
+                  key={kind}
+                  variant={proof === kind ? 'secondary' : 'ghost'}
+                  accessibilityRole="radio"
+                  aria-checked={proof === kind}
+                  className="flex-1"
+                  onPress={() => setProof(kind)}
+                >
+                  {t(`rider.delivered.proof.${kind}`)}
+                </Button>
+              ))}
+            </View>
+          </View>
+        ) : null}
+        {proof === 'photo' ? (
+          <DeliveryPhoto photo={photo} onChange={setPhoto} />
+        ) : (
+          <TextField
+            label={t('rider.delivered.code')}
+            help={t('rider.delivered.codeHelp')}
+            value={code}
+            onChangeText={(text) => setCode(text.replace(/\D/g, '').slice(0, 6))}
+            keyboardType="number-pad"
+            maxLength={6}
+          />
+        )}
         {due > 0n ? (
           <TextField
             label={t('rider.delivered.collected')}
@@ -220,6 +356,8 @@ function RiderDeliveries({ onSignedOut }) {
   };
 
   const network = state?.network ?? 'online';
+  const location = useRiderLocation(rider);
+  const hasActive = (state?.deliveries ?? []).some((delivery) => ACTIVE.includes(delivery.status));
 
   return (
     <View className="flex-1">
@@ -240,6 +378,7 @@ function RiderDeliveries({ onSignedOut }) {
         ListHeaderComponent={
           <View className="gap-3">
             {error ? <Alert tone="danger">{error}</Alert> : null}
+            {hasActive ? <LocationConsent share={location.share} onAllow={location.allow} onNotNow={location.notNow} /> : null}
             {(state?.rejected ?? []).map((update) => (
               <Alert
                 key={update.id}
@@ -284,7 +423,9 @@ function RiderDeliveries({ onSignedOut }) {
  * ECOM-28, ECOM-29, NFR-04: the rider's screen. Their open deliveries stay on
  * the phone; picked up, delivered (with the customer's code and the cash
  * collected) and could not deliver are queued on the phone first and upload
- * when the server is reached, so a rider works through a dead zone.
+ * when the server is reached, so a rider works through a dead zone. A photo
+ * of the parcel may stand in for the code (ECOM-28), and the rider's position
+ * is shared, with consent, while a delivery is active (ECOM-29).
  */
 export function RiderScreen({ onExit }) {
   const { riderCredentials } = useServices();

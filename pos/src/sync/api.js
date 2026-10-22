@@ -30,9 +30,10 @@ export function toQuery(params = {}) {
 export function createApiClient({ baseUrl, getToken, getLocale = () => 'en', fetchImpl = globalThis.fetch, timeoutMs = 30000 }) {
   const root = `${String(baseUrl).replace(/\/+$/, '')}/api/v1/`;
 
-  async function request(method, path, { query, body, auth = true } = {}) {
+  async function request(method, path, { query, body, form, auth = true } = {}) {
     const headers = { Accept: 'application/json', 'Accept-Language': getLocale() };
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    // A multipart form sets no Content-Type: fetch adds it with the boundary.
+    if (body !== undefined && form === undefined) headers['Content-Type'] = 'application/json';
     if (auth) {
       const token = await getToken();
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -44,7 +45,7 @@ export function createApiClient({ baseUrl, getToken, getLocale = () => 'en', fet
       response = await fetchImpl(`${root}${path.replace(/^\/+/, '')}${toQuery(query)}`, {
         method,
         headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: form !== undefined ? form : body === undefined ? undefined : JSON.stringify(body),
         signal: controller?.signal,
       });
     } catch (error) {
@@ -94,5 +95,7 @@ export function createApiClient({ baseUrl, getToken, getLocale = () => 'en', fet
     image,
     get: (path, options) => request('GET', path, options),
     post: (path, body, options) => request('POST', path, { ...options, body }),
+    /** ECOM-28: a multipart upload (a FormData), with the same answers as post(). */
+    upload: (path, form, options) => request('POST', path, { ...options, form }),
   };
 }

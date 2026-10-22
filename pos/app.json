@@ -25,9 +25,18 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "The camera scans product barcodes at the till.",
+          "cameraPermission": "The camera scans product barcodes at the till and takes photos as proof of delivery.",
           "recordAudioAndroid": false,
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "While a delivery is in progress, your position is shared with the shop's staff and the customer of that order, and cleared when the delivery ends.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
         }
       ],
       "@sentry/react-native"
