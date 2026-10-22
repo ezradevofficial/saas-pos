@@ -1,0 +1,13 @@
+# ADR 025: one scheduler run (every scheduled command is onOneServer()).
+# Started every minute by app-scheduler.timer.
+[Unit]
+Description=Scheduler run
+After=network.target redis-server.service postgresql.service
+ConditionPathExists=@DEPLOY_PATH@/api/artisan
+
+[Service]
+Type=oneshot
+User=@DEPLOY_USER@
+WorkingDirectory=@DEPLOY_PATH@/api
+ExecStart=/usr/bin/php artisan schedule:run
+Nice=5
