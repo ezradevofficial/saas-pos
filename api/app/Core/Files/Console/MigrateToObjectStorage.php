@@ -52,10 +52,11 @@ class MigrateToObjectStorage extends Command
     public const LEGACY_MARKETPLACE_PREFIX = 'marketplace/apps/';
 
     /** @var array<string, int> */
-    private array $counts = ['copied' => 0, 'present' => 0, 'would_copy' => 0, 'deleted_local' => 0, 'skipped' => 0, 'conflict' => 0, 'failed' => 0];
+    private array $counts = [];
 
     public function handle(): int
     {
+        $this->counts = ['copied' => 0, 'present' => 0, 'would_copy' => 0, 'deleted_local' => 0, 'skipped' => 0, 'conflict' => 0, 'failed' => 0];
         $target = (string) ($this->option('to') ?: TenantFiles::disk());
         $dry = (bool) $this->option('dry-run');
         $deleteLocal = (bool) $this->option('delete-local');
