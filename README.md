@@ -270,7 +270,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-Enable both with `systemctl enable --now app-horizon app-scheduler`. On each deploy, `horizon:terminate` lets running jobs finish and stops Horizon; systemd starts it again on the new code. A separate queue host must receive the same release and run `php artisan horizon:terminate` itself (the command only signals Horizon on the host it runs on). Run the scheduler on one host only, or keep it on several: every scheduled command is `onOneServer()`.
+On the single staging and pilot host, `deploy/host/provision-single-host.sh` installs these units itself, with the scheduler as a one-minute systemd timer running `schedule:run` and `HORIZON_PROFILE=single-host` (ADR 025, docs/deploy-linode.md). Elsewhere, enable both with `systemctl enable --now app-horizon app-scheduler`. On each deploy, `horizon:terminate` lets running jobs finish and stops Horizon; systemd starts it again on the new code. A separate queue host must receive the same release and run `php artisan horizon:terminate` itself (the command only signals Horizon on the host it runs on). Run the scheduler on one host only, or keep it on several: every scheduled command is `onOneServer()`.
 
 The Horizon dashboard (`/horizon`) shows every tenant's job payloads. It opens only when `APP_ENV=local`; elsewhere the `viewHorizon` gate refuses everyone until platform administrators exist.
 
@@ -308,6 +308,7 @@ Only requests, queue workers and the scheduler run the environment guard. Every 
 - [004 Offline POS and sync](docs/adr/004-offline-sync.md)
 - [005 Styling across web and POS](docs/adr/005-styling.md)
 - [006 Roles and permissions](docs/adr/006-rbac.md)
+- [025 Self-managed PostgreSQL on a single host to start](docs/adr/025-self-managed-postgres-single-host.md)
 
 Specs: [concept note](docs/concept-note.md), [platform core spec](docs/platform-core-spec.md).
 

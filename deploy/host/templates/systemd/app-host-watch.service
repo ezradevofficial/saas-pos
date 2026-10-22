@@ -1,0 +1,10 @@
+# ADR 025: readiness, disk and database checks; emails the owner once per
+# change of state, through the app's own SMTP settings.
+[Unit]
+Description=Host watch (readiness, disk, database)
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/app-host/host-watch.sh
+StateDirectory=app-host/watch

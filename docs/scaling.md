@@ -46,7 +46,7 @@ Hash partitioning by `tenant_id` is not planned: most tenants are small, and row
 - **Connections.** Each API PHP-FPM worker and each Horizon process holds one connection. Session pooling only (never transaction pooling: the tenant setting is per session, ADR 002). Size `max_connections` to (API hosts × FPM workers) + (worker hosts × Horizon processes) + 20; move to PgBouncer in session mode when that passes about 400.
 - **Device sync waits on the oldest transaction in the cluster** (ADR 004): keep the database cluster to this application, and watch `app_sync_lag_seconds`.
 - **Read replicas** for reports and exports are the next step after vertical scaling: exports and dashboards already read through repeatable-read, read-only transactions, so they can move to a replica with a separate connection.
-- **Lock slots.** The isolation fixture and full exports touch many tables in one transaction: `max_locks_per_transaction = 256` in CI and locally; the Managed PostgreSQL default is enough at runtime.
+- **Lock slots.** The isolation fixture and full exports touch many tables in one transaction: `max_locks_per_transaction = 256` in CI, locally and on the self-managed host (ADR 025).
 
 ## When to revisit
 
