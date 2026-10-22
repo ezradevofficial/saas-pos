@@ -24,7 +24,15 @@ export function advisories(report) {
   return [...found.values()].sort((a, b) => a.id.localeCompare(b.id))
 }
 
-/** What fails the check: advisories not allowed, and allow-list entries expired or no longer needed. */
+/**
+ * Whether `npm audit` produced a real report. When the registry times out npm
+ * still exits with JSON, but it holds an `error` and no `metadata`: that must
+ * fail the check, never read as "no advisories".
+ */
+export function completed(report) {
+  return report != null && typeof report === 'object' && !report.error && report.metadata?.vulnerabilities != null
+}
+
 /** The last day an exception may name as its review date: 90 days from `today` (YYYY-MM-DD). */
 export function latestReview(today) {
   const date = new Date(`${today}T00:00:00Z`)
@@ -32,6 +40,7 @@ export function latestReview(today) {
   return date.toISOString().slice(0, 10)
 }
 
+/** What fails the check: advisories not allowed, and allow-list entries expired or no longer needed. */
 export function evaluate(report, allowlist, today) {
   const latest = latestReview(today)
   const live = new Map(allowlist.filter((entry) => entry.review_by >= today && entry.review_by <= latest).map((entry) => [entry.id, entry]))
@@ -46,17 +55,28 @@ export function evaluate(report, allowlist, today) {
 const run = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
 if (run) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-  let output
-  try {
-    output = execFileSync('npm', ['audit', '--omit=dev', '--json'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-  } catch (error) {
-    // npm audit exits non-zero when it finds anything; the JSON is still on stdout.
-    output = error.stdout
-    if (!output) throw error
+  const audit = () => {
+    try {
+      return execFileSync('npm', ['audit', '--omit=dev', '--json'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    } catch (error) {
+      // npm audit exits non-zero when it finds anything; the JSON is still on stdout.
+      if (!error.stdout) throw error
+      return error.stdout
+    }
+  }
+  // One retry: the registry's bulk advisory endpoint times out now and then.
+  let report = JSON.parse(audit())
+  if (!completed(report)) {
+    console.log('::warning::npm audit did not complete; retrying once')
+    report = JSON.parse(audit())
+  }
+  if (!completed(report)) {
+    console.error(`npm audit did not complete: ${report?.error?.summary ?? 'no report'}. The dependency check cannot pass without one; rerun the job.`)
+    process.exit(1)
   }
   const allowlist = JSON.parse(readFileSync(join(root, 'scripts/npm-audit-allowlist.json'), 'utf8')).entries
   const today = new Date().toISOString().slice(0, 10)
-  const { failing, unused, expired, tooFar, allowed } = evaluate(JSON.parse(output), allowlist, today)
+  const { failing, unused, expired, tooFar, allowed } = evaluate(report, allowlist, today)
 
   for (const a of allowed) console.log(`allowed until review: ${a.id} ${a.package} (${a.severity}) ${a.title}`)
   for (const id of unused) console.log(`::notice::npm-audit-allowlist entry ${id} is no longer needed; remove it`)

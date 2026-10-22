@@ -162,6 +162,7 @@ return [
             'zero_rated' => 'Zero-rated',
         ],
         'rate_needed' => 'Rate needed',
+        'rate_researched' => ':rate (researched)',
         'exempt' => 'Exempt',
         'categories_title' => 'Tax categories',
         'category_columns' => [

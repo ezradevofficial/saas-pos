@@ -19,6 +19,7 @@ use App\Core\Billing\Payments\BillingPayments;
 use App\Core\Billing\PlatformSettings;
 use App\Core\Onboarding\Assisted\AssistedOnboarding;
 use App\Core\Platform\PlatformAuditor;
+use App\Core\Platform\Reports\PlatformReports;
 use App\Core\Platform\Tenants\PlatformTenants;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -40,6 +41,7 @@ class PlatformTenantController
         private readonly PlatformAuditor $auditor,
         private readonly Accounts $accounts,
         private readonly PlatformTenants $platformTenants,
+        private readonly PlatformReports $reports,
     ) {}
 
     /** ADM-01a: search the customer tenants (the operator's accounts). */
@@ -51,7 +53,9 @@ class PlatformTenantController
             $this->auditor->record('platform.tenant.owner_search', null, null, ['owner_email' => mb_strtolower(trim((string) $request->validated('owner_email'))), 'found' => $accounts->pluck('customer_tenant_id')->all()]);
         }
 
-        return response()->json(['data' => $accounts->map(fn (OperatorAccount $a) => self::account($a))->all()]);
+        $mrr = $this->reports->netMrr($accounts);
+
+        return response()->json(['data' => $accounts->map(fn (OperatorAccount $a) => self::account($a, $mrr[$a->customer_tenant_id] ?? (int) $a->mrr_minor))->all()]);
     }
 
     public function show(PlatformTenantsRequest $request, string $tenant): JsonResponse
@@ -67,7 +71,7 @@ class PlatformTenantController
         $invoices = $this->operator->run(fn () => OperatorInvoice::query()->where('customer_tenant_id', $tenant)->orderByDesc('issued_at')->limit(100)->get());
 
         return response()->json(['data' => [
-            'account' => self::account($account),
+            'account' => self::account($account, $this->reports->netMrr([$account])[$account->customer_tenant_id] ?? (int) $account->mrr_minor),
             'subscription' => $subscription === null ? null : SubscriptionPresenter::subscription($subscription, ['date' => $subscription->nextDueAt()?->toDateString(), 'amount_minor' => null]),
             'grace_days' => $subscription?->grace_days,
             // ONB-08: staff may resend the Owner invitation until handover.
@@ -155,7 +159,8 @@ class PlatformTenantController
         return $this->platformTenants->account404($tenant);
     }
 
-    private static function account(OperatorAccount $account): array
+    /** $netMrr: the account's MRR net of tax, as the MRR report counts it (ADM-06). */
+    private static function account(OperatorAccount $account, int $netMrr): array
     {
         return [
             'tenant_id' => $account->customer_tenant_id,
@@ -168,7 +173,7 @@ class PlatformTenantController
             'deal' => $account->deal,
             'cycle' => $account->cycle,
             'status' => $account->status,
-            'mrr' => ['amount_minor' => $account->mrr_minor, 'currency' => $account->currency],
+            'mrr' => ['amount_minor' => $netMrr, 'currency' => $account->currency],
             'trial_ends_at' => $account->trial_ends_at?->toIso8601String(),
             'current_period_end' => $account->current_period_end?->toDateString(),
             'grace_days' => $account->grace_days,

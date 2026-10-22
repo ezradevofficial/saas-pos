@@ -60,7 +60,8 @@ class TaxListsTest extends TestCase
         $byCode = collect(array_slice($rows, 1))->keyBy(0);
         $this->assertSame(['VAT_EXEMPT', 'Exempt', 'Exempt', ''], [$byCode['VAT_EXEMPT'][0], $byCode['VAT_EXEMPT'][2], $byCode['VAT_EXEMPT'][3], $byCode['VAT_EXEMPT'][4]]);
         $this->assertSame(['VAT_STD', 'VAT', '12.5%', '1 Jan 2026', 'Active'], [$byCode['VAT_STD'][0], $byCode['VAT_STD'][2], $byCode['VAT_STD'][3], $byCode['VAT_STD'][4], $byCode['VAT_STD'][6]]);
-        $this->assertSame('0%', $byCode['VAT_ZERO'][3]);
+        // CP-01: the zero rate is researched in the shipped KE pack.
+        $this->assertSame('0% (researched)', $byCode['VAT_ZERO'][3]);
 
         $fr = $this->csvRows($this->get("{$url}?format=csv&search=VAT_STD&columns[]=kind&columns[]=rate&columns[]=since", [...$this->headersFor(), 'Accept-Language' => 'fr'])->assertOk());
         $this->assertSame([['Type', 'Taux', 'Depuis'], ['TVA', '12,5%', '1 janv. 2026']], $fr);
@@ -70,9 +71,16 @@ class TaxListsTest extends TestCase
 
     public function test_a_tax_code_without_a_confirmed_rate_exports_as_rate_needed(): void
     {
-        $rows = $this->csvRows($this->get("/api/v1/companies/{$this->acme->id}/tax-codes?format=csv&search=VAT_STD&columns[]=code&columns[]=rate", $this->headersFor())->assertOk());
+        // CP-01: the KE withholding rate is still needed in the shipped pack.
+        $url = "/api/v1/companies/{$this->acme->id}/tax-codes?format=csv&columns[]=code&columns[]=rate";
+        $rows = $this->csvRows($this->get("{$url}&search=VAT_WHT", $this->headersFor())->assertOk());
+        $this->assertSame([['Code', 'Rate'], ['VAT_WHT', 'Rate needed']], $rows);
 
-        $this->assertSame([['Code', 'Rate'], ['VAT_STD', 'Rate needed']], $rows);
+        // CP-01: the researched rate is used, and the export says it is researched, in the user's language.
+        $rows = $this->csvRows($this->get("{$url}&search=VAT_STD", $this->headersFor())->assertOk());
+        $this->assertSame([['Code', 'Rate'], ['VAT_STD', '16% (researched)']], $rows);
+        $fr = $this->csvRows($this->get("{$url}&search=VAT_STD", [...$this->headersFor(), 'Accept-Language' => 'fr'])->assertOk());
+        $this->assertSame([['Code', 'Taux'], ['VAT_STD', '16% (recherché)']], $fr);
     }
 
     public function test_tax_categories_search_sort_and_export(): void

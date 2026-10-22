@@ -69,9 +69,11 @@ class TaxCodeList extends ListDefinition
             ListColumn::text('name', 'core.tax.columns.name'),
             ListColumn::make('kind', 'core.tax.columns.kind', ['kind'],
                 fn (array $row, TaxCode $code, ExportValues $values) => $values->enum('core.tax.kinds', $row['kind'])),
-            ListColumn::make('rate', 'core.tax.columns.rate', ['current_rate', 'rate_needed', 'kind'], fn (array $row, TaxCode $code, ExportValues $values) => match (true) {
+            // CP-01: a rate from public research, not yet confirmed, says so.
+            ListColumn::make('rate', 'core.tax.columns.rate', ['current_rate', 'rate_needed', 'rate_researched', 'kind'], fn (array $row, TaxCode $code, ExportValues $values) => match (true) {
                 $row['kind'] === 'exempt' => __('core.tax.exempt'),
                 $row['rate_needed'] => __('core.tax.rate_needed'),
+                $row['rate_researched'] => __('core.tax.rate_researched', ['rate' => $values->decimal((string) $row['current_rate']['rate']).'%']),
                 default => $values->decimal((string) $row['current_rate']['rate']).'%',
             }),
             ListColumn::make('since', 'core.tax.columns.since', ['current_rate'],
