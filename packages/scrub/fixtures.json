@@ -234,6 +234,27 @@
         "amount_minor": 125000000,
         "count": 3
       }
+    ],
+    [
+      {
+        "delivery_id": "d1",
+        "location_id": "l1",
+        "latitude": -1.2633,
+        "longitude": 36.804,
+        "trail": [
+          {
+            "lat": -1.26,
+            "lng": 36.8
+          }
+        ]
+      },
+      {
+        "delivery_id": "d1",
+        "location_id": "l1",
+        "latitude": "[redacted]",
+        "longitude": "[redacted]",
+        "trail": "[redacted]"
+      }
     ]
   ],
   "sensitiveKeys": [
@@ -259,7 +280,16 @@
     "consumer_key",
     "security_credential",
     "SecurityCredential",
-    "code_verifier"
+    "code_verifier",
+    "latitude",
+    "longitude",
+    "last_latitude",
+    "lat",
+    "lng",
+    "trail",
+    "location",
+    "last_location",
+    "rider_location"
   ],
   "plainKeys": [
     "name",
@@ -278,6 +308,8 @@
     "status_code",
     "currency_code",
     "item_code",
-    "error_code"
+    "error_code",
+    "location_id",
+    "located_at"
   ]
 }
