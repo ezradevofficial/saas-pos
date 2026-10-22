@@ -257,6 +257,46 @@ describe('Payroll screens', () => {
     expect(screen.getByText('Personal relief: given to every employee (residency not recorded)')).toBeInTheDocument()
   })
 
+  it('shows the stronger notice when a run used a low-confidence value (CP-01)', async () => {
+    const run = {
+      ...RUN,
+      status: 'calculated',
+      uses_researched_values: true,
+      uses_low_confidence_values: true,
+      statutory: { researched: [{ component: 'inpp', name: 'INPP', confidence: 'low', assumed_names: [] }], not_applied: [], not_applicable: [] },
+    }
+    setup([['payroll/runs/r-1', { data: run }], [/^payroll\/runs\/r-1\/lines/, page([])]], [PERM.runView, PERM.runPrepare])
+    renderApp('/payroll/runs/r-1')
+    expect(await screen.findByText('Researched, low confidence: not confirmed by an accountant')).toBeInTheDocument()
+    expect(screen.queryByText('Values from public research')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Have an accountant check them before you file or pay.')
+  })
+
+  it('marks low-confidence statutory rates on the statutory rates page (CP-01)', async () => {
+    const pack = {
+      country: 'CD',
+      available: true,
+      currency: 'CDF',
+      non_monthly: null,
+      researched: true,
+      low_confidence: true,
+      components: [
+        { code: 'inpp', name: 'INPP', kind: 'levy', method: 'headcount_rate', required: true, when: null, in_force: true, effective_from: '2026-01-01', missing: [], status: 'researched', confidence: 'low', researched_on: '2026-10-22', source: ['https://taxsummaries.pwc.com/democratic-republic-of-the-congo/individual/other-taxes'], assumed: [], may_not_apply: true, not_applicable: null, not_applied: false },
+      ],
+      missing: null,
+      ready: true,
+      to_confirm: 1,
+      returns: [],
+    }
+    setup([['payroll/statutory/c-1', { data: pack }], ['payroll/settings/c-1', { data: { company_id: 'c-1', premiums_taxable: true, premiums_contributory: true, not_applicable: {} } }]], [PERM.settingsView])
+    renderApp('/payroll/settings?tab=statutory')
+    const table = await screen.findByRole('table', { name: 'Statutory rates in force' })
+    const inpp = within(table).getByRole('row', { name: /INPP/ })
+    expect(within(inpp).getByText('Researched, low confidence: not confirmed by an accountant')).toBeInTheDocument()
+    expect(within(inpp).getByText('Low confidence · researched 22 Oct 2026')).toBeInTheDocument()
+    expect(screen.getAllByText('Researched, low confidence: not confirmed by an accountant')).toHaveLength(2)
+  })
+
   it('lists each value’s research and marks a component not applicable with a reason (CP-01)', async () => {
     const pack = {
       country: 'CD',

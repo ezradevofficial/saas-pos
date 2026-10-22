@@ -93,6 +93,27 @@ describe('Taxes', () => {
     expect(await screen.findByText('Some statutory values come from public research and haven’t been confirmed by an accountant. Check them before filing.')).toBeInTheDocument()
   })
 
+  it('shows the low-confidence notice for a rate researched at low confidence (CP-01)', async () => {
+    const research = { confidence: 'low', researched_on: '2026-10-22', source: ['https://example.org/vat'] }
+    const low = code({
+      id: 't-2',
+      code: 'VAT_WHT',
+      name: 'Withholding VAT',
+      kind: 'withholding',
+      rate_needed: false,
+      rate_researched: true,
+      rate_low_confidence: true,
+      current_rate: { id: 'r-2', rate: '2.0000', effective_from: '2026-01-01', effective_to: null, needs_confirmation: false, source: 'pack', research },
+      rates: [{ id: 'r-2', rate: '2.0000', effective_from: '2026-01-01', effective_to: null, needs_confirmation: false, source: 'pack', research }],
+    })
+    mockRoutes(api, [['companies/c-1/tax-codes?per_page=200', { data: [low] }], [/^companies\/c-1\/tax-codes\?/, page([low])], [/^tax-categories\?/, page([])], ['master-data/settings', { data: [] }]], { permissions: EDITOR, companies: [CD_COMPANY] })
+    renderApp('/settings/taxes')
+
+    const row = (await screen.findByText('VAT_WHT')).closest('tr')
+    expect(within(row).getByText('Researched, low confidence: not confirmed by an accountant')).toBeInTheDocument()
+    expect(await screen.findByText('Some values in use come from public research whose sources conflict or are thin. Have an accountant check them before you file or pay.')).toBeInTheDocument()
+  })
+
   it('adds a rate from a date with a percent typed in the UI language', async () => {
     taxes()
     api.post.mockResolvedValue({ data: CODES[0] })

@@ -162,6 +162,17 @@ describe('HR screens', () => {
     expect(screen.getByText('Some statutory values come from public research and haven’t been confirmed by an accountant. Check them before filing.')).toBeInTheDocument()
   })
 
+  it('marks low-confidence leave days and a share of pay (HR-12, CP-01)', async () => {
+    const maternity = { id: 'lt-3', company_id: 'c-1', code: 'MATERNITY', name: 'Maternity leave', statutory_key: 'maternity', statutory_label: 'Maternity leave', paid: true, pay_share: '2/3', accrual: 'none', entitlement_days: '98.00', days_needed: false, count_basis: 'calendar_days', carry_over_max_days: null, allow_negative: false, requires_document: false, accrues_from: '2026-10-22', archived_at: null, qualifying_months: null, half_pay_days: null, events: [], researched: true, low_confidence: true, research: { confidence: 'low', researched_on: '2026-10-22', source: ['https://actualite.cd/2023/05/01/rdc-que-dit-le-code-du-travail-au-sujet-de-la-maternite'], assumed: [] } }
+    setup([[/^hr\/leave-types\?/, page([maternity])]], ['hr.leave.view', 'hr.leave.manage'])
+    renderApp('/hr/leave/types')
+    const table = await screen.findByRole('table')
+    const row = await within(table).findByRole('row', { name: /MATERNITY/ })
+    expect(within(row).getByText('Paid at 2/3 of pay')).toBeInTheDocument()
+    expect(within(row).getByText('Researched, low confidence: not confirmed by an accountant')).toBeInTheDocument()
+    expect(screen.getAllByText('Researched, low confidence: not confirmed by an accountant')).toHaveLength(2)
+  })
+
   it('lays the week out by employee and day, with holidays marked (HR-18)', async () => {
     const monday = weekStart(today())
     const shift = (id, employee, date, code, holiday = false) => ({

@@ -152,6 +152,30 @@ describe('Fixed assets (FA-04, FA-05, FA-12, FA-17, FA-20)', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('fixed-assets/runs', { company_id: 'c-1', period: '2026-01' }))
   })
 
+  it('lists the researched tax classes with the low-confidence notice (FA-20, CP-01)', async () => {
+    const source = ['https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01']
+    const settings = {
+      convention: 'days',
+      convention_locked: false,
+      tax_book: false,
+      base_currency: 'KES',
+      tax_classes: [
+        { key: 'machinery', method: 'straight_line', rate: '25', first_year_rate: '50', needs_confirmation: false, status: 'researched', confidence: 'low', researched_on: '2026-10-22', source, effective_from: '2026-01-01', effective_to: null },
+        { key: 'buildings', method: 'straight_line', rate: '10', first_year_rate: null, needs_confirmation: false, status: 'researched', confidence: 'low', researched_on: '2026-10-22', source, effective_from: '2026-01-01', effective_to: null },
+      ],
+      tax_todo: [],
+      tax_unconfirmed: [],
+    }
+    mockRoutes(api, [['fixed-assets/companies/c-1/settings', { data: settings }], [/^companies\?/, { data: [COMPANY] }], [/^me\/companies/, { data: [COMPANY] }]], { permissions: PERMISSIONS, modules: ['core', 'fixed_assets'], companies: [COMPANY] })
+    renderApp('/fixed-assets/settings')
+    const table = await screen.findByRole('table', { name: 'Tax classes' })
+    const machinery = within(table).getByRole('row', { name: /machinery/i })
+    expect(within(machinery).getByText('50% in the first year, then 25% of the rest')).toBeInTheDocument()
+    expect(within(machinery).getByText('Researched, low confidence: not confirmed by an accountant')).toBeInTheDocument()
+    expect(within(table).getByRole('row', { name: /buildings/i })).toHaveTextContent('10%')
+    expect(screen.getByRole('alert')).toHaveTextContent('Researched, low confidence: not confirmed by an accountant')
+  })
+
   it('says the tax book cannot be used while the rates are unconfirmed', async () => {
     setup(ACTIVE)
     renderApp('/fixed-assets/reports')
