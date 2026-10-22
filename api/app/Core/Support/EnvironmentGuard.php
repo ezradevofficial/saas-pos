@@ -112,7 +112,7 @@ final class EnvironmentGuard
         return [
             'Mail transport' => self::mailProblem($config),
             'SMS driver' => $config->get('services.sms.driver') === 'log'
-                ? 'SMS driver is log (set SMS_DRIVER)'
+                ? 'SMS driver is log (set SMS_DRIVER to a provider, or leave it empty for email-only mode)'
                 : null,
             // NOT-01: the fake push/SMS/WhatsApp driver delivers nothing.
             'Notification drivers' => $fake === []

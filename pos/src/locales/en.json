@@ -729,7 +729,9 @@
     "signIn": {
       "title": "Sign in as a rider",
       "intro": "Use your own email or phone and password. Your deliveries appear after you sign in.",
+      "introEmail": "Use your own email address and password. Text messages aren’t available yet. Your deliveries appear after you sign in.",
       "login": "Email or phone",
+      "loginEmail": "Email address",
       "password": "Password",
       "submit": "Sign in",
       "back": "Pair a till instead"

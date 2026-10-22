@@ -1,0 +1,14 @@
+# NFR-07, ADR 025: the nightly WAL-G base backup and its retention. Only
+# installed when BACKUPS_ENABLED=true.
+[Unit]
+Description=Database base backup (WAL-G)
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+User=postgres
+ExecStart=/usr/local/lib/app-host/db-backup.sh
+StateDirectory=app-host/db-backup
+Nice=10
+IOSchedulingClass=idle

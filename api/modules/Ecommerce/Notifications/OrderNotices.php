@@ -9,6 +9,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\NotificationAddress;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\Notifier;
+use App\Core\Notifications\Sms\SmsAvailability;
 use Illuminate\Support\Facades\RateLimiter;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\Store;
@@ -18,7 +19,8 @@ use Modules\Ecommerce\Support\Amounts;
  * ECOM-20, NOT-02, ADR 009: what the customer hears about an order goes
  * through the core notifier as system messages to the order's contact
  * (SMS to the phone, email when given), in the language the order was
- * placed in. The tracking link and the delivery code are secrets: they
+ * placed in. In email-only mode the SMS is skipped (`sms_unavailable`) and
+ * goes by WhatsApp where configured; the email goes as usual. The tracking link and the delivery code are secrets: they
  * reach the message at hand-over only and are never stored (the order
  * keeps their hashes). A transport failure never fails the order.
  *
@@ -35,6 +37,11 @@ use Modules\Ecommerce\Support\Amounts;
  * number typed at checkout is not messaged on WhatsApp by an unpaid
  * order; and a phone gets at most `ecommerce.notifications.per_phone_per_day`
  * order messages a day (SMS and WhatsApp), however many orders name it.
+ *
+ * In email-only mode (NOT-01) the same rule holds for the notifier's
+ * WhatsApp fallback: an unproven guest's number gets no SMS delivery (so no
+ * fallback either), and an order already going by WhatsApp (opted in) gets
+ * no SMS delivery, so the number is never messaged twice.
  */
 final class OrderNotices
 {
@@ -57,7 +64,7 @@ final class OrderNotices
         self::DISPATCHED => 'dispatched', self::DELIVERED => 'delivered', self::CANCELLED => 'cancelled',
     ];
 
-    public function __construct(private readonly Notifier $notifier, private readonly ChannelDrivers $drivers) {}
+    public function __construct(private readonly Notifier $notifier, private readonly ChannelDrivers $drivers, private readonly SmsAvailability $sms) {}
 
     /** ECOM-44: whether order messages can go out on WhatsApp (a provider driver is configured). */
     public function whatsappAvailable(): bool
@@ -75,6 +82,7 @@ final class OrderNotices
                     'tracking_url' => 'https://shop.example.com/shop/duka/orders/WEB-NBO-2026-00012?t=…', 'delivery_code' => '482913',
                 ],
                 defaultChannels: [Channels::SMS, Channels::EMAIL],
+                // ECOM-44: WhatsApp for customers who opted in; NOT-01: the fallback for SMS in email-only mode (Notifier).
                 channels: [Channels::SMS, Channels::EMAIL, Channels::WHATSAPP],
                 langKey: "ecommerce.notifications.{$name}",
                 system: true,
@@ -90,13 +98,16 @@ final class OrderNotices
         $addresses = [];
         $locale = in_array($order->locale, Channels::LOCALES, true) ? $order->locale : 'en';
 
-        if ($order->contact_phone !== '') {
+        $proven = $order->customer_id !== null || in_array($order->payment_status, ['paid', 'cod_collected'], true) || $order->status !== Order::PLACED;
+        $whatsapp = $order->whatsapp_opt_in && $order->contact_phone !== '' && $proven && $this->whatsappAvailable();
+
+        // NOT-01, review L6: in email-only mode an SMS delivery turns into WhatsApp (Notifier), so it is
+        // made only for a proven number that is not already getting the message by WhatsApp.
+        if ($order->contact_phone !== '' && ($this->sms->available() || ($proven && ! $whatsapp))) {
             $addresses[] = new NotificationAddress(Channels::SMS, $order->contact_phone, $order->contact_name, $locale);
         }
 
-        $proven = $order->customer_id !== null || in_array($order->payment_status, ['paid', 'cod_collected'], true) || $order->status !== Order::PLACED;
-
-        if ($order->whatsapp_opt_in && $order->contact_phone !== '' && $proven && $this->whatsappAvailable()) {
+        if ($whatsapp) {
             $addresses[] = new NotificationAddress(Channels::WHATSAPP, $order->contact_phone, $order->contact_name, $locale);
         }
 

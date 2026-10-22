@@ -8,9 +8,10 @@ import { Alert, Button, Card, Checkbox, Money, Select, StatusBadge, Switch, Text
 import { formatRelative } from '@/lib/dates'
 import { formatAmount } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
+import { useSmsAvailable } from '@/lib/useSmsAvailable'
 import { cn } from '@/lib/utils'
 import { useCart } from './cart'
-import { getShopSession, newOrderKey, requestCode, setShopSession, shop, shopBlob } from './shopClient'
+import { getShopSession, newOrderKey, requestCode, setShopSession, shop, shopBlob, shopPublicApi } from './shopClient'
 import { useShop } from './useShop'
 
 const TONES = { placed: 'warning', accepted: 'info', picking: 'info', ready: 'info', out_for_delivery: 'info', delivered: 'success', cancelled: 'neutral', returned: 'danger' }
@@ -495,6 +496,8 @@ export function ShopAccount() {
   const queryClient = useQueryClient()
   const [signedIn, setSignedIn] = useState(() => Boolean(getShopSession(handle)))
   const [contact, setContact] = useState('')
+  // ECOM-08, AUTH-01: in email-only mode the code goes to an email address.
+  const sms = useSmsAvailable(shopPublicApi)
   const [challenge, setChallenge] = useState(null)
   const [code, setCode] = useState('')
   // Unticked by default: consent is a positive act (KE DPA).
@@ -573,7 +576,15 @@ export function ShopAccount() {
         </form>
       ) : (
         <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); send.mutate() }}>
-          <TextField label={t('shop.account.contact')} help={t('shop.account.contactHelp')} value={contact} onChange={(event) => setContact(event.target.value)} error={send.error ? errorMessage(send.error) : undefined} />
+          <TextField
+            label={sms ? t('shop.account.contact') : t('shop.account.email')}
+            help={sms ? t('shop.account.contactHelp') : t('shop.account.emailHelp')}
+            type={sms ? 'text' : 'email'}
+            autoComplete={sms ? undefined : 'email'}
+            value={contact}
+            onChange={(event) => setContact(event.target.value)}
+            error={send.error ? errorMessage(send.error) : undefined}
+          />
           <Button type="submit" variant="primary" disabled={!contact.trim()} loading={send.isPending}>{t('shop.account.sendCode')}</Button>
         </form>
       )}

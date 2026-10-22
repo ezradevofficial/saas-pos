@@ -63,6 +63,8 @@ Not changed, worth knowing:
 
 ## Owner inputs still needed
 
+As found at the rehearsal. Superseded by the owner's decisions of the same day: one self-managed host (ADR 025), with the list in docs/deploy-linode.md, "What the owner must do".
+
 - **Managed PostgreSQL admin with `BYPASSRLS`**: confirm with Linode that `linpostgres` has it (`select rolbypassrls from pg_roles where rolname = current_user`). Without it `app_owner` cannot be created and ADR 002's role model needs another host (self-managed PostgreSQL) — a decision for the owner.
 - Whether the plan allows `max_locks_per_transaction = 256`.
 - Linode account, region, hosts, VPC and firewall, deploy SSH key and `known_hosts`, the GitHub secrets and variables (docs/deploy-linode.md).
@@ -76,6 +78,8 @@ Not changed, worth knowing:
 - Country packs: the KE `VAT_WHT` rate and the holiday lists printed as "to confirm".
 
 ## The real staging deploy, step by step
+
+Written for Managed PostgreSQL, before ADR 025. The single-host steps are in docs/deploy-linode.md, "Provisioning the host".
 
 On a workstation, once:
 
@@ -152,3 +156,22 @@ curl -s -o /dev/null -w '%{http_code}\n' https://api.<domain>/metrics      # 403
 and from the metrics scraper's private address (docs/observability.md), `/metrics` with the bearer token shows `app_horizon_masters 1`.
 
 Then sign up through `https://app.<domain>` with a real mailbox, pair a POS device, and restore-test once (docs/backups.md, Logical copy).
+
+## Single-host rehearsal (ADR 025)
+
+Later the same day, on branch `chore/self-managed-postgres`, for `deploy/host`. No system packages were installed on the Mac: PostgreSQL 17.11 binaries (Homebrew), bash 3.2, and shellcheck 0.11.0 from its release archive in a scratch directory. Ubuntu-only parts (apt, systemd, ufw, nginx, certbot, runuser) ran as dry runs only.
+
+| Check | How | Result |
+| --- | --- | --- |
+| `deploy/host/tests/run.sh` | `bash -n`, shellcheck, every script in a sandboxed dry run or against stubs | 136 passed, shellcheck clean |
+| Plain dry runs | `provision-single-host.sh --dry-run` (every step, backups off, and `tools,backups,postgres` with backups on), `db-backup.sh --dry-run` (stub WAL-G), `restore-drill.sh --dry-run`, `host-watch.sh --dry-run` | all exit 0, write nothing outside the scratch directory, print no secret. `db-backup.sh` refuses while backups are off |
+| WAL-G pin | the v3.0.9 asset downloaded to a scratch directory | SHA-256 matches `lib.sh`; the archive holds `wal-g-pg-24.04-amd64`, the name the install step expects |
+| Scratch cluster | `initdb --data-checksums` on port 55925, with the script's own `postgresql.conf` and `pg_hba.conf` (rendered by a sandboxed dry run, this machine's user as the superuser), a self-signed certificate | starts with `max_locks_per_transaction = 256`, `listen_addresses = localhost`, `ssl = on`, `archive_mode = off`. One macOS-only override: `effective_io_concurrency = 0` (macOS has no `posix_fadvise`; 200 stays on the host) |
+| db-roles step | `provision-single-host.sh --steps db-roles`, run twice | creates `db_admin` (NOSUPERUSER CREATEDB CREATEROLE BYPASSRLS), then `provision-db.sh` over TLS on localhost creates `app_owner` (BYPASSRLS), `app` and `app_platform` and the database owned by `app_owner`. The second run keeps the database. No password in the output |
+| Connections | `psql` as each role, each way | superuser: socket by peer accepted; 127.0.0.1 and ::1 refused with and without TLS. Every role refused without TLS. `scram-sha-256` over TLS accepted; a wrong password refused. Socket without a password refused |
+| Grants and RLS | a forced-RLS test table made as `app_owner` | `app` sees 0 rows without a tenant and only its tenant's rows with one; inserting another tenant's row is refused; `app` cannot create a table in `public` |
+| Restore drill, `pg_basebackup` copy | `restore-drill.sh --source dir:<copy> --no-verify` on port 55926 | **failed at first**: `pg_ctl -w` returned while the copy was still recovering (hot standby off refuses connections), so the drill stopped with "still in recovery". Fixed: it waits for the promotion (`DRILL_RECOVERY_TIMEOUT`). Then it passed: 50,000 rows with the same checksum as the source, `archive_mode` off, and the copy deleted afterwards (kept with `--keep`) |
+| Restore drill, point in time | WAL archiving on in the scratch cluster, a base copy, 100 rows, the target time, 100 more rows, then `--wal-archive` and `--target-time` | passed: "recovery stopping before commit", 50,100 rows (only the rows from before the target), the WAL archive left untouched |
+| Host watch against the cluster | `host-watch.sh --dry-run` with real `psql` | the database checks ran; no answer on the readiness URL was reported as "no answer" (it used to say "answered 000"); nothing sent, no state kept |
+
+Not rehearsed here: apt and the PGDG key check, systemd units and timers, ufw, fail2ban, nginx and certbot, PHP-FPM, `runuser` as `postgres`, WAL-G against a real bucket, and `backup:verify` inside the drill (it needs a deployed API; it was rehearsed on its own in the morning). These run on the first real provisioning, which starts with `--dry-run` on the host.

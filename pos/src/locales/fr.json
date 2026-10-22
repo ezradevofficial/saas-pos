@@ -729,7 +729,9 @@
     "signIn": {
       "title": "Se connecter comme livreur",
       "intro": "Utilisez votre propre e-mail ou téléphone et votre mot de passe. Vos livraisons s’affichent après la connexion.",
+      "introEmail": "Utilisez votre propre adresse e-mail et votre mot de passe. Les SMS ne sont pas encore disponibles. Vos livraisons s’affichent après la connexion.",
       "login": "E-mail ou téléphone",
+      "loginEmail": "Adresse e-mail",
       "password": "Mot de passe",
       "submit": "Se connecter",
       "back": "Associer une caisse à la place"

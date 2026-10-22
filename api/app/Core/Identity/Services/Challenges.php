@@ -9,6 +9,7 @@ use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\Identity\Support\LoginIdentifier;
 use App\Core\Identity\Support\PhoneNumber;
+use App\Core\Notifications\Sms\SmsAvailability;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
@@ -56,6 +57,11 @@ class Challenges
             DB::select('select id from users where id = ? for update', [$user->id]);
 
             if ($channel !== null) {
+                // AUTH-01..AUTH-05: the last guard; each caller refuses first with its own wording.
+                if ($channel === 'sms') {
+                    app(SmsAvailability::class)->assertAvailable();
+                }
+
                 $this->assertCanSend($user, $purpose);
             }
 

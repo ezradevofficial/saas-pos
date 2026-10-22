@@ -117,7 +117,7 @@ function LocationConsent({ share, onAllow, onNotNow }) {
   return null;
 }
 
-/** ECOM-28: the rider signs in as themselves with their email or phone and password (decision 7). */
+/** ECOM-28: the rider signs in as themselves with their email or phone and password (decision 7); email only in email-only mode (AUTH-01). */
 function RiderSignIn({ onSignedIn, onBack }) {
   const { t } = useTranslation();
   const { rider } = useServices();
@@ -125,6 +125,16 @@ function RiderSignIn({ onSignedIn, onBack }) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // AUTH-01: in email-only mode the field asks for an email; an existing phone login still signs in.
+  const [sms, setSms] = useState(null);
+  useEffect(() => {
+    let live = true;
+    rider.smsAvailable().then((available) => live && setSms(available));
+    return () => {
+      live = false;
+    };
+  }, [rider]);
+  const emailOnly = sms === false;
 
   async function submit() {
     setBusy(true);
@@ -147,10 +157,18 @@ function RiderSignIn({ onSignedIn, onBack }) {
           <Text accessibilityRole="header" className="font-sans text-h2 font-semibold text-ink">
             {t('rider.signIn.title')}
           </Text>
-          <Text className="font-sans text-body-lg text-ink-muted">{t('rider.signIn.intro')}</Text>
+          <Text className="font-sans text-body-lg text-ink-muted">{emailOnly ? t('rider.signIn.introEmail') : t('rider.signIn.intro')}</Text>
         </View>
         {error ? <Alert tone="danger">{error}</Alert> : null}
-        <TextField label={t('rider.signIn.login')} value={login} onChangeText={setLogin} autoCapitalize="none" autoCorrect={false} autoComplete="username" />
+        <TextField
+          label={emailOnly ? t('rider.signIn.loginEmail') : t('rider.signIn.login')}
+          value={login}
+          onChangeText={setLogin}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="username"
+          keyboardType={emailOnly ? 'email-address' : 'default'}
+        />
         <TextField label={t('rider.signIn.password')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" onSubmitEditing={submit} />
         <Button variant="primary" block loading={busy} disabled={!login.trim() || !password} onPress={submit}>
           {t('rider.signIn.submit')}

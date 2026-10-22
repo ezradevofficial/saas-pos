@@ -6,6 +6,7 @@ use App\Core\Identity\Rules\LoginAvailable;
 use App\Core\Identity\Services\PasswordPolicy;
 use App\Core\Identity\Services\SignUp;
 use App\Core\Identity\Support\PhoneNumber;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Sso\Rules\NotSsoEnforced;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -30,6 +31,11 @@ class SignUpRequest extends FormRequest
                 ? (PhoneNumber::normalise($phone, is_string($this->input('country')) ? $this->input('country') : null) ?? $phone)
                 : null,
         ]);
+
+        // AUTH-01: in email-only mode a phone sign-up is refused before anything else is checked.
+        if ($this->input('email') === null && $this->input('phone') !== null) {
+            app(SmsAvailability::class)->assertAvailable('phone');
+        }
     }
 
     public function rules(): array

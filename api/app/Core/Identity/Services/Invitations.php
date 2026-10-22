@@ -8,6 +8,7 @@ use App\Core\Identity\Events\InvitationAccepted;
 use App\Core\Identity\IdentityNotices;
 use App\Core\Identity\Models\Invitation;
 use App\Core\Identity\Models\User;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Rbac\Grants;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\RoleManager;
@@ -46,6 +47,11 @@ class Invitations
      */
     public function invite(User $actor, array $data): Invitation
     {
+        // AUTH-05: an invitation by phone goes out by SMS; refused in email-only mode.
+        if (($data['email'] ?? null) === null) {
+            app(SmsAvailability::class)->assertAvailable('phone');
+        }
+
         $assignments = array_map(function (array $a) use ($actor) {
             $scope = $this->grants->scope($a['scope_type'], $a['scope_id'] ?? null);
             $role = $this->grants->role($a['role_id']);

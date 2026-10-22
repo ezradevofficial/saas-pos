@@ -90,6 +90,23 @@ export async function shopBlob(store, path) {
   return response.blob()
 }
 
+/**
+ * AUTH-01: the platform's public settings (GET public/branding `meta`, e.g.
+ * whether text messages can be sent), fetched with no session at all.
+ */
+export const shopPublicApi = {
+  async get(path) {
+    let response
+    try {
+      response = await fetch(`${apiUrl}/api/v1/${path.replace(/^\//, '')}`, { headers: { Accept: 'application/json' }, credentials: 'omit', referrerPolicy: 'no-referrer' })
+    } catch {
+      throw new ApiError({ status: 0, code: 'network_error', message: i18n.t('errors.network') })
+    }
+    if (!response.ok) throw new ApiError({ status: response.status, code: 'http_error', message: i18n.t('errors.generic') })
+    return response.json()
+  },
+}
+
 /** A fresh idempotency key for one checkout (ECOM-13). */
 export function newOrderKey() {
   const bytes = new Uint8Array(16)

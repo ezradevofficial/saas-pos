@@ -203,7 +203,11 @@ Five parts:
     delivery code always reaches the customer by SMS. A guest's number
     (not proven by a sign-in code) gets WhatsApp only once the order is
     paid or accepted, and a phone gets at most 20 order messages a day
-    (`ecommerce.notifications.per_phone_per_day`, review L6).
+    (`ecommerce.notifications.per_phone_per_day`, review L6). In email-only
+    mode (NOT-01) the notifier sends an SMS by WhatsApp instead; the same
+    rule holds there: an unproven guest number gets nothing by phone until
+    the order is paid or accepted, and an opted-in order gets WhatsApp once,
+    not again as the SMS fallback.
 18. **Proof photos keep the picture only** (review H3, L1, L2): the size is
     read from the header first (at most 4,096 pixels a side and 12
     megapixels), the picture scaled to 1,600 pixels and re-encoded as JPEG

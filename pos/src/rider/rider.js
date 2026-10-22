@@ -274,6 +274,21 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
       return { ok: false, error: response.body?.code ?? 'failed', message: response.body?.message ?? null };
     },
 
+    /**
+     * AUTH-01 (email-only mode): whether the platform sends text messages,
+     * from GET public/branding `meta.sms_available`; null when unknown
+     * (offline, or no answer), so the screen stays as it is.
+     */
+    async smsAvailable() {
+      try {
+        const response = await api.get('public/branding', { auth: false });
+        const available = response.status === 200 ? response.body?.meta?.sms_available : undefined;
+        return typeof available === 'boolean' ? available : null;
+      } catch {
+        return null;
+      }
+    },
+
     async signOut() {
       try {
         await api.post('auth/sign-out', {});
