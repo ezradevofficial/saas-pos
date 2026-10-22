@@ -42,6 +42,7 @@ return [
         'no_email' => 'The user has no verified email address.',
         'no_phone' => 'The user has no verified phone number.',
         'channel_unavailable' => 'This channel isn’t set up yet.',
+        'sms_unavailable' => 'Text messages aren’t available yet, so this went by email or WhatsApp instead where possible.',
         'user_deactivated' => 'The user is no longer active.',
         'secret_missing' => 'The link in this message can no longer be sent. Send a new one.',
         'no_consent' => 'The customer hasn’t agreed to marketing messages on this channel.',

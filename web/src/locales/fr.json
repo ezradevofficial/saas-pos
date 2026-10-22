@@ -524,7 +524,8 @@
       "businessName": "Nom de l'entreprise",
       "country": "Pays",
       "language": "Langue",
-      "code": "Code à 6 chiffres"
+      "code": "Code à 6 chiffres",
+      "email": "Adresse e-mail"
     },
     "countries": {
       "KE": "Kenya",
@@ -576,12 +577,14 @@
       "qrAlt": "Code QR pour votre application d'authentification",
       "manual": "Ou saisissez cette clé à la main :",
       "smsSent": "Saisissez le code envoyé à {{destination}}.",
-      "submit": "Activer la connexion en deux étapes"
+      "submit": "Activer la connexion en deux étapes",
+      "smsUnavailable": "Les codes par SMS ne sont pas encore disponibles : utilisez une application d’authentification."
     },
     "forgot": {
       "title": "Réinitialiser votre mot de passe",
       "intro": "Saisissez votre e-mail ou numéro de téléphone et nous vous enverrons un code.",
-      "submit": "Envoyer le code"
+      "submit": "Envoyer le code",
+      "introEmail": "Saisissez votre adresse e-mail et nous vous enverrons un code."
     },
     "reset": {
       "title": "Choisissez un nouveau mot de passe",
@@ -647,7 +650,8 @@
         "link_email_mismatch": "Le fournisseur d’identité a connecté une autre personne. Connectez-vous-y avec votre propre compte, puis réessayez.",
         "name_id_transient": "Votre fournisseur d’identité a envoyé un identifiant à usage unique. Demandez à votre administrateur d’envoyer l’adresse e-mail ou un identifiant persistant."
       }
-    }
+    },
+    "emailOnly": "Les SMS ne sont pas encore disponibles : utilisez votre adresse e-mail."
   },
   "home": {
     "greeting": {
@@ -968,7 +972,8 @@
     "fields": {
       "name": "Nom complet",
       "contact": "E-mail ou numéro de téléphone",
-      "language": "Langue"
+      "language": "Langue",
+      "email": "Adresse e-mail"
     },
     "invite": {
       "title": "Inviter un utilisateur",
@@ -978,7 +983,8 @@
       "rolesText": "Donnez au moins un rôle et précisez où il s’applique. Un rôle de succursale couvre ses emplacements ; un rôle de société couvre ses succursales.",
       "addRole": "Ajouter un autre rôle",
       "send": "Envoyer l’invitation",
-      "sent": "Invitation envoyée à {{name}}. Elle est valable 7 jours."
+      "sent": "Invitation envoyée à {{name}}. Elle est valable 7 jours.",
+      "emailHelp": "Le lien d’invitation est envoyé ici. Les SMS ne sont pas encore disponibles : utilisez une adresse e-mail."
     },
     "assignment": {
       "legend": "Rôle {{number}}",
@@ -5471,7 +5477,8 @@
       "contact": "E-mail ou téléphone du contact",
       "handover": "L’essai de 14 jours commence avec ces modules. Le client devient propriétaire en acceptant ; votre accès de configuration prend fin à ce moment-là.",
       "submit": "Créer le client",
-      "openTenant": "Ouvrir {{name}}"
+      "openTenant": "Ouvrir {{name}}",
+      "email": "Adresse e-mail du contact"
     },
     "customers": {
       "title": "Clients",
@@ -12080,7 +12087,9 @@
       "noOrders": "Aucune commande pour le moment.",
       "marketing": "Offres et nouveautés",
       "marketingOn": "Vous recevez les offres et nouveautés. Vous pouvez les arrêter ici à tout moment.",
-      "marketingOff": "Vous ne recevez ni offres ni nouveautés."
+      "marketingOff": "Vous ne recevez ni offres ni nouveautés.",
+      "email": "Adresse e-mail",
+      "emailHelp": "Nous vous envoyons un code à 6 chiffres. Les codes par SMS ne sont pas encore disponibles."
     },
     "consent": {
       "marketing_2026_10": "Envoyez-moi les offres et nouveautés de {{store}} par SMS, WhatsApp ou e-mail. Je peux les arrêter à tout moment dans mon compte."

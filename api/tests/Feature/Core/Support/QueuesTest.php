@@ -83,6 +83,42 @@ class QueuesTest extends TestCase
         }
     }
 
+    /** ADR 025: the 1 vCPU starting host runs five workers, every queue still worked and long jobs still on their own connections. */
+    public function test_the_single_host_profile_keeps_every_queue_with_few_workers(): void
+    {
+        $_SERVER['HORIZON_PROFILE'] = $_ENV['HORIZON_PROFILE'] = 'single-host';
+        try {
+            $horizon = require config_path('horizon.php');
+        } finally {
+            unset($_SERVER['HORIZON_PROFILE'], $_ENV['HORIZON_PROFILE']);
+        }
+
+        $supervisors = $horizon['defaults'];
+        $queues = collect($supervisors)->flatMap(fn ($s) => $s['queue'])->all();
+        $this->assertEqualsCanonicalizing(['default', 'notifications', 'automation', 'payments', 'fiscal', 'exports', 'imports', 'webhooks'], $queues);
+        $this->assertCount(count(array_unique($queues)), $queues, 'no queue is worked by two supervisors');
+
+        // Payments and fiscal are taken first; one pool, no balancing across queues.
+        $this->assertSame(['payments', 'fiscal', 'notifications', 'default', 'automation'], $supervisors['supervisor-default']['queue']);
+        $this->assertFalse($supervisors['supervisor-default']['balance']);
+
+        foreach (['supervisor-exports' => 'redis-exports', 'supervisor-imports' => 'redis-imports', 'supervisor-webhooks' => 'redis-webhooks'] as $name => $connection) {
+            $this->assertSame($connection, $supervisors[$name]['connection'], $name);
+        }
+        foreach ($supervisors as $name => $supervisor) {
+            $this->assertLessThan(config("queue.connections.{$supervisor['connection']}.retry_after"), $supervisor['timeout'], $name);
+        }
+
+        foreach (['local', '*'] as $environment) {
+            $plan = $horizon['environments'][$environment];
+            $this->assertSame(array_keys($supervisors), array_keys($plan));
+            $this->assertSame(5, array_sum(array_column($plan, 'maxProcesses')), "{$environment}: five worker processes in all");
+        }
+
+        // Without the profile nothing changes.
+        $this->assertCount(8, config('horizon.defaults'));
+    }
+
     public function test_imports_run_on_their_own_queue_and_connection(): void
     {
         // IMP-03: an hour-long import is reserved for longer than it may run.

@@ -1,0 +1,24 @@
+# ADR 025: queue workers (Horizon). HORIZON_PROFILE=single-host in the API's
+# .env keeps it at five workers on the 1 vCPU host. Each deploy's
+# `horizon:terminate` lets running jobs finish; systemd starts it again on
+# the new code.
+[Unit]
+Description=Queue workers (Horizon)
+After=network.target redis-server.service postgresql.service
+ConditionPathExists=@DEPLOY_PATH@/api/artisan
+
+[Service]
+User=@DEPLOY_USER@
+WorkingDirectory=@DEPLOY_PATH@/api
+ExecStart=/usr/bin/php artisan horizon
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=90
+# Web requests come first on one vCPU; a runaway worker is throttled, then stopped.
+Nice=5
+MemoryHigh=768M
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

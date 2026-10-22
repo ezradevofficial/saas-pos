@@ -8,6 +8,7 @@ import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
 import { goToIdp, ssoReason, startSso } from '@/auth/sso'
 import { Alert, Button, TextField } from '@/components/ds'
+import { useSmsAvailable } from '@/lib/useSmsAvailable'
 import { useTheme } from '@/theme/ThemeProvider'
 import { AuthForm, AuthPage, TextLink } from './AuthPage'
 
@@ -84,6 +85,8 @@ export default function SignIn() {
   const navigate = useNavigate()
   const location = useLocation()
   const [values, setValues] = useState({ login: location.state?.login ?? '', password: '' })
+  // AUTH-01: in email-only mode the field asks for an email; an existing phone login still signs in.
+  const sms = useSmsAvailable()
   const [sso, setSso] = useState(false)
   const [hostChoices, setHostChoices] = useState(null)
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
@@ -165,7 +168,7 @@ export default function SignIn() {
               </Alert>
             ) : null}
             <TextField
-              label={t('auth.fields.login')}
+              label={sms ? t('auth.fields.login') : t('auth.fields.email')}
               autoComplete="username"
               value={values.login}
               onChange={set('login')}

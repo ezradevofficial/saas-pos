@@ -7,6 +7,7 @@ import { formErrors } from '@/api/formErrors'
 import { Button, TextField } from '@/components/ds'
 import { setLocale } from '@/i18n'
 import { contactPayload } from '@/lib/contact'
+import { useSmsAvailable } from '@/lib/useSmsAvailable'
 import { AuthForm, AuthPage, TextLink } from './AuthPage'
 
 // Country and language errors have no field here: they show in the form's alert.
@@ -33,6 +34,8 @@ export default function SignUp() {
 function SignUpForm({ country, locale, sandbox = false }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // AUTH-01: in email-only mode the contact is an email address.
+  const sms = useSmsAvailable()
   const [values, setValues] = useState({ name: '', contact: '', password: '', business_name: '', country, locale, ...(sandbox ? { sandbox: true } : {}) })
   useEffect(() => {
     setLocale(locale)
@@ -68,9 +71,10 @@ function SignUpForm({ country, locale, sandbox = false }) {
           required
         />
         <TextField
-          label={t('auth.fields.login')}
-          help={t('auth.signUp.contactHelp')}
-          autoComplete="username"
+          label={sms ? t('auth.fields.login') : t('auth.fields.email')}
+          help={sms ? t('auth.signUp.contactHelp') : t('auth.emailOnly')}
+          type={sms ? 'text' : 'email'}
+          autoComplete={sms ? 'username' : 'email'}
           value={values.contact}
           onChange={set('contact')}
           error={errors.fields.contact}

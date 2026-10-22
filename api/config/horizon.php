@@ -2,6 +2,161 @@
 
 use Illuminate\Support\Str;
 
+$supervisors = [
+    'supervisor-default' => [
+        'connection' => 'redis',
+        'queue' => ['default'],
+        'balance' => 'auto',
+        'autoScalingStrategy' => 'time',
+        'minProcesses' => 1,
+        'maxProcesses' => 2,
+        'maxTime' => 3600,
+        'maxJobs' => 1000,
+        'memory' => 128,
+        'tries' => 1,
+        'timeout' => 60,
+        'nice' => 0,
+    ],
+    'supervisor-notifications' => [
+        'connection' => 'redis',
+        'queue' => [env('NOTIFICATIONS_QUEUE', 'notifications')],
+        'balance' => 'auto',
+        'autoScalingStrategy' => 'time',
+        'minProcesses' => 1,
+        'maxProcesses' => 3,
+        'maxTime' => 3600,
+        'maxJobs' => 1000,
+        'memory' => 128,
+        'tries' => 1,
+        'timeout' => 60,
+        'nice' => 0,
+    ],
+    'supervisor-automation' => [
+        'connection' => 'redis',
+        'queue' => [env('AUTOMATION_QUEUE', 'automation')],
+        'balance' => 'auto',
+        'autoScalingStrategy' => 'time',
+        'minProcesses' => 1,
+        'maxProcesses' => 3,
+        'maxTime' => 3600,
+        'maxJobs' => 1000,
+        'memory' => 128,
+        'tries' => 1,
+        'timeout' => 60,
+        'nice' => 0,
+    ],
+    // Payment provider follow-ups (timeouts, checks of manual codes):
+    // calls to Daraja, kept apart so a slow provider never delays
+    // notifications or automation.
+    'supervisor-payments' => [
+        'connection' => 'redis',
+        'queue' => [env('PAYMENTS_QUEUE', 'payments')],
+        'balance' => 'auto',
+        'autoScalingStrategy' => 'time',
+        'minProcesses' => 1,
+        'maxProcesses' => 3,
+        'maxTime' => 3600,
+        'maxJobs' => 1000,
+        'memory' => 128,
+        'tries' => 1,
+        'timeout' => 60,
+        'nice' => 0,
+    ],
+    // POS-10: transmission to the tax authorities (KRA eTIMS, DGI); a
+    // run sends up to `fiscal.batch` documents of one tenant within
+    // `fiscal.run_seconds`, well inside this timeout.
+    'supervisor-fiscal' => [
+        'connection' => 'redis',
+        'queue' => [env('FISCAL_QUEUE', 'fiscal')],
+        'balance' => 'auto',
+        'autoScalingStrategy' => 'time',
+        'minProcesses' => 1,
+        'maxProcesses' => 3,
+        'maxTime' => 3600,
+        'maxJobs' => 1000,
+        'memory' => 128,
+        'tries' => 1,
+        'timeout' => 60,
+        'nice' => 0,
+    ],
+    // EXP-02: full tenant exports, one at a time per process, on their
+    // own connection (retry_after above the hour-long timeout).
+    'supervisor-exports' => [
+        'connection' => 'redis-exports',
+        'queue' => [env('DATA_EXPORT_QUEUE', 'exports')],
+        'balance' => 'simple',
+        'minProcesses' => 1,
+        'maxProcesses' => 1,
+        'maxTime' => 0,
+        'maxJobs' => 50,
+        'memory' => 256,
+        'tries' => 1,
+        'timeout' => (int) env('DATA_EXPORT_TIMEOUT', 3600),
+        'nice' => 10,
+    ],
+    // IMP-03: imports, dry runs and undos, on their own connection
+    // (retry_after above the hour-long timeout).
+    'supervisor-imports' => [
+        'connection' => 'redis-imports',
+        'queue' => [env('IMPORT_QUEUE', 'imports')],
+        'balance' => 'simple',
+        'minProcesses' => 1,
+        'maxProcesses' => 1,
+        'maxTime' => 0,
+        'maxJobs' => 100,
+        'memory' => 256,
+        'tries' => 1,
+        'timeout' => (int) env('IMPORT_TIMEOUT', 3600),
+        'nice' => 10,
+    ],
+    // HOOK-01: webhook fan-outs and deliveries (docs/adr/021-webhooks.md),
+    // on their own connection so a slow receiver delays nothing else.
+    'supervisor-webhooks' => [
+        'connection' => 'redis-webhooks',
+        'queue' => [env('WEBHOOKS_QUEUE', 'webhooks')],
+        'balance' => 'auto',
+        'autoScalingStrategy' => 'time',
+        'minProcesses' => 1,
+        'maxProcesses' => 3,
+        'maxTime' => 3600,
+        'maxJobs' => 1000,
+        'memory' => 128,
+        'tries' => 1,
+        'timeout' => 60,
+        'nice' => 0,
+    ],
+];
+
+// ADR 025: the starting host is one 1 vCPU, 2 GB server running the database,
+// Redis, PHP-FPM and Horizon together. HORIZON_PROFILE=single-host keeps the
+// supervisors that need their own Redis connection (exports and imports with
+// hour-long timeouts, webhooks) at one process each, and works every other
+// queue from one supervisor in priority order: payments and fiscal first,
+// then notifications, default and automation. Five worker processes in all
+// instead of at least eight. Leave it empty once workers have a host of
+// their own (docs/deploy-linode.md, Scale out).
+$singleHost = env('HORIZON_PROFILE') === 'single-host';
+if ($singleHost) {
+    $supervisors = [
+        'supervisor-default' => array_merge($supervisors['supervisor-default'], [
+            'queue' => array_merge(
+                $supervisors['supervisor-payments']['queue'],
+                $supervisors['supervisor-fiscal']['queue'],
+                $supervisors['supervisor-notifications']['queue'],
+                $supervisors['supervisor-default']['queue'],
+                $supervisors['supervisor-automation']['queue'],
+            ),
+            'balance' => false,
+            'minProcesses' => 1,
+            'maxProcesses' => max(1, (int) env('HORIZON_SINGLE_HOST_PROCESSES', 2)),
+        ]),
+        'supervisor-exports' => $supervisors['supervisor-exports'],
+        'supervisor-imports' => $supervisors['supervisor-imports'],
+        'supervisor-webhooks' => array_merge($supervisors['supervisor-webhooks'], ['maxProcesses' => 1]),
+    ];
+}
+$singleHostProcesses = array_map(fn (array $supervisor) => ['maxProcesses' => $supervisor['maxProcesses']], $supervisors);
+
 return [
 
     /*
@@ -210,134 +365,15 @@ return [
     // timeout must stay below the redis connection's retry_after (90 s by
     // default, REDIS_QUEUE_RETRY_AFTER), or a slow job would run twice.
     // Jobs set their own tries; retries are new jobs with backoff.
-    'defaults' => [
-        'supervisor-default' => [
-            'connection' => 'redis',
-            'queue' => ['default'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'minProcesses' => 1,
-            'maxProcesses' => 2,
-            'maxTime' => 3600,
-            'maxJobs' => 1000,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
-            'nice' => 0,
-        ],
-        'supervisor-notifications' => [
-            'connection' => 'redis',
-            'queue' => [env('NOTIFICATIONS_QUEUE', 'notifications')],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'minProcesses' => 1,
-            'maxProcesses' => 3,
-            'maxTime' => 3600,
-            'maxJobs' => 1000,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
-            'nice' => 0,
-        ],
-        'supervisor-automation' => [
-            'connection' => 'redis',
-            'queue' => [env('AUTOMATION_QUEUE', 'automation')],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'minProcesses' => 1,
-            'maxProcesses' => 3,
-            'maxTime' => 3600,
-            'maxJobs' => 1000,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
-            'nice' => 0,
-        ],
-        // Payment provider follow-ups (timeouts, checks of manual codes):
-        // calls to Daraja, kept apart so a slow provider never delays
-        // notifications or automation.
-        'supervisor-payments' => [
-            'connection' => 'redis',
-            'queue' => [env('PAYMENTS_QUEUE', 'payments')],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'minProcesses' => 1,
-            'maxProcesses' => 3,
-            'maxTime' => 3600,
-            'maxJobs' => 1000,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
-            'nice' => 0,
-        ],
-        // POS-10: transmission to the tax authorities (KRA eTIMS, DGI); a
-        // run sends up to `fiscal.batch` documents of one tenant within
-        // `fiscal.run_seconds`, well inside this timeout.
-        'supervisor-fiscal' => [
-            'connection' => 'redis',
-            'queue' => [env('FISCAL_QUEUE', 'fiscal')],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'minProcesses' => 1,
-            'maxProcesses' => 3,
-            'maxTime' => 3600,
-            'maxJobs' => 1000,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
-            'nice' => 0,
-        ],
-        // EXP-02: full tenant exports, one at a time per process, on their
-        // own connection (retry_after above the hour-long timeout).
-        'supervisor-exports' => [
-            'connection' => 'redis-exports',
-            'queue' => [env('DATA_EXPORT_QUEUE', 'exports')],
-            'balance' => 'simple',
-            'minProcesses' => 1,
-            'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 50,
-            'memory' => 256,
-            'tries' => 1,
-            'timeout' => (int) env('DATA_EXPORT_TIMEOUT', 3600),
-            'nice' => 10,
-        ],
-        // IMP-03: imports, dry runs and undos, on their own connection
-        // (retry_after above the hour-long timeout).
-        'supervisor-imports' => [
-            'connection' => 'redis-imports',
-            'queue' => [env('IMPORT_QUEUE', 'imports')],
-            'balance' => 'simple',
-            'minProcesses' => 1,
-            'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 100,
-            'memory' => 256,
-            'tries' => 1,
-            'timeout' => (int) env('IMPORT_TIMEOUT', 3600),
-            'nice' => 10,
-        ],
-        // HOOK-01: webhook fan-outs and deliveries (docs/adr/021-webhooks.md),
-        // on their own connection so a slow receiver delays nothing else.
-        'supervisor-webhooks' => [
-            'connection' => 'redis-webhooks',
-            'queue' => [env('WEBHOOKS_QUEUE', 'webhooks')],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'minProcesses' => 1,
-            'maxProcesses' => 3,
-            'maxTime' => 3600,
-            'maxJobs' => 1000,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
-            'nice' => 0,
-        ],
-    ],
+    // Defined at the top of this file, with the single-host profile (ADR 025).
+    'defaults' => $supervisors,
 
     // The first matching name wins: `local` first, then every other
     // environment (dev, staging, production) with room to scale.
-    'environments' => [
+    'environments' => $singleHost ? [
+        'local' => $singleHostProcesses,
+        '*' => $singleHostProcesses,
+    ] : [
         'local' => [
             'supervisor-default' => ['maxProcesses' => 1],
             'supervisor-notifications' => ['maxProcesses' => 1],

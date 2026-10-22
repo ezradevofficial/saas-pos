@@ -19,6 +19,7 @@ const STORE = {
 
 let calls = []
 let consenting = false
+let smsAvailable = true
 
 function json(body, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }))
@@ -27,6 +28,11 @@ function json(body, status = 200) {
 function mockShop() {
   calls = []
   vi.stubGlobal('fetch', vi.fn((url, init = {}) => {
+    // AUTH-01: the platform's public settings, asked with no session.
+    if (String(url).endsWith('/api/v1/public/branding')) {
+      calls.push({ path: 'public/branding', method: 'GET', headers: init.headers })
+      return json({ data: null, meta: { sms_available: smsAvailable } })
+    }
     const path = String(url).replace(/^.*\/api\/v1\/shop\/duka/, '')
     const method = init.method ?? 'GET'
     const body = init.body ? JSON.parse(init.body) : null
@@ -69,6 +75,7 @@ describe('Storefront marketing consent (NFR-08)', () => {
     window.sessionStorage.clear()
     setShopSession('duka', null)
     consenting = false
+    smsAvailable = true
     mockShop()
   })
 
@@ -100,5 +107,17 @@ describe('Storefront marketing consent (NFR-08)', () => {
     await waitFor(() => expect(calls.filter((call) => call.path === '/account/marketing-consent')).toHaveLength(2))
     expect(calls.filter((call) => call.path === '/account/marketing-consent')[1].body).toEqual({ granted: true, wording_version: MARKETING_WORDING })
     expect(await screen.findByText('You get offers and news. You can stop them here at any time.')).toBeInTheDocument()
+  })
+
+  it('asks for an email address to sign in when text messages aren’t available (AUTH-01, ECOM-08)', async () => {
+    smsAvailable = false
+    renderApp('/shop/duka/account')
+
+    const field = await screen.findByLabelText('Email address')
+    expect(field).toHaveAttribute('type', 'email')
+    expect(screen.queryByLabelText('Phone or email')).not.toBeInTheDocument()
+    expect(screen.getByText('We send you a 6-digit code. Codes by text message aren’t available yet.')).toBeInTheDocument()
+    const asked = calls.find((call) => call.path === 'public/branding')
+    expect(asked.headers.Authorization).toBeUndefined()
   })
 })

@@ -285,6 +285,20 @@ jobs:
       # ScrubberTest also runs; NFR-06: the security scripts' own tests.
       - run: node --test packages/scrub/test/*.test.js scripts/secret-scan.test.mjs scripts/npm-audit.test.mjs
 
+  # ADR 025, NFR-01, NFR-07: the host provisioning, backup, restore drill and
+  # watch scripts (deploy/host): bash -n, shellcheck (preinstalled on the
+  # runner image) and every script in a sandboxed dry run or against stubs.
+  deploy-scripts:
+    name: deploy scripts (shellcheck, dry runs)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - run: shellcheck --version
+      - run: bash deploy/host/tests/run.sh
+        env:
+          REQUIRE_SHELLCHECK: '1'
+
   # NFR-06: dependency scanning and a committed-secret scan on every push,
   # with built-in tools only (no marketplace actions).
   composer-audit:

@@ -1,0 +1,71 @@
+# ADR 025, docs/security.md: the web app, the platform console and the API
+# on one host, with the security headers and the web app's CSP. Written by
+# provision-single-host.sh once the certificate exists.
+
+# The web app and the platform console (the same static build, <path>/web).
+server {
+    # HTTP/2 goes on the listen line: nginx 1.24 (Ubuntu 24.04) lacks the separate http2 directive.
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name @WEB_SERVER_NAMES@;
+    ssl_certificate     /etc/letsencrypt/live/@CERT_NAME@/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/@CERT_NAME@/privkey.pem;
+    root @DEPLOY_PATH@/web;
+
+    include /etc/nginx/snippets/app-web-headers.conf;
+
+    location /assets/ {
+        include /etc/nginx/snippets/app-web-headers.conf;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+    location / {
+        include /etc/nginx/snippets/app-web-headers.conf;
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.html;
+    }
+}
+
+# The API (<path>/api/public). Its own headers (SecurityHeaders, HSTS in
+# production) come from the app.
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name @API_DOMAIN@;
+    ssl_certificate     /etc/letsencrypt/live/@CERT_NAME@/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/@CERT_NAME@/privkey.pem;
+    root @DEPLOY_PATH@/api/public;
+    client_max_body_size 25m;
+
+    # Never public: /metrics is read on the host only (the listener below),
+    # and the TLS ask endpoint for custom domains (docs/integrations.md).
+    # Also catches /index.php/metrics and a trailing slash, which reach the same route.
+    location ~ ^/(index\.php/)?metrics/?$ { deny all; }
+    location = /api/v1/tls/ask { deny all; }
+
+    location / { try_files $uri /index.php?$query_string; }
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+    }
+}
+
+# On the host only: /metrics (with METRICS_TOKEN), the readiness check and
+# the TLS ask endpoint for a later Caddy. Nothing else answers here.
+server {
+    listen 127.0.0.1:8080;
+    server_name _;
+    root @DEPLOY_PATH@/api/public;
+    allow 127.0.0.1;
+    deny all;
+
+    location ~ ^/(metrics|health/live|health/ready|api/v1/tls/ask)$ {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+    }
+    location / { return 404; }
+}

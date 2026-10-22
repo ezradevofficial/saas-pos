@@ -3,10 +3,12 @@
 namespace App\Core\Support\Console;
 
 use App\Core\Files\TenantFiles;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Notifications\Sms\SmsSender;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Support\EnvironmentGuard;
+use App\Core\Support\SmtpProbe;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository;
@@ -61,6 +63,19 @@ class Preflight extends Command
         return self::SUCCESS;
     }
 
+    /** Why text messages are off: phone sign-up, phone codes and SMS notifications are refused or skipped. */
+    private static function emailOnly(mixed $driver): string
+    {
+        $why = match (true) {
+            $driver === null || $driver === '' => 'SMS_DRIVER not set',
+            $driver === SmsAvailability::NONE => 'SMS_DRIVER is none',
+            ! in_array($driver, SmsSender::DRIVERS, true) => 'SMS_DRIVER '.$driver.' is not a provider this release implements',
+            default => 'SMS_DRIVER '.$driver.' is for local and testing only',
+        };
+
+        return "SMS unavailable: email-only mode ({$why}; phone sign-up and codes by SMS are refused)";
+    }
+
     /** @return array<string, callable(): array{string, ?string}> status ok|warn|skip|fail, and a detail */
     private function checks(Repository $config, bool $development): array
     {
@@ -71,9 +86,10 @@ class Preflight extends Command
             $checks[$label] = fn () => match (true) {
                 $development => ['skip', 'development drivers allowed here'],
                 $problem !== null => ['fail', $problem],
-                $label === 'SMS driver' && $config->get('services.sms.driver') === null => ['warn', 'SMS_DRIVER not set: text messages fail with SmsNotConfigured'],
-                // Deploy rehearsal (2026-10-22): an unknown name passed as ready while sending nothing.
-                $label === 'SMS driver' && ! in_array($config->get('services.sms.driver'), SmsSender::DRIVERS, true) => ['warn', 'SMS_DRIVER '.$config->get('services.sms.driver').' is not a provider this release implements: text messages fail with SmsNotConfigured'],
+                // AUTH-01..05, NOT-01 (owner decision 2026-10-22): no provider is a supported
+                // email-only mode, a warning. Deploy rehearsal (2026-10-22): an unknown name
+                // passed as ready while sending nothing.
+                $label === 'SMS driver' && ! $this->laravel->make(SmsAvailability::class)->available() => ['warn', self::emailOnly($config->get('services.sms.driver'))],
                 default => ['ok', null],
             };
         }
@@ -85,6 +101,22 @@ class Preflight extends Command
             Redis::connection()->ping();
 
             return ['ok', (string) $config->get('database.redis.client')];
+        };
+
+        // ADR 025: the owner's own SMTP mailbox. A wrong password or a blocked
+        // port otherwise passes every check and the first verification code
+        // never arrives. Connects and signs in; sends nothing.
+        $checks['Mail server'] = function () use ($config, $development) {
+            $mailer = (string) $config->get('mail.default');
+            $probe = $this->laravel->make(SmtpProbe::class);
+
+            return match (true) {
+                $development => ['skip', 'not checked here'],
+                ! $probe->applies($mailer) => ['skip', "{$mailer} is not an SMTP mailer"],
+                default => ($problem = $probe->check($mailer)) === null
+                    ? ['ok', 'SMTP connection and sign-in accepted']
+                    : ['fail', "SMTP connection or sign-in failed: {$problem}"],
+            };
         };
 
         $checks['Application key'] = fn () => filled($config->get('app.key'))
@@ -104,8 +136,8 @@ class Preflight extends Command
             ? $this->role(PlatformDatabase::CONNECTION, allowBypassRls: false)
             : ['warn', 'DB_PLATFORM_* not set: the platform console cannot sign in'];
 
-        // NFR-07: tenant files live in Linode Object Storage. In production the
-        // tenant files disk must be the object store and this host must be
+        // NFR-07: tenant files live in Linode Object Storage (on as soon as
+        // AWS_BUCKET is set). In production the tenant files disk must be the object store and this host must be
         // able to write, read back and delete a probe object there.
         $checks['Object storage'] = fn () => $this->objectStorage($config, $development);
 
@@ -114,6 +146,15 @@ class Preflight extends Command
             $development => ['skip', 'not needed here'],
             filled($config->get('sentry.dsn')) => ['ok', 'Sentry on, release '.($config->get('sentry.release') ?: 'not set')],
             default => ['warn', 'SENTRY_LARAVEL_DSN not set: errors are only in the logs'],
+        };
+        // NFR-07, ADR 025: the host's database backups (WAL-G) are declared on
+        // (BACKUPS_ENABLED) once deploy/host provisioning has turned them on.
+        // Staging and the pilot run without them; production warns, never fails.
+        $checks['Backups'] = fn () => match (true) {
+            $development => ['skip', 'not needed here'],
+            (bool) $config->get('observability.backups.enabled') => ['ok', 'declared on (BACKUPS_ENABLED)'],
+            $this->laravel->environment('production') => ['warn', 'Backups are off: enable before go-live (docs/backups.md)'],
+            default => ['skip', 'off outside production (docs/backups.md)'],
         };
         $checks['Metrics access'] = fn () => match (true) {
             $development => ['skip', 'not needed here'],
@@ -134,8 +175,8 @@ class Preflight extends Command
         if (! TenantFiles::isObjectStore($disk)) {
             return match (true) {
                 $development => ['skip', "tenant files on the local disk [{$disk}]"],
-                $this->laravel->environment('production') => ['fail', "MEDIA_DISK is [{$disk}], not the object store: set MEDIA_DISK=s3 and the AWS_* variables (docs/deploy-linode.md, Object Storage)"],
-                default => ['warn', "tenant files on this server's disk [{$disk}]: set MEDIA_DISK=s3 (docs/deploy-linode.md, Object Storage)"],
+                $this->laravel->environment('production') => ['fail', "tenant files on this server's disk [{$disk}], not the object store: set the AWS_* variables (AWS_BUCKET switches it on) and leave MEDIA_DISK unset (docs/deploy-linode.md, Object Storage)"],
+                default => ['warn', "tenant files on this server's disk [{$disk}]: set the AWS_* variables (AWS_BUCKET switches the object store on) and leave MEDIA_DISK unset (docs/deploy-linode.md, Object Storage)"],
             };
         }
 

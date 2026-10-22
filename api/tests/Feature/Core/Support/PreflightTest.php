@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Support;
 
+use App\Core\Support\SmtpProbe;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,22 @@ class PreflightTest extends TestCase
             'filesystems.disks.s3.endpoint' => 'https://eu-central-1.linodeobjects.com',
         ], $config));
         Storage::fake('s3');
+        // ADR 025: the SMTP sign-in is proven against a fake server in SmtpProbeTest.
+        $this->smtp(null);
+    }
+
+    /** The mail server's answer: null when it accepts the sign-in, else the problem. */
+    private function smtp(?string $problem): void
+    {
+        $this->app->instance(SmtpProbe::class, new class($problem) extends SmtpProbe
+        {
+            public function __construct(private ?string $problem) {}
+
+            public function check(string $mailer): ?string
+            {
+                return $this->problem;
+            }
+        });
     }
 
     protected function tearDown(): void
@@ -63,11 +80,11 @@ class PreflightTest extends TestCase
         [$code, $output] = $this->preflight();
 
         $this->assertSame(0, $code, $output);
-        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Redis', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role', 'Platform database role', 'Object storage', 'Error tracking', 'Metrics access'] as $label) {
+        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Redis', 'Mail server', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role', 'Platform database role', 'Object storage', 'Error tracking', 'Backups', 'Metrics access'] as $label) {
             $this->assertStringContainsString($label, $output);
         }
-        // No SMS provider yet: a warning, not a failure.
-        $this->assertStringContainsString('SMS_DRIVER not set', $output);
+        // AUTH-01..05: no SMS provider yet is email-only mode, a warning, not a failure.
+        $this->assertMatchesRegularExpression('/SMS driver.*SMS unavailable: email-only mode \\(SMS_DRIVER not set.*WARN/', $output);
         $this->assertStringContainsString('Ready.', $output);
     }
 
@@ -91,7 +108,7 @@ class PreflightTest extends TestCase
         [$code, $output] = $this->preflight();
 
         $this->assertSame(1, $code, $output);
-        $this->assertMatchesRegularExpression('/Object storage.*MEDIA_DISK.*FAIL/s', $output);
+        $this->assertMatchesRegularExpression('/Object storage.*AWS_BUCKET switches it on.*FAIL/s', $output);
     }
 
     public function test_staging_on_the_local_disk_warns(): void
@@ -102,7 +119,7 @@ class PreflightTest extends TestCase
         [$code, $output] = $this->preflight();
 
         $this->assertSame(0, $code, $output);
-        $this->assertMatchesRegularExpression('/Object storage.*MEDIA_DISK=s3.*WARN/s', $output);
+        $this->assertMatchesRegularExpression('/Object storage.*AWS_BUCKET switches the object store on.*WARN/s', $output);
     }
 
     public function test_a_missing_bucket_setting_fails(): void
@@ -245,6 +262,53 @@ class PreflightTest extends TestCase
         [$code, $output] = $this->preflight();
 
         $this->assertSame(0, $code, $output);
-        $this->assertMatchesRegularExpression('/SMS driver.*SMS_DRIVER some-provider is not a provider this release implements.*WARN/', $output);
+        $this->assertMatchesRegularExpression('/SMS driver.*SMS unavailable: email-only mode \\(SMS_DRIVER some-provider is not a provider this release implements.*WARN/', $output);
+    }
+
+    /** AUTH-01..05: SMS switched off on purpose is email-only mode too, a warning. */
+    public function test_sms_switched_off_is_email_only_mode(): void
+    {
+        $this->production(['services.sms.driver' => 'none']);
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(0, $code, $output);
+        $this->assertMatchesRegularExpression('/SMS driver.*SMS unavailable: email-only mode \\(SMS_DRIVER is none.*WARN/', $output);
+    }
+
+    /** ADR 025: a wrong mailbox password or a blocked port stops the deploy, not the first verification code. */
+    public function test_an_smtp_server_that_refuses_the_sign_in_fails(): void
+    {
+        $this->production();
+        $this->smtp('Expected response code "235" but got code "535"');
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(1, $code, $output);
+        $this->assertMatchesRegularExpression('/Mail server.*SMTP connection or sign-in failed.*535.*FAIL/s', $output);
+
+        // A non-SMTP mailer (an API transport) is not probed.
+        $this->production(['mail.default' => 'postmark', 'mail.mailers.postmark' => ['transport' => 'postmark']]);
+        $this->smtp('never asked');
+        [$code, $output] = $this->preflight();
+        $this->assertMatchesRegularExpression('/Mail server.*postmark is not an SMTP mailer.*SKIP/', $output);
+    }
+
+    /** NFR-07, ADR 025: staging and the pilot run without host backups; production warns until they are declared on. */
+    public function test_backups_off_warn_in_production_only(): void
+    {
+        $this->production(['observability.backups.enabled' => false]);
+        [$code, $output] = $this->preflight();
+        $this->assertSame(0, $code, $output);
+        $this->assertMatchesRegularExpression('/Backups.*Backups are off: enable before go-live.*WARN/', $output);
+
+        $this->production(['observability.backups.enabled' => true]);
+        [, $output] = $this->preflight();
+        $this->assertMatchesRegularExpression('/Backups.*declared on.*OK/', $output);
+
+        $this->production(['observability.backups.enabled' => false]);
+        $this->app['env'] = 'staging';
+        [, $output] = $this->preflight();
+        $this->assertMatchesRegularExpression('/Backups.*off outside production.*SKIP/', $output);
     }
 }

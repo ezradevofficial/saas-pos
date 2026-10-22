@@ -54,4 +54,12 @@ return [
         'disk' => env('STATUS_DISK', 'local'),
         'path' => env('STATUS_PATH', 'status/status.json'),
     ],
+
+    // NFR-07, ADR 025: whether the host's database backups (WAL-G,
+    // deploy/host) are on. Files live in Object Storage and are not copied
+    // by the host. Set by the owner in .env once provisioning turned them
+    // on; `app:preflight` warns in production while it is false.
+    'backups' => [
+        'enabled' => (bool) env('BACKUPS_ENABLED', false),
+    ],
 ];

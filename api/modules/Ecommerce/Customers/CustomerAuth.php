@@ -5,6 +5,7 @@ namespace Modules\Ecommerce\Customers;
 use App\Core\Http\ApiErrorRenderer;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Support\PhoneNumber;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Tenancy\Models\Company;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Notification;
@@ -158,7 +159,14 @@ final class CustomerAuth
 
         $phone = Customers::phone($contact, $company);
 
-        return $phone === null ? throw EcomError::make('contact_invalid', field: 'contact') : ['sms', $phone];
+        if ($phone === null) {
+            throw EcomError::make('contact_invalid', field: 'contact');
+        }
+
+        // ECOM-08, AUTH-01: a code by SMS is refused in email-only mode.
+        app(SmsAvailability::class)->assertAvailable('contact');
+
+        return ['sms', $phone];
     }
 
     private static function hash(string $id, string $code): string
