@@ -50,7 +50,7 @@ Each publish (changed or not, so a run that stopped half-way is completed by the
 
 ### No invented rates; "Rate needed"
 
-- Rates the team cannot confirm from an official source are stored as `NULL` with `needs_confirmation = true`. Today that covers the standard VAT of KE and CD and the KE withholding VAT. The phase report lists the figures needed, and the pack's `todo` list repeats them.
+- Rates the team cannot confirm from an official source, or support from public research, are stored as `NULL` with `needs_confirmation = true`. Since 2026-10-22 no shipped tax rate is null (the KE withholding VAT is researched, 2%). The phase report lists the figures needed, and the pack's `todo` list repeats them.
 - The API returns `rate_needed: true` for a code whose rate in force is null or unconfirmed, and the UI shows it as "Rate needed".
 - `TaxCalculator` refuses such a code with 422 `tax_rate_missing`, naming the code. No document is ever taxed with a guessed rate.
 - A tenant confirms a period on its own start date: a null or unconfirmed rate is replaced, since nothing can have been taxed with it. Any other rate dated on or before the latest start is refused (`tax_rate_overlap`).
@@ -79,8 +79,8 @@ Each publish (changed or not, so a run that stopped half-way is completed by the
   `needs_confirmation`. Every value row of every pack kind states its
   `status` explicitly: `PackFile` (tax) and the release schemas (payroll,
   HR, fixed assets) refuse a row without one; at run time an older row is
-  read from `needs_confirmation`. Low-confidence research is never
-  entered. A release that changes a row's status (researched → confirmed,
+  read from `needs_confirmation`. Low-confidence research was never
+  entered until 2026-10-22 (see below). A release that changes a row's status (researched → confirmed,
   needs_confirmation → researched) shows a warning per row, so the
   approver sees what they certify (`PackValidator::transitions`).
 - A researched rate is used. `country_pack_tax_codes.research` and
@@ -90,6 +90,40 @@ Each publish (changed or not, so a run that stopped half-way is completed by the
   clears it.
 - Payroll and HR packs use the same status (docs/modules/payroll.md,
   hr.md). What was applied: docs/country-packs-research-2026-10.md.
+
+### Low-confidence research (owner decision, 2026-10-22)
+
+- The owner decided to use the researched values for every statutory item
+  still blocked, knowing they are not confirmed by an accountant. This
+  overrides, for those items only, CLAUDE.md's "never invent rates": each
+  value still comes from a cited source, with `researched_on` and an
+  honest confidence, and none is made up.
+- `ResearchStatus` accepts `confidence: low` on a researched row and
+  treats it as usable (`USABLE_CONFIDENCE` = high, medium, low).
+  `ResearchStatus::low()` and `lowResearch()` flag it.
+- Where it shows: the tax code API (`rate_low_confidence`), payroll runs
+  (`uses_low_confidence_values`), the statutory rates page
+  (`low_confidence`), leave types and requests (`low_confidence`) and the
+  fixed assets tax classes. The web app shows "Researched, low confidence:
+  not confirmed by an accountant" (en, fr) instead of the usual researched
+  notice.
+- The pack release validator warns on every low-confidence row
+  (`country_packs.releases.low_confidence`), next to the status-change
+  warnings, so approvers see each one.
+- New pack fields the values needed: a leave type's `pay_share` (an exact
+  fraction, CD maternity "2/3") and `seniority` (CD annual leave), a tax
+  class's `first_year_rate` (KE machinery 50%, then the rate on the
+  residue), and a holiday's `sunday_rule` (`next_free_day`, KE Public
+  Holidays Act s. 4) with research fields on holiday rows.
+- A period may carry a `display_code`, the label it is shown under (CD
+  IRPP from 2026-01-01, Law 23/053; IPR before), and a return type a
+  dated `display`; a leave type may carry `under_age` days with their own
+  research (CD workers under 18, from the date of birth). One scale
+  replacing another (CD INPP 3/2/1% until 2025-12-31, 3.5/3/2% from
+  2026-01-01) is two effective-dated periods, never a "rejected" marking.
+- What was applied, with confidence and sources:
+  docs/country-packs-research-2026-10.md, "Applied 2026-10-22 by owner
+  decision".
 
 ## Consequences
 

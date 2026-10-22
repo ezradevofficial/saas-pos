@@ -7184,6 +7184,9 @@
                     "rate_researched": {
                         "type": "string"
                     },
+                    "rate_low_confidence": {
+                        "type": "string"
+                    },
                     "rates": {
                         "type": "array",
                         "items": {
@@ -7214,6 +7217,7 @@
                     "current_rate",
                     "rate_needed",
                     "rate_researched",
+                    "rate_low_confidence",
                     "rates",
                     "archived_at",
                     "updated_at"

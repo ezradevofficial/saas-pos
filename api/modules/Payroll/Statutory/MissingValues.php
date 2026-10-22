@@ -14,9 +14,9 @@ use Carbon\CarbonImmutable;
  * is null, absent or malformed. Weekly and bi-weekly runs also need the
  * pack's `non_monthly` rule. Values are never guessed.
  *
- * CP-01: a period is usable when confirmed or `researched` at high or
- * medium confidence (ResearchStatus); low-confidence research is never
- * usable. A component the company marked not applicable (`may_not_apply`
+ * CP-01: a period is usable when confirmed or `researched` at any
+ * confidence (ResearchStatus; low since the owner decision of 2026-10-22,
+ * with the stronger notice). A component the company marked not applicable (`may_not_apply`
  * in the pack, payroll settings) is not checked, and one with
  * `unconfirmed: not_applied` is left out while unusable instead of
  * blocking the run (PayrollPack::applicable).
@@ -60,7 +60,9 @@ final class MissingValues
             $fields = self::fields($component);
 
             if ($fields !== []) {
-                $missing[] = ['component' => $component['code'], 'fields' => $fields];
+                // CP-01: `display`, when it differs, is the code it is shown under on the pay date (IRPP from 2026-01-01).
+                $display = PayrollPack::displayCode($component);
+                $missing[] = ['component' => $component['code'], ...($display === $component['code'] ? [] : ['display' => $display]), 'fields' => $fields];
             }
         }
 
@@ -233,7 +235,7 @@ final class MissingValues
     public static function describe(array $missing): string
     {
         return implode('; ', array_map(
-            fn (array $m) => PayrollPack::label('components', $m['component']).': '.implode(', ', array_map(fn (string $f) => PayrollPack::label('fields', $f), $m['fields'])),
+            fn (array $m) => PayrollPack::label('components', $m['display'] ?? $m['component']).': '.implode(', ', array_map(fn (string $f) => PayrollPack::label('fields', $f), $m['fields'])),
             $missing,
         ));
     }

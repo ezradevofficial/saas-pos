@@ -3,9 +3,12 @@
 namespace Tests\Feature\Core\Taxes;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Currency\Money;
+use App\Core\MasterData\Taxes\TaxCalculator;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRate;
 use App\Core\Rbac\Scope;
+use Carbon\CarbonImmutable;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -41,6 +44,20 @@ class TaxCodeApiTest extends TestCase
             ->assertOk()->json('data');
     }
 
+    public function test_kenyan_withholding_vat_is_two_percent_of_the_taxable_value(): void
+    {
+        // CP-01 (owner decision 2026-10-22): VAT_WHT 2% (KRA; Tax Procedures Act s. 42A), researched at medium confidence.
+        $ke = $this->postJson('/api/v1/companies', ['name' => 'Nairobi Ltd', 'country' => 'KE'], $this->headersFor())->assertCreated()->json('data.id');
+        $codes = $this->inTenant(fn () => TaxCode::query()->with('rates')->where('company_id', $ke)->whereIn('code', ['VAT_STD', 'VAT_WHT'])->orderBy('code')->get()->all());
+
+        // A purchase of KES 10,000.00 net: VAT 16% = 1,600.00 charged; the buyer withholds 2% of the taxable value = 200.00.
+        $result = app(TaxCalculator::class)->forLine(Money::ofMinor(1000000, 'KES'), $codes, false, CarbonImmutable::parse('2026-10-22'), includeWithholding: true);
+        $this->assertSame([['VAT_STD', '160000', true], ['VAT_WHT', '20000', true]], array_map(fn ($t) => [$t->code, $t->amount->minor(), $t->researched], $result->tax));
+        // On a sale line withholding is left out.
+        $sale = app(TaxCalculator::class)->forLine(Money::ofMinor(1000000, 'KES'), $codes, false, CarbonImmutable::parse('2026-10-22'));
+        $this->assertSame(['VAT_STD'], array_map(fn ($t) => $t->code, $sale->tax));
+    }
+
     public function test_a_company_created_through_the_api_gets_its_country_pack_codes(): void
     {
         $ke = $this->postJson('/api/v1/companies', ['name' => 'Nairobi Ltd', 'country' => 'KE'], $this->headersFor())->assertCreated()->json('data.id');
@@ -55,9 +72,11 @@ class TaxCodeApiTest extends TestCase
         $this->assertSame(['vat', 'VAT_STD', '16.0000', false, true], [$std['kind'], $std['pack_code'], $std['current_rate']['rate'], $std['rate_needed'], $std['rate_researched']]);
         $this->assertSame(['high', '2026-10-17'], [$std['rates'][0]['research']['confidence'], $std['rates'][0]['research']['researched_on']]);
         $this->assertNotEmpty($std['rates'][0]['research']['source']);
+        // Owner decision 2026-10-22: withholding VAT 2% (KRA), researched at medium confidence.
         $wht = $codes['VAT_WHT'];
-        $this->assertSame([['rate' => null, 'effective_from' => '2026-01-01', 'effective_to' => null, 'needs_confirmation' => true, 'source' => 'pack', 'research' => null]], array_map(fn ($r) => array_diff_key($r, ['id' => 1]), $wht['rates']));
-        $this->assertSame([true, false], [$wht['rate_needed'], $wht['rate_researched']]);
+        $this->assertSame([['2.0000', '2026-01-01', null, false, 'pack', 'medium', '2026-10-22']], array_map(fn ($r) => [$r['rate'], $r['effective_from'], $r['effective_to'], $r['needs_confirmation'], $r['source'], $r['research']['confidence'], $r['research']['researched_on']], $wht['rates']));
+        $this->assertSame([false, true, false], [$wht['rate_needed'], $wht['rate_researched'], $wht['rate_low_confidence']]);
+        $this->assertFalse($std['rate_low_confidence']);
         $this->assertSame(['0.0000', false], [$codes['VAT_ZERO']['current_rate']['rate'], $codes['VAT_ZERO']['rate_needed']]);
         $this->assertSame([[], null, false], [$codes['VAT_EXEMPT']['rates'], $codes['VAT_EXEMPT']['current_rate'], $codes['VAT_EXEMPT']['rate_needed']]);
         // Named once in the tenant's language (en here); the name is then the tenant's.

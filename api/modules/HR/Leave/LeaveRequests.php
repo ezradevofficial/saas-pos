@@ -167,7 +167,7 @@ class LeaveRequests
         LeaveApproved::dispatch(
             $this->tenants->require(), $request->id, $request->number, $request->employee_id, $request->company_id, $type->id, $type->code, $type->paid,
             $request->start_date->toDateString(), $request->end_date->toDateString(), $request->start_half, $request->end_half, (string) $request->days, $request->dates,
-            (string) ($request->half_pay_days ?? '0'),
+            (string) ($request->half_pay_days ?? '0'), $type->paid === true ? $type->pay_share : null,
         );
     }
 

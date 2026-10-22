@@ -23,7 +23,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $count_basis
  * @property ?string $carry_over_max_days
  * @property bool $allow_negative
- * @property bool $paid
+ * @property ?bool $paid null: the pay rate is not confirmed (CP-01)
+ * @property ?array{every_years: int, days: int} $seniority more yearly days per completed years of service (HR-13)
+ * @property ?array{age: int, days: int, confidence?: string, researched_on?: string, source?: list<string>} $under_age other yearly days for workers under an age (HR-13)
+ * @property ?string $pay_share a paid type's share of pay as an exact fraction ("2/3"); null is full pay (CP-01)
  * @property ?int $qualifying_months months of service before it can be taken
  * @property ?string $half_pay_days days at half pay after the full-pay days, in a year
  * @property ?list<array{key: string, days: int}> $events per-event days within the yearly days
@@ -55,6 +58,8 @@ class LeaveType extends Model implements HasScope
             'accrues_from' => 'immutable_date',
             'events' => 'array',
             'research' => 'array',
+            'seniority' => 'array',
+            'under_age' => 'array',
         ];
     }
 

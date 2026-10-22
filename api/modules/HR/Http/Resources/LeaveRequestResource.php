@@ -2,6 +2,7 @@
 
 namespace Modules\HR\Http\Resources;
 
+use App\Core\CountryPacks\ResearchStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\HR\Support\HrPack;
@@ -29,6 +30,7 @@ class LeaveRequestResource extends JsonResource
             'half_pay_days' => (string) ($this->half_pay_days ?? '0'),
             // CP-01: the type's days came from public research when this was asked.
             'researched' => $this->research !== null,
+            'low_confidence' => ResearchStatus::lowResearch($this->research),
             'status' => $this->status,
             'requested_by' => Refs::user($this->requester),
             'decided_at' => Refs::at($this->decided_at),

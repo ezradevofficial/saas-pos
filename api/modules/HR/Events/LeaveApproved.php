@@ -34,5 +34,7 @@ class LeaveApproved implements ShouldDispatchAfterCommit
         public readonly string $days,
         public readonly array $dates,
         public readonly string $halfPayDays = '0',
+        /** CP-01: a paid type's share of pay as an exact fraction ("2/3"); null is full pay. */
+        public readonly ?string $payShare = null,
     ) {}
 }

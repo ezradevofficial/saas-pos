@@ -2,6 +2,7 @@
 
 namespace App\Core\Workflow\Calendar;
 
+use App\Core\CountryPacks\ResearchStatus;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 
@@ -11,9 +12,18 @@ use InvalidArgumentException;
  * `effective_to`) and single dates (`date`). Labels live in
  * lang/{locale}/holidays.php keyed `{CODE}.{key}`, never in the file.
  * Movable or unconfirmed holidays are listed in `todo`, never guessed.
+ *
+ * CP-01 (owner decision 2026-10-22): a row may carry its research status
+ * (`status`, `needs_confirmation`, `confidence`, `researched_on`,
+ * `source`: ResearchStatus, checked when `status` is given) and a
+ * `sunday_rule` (`next_free_day`: on a Sunday, the first following day
+ * that is not itself a public holiday is the holiday instead).
  */
 final class HolidayFile
 {
+    /** How a holiday on a Sunday moves (null: it does not). */
+    public const SUNDAY_RULES = ['next_free_day'];
+
     /** @param array<string, mixed> $data */
     private function __construct(public readonly array $data) {}
 
@@ -54,6 +64,8 @@ final class HolidayFile
             'holidays.*.date' => ['sometimes', 'date_format:Y-m-d'],
             'holidays.*.effective_from' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'holidays.*.effective_to' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'holidays.*.sunday_rule' => ['sometimes', 'nullable', 'string', 'in:'.implode(',', self::SUNDAY_RULES)],
+            'holidays.*.needs_confirmation' => ['sometimes', 'boolean'],
         ]);
 
         if ($validator->fails()) {
@@ -62,13 +74,17 @@ final class HolidayFile
 
         foreach ($data['holidays'] as $i => $holiday) {
             foreach (array_keys($holiday) as $key) {
-                if (! in_array($key, ['key', 'month', 'day', 'date', 'effective_from', 'effective_to'], true)) {
+                if (! in_array($key, ['key', 'month', 'day', 'date', 'effective_from', 'effective_to', 'sunday_rule', 'needs_confirmation', ...ResearchStatus::FIELDS], true)) {
                     throw new InvalidArgumentException("Invalid holiday file: holidays.{$i}.{$key} is not allowed (labels live in lang/{locale}/holidays.php).");
                 }
             }
 
             if (isset($holiday['month']) && ! checkdate($holiday['month'], $holiday['day'], 2024)) {
                 throw new InvalidArgumentException("Invalid holiday file: holidays.{$i} ({$holiday['key']}) is not a calendar day.");
+            }
+
+            if (array_key_exists('status', $holiday)) {
+                ResearchStatus::check($holiday, "Invalid holiday file: holidays.{$i} ({$holiday['key']})");
             }
         }
 
@@ -80,7 +96,7 @@ final class HolidayFile
         return $this->data['code'];
     }
 
-    /** @return list<array{key: string, month: ?int, day: ?int, date: ?string, effective_from: ?string, effective_to: ?string}> */
+    /** @return list<array{key: string, month: ?int, day: ?int, date: ?string, effective_from: ?string, effective_to: ?string, sunday_rule: ?string}> */
     public function holidays(): array
     {
         return array_map(fn (array $h) => [
@@ -90,6 +106,7 @@ final class HolidayFile
             'date' => $h['date'] ?? null,
             'effective_from' => $h['effective_from'] ?? null,
             'effective_to' => $h['effective_to'] ?? null,
+            'sunday_rule' => $h['sunday_rule'] ?? null,
         ], array_values($this->data['holidays']));
     }
 

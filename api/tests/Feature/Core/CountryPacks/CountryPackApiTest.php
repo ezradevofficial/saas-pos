@@ -25,17 +25,17 @@ class CountryPackApiTest extends TestCase
             ->assertJsonPath('data.0.code', 'CD')
             ->assertJsonPath('data.1.code', 'KE')
             ->assertJsonPath('data.1.version', 1)
-            ->assertJsonPath('data.1.needs_confirmation', ['VAT_WHT'])
+            ->assertJsonPath('data.1.needs_confirmation', [])
             ->assertJsonMissingPath('data.1.tax_codes');
 
         $ke = $this->getJson('/api/v1/country-packs/KE', $this->headersFor())->assertOk();
         $ke->assertJsonPath('data.name', 'Kenya')->assertJsonPath('meta.versions.0.version', 1);
         $this->assertNotEmpty($ke->json('data.sources'));
-        // CP-01: the standard rate comes from public research; the withholding rate is still needed.
+        // CP-01: the standard rate comes from public research; so does the withholding rate since 2026-10-22.
         $std = collect($ke->json('data.tax_codes'))->firstWhere('code', 'VAT_STD');
         $this->assertSame(['16.0000', false, null], [$std['rate'], $std['needs_confirmation'], $std['fiscal_code']]);
         $wht = collect($ke->json('data.tax_codes'))->firstWhere('code', 'VAT_WHT');
-        $this->assertSame([null, true], [$wht['rate'], $wht['needs_confirmation']]);
+        $this->assertSame(['2.0000', false, 'medium'], [$wht['rate'], $wht['needs_confirmation'], $wht['research']['confidence']]);
 
         $this->getJson('/api/v1/country-packs/CD', $this->headersFor() + ['Accept-Language' => 'fr'])->assertOk()
             ->assertJsonPath('data.name', 'République démocratique du Congo');
