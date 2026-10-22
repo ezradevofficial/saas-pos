@@ -3,6 +3,7 @@
 namespace App\Core\Marketplace\Models;
 
 use App\Core\Marketplace\AppSecrets;
+use App\Core\Marketplace\Connectors\FirstParty;
 use App\Core\Marketplace\OAuth\OAuthClient;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -58,10 +59,10 @@ class MarketplaceApp extends Model
         return $this->belongsTo(OAuthClient::class, 'client_id');
     }
 
-    /** Listed, and neither suspended nor archived: tenants may install it. */
+    /** Listed, neither suspended nor archived, and not a connector that is not available yet: tenants may install it. */
     public function isAvailable(): bool
     {
-        return $this->status === self::ACTIVE && $this->listed_version_id !== null;
+        return $this->status === self::ACTIVE && $this->listed_version_id !== null && ! FirstParty::unavailable($this->id);
     }
 
     /**
@@ -71,7 +72,7 @@ class MarketplaceApp extends Model
      */
     public function serves(): bool
     {
-        return $this->status !== self::SUSPENDED && $this->listed_version_id !== null
+        return $this->status !== self::SUSPENDED && $this->listed_version_id !== null && ! FirstParty::unavailable($this->id)
             && app(AppSecrets::class)->developerActive($this->developer_id);
     }
 

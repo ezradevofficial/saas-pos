@@ -4,6 +4,7 @@ namespace App\Core\Marketplace\Http\Controllers;
 
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\Marketplace\Connectors\Connectors;
+use App\Core\Marketplace\Connectors\FirstParty;
 use App\Core\Marketplace\DeveloperApps;
 use App\Core\Marketplace\Http\MarketplacePresenter;
 use App\Core\Marketplace\Http\Requests\ListMarketplaceAppsRequest;
@@ -32,7 +33,9 @@ class MarketplaceController
 
     public function index(ListMarketplaceAppsRequest $request): JsonResponse
     {
-        $query = MarketplaceApp::query()->where('status', MarketplaceApp::ACTIVE)->whereNotNull('listed_version_id')->with(['listedVersion', 'developer', 'client']);
+        // Phase 8 review L6: a connector that is not available yet is not listed.
+        $query = MarketplaceApp::query()->where('status', MarketplaceApp::ACTIVE)->whereNotNull('listed_version_id')
+            ->whereNotIn('id', FirstParty::unavailableAppIds())->with(['listedVersion', 'developer', 'client']);
         $search = trim((string) $request->validated('search', ''));
 
         if ($search !== '') {
@@ -54,7 +57,7 @@ class MarketplaceController
 
     public function show(ViewMarketplaceRequest $request, MarketplaceApp $marketplaceApp): JsonResponse
     {
-        abort_if($marketplaceApp->listed_version_id === null, 404);
+        abort_if($marketplaceApp->listed_version_id === null || FirstParty::unavailable($marketplaceApp->id), 404);
         $marketplaceApp->load(['listedVersion', 'developer', 'client']);
         $installation = $this->installations->activeFor($marketplaceApp)?->load(['app.listedVersion', 'version', 'installer']);
 

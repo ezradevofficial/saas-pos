@@ -2,12 +2,16 @@
 
 namespace Tests\Feature\Core\Marketplace;
 
+use App\Core\Api\ApiScopes;
+use App\Core\Audit\AuditEntry;
 use App\Core\Http\ApiException;
+use App\Core\Marketplace\AppSecrets;
 use App\Core\Marketplace\Connectors\Courier\Couriers;
 use App\Core\Marketplace\Connectors\Courier\FakeCourier;
 use App\Core\Marketplace\Connectors\Courier\ShipmentRequest;
 use App\Core\Marketplace\Connectors\FirstParty;
 use App\Core\Rbac\Console\SyncPermissions;
+use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\BuildsMarketplace;
@@ -41,25 +45,92 @@ class ConnectorsTest extends TestCase
         $byId = collect($listing->json('data'))->keyBy('id');
 
         $this->assertTrue($byId[$app['app_id']]['configured']);
-        foreach (FirstParty::appIds() as $id) {
+        foreach (FirstParty::appIds() as $key => $id) {
+            if (! FirstParty::CONNECTORS[$key]['available']) {
+                continue;
+            }
             $this->assertFalse($byId[$id]['configured']);
             $this->assertTrue($byId[$id]['developer']['first_party']);
         }
 
         $this->getJson('/api/v1/marketplace/apps?search=stock', $this->headersFor())->assertOk()->assertJsonCount(1, 'data');
         $this->getJson('/api/v1/marketplace/apps?category=analytics', $this->headersFor())->assertOk()->assertJsonPath('data.0.id', FirstParty::CONNECTORS['bi']['app']);
-        $this->getJson('/api/v1/marketplace/apps/'.FirstParty::CONNECTORS['courier']['app'], $this->headersFor())->assertOk()
-            ->assertJsonPath('data.pricing.model', 'free')->assertJsonPath('data.webhook_events', ['order.paid.v1', 'order.status_changed.v1']);
+        $this->getJson('/api/v1/marketplace/apps/'.FirstParty::CONNECTORS['messaging']['app'], $this->headersFor())->assertOk()
+            ->assertJsonPath('data.pricing.model', 'free')->assertJsonPath('data.webhook_events', ['order.status_changed.v1', 'sale.completed.v1']);
         $this->get("/api/v1/marketplace/logos/{$app['version_id']}")->assertNotFound();
 
         $status = collect($this->getJson('/api/v1/marketplace/connectors', $this->headersFor())->assertOk()->json('data'))->keyBy('key');
-        $this->assertSame(['connector_service', 'courier_provider'], $status['courier']['missing']);
+        $this->assertSame(['public_api', 'connector_service', 'courier_provider'], $status['courier']['missing']);
         $this->assertSame(['connector_service'], $status['bi']['missing']);
 
         // Not configured: nobody can install it.
         $pkce = $this->pkce();
         $this->getJson('/api/v1/oauth/authorize?'.http_build_query($this->authorizeQuery(FirstParty::CONNECTORS['bi']['client'], $pkce['challenge'], ['redirect_uri' => 'https://bi.example.com/cb'])), $this->headersFor())
             ->assertStatus(400);
+    }
+
+    /** Phase 8 review L6: a connector whose scopes have no public route is not listed, shown, set up or installed. */
+    public function test_connectors_not_available_yet_are_not_listed_shown_set_up_or_installable(): void
+    {
+        $listed = array_column($this->getJson('/api/v1/marketplace/apps', $this->headersFor())->assertOk()->json('data'), 'id');
+        $status = collect($this->getJson('/api/v1/marketplace/connectors', $this->headersFor())->assertOk()->json('data'))->keyBy('key');
+
+        foreach (['courier', 'biometric'] as $key) {
+            $connector = FirstParty::CONNECTORS[$key];
+            $this->assertFalse($connector['available']);
+            $this->assertNotContains($connector['app'], $listed);
+            $this->getJson("/api/v1/marketplace/apps/{$connector['app']}", $this->headersFor())->assertNotFound();
+            $this->assertFalse($status[$key]['available']);
+            $this->assertSame('public_api', $status[$key]['missing'][0]);
+
+            config(["marketplace.connectors.{$key}.redirect_uri" => "https://{$key}.example.com/cb"]);
+            $this->artisan('marketplace:connector', ['connector' => $key])->assertFailed();
+            $this->assertTrue((bool) DB::connection(SyncPermissions::OWNER_CONNECTION)->table('oauth_clients')->where('id', $connector['client'])->value('revoked'));
+
+            $pkce = $this->pkce();
+            $this->getJson('/api/v1/oauth/authorize?'.http_build_query($this->authorizeQuery($connector['client'], $pkce['challenge'], ['redirect_uri' => "https://{$key}.example.com/cb"])), $this->headersFor())
+                ->assertStatus(400);
+        }
+        $this->assertTrue($status['bi']['available']);
+        $this->assertTrue($status['messaging']['available']);
+    }
+
+    /**
+     * Phase 8 review L6: an available connector can do what it asks for. Each of its scopes is
+     * served by a public API route (a write route for a write scope), or, for a read scope, is
+     * what a webhook event it receives requires. A connector marked not available yet must
+     * still lack one, so the flag is removed once its routes exist.
+     */
+    public function test_every_available_connector_scope_is_served_by_a_public_route(): void
+    {
+        $served = [];
+        foreach (app('router')->getRoutes() as $route) {
+            $resource = ApiScopes::resourceOf($route);
+
+            if ($resource !== null) {
+                $served["{$resource}.read"] = true;
+
+                if (array_diff($route->methods(), ['GET', 'HEAD']) !== []) {
+                    $served["{$resource}.write"] = true;
+                }
+            }
+        }
+        $this->assertNotEmpty($served);
+
+        foreach (FirstParty::CONNECTORS as $key => $connector) {
+            $byEvent = [];
+            foreach ($connector['events'] as $event) {
+                $permission = app(WebhookCatalogue::class)->find($event)?->permission;
+                if ($permission !== null) {
+                    $byEvent[implode('.', array_slice(explode('.', $permission), 0, 2)).'.read'] = true;
+                }
+            }
+            $unserved = array_values(array_filter($connector['scopes'], fn (string $scope) => ! isset($served[$scope]) && ! isset($byEvent[$scope])));
+
+            $connector['available']
+                ? $this->assertSame([], $unserved, "the {$key} connector asks for scopes no public route serves")
+                : $this->assertNotSame([], $unserved, "every scope of the {$key} connector is served now: make it available");
+        }
     }
 
     public function test_setting_up_the_bi_connector_lets_it_read_csv_feeds_within_its_scopes(): void
@@ -90,8 +161,19 @@ class ConnectorsTest extends TestCase
         // Read only: no write scope.
         $this->postJson('/api/v1/items', ['name' => 'Tea'], [...$headers, 'Accept' => 'application/json'])->assertForbidden()->assertJsonPath('code', 'api_scope_missing');
 
+        // Phase 8 review L7: rotating and disabling reach the installing tenant's own audit chain.
+        // The platform role lists installs on its own connection, which cannot see this test's uncommitted install.
+        $tenant = $this->owner->tenant_id;
+        $this->partialMock(AppSecrets::class, fn ($mock) => $mock->shouldReceive('installedTenants')->with(FirstParty::CONNECTORS['bi']['app'])->andReturn([$tenant]));
+        $this->artisan('marketplace:connector', ['connector' => 'bi', '--rotate' => true])->assertSuccessful();
+        $this->inTenant(fn () => $this->assertSame(1, AuditEntry::where('action', 'core.app.connector_rotated')->count()));
+
         $this->artisan('marketplace:connector', ['connector' => 'bi', '--disable' => true])->assertSuccessful();
         $this->getJson('/api/v1/items', [...$headers, 'Accept' => 'application/json'])->assertUnauthorized();
+        $this->inTenant(function () {
+            $entry = AuditEntry::where('action', 'core.app.connector_disabled')->sole();
+            $this->assertSame('bi', $entry->after['connector'] ?? null);
+        });
     }
 
     public function test_the_courier_interface_is_not_configured_until_a_courier_is_chosen(): void

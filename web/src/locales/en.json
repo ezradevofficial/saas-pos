@@ -13250,7 +13250,8 @@
     "missing": {
       "connector_service": "The connector service is not set up.",
       "courier_provider": "No courier has been chosen yet.",
-      "message_provider": "No SMS or WhatsApp provider is set up."
+      "message_provider": "No SMS or WhatsApp provider is set up.",
+      "public_api": "The public API this connector needs is not available yet."
     },
     "support": "Support",
     "website": "Website",

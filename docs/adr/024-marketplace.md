@@ -97,16 +97,16 @@ Staff permissions: `platform.marketplace.view` (owner, support, finance, complia
 
 ### First-party connectors (MKT-04)
 
-Four listed, free apps of the platform's own developer, seeded by migration with fixed ids (`FirstParty`). Each is meant to run as a connector service that is an OAuth client of the public API like any app:
+Four listed, free apps of the platform's own developer, seeded by migration with fixed ids (`FirstParty`). Each is meant to run as a connector service that is an OAuth client of the public API like any app. Two are **not available yet** (Phase 8 review L6): their scopes have no `public-api` route, so they could not work. They are not listed or shown (404), not installable, `marketplace:connector` refuses to set them up, and `GET marketplace/connectors` names `public_api` first in what is missing. `ConnectorsTest` fails when an available connector asks for a scope that no public route serves (a write route for a write scope; a read scope may instead be what a webhook event it receives requires), and when a connector marked not available yet has every scope served, so the flag is lifted once the routes exist.
 
 | Connector | Scopes | Events | Provider side |
 | --- | --- | --- | --- |
-| Courier | locations, customers (read), online orders (read), deliveries (write) | `order.paid.v1`, `order.status_changed.v1` | the generic `CourierDriver` interface (quote, book, track, cancel; idempotent on our reference); `none` until the owner picks a courier, `fake` in local and tests |
+| Courier (not available yet: no public routes for online orders and deliveries) | locations, customers (read), online orders (read), deliveries (write) | `order.paid.v1`, `order.status_changed.v1` | the generic `CourierDriver` interface (quote, book, track, cancel; idempotent on our reference); `none` until the owner picks a courier, `fake` in local and tests |
 | SMS and WhatsApp | customers, online orders, sales (read) | `sale.completed.v1`, `order.status_changed.v1` | the notifier's SMS and WhatsApp drivers (`notifications.drivers`) |
 | Power BI and Excel | companies, branches, locations, items, item categories, customers, stock, sales (read) | none | **CSV feeds**: the existing public list endpoints with `?format=csv`, authorised with the connector's token or an API key; Power BI and Excel schedule the refresh. Chosen over new OData endpoints because the list endpoints already apply scopes, field rules (RBAC-05), sorting and the export audit |
-| Biometric attendance | employees, devices (read), attendance (write) | none | the HR biometric device API (HR-24) |
+| Biometric attendance (not available yet: no public routes for employees, devices and attendance) | employees, devices (read), attendance (write) | none | the HR biometric device API (HR-24) |
 
-A connector's OAuth client stays revoked, with no redirect URI, until the owner sets up its service: `php artisan marketplace:connector <courier|messaging|bi|biometric>` reads `CONNECTOR_<KEY>_REDIRECT_URI` (and webhook URL), prints the client secret and webhook secret once, and audits in the platform chain; `--rotate` issues new secrets, `--disable` switches it off (its tokens stop). `GET marketplace/connectors` names what is missing for each (`connector_service`, `courier_provider`, `message_provider`) and never invents a value.
+A connector's OAuth client stays revoked, with no redirect URI, until the owner sets up its service: `php artisan marketplace:connector <courier|messaging|bi|biometric>` reads `CONNECTOR_<KEY>_REDIRECT_URI` (and webhook URL), prints the client secret and webhook secret once, and audits in the platform chain; `--rotate` issues new secrets, `--disable` switches it off (its tokens stop). Both are also audited in the chain of each tenant that installed the connector (`core.app.connector_rotated`, `core.app.connector_disabled`), through `app_tenants_with_app_installed()` and one job per tenant, as a suspension is (Phase 8 review L7). `GET marketplace/connectors` names what is missing for each (`connector_service`, `courier_provider`, `message_provider`) and never invents a value.
 
 ### Export (EXP-02)
 
