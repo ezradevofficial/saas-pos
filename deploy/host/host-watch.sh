@@ -62,7 +62,11 @@ problem() {
 
 # 1. Readiness, through nginx and TLS like any client.
 code="$("$CURL_BIN" -s -o /dev/null -m 20 -w '%{http_code}' "$WATCH_READY_URL" || true)"
-[ "$code" = 200 ] || problem ready "readiness: $WATCH_READY_URL answered ${code:-nothing} (expected 200)"
+case "$code" in
+  200) ;;
+  "" | 000) problem ready "readiness: no answer from $WATCH_READY_URL (nginx, PHP-FPM or the network is down)" ;;
+  *) problem ready "readiness: $WATCH_READY_URL answered $code (expected 200)" ;;
+esac
 
 # 2. Disk.
 for path in / "$PG_DATA"; do
@@ -158,15 +162,23 @@ port="$(dotenv MAIL_PORT)"
 scheme="$(dotenv MAIL_SCHEME)"
 user="$(dotenv MAIL_USERNAME)"
 from="$(dotenv MAIL_FROM_ADDRESS)"
+# MAIL_FROM_NAME is "${APP_NAME}" in the documented .env (the display name
+# is never written anywhere else); resolve that one reference here.
+from_name="$(dotenv MAIL_FROM_NAME)"
+# shellcheck disable=SC2016 # the literal reference, as written in .env
+[ "$from_name" != '${APP_NAME}' ] || from_name="$(dotenv APP_NAME)"
+from_name="$(printf '%s' "$from_name" | tr -d '\r\n"<>')"
 if [ -z "$to" ] || [ -z "$host" ] || [ -z "$from" ] || [ "$(dotenv MAIL_MAILER)" != smtp ]; then
   warn "Cannot email: set HEALTH_ALERT_EMAIL in $HOST_ENV and MAIL_MAILER=smtp with MAIL_HOST and MAIL_FROM_ADDRESS in $APP_ENV_FILE. $subject"
   exit 1
 fi
-if [ "$scheme" = smtps ] || [ "${port:-587}" = 465 ]; then
+if [ "$scheme" = smtps ] || [ "${port:-2525}" = 465 ]; then
   url="smtps://$host:${port:-465}"
   tls=()
 else
-  url="smtp://$host:${port:-587}"
+  # Brevo's relay on 2525 with STARTTLS (Linode blocks 25, 465 and 587 on
+  # new accounts, ADR 025); STARTTLS is required, never plain text.
+  url="smtp://$host:${port:-2525}"
   tls=(--ssl-reqd)
 fi
 
@@ -183,7 +195,11 @@ else
   auth=()
 fi
 {
-  printf 'From: %s\r\n' "$from"
+  if [ -n "$from_name" ]; then
+    printf 'From: "%s" <%s>\r\n' "$from_name" "$from"
+  else
+    printf 'From: %s\r\n' "$from"
+  fi
   printf 'To: %s\r\n' "$to"
   printf 'Subject: %s\r\n' "$subject"
   printf 'Date: %s\r\n' "$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')"

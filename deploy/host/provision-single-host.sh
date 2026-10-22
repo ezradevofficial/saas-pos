@@ -515,6 +515,8 @@ render_pg_hba() {
 local    all          $PG_SUPERUSER                    peer
 local    replication  $PG_SUPERUSER                    peer
 local    all          all                              scram-sha-256
+host     all          $PG_SUPERUSER   0.0.0.0/0        reject
+host     all          $PG_SUPERUSER   ::/0             reject
 hostssl  all          all             127.0.0.1/32     scram-sha-256
 hostssl  all          all             ::1/128          scram-sha-256
 EOF

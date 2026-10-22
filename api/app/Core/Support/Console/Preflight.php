@@ -124,7 +124,7 @@ class Preflight extends Command
             filled($config->get('sentry.dsn')) => ['ok', 'Sentry on, release '.($config->get('sentry.release') ?: 'not set')],
             default => ['warn', 'SENTRY_LARAVEL_DSN not set: errors are only in the logs'],
         };
-        // NFR-07, ADR 025: the host's database and file backups are declared on
+        // NFR-07, ADR 025: the host's database backups (WAL-G) are declared on
         // (BACKUPS_ENABLED) once deploy/host provisioning has turned them on.
         // Staging and the pilot run without them; production warns, never fails.
         $checks['Backups'] = fn () => match (true) {

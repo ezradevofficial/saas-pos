@@ -1,5 +1,5 @@
 ; ADR 025: the API's PHP-FPM pool, sized for a small shared host. Runs as the
-; deploy user (who owns the release and shared storage); nginx reaches it
+; deploy user (who owns the release and its storage/); nginx reaches it
 ; through the default socket.
 [app]
 user = @DEPLOY_USER@

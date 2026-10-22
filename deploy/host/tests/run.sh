@@ -86,6 +86,9 @@ done
 hba="$R/etc/postgresql/16/main/pg_hba.conf"
 check "pg_hba: TLS and scram-sha-256 on localhost" has "$hba" '^hostssl +all +all +127\.0\.0\.1/32 +scram-sha-256$'
 check "pg_hba: the superuser only through the socket (peer)" has "$hba" '^local +all +postgres +peer$'
+check "pg_hba: the superuser refused over TCP" has "$hba" '^host +all +postgres +0\.0\.0\.0/0 +reject$'
+check "pg_hba: the superuser refused over IPv6 too" has "$hba" '^host +all +postgres +::/0 +reject$'
+check "pg_hba: the superuser refusal comes before the TLS lines" test "$(grep -nE 'postgres +0\.0\.0\.0/0 +reject' "$hba" | cut -d: -f1)" -lt "$(grep -n '^hostssl' "$hba" | head -1 | cut -d: -f1)"
 check "pg_hba: every other address refused" has "$hba" '^host +all +all +0\.0\.0\.0/0 +reject$'
 check "pg_hba: no trust, md5 or plain TCP allow line" lacks "$hba" 'trust|md5|^host +all +all +[0-9:./]+ +scram'
 check "pg_hba: no subnet while there is no VPC" lacks "$hba" '^hostssl +all +all +(10|172|192)\.'
@@ -260,7 +263,9 @@ cat >"$WORK/stub-df" <<'EOF'
 printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda 51200000 1000 1000 %s%% /\n' "${STUB_DISK:-40}"
 EOF
 chmod +x "$WORK/stub-curl" "$WORK/stub-psql" "$WORK/stub-df"
-printf 'MAIL_MAILER=smtp\nMAIL_HOST=smtp.example.test\nMAIL_PORT=587\nMAIL_USERNAME=owner@example.test\nMAIL_PASSWORD="mailbox-secret-0123456789"\nMAIL_FROM_ADDRESS="alerts@example.test"\n' >"$WORK/app.env"
+# The documented staging mail settings: Brevo's relay on 2525 with STARTTLS.
+# shellcheck disable=SC2016 # "${APP_NAME}" is written literally, as in .env
+printf 'APP_NAME="Test display name"\nMAIL_MAILER=smtp\nMAIL_HOST=smtp-relay.example.test\nMAIL_PORT=2525\nMAIL_USERNAME=owner@example.test\nMAIL_PASSWORD="mailbox-secret-0123456789"\nMAIL_FROM_ADDRESS="alerts@example.test"\nMAIL_FROM_NAME="${APP_NAME}"\n' >"$WORK/app.env"
 printf 'API_DOMAIN=api.example.test\nHEALTH_ALERT_EMAIL=owner@example.test\nBACKUPS_ENABLED=false\nPG_DATA=/\n' >"$WORK/watch.env"
 watch() {
   HOST_ENV="$WORK/watch.env" APP_ENV_FILE="$WORK/app.env" STATE_DIRECTORY="$WORK/watch-state" CURL_BIN="$WORK/stub-curl" \
@@ -273,7 +278,8 @@ STUB_READY_CODE=503 STUB_DISK=91 watch >"$WORK/w2.out" 2>&1
 check "a problem: one email" test "$(wc -l <"$WORK/mail.calls" | tr -d ' ')" = 1
 check "the email names each problem" has "$WORK/mail.messages" '^Subject: \[api\.example\.test\] Problem: disk:/ ready'
 check "the email says what to do" has "$WORK/mail.messages" 'is 91% full'
-check "over STARTTLS, required" has "$WORK/mail.calls" '--ssl-reqd .*--url smtp://smtp\.example\.test:587'
+check "over STARTTLS on 2525, required" has "$WORK/mail.calls" '--ssl-reqd .*--url smtp://smtp-relay\.example\.test:2525'
+check "from the display name in APP_NAME" has "$WORK/mail.messages" '^From: "Test display name" <alerts@example\.test>'
 check "the mailbox password never in arguments" lacks "$WORK/mail.calls" 'mailbox-secret'
 STUB_READY_CODE=503 STUB_DISK=92 watch >/dev/null 2>&1
 check "same problems again: no second email" test "$(wc -l <"$WORK/mail.calls" | tr -d ' ')" = 1
@@ -289,6 +295,8 @@ printf 'API_DOMAIN=api.example.test\nHEALTH_ALERT_EMAIL=owner@example.test\nBACK
 BACKUP_STATE="$WORK/none" STUB_PG='5|40|0|0|1|25' watch --dry-run >"$WORK/w6.out" 2>&1
 check "backups on: archiving failure found" has "$WORK/w6.out" 'WAL archiving is failing'
 check "backups on: a missing base backup found" has "$WORK/w6.out" 'last base backup is'
+STUB_READY_CODE=000 watch --dry-run >"$WORK/w7.out" 2>&1
+check "no answer at all is named as such" has "$WORK/w7.out" 'readiness: no answer from https://api\.example\.test/health/ready'
 check "dry run sends nothing" test "$(wc -l <"$WORK/mail.calls" | tr -d ' ')" = 3
 
 echo

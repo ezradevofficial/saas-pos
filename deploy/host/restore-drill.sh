@@ -45,6 +45,8 @@ DRILL_SOCKET_DIR="${DRILL_SOCKET_DIR:-}"
 DRILL_PORT="${DRILL_PORT:-5433}"
 DRILL_LOG="${DRILL_LOG:-/var/lib/app-host/drill-history.log}"
 PHP_BIN="${PHP_BIN:-php}"
+# How long recovery may take (WAL replay of a busy day can be long).
+DRILL_RECOVERY_TIMEOUT="${DRILL_RECOVERY_TIMEOUT:-7200}"
 
 source_kind=walg
 source_dir=""
@@ -77,6 +79,7 @@ while [ $# -gt 0 ]; do
 done
 
 [[ "$DRILL_PORT" =~ ^[0-9]+$ ]] && [ "$DRILL_PORT" != "$PG_PORT" ] || die "DRILL_PORT must be a port other than the live cluster's ($PG_PORT)."
+[[ "$DRILL_RECOVERY_TIMEOUT" =~ ^[0-9]+$ ]] || die "DRILL_RECOVERY_TIMEOUT is a number of seconds."
 [[ "$tolerance" =~ ^0?\.[0-9]+$|^0$|^1$ ]] || die "--tolerance is a fraction, e.g. 0.05."
 [[ "$backup" =~ ^[A-Za-z0-9_]+$ ]] || die "Invalid --backup name."
 case "$target_time" in *\'* | *\\*) die "Invalid --target-time." ;; esac
@@ -202,6 +205,7 @@ EOF
 )"
 hba="$(cat <<EOF
 local    all  $PG_SUPERUSER                 peer
+host     all  $PG_SUPERUSER  0.0.0.0/0      reject
 hostssl  all  all            127.0.0.1/32   scram-sha-256
 host     all  all            0.0.0.0/0      reject
 EOF
@@ -227,7 +231,15 @@ server_started=1
 as_pg "$PG_BINDIR/pg_ctl" -D "$data" -o "-c config_file=$drill/postgresql.conf -c archive_mode=off" -l "$drill/server.log" -w -t 7200 start
 drill_psql() { as_pg "$PG_BINDIR/psql" -X -q -At -v ON_ERROR_STOP=1 -h "$socket" -p "$DRILL_PORT" -U "$PG_SUPERUSER" -d postgres "$@"; }
 if ! is_dry_run; then
-  [ "$(drill_psql -c "select pg_is_in_recovery()")" = f ] || die "The drill cluster is still in recovery; see $drill/server.log."
+  # pg_ctl -w returns once the server runs, which may still be replaying
+  # WAL (hot_standby is off, so it refuses connections until promoted).
+  # Found by the local rehearsal (2026-10-22): wait for the promotion.
+  deadline=$(($(date -u +%s) + DRILL_RECOVERY_TIMEOUT))
+  until [ "$(drill_psql -c "select pg_is_in_recovery()" 2>/dev/null || true)" = f ]; do
+    as_pg "$PG_BINDIR/pg_ctl" -D "$data" status >/dev/null 2>&1 || die "The drill cluster stopped during recovery; see $drill/server.log."
+    [ "$(date -u +%s)" -lt "$deadline" ] || die "Recovery did not finish within $DRILL_RECOVERY_TIMEOUT s; see $drill/server.log."
+    sleep 2
+  done
   note "recovered in $(($(now_epoch) - t0)) s"
 fi
 drill_psql -c "ALTER DATABASE \"$DB_NAME\" RENAME TO \"${DB_NAME}_drill\""
