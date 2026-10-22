@@ -232,8 +232,8 @@ function CollectDialog({ order, entry, onClose }) {
           <Button
             variant="primary"
             loading={action.isPending}
-            disabled={!method}
-            onClick={() => action.mutate({ path: `ecommerce/returns/${entry.id}/collect`, body: { payment_method_id: method, ...(reference.trim() ? { reference: reference.trim() } : {}) }, done: 'ecommerce.returns.collected' })}
+            disabled={!method || !reference.trim()}
+            onClick={() => action.mutate({ path: `ecommerce/returns/${entry.id}/collect`, body: { payment_method_id: method, reference: reference.trim() }, done: 'ecommerce.returns.collected' })}
           >
             {t('ecommerce.returns.confirmCollect', { amount: moneyText(entry.collect_minor, entry.currency, locale) })}
           </Button>
@@ -244,7 +244,7 @@ function CollectDialog({ order, entry, onClose }) {
         {action.isError ? <Alert tone="danger" title={errorMessage(action.error)} /> : null}
         {methods.isError ? <Alert tone="danger" title={errorMessage(methods.error)} /> : null}
         <Select label={t('ecommerce.returns.paymentMethod')} placeholder={t('ecommerce.returns.chooseMethod')} options={options} value={method} required onChange={(event) => setMethod(event.target.value)} />
-        <TextField label={t('ecommerce.returns.collectReference')} value={reference} onChange={(event) => setReference(event.target.value)} />
+        <TextField label={t('ecommerce.returns.collectReference')} help={t('ecommerce.returns.collectReferenceHelp')} required value={reference} onChange={(event) => setReference(event.target.value)} />
       </div>
     </Dialog>
   )
@@ -283,6 +283,9 @@ export function Returns({ order }) {
                 </span>
               </span>
               <span className="flex flex-wrap gap-3">
+                {entry.approval_status === 'pending' || entry.approval_status === 'rejected' ? (
+                  <StatusBadge tone={entry.approval_status === 'pending' ? 'warning' : 'danger'}>{t(`ecommerce.returns.approvalStatuses.${entry.approval_status}`)}</StatusBadge>
+                ) : null}
                 {entry.refund_status !== 'none' ? <StatusBadge tone={STATUS_TONES[entry.refund_status] ?? 'neutral'}>{t(`ecommerce.returns.refundStatuses.${entry.refund_status}`)}</StatusBadge> : null}
                 {entry.collect_status !== 'none' ? <StatusBadge tone={STATUS_TONES[entry.collect_status] ?? 'neutral'}>{t(`ecommerce.returns.collectStatuses.${entry.collect_status}`)}</StatusBadge> : null}
               </span>
@@ -325,7 +328,8 @@ export function Returns({ order }) {
                 </>
               ) : null}
             </dl>
-            {(entry.refund_status === 'due' && can(ORDER_REFUND)) || (entry.collect_status === 'due' && can(ORDER_MANAGE)) ? (
+            {entry.approval_status === 'pending' ? <p className="text-caption text-ink-muted">{t('ecommerce.returns.awaitingApproval')}</p> : null}
+            {entry.approval_status !== 'pending' && ((entry.refund_status === 'due' && can(ORDER_REFUND)) || (entry.collect_status === 'due' && can(ORDER_MANAGE))) ? (
               <div className="flex flex-wrap gap-2">
                 {entry.refund_status === 'due' && can(ORDER_REFUND) ? (
                   <Button aria-label={t('ecommerce.returns.refundNamed', { number: entry.number })} onClick={() => setOpen({ type: 'refund', entry })}>{t('ecommerce.returns.refund')}</Button>

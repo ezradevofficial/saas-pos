@@ -12036,7 +12036,13 @@
       "collected": "Paiement encaissé.",
       "paymentMethod": "Moyen de paiement",
       "chooseMethod": "Choisir un moyen de paiement",
-      "collectReference": "Référence du paiement"
+      "collectReference": "Référence du paiement",
+      "approvalStatuses": {
+        "pending": "En attente d’approbation",
+        "rejected": "Non approuvé"
+      },
+      "awaitingApproval": "Le remboursement dépasse votre plafond avec les autres remboursements de la commande : il attend l’approbation d’un responsable dans Approbations. Rien ne bouge d’ici là.",
+      "collectReferenceHelp": "Obligatoire : le numéro du reçu ou de la transaction du paiement."
     }
   },
   "shop": {

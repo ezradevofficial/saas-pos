@@ -12036,7 +12036,13 @@
       "collected": "Payment collected.",
       "paymentMethod": "Payment method",
       "chooseMethod": "Choose a payment method",
-      "collectReference": "Payment reference"
+      "collectReference": "Payment reference",
+      "approvalStatuses": {
+        "pending": "Awaiting approval",
+        "rejected": "Not approved"
+      },
+      "awaitingApproval": "The refund is above your limit with the order’s other refunds, so it waits for a manager’s approval in Approvals. Nothing moves until then.",
+      "collectReferenceHelp": "Required: the receipt or transaction number of the payment."
     }
   },
   "shop": {

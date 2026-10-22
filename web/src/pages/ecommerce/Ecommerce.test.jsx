@@ -314,9 +314,19 @@ describe('Partial returns and exchanges (ECOM-19)', () => {
     const confirm = within(dialog).getByRole('button', { name: 'Collect KES 120.00' })
     expect(confirm).toBeDisabled()
     await waitFor(() => chooseOption(within(dialog).getByLabelText(/^Payment method/), 'Cash till'))
+    // Review L5: the payment's reference is required.
+    expect(confirm).toBeDisabled()
     fireEvent.change(within(dialog).getByLabelText(/^Payment reference/), { target: { value: 'R-77' } })
     fireEvent.click(confirm)
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('ecommerce/returns/rt-2/collect', { payment_method_id: 'pm-1', reference: 'R-77' }))
+  })
+
+  it('shows a return waiting for approval without money actions', async () => {
+    // Review H1: above the limit (with the order's other refunds), the refund waits for approval.
+    mockEcommerce([['ecommerce/orders/o-1', { data: { ...DELIVERED, returns: [{ ...RETURN, approval_status: 'pending' }] } }]])
+    renderApp('/ecommerce/orders/o-1')
+    expect(await screen.findByText('Awaiting approval')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Refund WEB-A-2026-00001-R1' })).not.toBeInTheDocument()
   })
 
   it('hides Return or exchange from a reader without the manage permission', async () => {
