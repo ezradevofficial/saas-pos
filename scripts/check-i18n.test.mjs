@@ -62,3 +62,39 @@ test('fails on a dotted key name in the API and in the apps', () => {
   assert.equal(web.status, 1)
   assert.match(web.output, /web: en\.json has a dotted key name "app > a\.b"/)
 })
+
+// L10N-02: the mobile app's native permission texts (Expo per-locale strings).
+const appJson = (locales, plugins = [['expo-camera', { cameraPermission: 'The camera scans barcodes.' }]]) =>
+  JSON.stringify({ expo: { name: 'app', plugins, ...(locales ? { locales } : {}) } })
+const both = { en: './locales/en.json', fr: './locales/fr.json' }
+
+test('passes when every native permission text is in en and fr', () => {
+  const { status, output } = check({
+    'pos/app.json': appJson(both),
+    'pos/locales/en.json': '{"ios": {"NSCameraUsageDescription": "The camera scans barcodes."}}',
+    'pos/locales/fr.json': '{"ios": {"NSCameraUsageDescription": "L’appareil photo scanne les codes-barres."}}',
+  })
+  assert.equal(status, 0, output)
+})
+
+test('fails when the native strings lack a language, a permission text or a translation', () => {
+  const noFrench = check({ 'pos/app.json': appJson({ en: './locales/en.json' }), 'pos/locales/en.json': '{"ios": {"NSCameraUsageDescription": "x"}}' })
+  assert.equal(noFrench.status, 1)
+  assert.match(noFrench.output, /expo\.locales has no "fr" file/)
+
+  const missing = check({
+    'pos/app.json': appJson(both, [['expo-location', { locationWhenInUsePermission: 'Your position is shared.' }]]),
+    'pos/locales/en.json': '{"ios": {"NSLocationWhenInUseUsageDescription": "Your position is shared."}}',
+    'pos/locales/fr.json': '{"ios": {}}',
+  })
+  assert.equal(missing.status, 1)
+  assert.match(missing.output, /"ios\.NSLocationWhenInUseUsageDescription" \(a permission text set in app\.json\) is missing from the fr locale file/)
+
+  const untranslated = check({
+    'pos/app.json': appJson(both),
+    'pos/locales/en.json': '{"ios": {"NSCameraUsageDescription": "The camera scans barcodes."}}',
+    'pos/locales/fr.json': '{"ios": {"NSCameraUsageDescription": "The camera scans barcodes."}}',
+  })
+  assert.equal(untranslated.status, 1)
+  assert.match(untranslated.output, /fr value for "ios\.NSCameraUsageDescription" is identical to en/)
+})
