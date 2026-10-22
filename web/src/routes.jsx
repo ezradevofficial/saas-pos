@@ -101,6 +101,7 @@ const RuleEditor = lazy(() => import('./pages/automation/RuleEditor'))
 const AutomationRuns = lazy(() => import('./pages/automation/RunLog'))
 const Approvals = lazy(() => import('./pages/approvals/Approvals'))
 const EmailApproval = lazy(() => import('./pages/approvals/EmailApproval'))
+const OptOut = lazy(() => import('./pages/privacy/OptOut'))
 const AcceptInvitation = lazy(() => import('./pages/auth/AcceptInvitation'))
 const TwoFactorEnrol = lazy(() => import('./pages/auth/TwoFactorEnrol'))
 const Categories = lazy(() => import('./pages/catalogue/Categories'))
@@ -405,6 +406,8 @@ export const routes = [
     children: [
       { path: '/invitations/:token', element: <AcceptInvitation /> },
       { path: '/approvals/email/:token', element: <EmailApproval /> },
+      // NFR-08: a marketing email's unsubscribe link, no sign-in needed.
+      { path: '/opt-out/:token', element: <OptOut /> },
       // RBAC-13c: the console's one-time code becomes a support session here.
       { path: '/support/enter', element: <SupportEnter /> },
     ],

@@ -5,6 +5,8 @@ namespace Tests\Feature\Core\Billing;
 use App\Core\Billing\Http\EnforceSubscription;
 use App\Core\Billing\Models\Subscription;
 use App\Core\DataExport\Models\TenantExport;
+use App\Core\MasterData\Parties\Party;
+use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Device;
 use Carbon\CarbonImmutable;
 use Illuminate\Routing\Route as RoutingRoute;
@@ -195,6 +197,32 @@ class DunningTest extends TestCase
         $this->assertSame(Subscription::READ_ONLY, $this->subscription()->status);
     }
 
+    /**
+     * Phase 8 review L8 (NFR-08, SUB-05, ADM-01c): data subject requests are logged, approved,
+     * rejected and carried out, and consent withdrawals recorded, while the tenant is read-only
+     * or suspended; a new consent grant is still refused.
+     */
+    public function test_privacy_duties_run_while_read_only_or_suspended(): void
+    {
+        $admin = $this->userWith('admin', Scope::tenant());
+        $party = $this->inTenant(fn () => Party::query()->create(['company_id' => $this->acme->id, 'kind' => 'person', 'name' => 'Amina Otieno', 'roles' => ['customer']]));
+
+        foreach ([[Subscription::READ_ONLY, 402, 'subscription_overdue'], [Subscription::SUSPENDED, 403, 'tenant_suspended']] as [$status, $code, $error]) {
+            $this->inTenant(fn () => $this->subscription()->forceFill(['status' => $status, 'read_only_since' => now(), 'pos_stops_at' => now()->addDays(3)])->save());
+            $this->aWrite()->assertStatus($code)->assertJsonPath('code', $error);
+
+            $access = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'customer', 'subject_id' => $party->id, 'kind' => 'access'], $this->headersFor())->assertCreated()->json('data.id');
+            $this->postJson("/api/v1/privacy/requests/{$access}/approve", [], $this->headersFor($admin))->assertOk();
+            $this->postJson("/api/v1/privacy/requests/{$access}/execute", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'completed');
+            $rejected = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'customer', 'subject_id' => $party->id, 'kind' => 'access'], $this->headersFor())->assertCreated()->json('data.id');
+            $this->postJson("/api/v1/privacy/requests/{$rejected}/reject", ['reason' => 'Identity could not be confirmed'], $this->headersFor($admin))->assertOk();
+
+            $consent = ['subject_type' => 'customer', 'subject_id' => $party->id, 'purpose' => 'marketing', 'channel' => 'sms'];
+            $this->postJson('/api/v1/privacy/consents', [...$consent, 'granted' => false], $this->headersFor())->assertCreated();
+            $this->postJson('/api/v1/privacy/consents', [...$consent, 'granted' => true], $this->headersFor())->assertStatus($code)->assertJsonPath('code', $error);
+        }
+    }
+
     public function test_a_read_only_owner_exports_gets_the_link_and_downloads(): void
     {
         // EXP-02, SUB-05: the full export stays reachable in read-only, link included.
@@ -299,6 +327,12 @@ class DunningTest extends TestCase
             'POST sync/device-secret/rotate' => 'device',
             'POST tenant-exports' => 'export',
             'POST tenant-exports/{tenant_export}/link' => 'export',
+            // NFR-08 (Phase 8 review L8): data protection duties; consents only as withdrawals.
+            'POST privacy/requests' => 'privacy',
+            'POST privacy/requests/{privacy_request}/approve' => 'privacy',
+            'POST privacy/requests/{privacy_request}/reject' => 'privacy',
+            'POST privacy/requests/{privacy_request}/execute' => 'privacy',
+            'POST privacy/consents' => 'consent',
             'POST support-access/{support_access_grant}/approve' => 'account',
             'POST support-access/{support_access_grant}/deny' => 'account',
             'POST support-access/{support_access_grant}/revoke' => 'account',

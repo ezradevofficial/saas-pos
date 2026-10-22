@@ -27,23 +27,25 @@ trait BuildsMarketplace
      * A listed app with a confidential client.
      *
      * @param  array<string, mixed>  $version  overrides of the listed version
+     * @param  array{id: string, tenant_id: string}|null  $developer  a committed developer (default: the platform's own)
      * @return array{app_id: string, client_id: string, client_secret: string, version_id: string, slug: string, webhook_secret: string}
      */
-    protected function listedApp(array $version = [], ?string $secret = 'client-secret-for-tests-0123456789abcdef', bool $listed = true): array
+    protected function listedApp(array $version = [], ?string $secret = 'client-secret-for-tests-0123456789abcdef', bool $listed = true, ?array $developer = null): array
     {
         $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
         $ids = ['app_id' => (string) Str::uuid7(), 'client_id' => (string) Str::uuid7(), 'version_id' => (string) Str::uuid7(), 'slug' => 'test-app-'.Str::lower(Str::random(8))];
         $now = now();
         $ids['webhook_secret'] = 'whsec_'.base64_encode(random_bytes(32));
 
-        $owner->transaction(function () use ($owner, $ids, $version, $secret, $now, $listed) {
+        $owner->transaction(function () use ($owner, $ids, $version, $secret, $now, $listed, $developer) {
             $owner->table('oauth_clients')->insert([
                 'id' => $ids['client_id'], 'name' => 'Test app', 'secret' => $secret === null ? null : 'external',
                 'redirect_uris' => json_encode([self::REDIRECT]), 'grant_types' => json_encode(['authorization_code', 'refresh_token']),
-                'revoked' => false, 'app_id' => $ids['app_id'], 'created_at' => $now, 'updated_at' => $now,
+                'revoked' => false, 'app_id' => $ids['app_id'], 'developer_tenant_id' => $developer['tenant_id'] ?? null, 'created_at' => $now, 'updated_at' => $now,
             ]);
             $owner->table('marketplace_apps')->insert([
-                'id' => $ids['app_id'], 'developer_id' => FirstParty::DEVELOPER, 'slug' => $ids['slug'], 'status' => 'active',
+                'id' => $ids['app_id'], 'developer_id' => $developer['id'] ?? FirstParty::DEVELOPER, 'developer_tenant_id' => $developer['tenant_id'] ?? null,
+                'slug' => $ids['slug'], 'status' => 'active',
                 'client_id' => $ids['client_id'],
                 'created_at' => $now, 'updated_at' => $now,
             ]);
@@ -52,7 +54,7 @@ trait BuildsMarketplace
                 'webhook_key' => DB::raw("decode('".bin2hex(base64_decode(substr($ids['webhook_secret'], 6)))."', 'hex')"), 'created_at' => $now, 'updated_at' => $now,
             ]);
             $owner->table('marketplace_app_versions')->insert([
-                'id' => $ids['version_id'], 'app_id' => $ids['app_id'], 'version' => 1, 'status' => 'draft',
+                'id' => $ids['version_id'], 'app_id' => $ids['app_id'], 'developer_tenant_id' => $developer['tenant_id'] ?? null, 'version' => 1, 'status' => 'draft',
                 'name' => $version['name'] ?? 'Stock sync', 'tagline' => 'Keeps stock in step', 'description' => str_repeat('Syncs items and customers. ', 3),
                 'category' => 'productivity', 'redirect_uris' => json_encode([self::REDIRECT]),
                 'scopes' => json_encode($version['scopes'] ?? ['core.item.read', 'core.party.write']),

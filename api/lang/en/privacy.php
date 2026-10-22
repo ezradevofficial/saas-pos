@@ -4,6 +4,7 @@
 return [
     'anonymised_label' => 'Anonymised :ref',
     'errors' => [
+        'opt_out_link_invalid' => 'This unsubscribe link doesn’t work. Use the link in a recent email, or ask the business to stop the messages.',
         'subject_not_found' => 'No such person in this business. Pick the person again from the list.',
         'not_correctable' => 'This field cannot be corrected through a request. Edit it on the record instead.',
         'not_approved' => 'This request is not approved yet. Approve it first, then carry it out.',

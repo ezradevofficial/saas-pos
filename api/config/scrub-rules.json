@@ -262,6 +262,34 @@
       "verifier"
     ],
     [
+      "saml",
+      "response"
+    ],
+    [
+      "saml",
+      "request"
+    ],
+    [
+      "relay",
+      "state"
+    ],
+    [
+      "^",
+      "ticket"
+    ],
+    [
+      "^",
+      "binding"
+    ],
+    [
+      "^",
+      "state"
+    ],
+    [
+      "entry",
+      "code"
+    ],
+    [
       "latitude"
     ],
     [
@@ -296,6 +324,24 @@
   ],
   "values": [
     {
+      "name": "api_key",
+      "pattern": "\\bsk_(live|test)_[a-z0-9]{16}_[A-Za-z0-9]{40}",
+      "flags": "",
+      "replace": "[token]"
+    },
+    {
+      "name": "webhook_secret",
+      "pattern": "whsec_[A-Za-z0-9+/=]{20,}",
+      "flags": "",
+      "replace": "[token]"
+    },
+    {
+      "name": "support_entry_code",
+      "pattern": "\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\.[A-Za-z0-9]{48}\\b",
+      "flags": "",
+      "replace": "[token]"
+    },
+    {
       "name": "bearer",
       "pattern": "\\b(Bearer|Basic)\\s+[A-Za-z0-9._~+/=|-]{8,}",
       "flags": "i",
@@ -321,7 +367,7 @@
     },
     {
       "name": "query_secret",
-      "pattern": "((?:[?&\\s]|^)(?:\\w*_)?(?:token|access_token|signature|key|api_key|code|password|secret|pin|otp|verifier)=)[^&#\\s\"']+",
+      "pattern": "((?:[?&#\\s]|^)(?:\\w*_)?(?:token|access_token|signature|key|api_key|code|password|secret|pin|otp|verifier|ticket|state|samlresponse|samlrequest|relaystate)=)[^&#\\s\"']+",
       "flags": "i",
       "replace": "$1[redacted]"
     },
@@ -354,6 +400,12 @@
       "pattern": "\\b(?:254|243)\\d{9}\\b",
       "flags": "",
       "replace": "[phone]"
+    },
+    {
+      "name": "high_entropy",
+      "pattern": "\\b(?=[A-Za-z0-9]*[A-Z])(?=[A-Za-z0-9]*[a-z])(?=[A-Za-z0-9]*[0-9])[A-Za-z0-9]{32,}\\b",
+      "flags": "",
+      "replace": "[token]"
     }
   ],
   "keep": [

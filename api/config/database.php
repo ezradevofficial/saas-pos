@@ -124,6 +124,13 @@ return [
             // Timestamps are UTC end to end, whatever the server's zone.
             'timezone' => 'UTC',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Phase 8 review L9: a migration that needs a lock a running transaction holds
+            // gives up after this long (SQLSTATE 55P03) instead of queueing behind it and
+            // blocking every query on that table; the deploy tries again
+            // (database/scripts/migrate-with-retry.sh). Empty to disable.
+            'server_options' => array_filter([
+                'lock_timeout' => env('DB_OWNER_LOCK_TIMEOUT', '5s'),
+            ]),
         ],
 
         // ADR 013: platform staff (auth, tokens, their audit log) and the

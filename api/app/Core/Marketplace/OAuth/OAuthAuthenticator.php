@@ -4,15 +4,18 @@ namespace App\Core\Marketplace\OAuth;
 
 use App\Core\Api\ApiKeyContext;
 use App\Core\Api\ApiScopes;
+use App\Core\Api\FailedAuthLimit;
 use App\Core\Api\Models\ApiKey;
 use App\Core\Audit\AuditContext;
-use App\Core\Http\ApiErrorRenderer;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Marketplace\Models\AppInstallation;
+use App\Core\Tenancy\ClosedTenant;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\RateLimiter;
+use Lcobucci\JWT\Validation\Constraint\LooseValidAt;
+use Lcobucci\JWT\Validation\Constraint\StrictValidAt;
+use Lcobucci\JWT\Validation\RequiredConstraintsViolated;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\ResourceServer;
 use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
@@ -32,7 +35,11 @@ use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
  *    idempotency and audit work exactly as for an API key. On any other
  *    route the token is refused (403 `api_key_route_refused`).
  *
- * Any failure leaves no tenant behind and answers null (401).
+ * Any failure leaves no tenant behind and answers null (401). Failures
+ * are limited per token and address once the token fails to resolve, and
+ * an expired but validly signed token is not counted (FailedAuthLimit,
+ * Phase 8 review M5). A valid token of a closed tenant answers 403
+ * `tenant_closed`.
  */
 class OAuthAuthenticator
 {
@@ -53,25 +60,22 @@ class OAuthAuthenticator
 
     public function authenticate(Request $request): ?User
     {
-        $failures = 'oauth-failures|'.$request->ip();
-        $max = max(1, (int) config('api.rate_limits.failed_auth_per_ip', 20));
-
-        if (RateLimiter::tooManyAttempts($failures, $max)) {
-            $retry = max(1, RateLimiter::availableIn($failures));
-
-            throw new ApiException(429, 'rate_limited', ApiErrorRenderer::retryMessage($retry), headers: ['Retry-After' => $retry]);
-        }
-
         if ($request->attributes->get(self::FAILED) === true) {
             return null;
         }
 
-        [$principal, $key, $installation] = $this->resolve($request) ?? [null, null, null];
+        $expired = false;
+        [$principal, $key, $installation] = $this->resolve($request, $expired) ?? [null, null, null];
 
         if ($principal === null) {
             $this->tenants->set(null);
             $request->attributes->set(self::FAILED, true);
-            RateLimiter::hit($failures, (int) config('api.rate_limits.failed_auth_decay_seconds', 600));
+
+            // Phase 8 review M5: counted after resolving fails, per token and address, and never for
+            // a token that is validly signed but expired (an app refreshes it; it is not a guess).
+            if (! $expired) {
+                FailedAuthLimit::fail(FailedAuthLimit::key('oauth', (string) $request->bearerToken(), $request->ip()));
+            }
 
             return null;
         }
@@ -89,8 +93,11 @@ class OAuthAuthenticator
         return $principal->withAccessToken($key);
     }
 
-    /** @return array{0: User, 1: ApiKey, 2: AppInstallation}|null */
-    private function resolve(Request $request): ?array
+    /**
+     * @param  bool  $expired  set when the token is validly signed and only past its expiry
+     * @return array{0: User, 1: ApiKey, 2: AppInstallation}|null
+     */
+    private function resolve(Request $request, bool &$expired): ?array
     {
         if (! OAuthKeys::configured()) {
             return null;
@@ -98,8 +105,17 @@ class OAuthAuthenticator
 
         try {
             $validated = app(ResourceServer::class)->validateAuthenticatedRequest((new PsrHttpFactory)->createRequest($request));
-        } catch (OAuthServerException) {
+        } catch (OAuthServerException $e) {
+            $expired = self::onlyExpired($e);
+
             return null;
+        }
+
+        // Phase 8 review H2: a validly signed token of a closed tenant is told why (403 `tenant_closed`).
+        if (ClosedTenant::is($this->tenants->id())) {
+            $this->tenants->set(null);
+
+            throw ClosedTenant::exception();
         }
 
         $clientId = (string) $validated->getAttribute('oauth_client_id');
@@ -122,5 +138,23 @@ class OAuthAuthenticator
         $key->setAttribute('scopes', array_values(array_intersect($key->scopeList(), $granted)));
 
         return [$principal, $key, $installation];
+    }
+
+    /** Whether the token's signature held and only its time constraint failed. */
+    private static function onlyExpired(OAuthServerException $e): bool
+    {
+        $violated = $e->getPrevious();
+
+        if (! $violated instanceof RequiredConstraintsViolated || $violated->violations() === []) {
+            return false;
+        }
+
+        foreach ($violated->violations() as $violation) {
+            if (! in_array($violation->constraint, [LooseValidAt::class, StrictValidAt::class], true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

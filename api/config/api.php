@@ -21,8 +21,12 @@ return [
     'rate_limits' => [
         'key_per_minute' => (int) env('API_RATE_KEY_PER_MINUTE', 120),
         'tenant_per_minute' => (int) env('API_RATE_TENANT_PER_MINUTE', 600),
-        // Failed `sk_` authentications per client address before 429 (any key), and the window.
-        'failed_auth_per_ip' => (int) env('API_FAILED_AUTH_PER_IP', 20),
+        // Failed `sk_` and app-token authentications of one token from one client address
+        // before that token answers 429, and the window (Phase 8 review M5: counted only
+        // after the token fails to resolve, per token and address, so one bad token never
+        // blocks the other keys and installs sharing the address; an app token that is
+        // validly signed but expired is not counted).
+        'failed_auth_per_token' => (int) env('API_FAILED_AUTH_PER_TOKEN', 20),
         'failed_auth_decay_seconds' => 600,
         // Seconds a tenant's plan limit is cached.
         'plan_cache_seconds' => 300,

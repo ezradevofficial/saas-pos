@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
 import { api } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
+import { useLocale } from '@/lib/useLocale'
 
 export const ONBOARDING_KEY = ['onboarding']
 export const CHECKLIST_KEY = ['onboarding', 'checklist']
@@ -13,9 +15,21 @@ export const SETUP_STEPS = ['company', 'currencies', 'branches', 'taxes', 'payme
 /** The screens of onboarding, as the stage tracker names them. */
 export const STAGES = ['business', 'modules', 'setup']
 
-/** ONB-02..ONB-05: the tenant's onboarding (needs core.onboarding.view). */
+/**
+ * ONB-02..ONB-05: the tenant's onboarding (needs core.onboarding.view). The
+ * answer holds words in the request's language (business type names), so a
+ * language switch fetches it again (L10N-01).
+ */
 export function useOnboarding({ enabled = true } = {}) {
   const { can } = usePermissions()
+  const queryClient = useQueryClient()
+  const locale = useLocale()
+  const shown = useRef(locale)
+  useEffect(() => {
+    if (shown.current === locale) return
+    shown.current = locale
+    queryClient.invalidateQueries({ queryKey: ONBOARDING_KEY, exact: true })
+  }, [locale, queryClient])
   return useQuery({
     queryKey: ONBOARDING_KEY,
     queryFn: async () => (await api.get('onboarding')).data,

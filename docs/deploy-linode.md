@@ -75,7 +75,7 @@ Required everywhere (`app:preflight` fails without them outside local and testin
 | `APP_DEBUG` | `false` |
 | `APP_URL`, `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS`, `PLATFORM_URL`, `APP_BASE_DOMAIN` | the environment's hosts |
 | `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME=app`, `DB_PASSWORD` | runtime role (RLS-bound) |
-| `DB_OWNER_*` | `app_owner`; only on the host the deploy runs on |
+| `DB_OWNER_*` | `app_owner`; only on the host the deploy runs on. `DB_OWNER_LOCK_TIMEOUT` (default `5s`) is how long a migration waits for a table lock (below) |
 | `DB_PLATFORM_*` | `app_platform` (ADR 013) |
 | `CACHE_STORE=redis`, `QUEUE_CONNECTION=redis`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | Redis; `app:preflight` pings it. `REDIS_CLIENT` defaults to `predis` (set `phpredis` only where the extension is installed) |
 | `MAIL_MAILER` (a real mailer), `MAIL_FROM_ADDRESS` and the mailer's credentials | never `log` or `array` |
@@ -110,7 +110,15 @@ Observability (warned by `app:preflight` when missing, never fatal):
 
 ## What each deploy runs (stage 8C additions)
 
-Besides the README's steps: the web build carries the commit as its Sentry release (and uploads hidden source maps only when `SENTRY_AUTH_TOKEN` is set, deleting them before the files go live); `api/REVISION` records the commit for the API's Sentry release; migrations run as the owner, then `permissions:sync`, the catalogue steps, `billing:sync-modules`, and `billing:backfill-subscriptions` once per environment (a marker in `storage/app/deploy/`; a failure warns and retries on the next deploy instead of keeping the API down); after `up`, `health:status` checks readiness from the host.
+Besides the README's steps: the web build carries the commit as its Sentry release (and uploads hidden source maps only when `SENTRY_AUTH_TOKEN` is set, deleting them before the files go live); `api/REVISION` records the commit for the API's Sentry release; migrations run as the owner (with a lock timeout and retries, below), then `permissions:sync`, the catalogue steps, `billing:sync-modules`, and `billing:backfill-subscriptions` once per environment (a marker in `storage/app/deploy/`; a failure warns and retries on the next deploy instead of keeping the API down); after `up`, `health:status` checks readiness from the host.
+
+### Migrations and locks (Phase 8 review L9)
+
+A migration that alters a table needs a lock that a running transaction may hold: a queue worker on another host, a long export. Without a limit it would wait, and every query on that table would queue behind it, the API's included once it is back up.
+
+- The owner connection (`pgsql_owner`, used only by migrations and the deploy commands) sets `lock_timeout` from `DB_OWNER_LOCK_TIMEOUT` (default `5s`; empty to wait forever). A migration that cannot get its lock in time fails with SQLSTATE `55P03`. Each migration runs in its own transaction, so the one that failed is rolled back and the earlier ones stay applied.
+- The deploy runs `bash database/scripts/migrate-with-retry.sh`: up to 3 attempts, 15 seconds apart (`MIGRATE_ATTEMPTS`, `MIGRATE_RETRY_WAIT`), retrying only on a lock timeout. Any other failure stops the deploy at once, with the API still in maintenance.
+- If the third attempt still times out, find the blocking session (`select pid, state, xact_start, query from pg_stat_activity where datname = current_database() order by xact_start`), let it finish or stop it (for example `php artisan horizon:terminate` on the queue host), then run the deploy again. `MigrationLockTimeoutTest` covers the timeout and the retry rule.
 
 ## Owner inputs
 

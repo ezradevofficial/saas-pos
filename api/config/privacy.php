@@ -21,7 +21,12 @@ return [
 
     'purposes' => ['marketing'],
     'channels' => ['email', 'sms', 'whatsapp', 'any'],
-    'consent_sources' => ['back_office', 'storefront', 'import', 'lead_form'],
+    'consent_sources' => ['back_office', 'storefront', 'import', 'lead_form', 'opt_out_link', 'opt_out_reply'],
+
+    // NFR-08: a reply by SMS or WhatsApp that is one of these words, alone
+    // (any case, trailing punctuation ignored), withdraws marketing consent
+    // on that channel (OptOuts). English and French.
+    'opt_out_keywords' => ['STOP', 'STOP ALL', 'STOPALL', 'UNSUBSCRIBE', 'END', 'ARRET', 'ARRÊT', 'DESABONNER', 'DÉSABONNER'],
 
     // NFR-08: the versions of each consent wording a form may show, the
     // current one first. The text itself is in the app's catalogues under a

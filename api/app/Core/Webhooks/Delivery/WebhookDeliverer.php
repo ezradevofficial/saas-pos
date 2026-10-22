@@ -44,6 +44,10 @@ use Illuminate\Support\Facades\DB;
  *   `webhooks.disable_after` in a row the subscription is switched off and
  *   its managers (and its user principal) are notified
  *   (`core.webhook.disabled`). Test events are tried once and never count.
+ * - While the tenant is not active (suspended, closed) nothing is sent and
+ *   nothing is claimed: the delivery stays pending or retrying, no attempt
+ *   is spent, and `webhooks:sweep` queues it again until the tenant is
+ *   active, when it is sent (Phase 8 review M2: paused, never dead-lettered).
  */
 class WebhookDeliverer
 {
@@ -63,6 +67,10 @@ class WebhookDeliverer
 
     public function deliver(string $deliveryId): void
     {
+        if (! $this->subscriptions->sends()) {
+            return;
+        }
+
         $now = CarbonImmutable::now();
         $claimed = WebhookDelivery::query()->whereKey($deliveryId)
             ->whereIn('status', [WebhookDelivery::PENDING, WebhookDelivery::RETRYING])

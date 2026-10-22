@@ -4,7 +4,7 @@ Errors go to Sentry, logs are JSON lines with a request id, metrics are a Promet
 
 ## One scrubber for three apps
 
-`packages/scrub/rules.json` is the single list of what is never sent: values under sensitive keys (passwords, tokens, PINs, OTPs, card and bank numbers, ID and tax numbers, emails, phones, addresses, dates of birth, IP addresses) and secret- or PII-looking text in any string (bearer tokens, JWTs, Sanctum tokens, `?token=` and `?signature=` in URLs, emails, card-length numbers, Kenyan and Congolese phone numbers). Ids, the release, `tenant_id` and `request_id` are kept.
+`packages/scrub/rules.json` is the single list of what is never sent: values under sensitive keys (passwords, tokens, PINs, OTPs, card and bank numbers, ID and tax numbers, emails, phones, addresses, dates of birth, IP addresses) and secret- or PII-looking text in any string (bearer tokens, JWTs, Sanctum tokens, API keys `sk_live_` and `sk_test_`, webhook secrets `whsec_`, support entry codes `<uuid>.<secret>`, any other long run of mixed-case letters and digits such as a 48-character client secret, `?token=`, `?signature=`, `?ticket=`, `?state=`, `SAMLResponse=` and `RelayState=` in URLs and in fragments (`#code=`, `#ticket=`), emails, card-length numbers, Kenyan and Congolese phone numbers). SAML responses, relay states, SSO tickets, bindings, OAuth states and entry codes are sensitive keys too (Phase 8 review M6). Ids, the release, `tenant_id` and `request_id` are kept.
 
 | App | Implementation | Used by |
 | --- | --- | --- |

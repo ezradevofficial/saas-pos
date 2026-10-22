@@ -10,6 +10,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Support\LoginIdentifier;
 use App\Core\Sso\SsoEnforcement;
+use App\Core\Tenancy\ClosedTenant;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -60,6 +61,14 @@ class Authenticate
             $this->recordFailure($user, $ip, $userAgent, SignInResult::INVALID);
 
             return SignInResult::invalid();
+        }
+
+        // Phase 8 review H2: nobody signs in to a closed tenant (told only once the password is right).
+        if (ClosedTenant::is($user->tenant_id)) {
+            $this->recordFailure($user, $ip, $userAgent, ClosedTenant::CODE);
+            $this->tenants->set(null);
+
+            throw ClosedTenant::exception();
         }
 
         if ($user->status === User::STATUS_DEACTIVATED) {
@@ -133,6 +142,9 @@ class Authenticate
         if ($user->is_platform_staff) {
             throw new ApiException(403, 'setup_account', __('auth.setup_account'));
         }
+
+        // Phase 8 review H2: no path (two-factor, verification, invitation, SSO) signs in to a closed tenant.
+        ClosedTenant::refuse($user->tenant_id);
 
         $fingerprint = LoginEvent::fingerprint($userAgent, $ip);
         $seen = LoginEvent::where('user_id', $user->id)->where('succeeded', true);

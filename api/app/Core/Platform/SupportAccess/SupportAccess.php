@@ -12,6 +12,9 @@ use App\Core\Platform\PlatformAuditor;
 use App\Core\Platform\SupportAccess\Models\PlatformSupportRequest;
 use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Sso\Models\SsoConnection;
+use App\Core\Sso\Models\SsoDomain;
+use App\Core\Sso\Models\SsoIdentity;
 use App\Core\Tenancy\DevicePairing;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Tenant;
@@ -60,6 +63,13 @@ class SupportAccess
      * schedules), notification texts and settings, public lead forms, the
      * store's WhatsApp token, document shares, and supplier portal links.
      * Every entry must name real catalogue permissions (SupportAccessNeverTest).
+     *
+     * Phase 8 review (H1, M3): single sign-on (an IdP the staff member
+     * controls would sign in as tenant users after the grant ends, and its
+     * MFA claim skips the app's 2FA); data subject requests (approving or
+     * carrying one out is irreversible, and access reports hold a person's
+     * data); consent records (a legal record of what the customer said);
+     * API keys (credentials, and the sandbox reset that deletes data).
      */
     public const NEVER = [
         'core.role.create', 'core.role.edit', 'core.role.archive', 'core.role.assign',
@@ -75,7 +85,14 @@ class SupportAccess
         'core.webhook.manage',
         // MKT-01, MKT-02: installing an app grants a credential; the developer portal makes them.
         'core.marketplace.install', 'core.developer.manage',
+        // Phase 8 review H1 (AUTH-11): an IdP is a way in that outlives the grant.
+        'core.sso.manage',
+        // Phase 8 review M3 (NFR-08, API-02, API-05): irreversible, legal or credential-making.
+        'core.privacy_request.*', 'core.consent.manage', 'core.api_key.manage',
     ];
+
+    /** Phase 8 review L4: support requests one staff member may make to one tenant per hour (cancelled ones count). */
+    public const REQUESTS_PER_HOUR = 3;
 
     /**
      * RBAC-13d (2): payroll, HR-sensitive and payment data, granted only
@@ -123,6 +140,14 @@ class SupportAccess
 
                 if ($open) {
                     throw new ApiException(409, 'support_request_open', __('platform.support.request_open'));
+                }
+
+                // Phase 8 review L4: asking, cancelling and asking again still notifies the Owners each time.
+                $recent = SupportAccessGrant::query()->where('platform_user_id', $staff->id)
+                    ->where('requested_at', '>', CarbonImmutable::now()->subHour())->count();
+
+                if ($recent >= self::REQUESTS_PER_HOUR) {
+                    throw new ApiException(429, 'support_request_limit', __('platform.support.request_limit', ['count' => self::REQUESTS_PER_HOUR]));
                 }
 
                 return SupportAccessGrant::query()->create([
@@ -528,7 +553,7 @@ class SupportAccess
 
             if ($principal !== null) {
                 $principal->tokens()->delete();
-                $this->disarm($principal);
+                $disarmed = $this->disarm($principal, $grant);
 
                 if ($principal->status !== User::STATUS_DEACTIVATED) {
                     $principal->forceFill(['status' => User::STATUS_DEACTIVATED])->save();
@@ -537,8 +562,14 @@ class SupportAccess
         }
 
         $tenantId = $this->tenants->require();
-        DB::connection(TenantContext::CONNECTION)->afterCommit(function () use ($tenantId, $grant) {
+        $disarmed ??= [];
+        DB::connection(TenantContext::CONNECTION)->afterCommit(function () use ($tenantId, $grant, $disarmed) {
             $this->mirror($tenantId, $grant);
+
+            if ($disarmed !== []) {
+                rescue(fn () => $this->platformAudit->record('platform.support.disarmed', null, null, ['tenant_id' => $tenantId, 'grant_id' => $grant->id, 'platform_user_id' => $grant->platform_user_id, ...$disarmed]), report: true);
+            }
+
             $this->tenants->run($tenantId, fn () => rescue(fn () => $this->notices->ended($grant), report: true));
         });
 
@@ -551,20 +582,74 @@ class SupportAccess
      * audit by the principal's entries) are suspended, and automation rules
      * it created or last changed are switched off. The permissions that make
      * these are refused to sessions already (NEVER); this is the backstop.
+     *
+     * Phase 8 review H1 (AUTH-11): SSO connections and email domains it
+     * created or changed are archived, the connections' links with them, so
+     * an IdP the staff member controls signs nobody in afterwards; if that
+     * leaves enforced SSO without a connection, enforcement is switched off
+     * (Owners keep password sign-in either way). Each is audited in the
+     * tenant's chain here and, once committed, in the platform chain.
+     *
+     * @return array<string, mixed> what was switched off, by kind (empty when nothing)
      */
-    private function disarm(User $principal): void
+    private function disarm(User $principal, SupportAccessGrant $grant): array
     {
-        $deviceIds = DB::connection(TenantContext::CONNECTION)->table('audit_logs')
-            ->where('user_id', $principal->id)->where('auditable_type', (new Device)->getMorphClass())
+        $touched = fn (string $morph) => DB::connection(TenantContext::CONNECTION)->table('audit_logs')
+            ->where('user_id', $principal->id)->where('auditable_type', $morph)
             ->distinct()->pluck('auditable_id')->all();
 
-        foreach (Device::query()->whereIn('id', $deviceIds)->whereIn('status', [Device::STATUS_ACTIVE, Device::STATUS_PENDING])->get() as $device) {
+        foreach (Device::query()->whereIn('id', $touched((new Device)->getMorphClass()))->whereIn('status', [Device::STATUS_ACTIVE, Device::STATUS_PENDING])->get() as $device) {
             app(DevicePairing::class)->suspend($device);
         }
 
         AutomationRule::query()->where('enabled', true)
             ->where(fn ($q) => $q->where('created_by', $principal->id)->orWhere('updated_by', $principal->id))
             ->get()->each(fn (AutomationRule $rule) => $rule->forceFill(['enabled' => false])->save());
+
+        $reason = ['reason' => 'support_session_ended', 'support_grant_id' => $grant->id];
+        $now = CarbonImmutable::now();
+        $connections = SsoConnection::query()->whereNull('archived_at')
+            ->where(fn ($q) => $q->where('created_by', $principal->id)->orWhereIn('id', $touched((new SsoConnection)->getMorphClass())))
+            ->lockForUpdate()->get();
+
+        foreach ($connections as $connection) {
+            $links = SsoIdentity::query()->where('connection_id', $connection->id)->whereNull('archived_at')->update(['archived_at' => $now, 'updated_at' => $now]);
+            $before = ['name' => $connection->name, 'enabled' => (bool) $connection->enabled];
+            $connection->forceFill(['archived_at' => $now, 'enabled' => false])->save();
+            $this->auditor->record('core.sso.connection_archive', $connection, $before, ['archived' => true, 'enabled' => false, 'identities_archived' => $links, ...$reason]);
+        }
+
+        $domains = SsoDomain::query()->whereNull('archived_at')
+            ->where(fn ($q) => $q->where('created_by', $principal->id)->orWhereIn('id', $touched((new SsoDomain)->getMorphClass())))
+            ->lockForUpdate()->get();
+
+        foreach ($domains as $domain) {
+            $domain->forceFill(['archived_at' => $now])->save();
+            $this->auditor->record('core.sso.domain_archive', $domain, ['domain' => $domain->domain, 'status' => $domain->status], ['archived' => true, ...$reason]);
+        }
+
+        $unenforced = false;
+
+        if ($connections->isNotEmpty() || $domains->isNotEmpty()) {
+            $tenant = Tenant::query()->whereKey($this->tenants->require())->lockForUpdate()->firstOrFail();
+            $settings = $tenant->settings ?? [];
+            $live = SsoConnection::query()->where('enabled', true)->whereNull('archived_at')->exists()
+                && SsoDomain::query()->where('status', SsoDomain::VERIFIED)->whereNull('archived_at')->exists();
+
+            if (($settings['sso']['enforce'] ?? false) && ! $live) {
+                $settings['sso']['enforce'] = false;
+                $tenant->settings = $settings;
+                $tenant->save();
+                $this->auditor->record('core.sso.settings_update', $tenant, ['enforce' => true], ['enforce' => false, ...$reason]);
+                $unenforced = true;
+            }
+        }
+
+        return array_filter([
+            'sso_connections' => $connections->modelKeys(),
+            'sso_domains' => $domains->modelKeys(),
+            'sso_enforcement_off' => $unenforced,
+        ]);
     }
 
     /** The support principal of $grant: made once, active while the grant is. */

@@ -20,6 +20,9 @@ use App\Core\Rbac\ModuleRegistry;
  * - `bi`: set up; it reads the public list endpoints as CSV feeds.
  * - `biometric`: set up; terminals send punches to the HR device API (HR-24),
  *   so HR must be active for the tenant.
+ *
+ * A connector that is not available yet (FirstParty, Phase 8 review L6)
+ * names `public_api` first: its scopes have no public route to work with.
  */
 class Connectors
 {
@@ -29,7 +32,7 @@ class Connectors
         private readonly ModuleRegistry $modules,
     ) {}
 
-    /** @return list<array{key: string, app_id: string, slug: string, configured: bool, missing: list<string>, details: array<string, mixed>}> */
+    /** @return list<array{key: string, app_id: string, slug: string, available: bool, configured: bool, missing: list<string>, details: array<string, mixed>}> */
     public function status(): array
     {
         $apps = MarketplaceApp::query()->with('client')->whereIn('id', array_values(FirstParty::appIds()))->get()->keyBy('id');
@@ -37,7 +40,10 @@ class Connectors
 
         foreach (FirstParty::CONNECTORS as $key => $connector) {
             $app = $apps->get($connector['app']);
-            $missing = $app !== null && AppEndpoints::connectorConfigured($app) ? [] : ['connector_service'];
+            $missing = [
+                ...($connector['available'] ? [] : ['public_api']),
+                ...($app !== null && AppEndpoints::connectorConfigured($app) ? [] : ['connector_service']),
+            ];
             $details = [];
 
             switch ($key) {
@@ -68,6 +74,7 @@ class Connectors
                 'key' => $key,
                 'app_id' => $connector['app'],
                 'slug' => $connector['slug'],
+                'available' => $connector['available'],
                 'configured' => $missing === [],
                 'missing' => $missing,
                 'details' => $details,

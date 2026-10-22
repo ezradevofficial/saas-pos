@@ -14,7 +14,11 @@
 @if ($url)
 <p style="margin:0 0 24px;"><a href="{{ $url }}" style="color:#000000;">{{ __('notifications.mail.open') }}</a></p>
 @endif
+@if ($unsubscribe ?? null)
+<p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #000000;font-size:13px;">{{ __('notifications.marketing.footer') }} <a href="{{ $unsubscribe }}" style="color:#000000;">{{ __('notifications.marketing.unsubscribe') }}</a></p>
+@else
 <p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #000000;font-size:13px;">{{ __('notifications.mail.footer', ['app' => config('app.name')]) }}</p>
+@endif
 </div>
 </body>
 </html>

@@ -87,6 +87,12 @@ return [
         'intro' => 'Voici ce qui s’est passé depuis votre dernier résumé.',
     ],
 
+    'marketing' => [
+        'reply_stop' => 'Répondez STOP pour ne plus en recevoir.',
+        'unsubscribe' => 'Se désinscrire',
+        'footer' => 'Vous recevez cet e-mail parce que vous avez accepté de recevoir des offres et des nouveautés. Pour ne plus en recevoir, utilisez le lien de désinscription.',
+    ],
+
     'mail' => [
         'open' => 'Ouvrir',
         'footer' => 'Vous recevez cet e-mail selon vos paramètres de notification dans :app. Pour les modifier, ouvrez Paramètres, puis Notifications.',

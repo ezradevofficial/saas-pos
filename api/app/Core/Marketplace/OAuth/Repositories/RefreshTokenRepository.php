@@ -46,6 +46,8 @@ class RefreshTokenRepository implements RefreshTokenRepositoryInterface
             return true;
         }
 
+        $this->tokens->refuseClosedTenant();
+
         // Claimed once: two refreshes racing for one token never both pass (security review).
         $claimed = OAuthRefreshToken::query()->whereKey(OAuthTokens::hash($tokenId))->where('revoked', false)
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))->update(['revoked' => true]);

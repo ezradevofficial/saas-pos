@@ -4,9 +4,11 @@ namespace App\Core\Marketplace\OAuth;
 
 use App\Core\Marketplace\Models\AppInstallation;
 use App\Core\Marketplace\Models\MarketplaceApp;
+use App\Core\Tenancy\ClosedTenant;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
+use League\OAuth2\Server\Exception\OAuthServerException;
 
 /**
  * API-02 (OAuth, docs/adr/024-marketplace.md): Passport's codes and tokens
@@ -54,6 +56,24 @@ class OAuthTokens
         $this->tenants->set($tenantId);
 
         return true;
+    }
+
+    /**
+     * Phase 8 review H2: the token endpoint refuses a code or refresh token
+     * of a closed tenant, before it is redeemed, in the OAuth error format
+     * (`invalid_grant`) with our `code` `tenant_closed`. Leaves no tenant.
+     */
+    public function refuseClosedTenant(): void
+    {
+        if (! ClosedTenant::is($this->tenants->id())) {
+            return;
+        }
+
+        $this->tenants->set(null);
+        $e = new OAuthServerException(__('auth.tenant_closed'), 10, 'invalid_grant', 400);
+        $e->setPayload([...$e->getPayload(), 'code' => ClosedTenant::CODE, 'message' => __('auth.tenant_closed')]);
+
+        throw $e;
     }
 
     /**

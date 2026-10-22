@@ -101,7 +101,10 @@ class DevicePairing
             throw $invalid();
         }
 
-        return $this->tenants->run($tenantId, fn () => DB::transaction(function () use ($hash, $deviceName, $ip, $userAgent, $invalid) {
+        return $this->tenants->run($tenantId, fn () => DB::transaction(function () use ($tenantId, $hash, $deviceName, $ip, $userAgent, $invalid) {
+            // Phase 8 review H2: a till never pairs with a closed tenant.
+            ClosedTenant::refuse($tenantId);
+
             $device = Device::where('pairing_code_hash', $hash)
                 ->where('pairing_code_expires_at', '>', now())
                 ->whereIn('status', self::PAIRABLE)

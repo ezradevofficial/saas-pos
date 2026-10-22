@@ -157,6 +157,11 @@ class Notifier
 
                 if ($type->marketing) {
                     $row['consent_subject_id'] = $address->customerId;
+
+                    // NFR-08: every marketing text says how to opt out; an email carries its link at hand-over.
+                    if ($address->channel !== Channels::EMAIL) {
+                        $row['body'] = rtrim($row['body'])."\n".__('notifications.marketing.reply_stop', [], $locale);
+                    }
                 }
 
                 $queue(match (true) {

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Api;
 
 use App\Core\Api\Sandbox\SandboxClosingSoon;
+use App\Core\Api\Sandbox\SandboxExpiry;
 use App\Core\Api\Sandbox\SetUpSandboxJob;
 use App\Core\DocumentTemplates\DefaultTemplates;
 use App\Core\DocumentTemplates\TemplateRenderer;
@@ -10,19 +11,23 @@ use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Limits\Units;
 use App\Core\Limits\UsageLimits;
+use App\Core\Marketplace\AppSecrets;
 use App\Core\MasterData\Items\Item;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\NotificationsServiceProvider;
 use App\Core\Notifications\Notifier;
+use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\Models\TenantModule;
 use App\Core\Tenancy\Models\Tenant;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Tests\Concerns\BuildsApiKeys;
+use Tests\Concerns\BuildsMarketplace;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -31,7 +36,7 @@ use Tests\TestCase;
 // mail and SMS kept in an outbox, set-up only after verification.
 class SandboxAbuseTest extends TestCase
 {
-    use BuildsApiKeys, RefreshTenantDatabase;
+    use BuildsApiKeys, BuildsMarketplace, RefreshTenantDatabase;
 
     private function signUp(string $email, bool $sandbox = true, string $ip = '10.0.0.1')
     {
@@ -158,6 +163,63 @@ class SandboxAbuseTest extends TestCase
         $this->artisan('sandbox:expire')->assertSuccessful();
         $this->assertSame('closed', $this->asTenant($tenant, fn () => Tenant::query()->value('status')));
         $this->getJson('/api/v1/items', $this->keyHeaders($secret))->assertUnauthorized();
+    }
+
+    /**
+     * A sandbox tenant idle for 40 days and its developer account, committed: an app is
+     * listed outside the test's transaction (BuildsMarketplace), so its developer must be too.
+     *
+     * @return array{id: string, tenant_id: string}
+     */
+    private function committedSandboxDeveloper(): array
+    {
+        $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
+        $developer = ['id' => (string) Str::uuid7(), 'tenant_id' => (string) Str::uuid7()];
+        $idle = now()->subDays(40);
+        $owner->table('tenants')->insert(['id' => $developer['tenant_id'], 'name' => 'Idle sandbox', 'is_sandbox' => true, 'created_at' => $idle, 'updated_at' => $idle]);
+        $owner->table('marketplace_developers')->insert([
+            'id' => $developer['id'], 'developer_tenant_id' => $developer['tenant_id'], 'name' => 'Sandbox Labs', 'email' => 'dev@sandbox.example',
+            'terms_accepted_at' => $idle, 'created_at' => $idle, 'updated_at' => $idle,
+        ]);
+
+        return $developer;
+    }
+
+    /** Remove what committedSandboxDeveloper() made; registered after the app's own clean-up, so it runs after it. */
+    private function forgetSandboxDeveloper(array $developer): void
+    {
+        $this->beforeApplicationDestroyed(function () use ($developer) {
+            $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
+            $owner->table('marketplace_developers')->where('id', $developer['id'])->delete();
+            $owner->table('tenants')->where('id', $developer['tenant_id'])->delete();
+        });
+    }
+
+    /** Phase 8 review H2: closing an idle sandbox must not stop its listed apps for every customer. */
+    public function test_a_sandbox_whose_developer_has_a_listed_app_is_never_closed_for_inactivity(): void
+    {
+        $developer = $this->committedSandboxDeveloper();
+        $this->listedApp(developer: $developer);
+        $this->forgetSandboxDeveloper($developer);
+
+        $this->assertSame('active', $this->asTenant($developer['tenant_id'], fn () => app(SandboxExpiry::class)->check(CarbonImmutable::now())));
+        $this->assertSame('active', $this->asTenant($developer['tenant_id'], fn () => Tenant::query()->value('status')));
+        $this->assertTrue(app(AppSecrets::class)->developerActive($developer['id']));
+    }
+
+    /** Phase 8 review H2: only a live tenant's apps are listed; a sandbox closes when idle. */
+    public function test_a_sandbox_developer_cannot_submit_an_app_for_listing(): void
+    {
+        ['token' => $token] = $this->sandbox();
+        $this->putJson('/api/v1/developer', ['name' => 'Sandbox Labs', 'email' => 'dev@sandbox.example', 'accept_terms' => true], $this->bearer($token))->assertOk();
+        $id = $this->postJson('/api/v1/developer/apps', [
+            'slug' => 'sandbox-sync', 'name' => 'Sandbox sync', 'tagline' => 'Sync items', 'category' => 'productivity',
+            'description' => 'Keeps your items and customers in step with the warehouse system, every hour.',
+            'support_email' => 'help@sandbox.example', 'redirect_uris' => ['https://sync.sandbox.example/callback'],
+            'scopes' => ['core.item.read'], 'pricing' => ['model' => 'free'],
+        ], $this->bearer($token))->assertCreated()->json('data.id');
+
+        $this->postJson("/api/v1/developer/apps/{$id}/submit", [], $this->bearer($token))->assertForbidden()->assertJsonPath('code', 'developer_sandbox');
     }
 
     public function test_every_document_of_a_sandbox_is_stamped(): void

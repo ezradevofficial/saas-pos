@@ -93,8 +93,8 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `oauth_token_tenant(p_kind text, p_id_hash text)` | `oauth_auth_codes`, `oauth_access_tokens` or `oauth_refresh_tokens` by the sha256 of a marketplace app's code or token identifier (ADR 024) |
 | `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | the active tenant whose slug or verified custom domain the storefront's host names and that has a live, not archived store with that handle (ECOM-06) |
 | `ecom_whatsapp_tenant(p_token_hash text)` | `ecom_stores` by WhatsApp webhook token hash, archived stores included (the controller refuses them; ECOM-24) |
-| `sso_tenant_for_email_domain(p_domain text)` | `sso_domains`: the active tenant with that verified, not archived email domain (AUTH-11 email discovery and sign-up's enforced-domain check; ADR 023) |
-| `sso_tenant_for_host(p_slug text, p_host text)` | the active tenant whose subdomain slug or verified custom domain the sign-in page's host names (AUTH-11 on the tenant's host; ADR 023) |
+| `sso_tenant_for_email_domain(p_domain text)` | `sso_domains`: the active or suspended tenant with that verified, not archived email domain (AUTH-11 email discovery and sign-up's enforced-domain check; ADR 023; suspended tenants since the Phase 8 review, M1) |
+| `sso_tenant_for_host(p_slug text, p_host text)` | the active or suspended tenant whose subdomain slug or verified custom domain the sign-in page's host names (AUTH-11 on the tenant's host; ADR 023; suspended tenants since the Phase 8 review, M1) |
 
 Each function is `language sql stable security definer`:
 
@@ -159,6 +159,8 @@ The marketplace's secret functions are exceptions too (ADR 024, security review)
 
 The test pins each one's result type. `app_tenants_with_app_installed` returns tenant ids, but only to the platform role (`session_user`) or to a session of the app's own developer tenant; any other tenant gets nothing, so a customer cannot list who else installed an app.
 
+`app_tenants_owned_by_email` and `app_platform_usage_totals` look across every tenant for the staff console. They answer only the platform role (`session_user`, which may also execute them) or a runtime session with no tenant in context, which is how the console's tenant search and reports call them (migration `2026_12_21_000500`, Phase 8 review L5). Every tenant request, job and command runs with its tenant set, so no tenant session can list the tenants an email owns or read usage across tenants. `SecurityDefinerFunctionsTest` checks both.
+
 | Function | Returns | Used for |
 | --- | --- | --- |
 | `auth_tenant_for_login(p_login text)` | `uuid` | sign-in by email or phone |
@@ -180,7 +182,7 @@ The test pins each one's result type. `app_tenants_with_app_installed` returns t
 | `app_prune_api_idempotency_keys(p_before timestamptz)` | `integer` | `api:prune-idempotency` (API-01, ADR 020): deletes `api_idempotency_keys` rows that expired before `p_before`, in every tenant, and returns how many; nothing else is read or changed; documented exception |
 | `app_tenants_with_api_keys()` | `setof uuid` | `api:flush-usage` (API-03): active tenants with a key not revoked |
 | `app_sandbox_tenant_ids()` | `setof uuid` | `sandbox:expire` (API-05): active developer sandboxes |
-| `app_platform_usage_totals(p_day date)` | a table of `(unit, tenants, total)` | ADM-06: usage totals for the platform's reports, per unit on the latest metered day on or before `p_day`; counts only, never a tenant id or row; called only by the staff reports; documented exception |
+| `app_platform_usage_totals(p_day date)` | a table of `(unit, tenants, total)` | ADM-06: usage totals for the platform's reports, per unit on the latest metered day on or before `p_day`; counts only, never a tenant id or row; called only by the staff reports; answers only the platform role or a session with no tenant in context (review L5); documented exception |
 | `app_active_tenant_ids()` | `setof uuid` | exchange rates, usage metering |
 | `app_operator_tenant_id()` | `setof uuid` | the operator tenant (ADR 016) |
 | `app_tenants_awaiting_handover(p_before timestamptz)` | `setof uuid` | assisted onboarding handovers |
@@ -208,7 +210,7 @@ The test pins each one's result type. `app_tenants_with_app_installed` returns t
 | `app_tenants_with_tenders()` | `setof uuid` | `procurement:rewrap-keys`, every tenant with a tender, suspended and closed ones included (ADR 019) |
 | `app_tenants_for_key_rotation()` | `setof uuid` | `app:reencrypt` (NFR-06, APP_KEY rotation, docs/security.md): every tenant, whatever its status, since closed and suspended tenants still hold encrypted values |
 | `app_tenants_with_unsettled_credit_changes(p_before timestamptz)` | `setof uuid` | `credit-limits:reconcile` |
-| `app_tenants_owned_by_email(p_email text)` | `setof uuid` | ADM-01 (review L3): the console's owner-email search, every tenant where the email is an active Owner; audited, support and compliance only |
+| `app_tenants_owned_by_email(p_email text)` | `setof uuid` | ADM-01 (review L3): the console's owner-email search, every tenant where the email is an active Owner; audited, support and compliance only; answers only the platform role or a session with no tenant in context (Phase 8 review L5) |
 | `app_tenants_for_pack_updates()` | `setof uuid` | ADM-04 (ADR 022): every tenant that is not closed, suspended ones included, to receive a published tax release (one queued job per tenant) |
 | `app_tenants_with_expired_support_grants(p_at timestamptz)` | `setof uuid` | `support:expire`: support access approved and past its end (RBAC-13, docs/modules/platform-admin.md) |
 | `app_tenants_with_webhook_work(p_stale_before timestamptz, p_prune_before timestamptz)` | `setof uuid` | `webhooks:sweep` (ADR 021) |

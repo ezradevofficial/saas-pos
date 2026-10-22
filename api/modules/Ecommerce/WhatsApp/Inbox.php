@@ -3,6 +3,7 @@
 namespace Modules\Ecommerce\WhatsApp;
 
 use App\Core\Identity\Models\User;
+use App\Core\Privacy\Contracts\ReceivesOptOutReplies;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
@@ -26,7 +27,8 @@ use Modules\Ecommerce\Support\Tx;
  * request; each message is stored once by the provider's message id, in a
  * conversation per store and phone (an older conversation that was closed
  * or converted opens again). Replies go out through the provider and are
- * kept with who sent them.
+ * kept with who sent them. A reply that is an opt-out keyword (STOP)
+ * also withdraws the customer's marketing consent by WhatsApp (NFR-08).
  */
 final class Inbox
 {
@@ -34,6 +36,7 @@ final class Inbox
         private readonly TenantContext $tenants,
         private readonly ModuleRegistry $modules,
         private readonly WhatsAppProviders $providers,
+        private readonly ReceivesOptOutReplies $optOuts,
     ) {}
 
     /** The live store of a webhook token, in its tenant (entered), or null. */
@@ -78,7 +81,7 @@ final class Inbox
                 continue;
             }
 
-            $stored += Tx::run(function () use ($store, $phone, $message) {
+            $new = Tx::run(function () use ($store, $phone, $message) {
                 if (Message::query()->where('store_id', $store->id)->where('provider_message_id', $message['id'])->exists()) {
                     return 0;
                 }
@@ -98,6 +101,12 @@ final class Inbox
 
                 return 1;
             });
+            $stored += $new;
+
+            // NFR-08: a STOP reply opts the customer out of marketing by WhatsApp (core consent).
+            if ($new === 1 && $this->optOuts->isOptOut($message['text'])) {
+                $this->optOuts->optOut('whatsapp', $phone, 'store_whatsapp');
+            }
         }
 
         return $stored;

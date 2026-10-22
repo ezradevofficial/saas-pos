@@ -19,6 +19,7 @@ use Modules\Ecommerce\Customers\CustomerCodeNotification;
 use Modules\Ecommerce\Models\Customer;
 use Modules\Ecommerce\Notifications\OrderNotices;
 use Modules\Ecommerce\Tests\Concerns\BuildsEcommerce;
+use Modules\Ecommerce\WhatsApp\FakeWhatsAppProvider;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -148,6 +149,35 @@ class MarketingConsentTest extends TestCase
         $this->shopCall('PUT', 'duka/account/marketing-consent', ['granted' => true], $auth)->assertUnprocessable()->assertJsonValidationErrors('wording_version');
         $this->shopCall('PUT', 'duka/account/marketing-consent', ['granted' => true, 'wording_version' => '2026_10'], $auth)->assertOk()->assertJsonPath('data.marketing_consent', true);
         $this->shopCall('PUT', 'duka/account/marketing-consent', ['granted' => false])->assertUnauthorized();
+    }
+
+    public function test_a_stop_reply_to_the_store_whatsapp_withdraws_whatsapp_marketing(): void
+    {
+        $this->signUp('0712345678', ['marketing_consent' => true, 'wording_version' => '2026_10']);
+        $token = $this->api('POST', "ecommerce/stores/{$this->shop->id}/whatsapp-token")->assertCreated()->json('data.token');
+        $post = function (string $id, string $text) use ($token) {
+            $body = json_encode(['messages' => [['id' => $id, 'from' => '254712345678', 'name' => 'Amina', 'text' => $text, 'at' => '2026-11-30T08:00:00Z']]]);
+
+            return $this->call('POST', "/api/v1/shop/whatsapp/{$token}", [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_X_FAKE_SIGNATURE' => FakeWhatsAppProvider::sign($body), 'HTTP_ACCEPT' => 'application/json'], $body);
+        };
+
+        // An ordinary message changes nothing.
+        $post('wamid.a', 'Do you deliver to Westlands?')->assertOk();
+        $this->assertSame(0, $this->inTenant(fn () => ConsentRecord::query()->where('granted', false)->count()));
+
+        $post('wamid.b', 'STOP')->assertOk()->assertJsonPath('data.received', 1);
+        $this->inTenant(function () {
+            $party = Customer::query()->sole()->party_id;
+            $record = ConsentRecord::query()->where('granted', false)->sole();
+            $this->assertSame(['whatsapp', 'opt_out_reply'], [$record->channel, $record->source]);
+            $this->assertStringNotContainsString('STOP', (string) $record->evidence);
+            $this->assertFalse(app(Consents::class)->allows('customer', $party, 'marketing', 'whatsapp'));
+            $this->assertTrue(app(Consents::class)->allows('customer', $party, 'marketing', 'sms'));
+        });
+
+        // The same message delivered again is not processed twice.
+        $post('wamid.b', 'STOP')->assertOk()->assertJsonPath('data.received', 0);
+        $this->assertSame(1, $this->inTenant(fn () => ConsentRecord::query()->where('granted', false)->count()));
     }
 
     /** @return list<string> the numbers the fake SMS driver sent to */

@@ -96,9 +96,11 @@ class CrmServiceProvider extends ServiceProvider
             $subjects->register(new SubjectSource(
                 subjectType: 'customer', table: 'crm_leads', match: 'party_id',
                 personal: ['name' => 'label', 'email' => 'null', 'phone' => 'null', 'organisation' => 'null', 'title' => 'null', 'notes' => 'null', 'custom' => 'null'],
+                fieldRules: LeadEntity::KEY,
             ));
             // Review H1: records about the customer (party_id), never those a user owns (owner_id).
-            foreach (['crm_opportunities', 'crm_quotes', 'crm_activities'] as $table) {
+            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'crm_opportunities', match: 'party_id', related: true, fieldRules: OpportunityEntity::KEY));
+            foreach (['crm_quotes', 'crm_activities'] as $table) {
                 $subjects->register(new SubjectSource(subjectType: 'customer', table: $table, match: 'party_id', related: true));
             }
         });
