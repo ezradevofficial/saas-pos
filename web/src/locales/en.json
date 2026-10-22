@@ -12301,6 +12301,8 @@
       "revenueByCountry": "Revenue by country",
       "revenueByModule": "Revenue by module",
       "revenueByPlan": "Revenue by plan",
+      "customPlan": "No bundle (modules only)",
+      "extraOutlets": "Extra outlets",
       "usage": "Usage across tenants",
       "plan": "Plan",
       "country": "Country",

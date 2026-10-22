@@ -12301,6 +12301,8 @@
       "revenueByCountry": "Revenus par pays",
       "revenueByModule": "Revenus par module",
       "revenueByPlan": "Revenus par offre",
+      "customPlan": "Sans formule (modules seuls)",
+      "extraOutlets": "Points de vente supplémentaires",
       "usage": "Utilisation de tous les comptes",
       "plan": "Offre",
       "country": "Pays",

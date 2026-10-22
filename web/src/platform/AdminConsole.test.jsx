@@ -155,6 +155,27 @@ describe('Super-admin console', () => {
     await waitFor(() => expect(platformApi.download).toHaveBeenCalledWith(expect.stringMatching(/^platform\/reports\/revenue\.csv\?from=/), expect.stringMatching(/^revenue-.*\.csv$/)))
   })
 
+  it('names modules and plans in the report tables, never their keys (Phase 8 walkthrough, ADM-06)', async () => {
+    const row = (key, amount) => ({ key, currency: 'KES', amount_minor: amount })
+    const summary = {
+      from: '2026-10-01', to: '2026-10-22',
+      mrr: { accounts: 1, by_currency: [], by_country: [], by_plan: [row('custom', 100)], by_module: [row('pos', 200)] },
+      trials: { started: 0, converted: 0, conversion_percent: '0.0', by_country: [] },
+      churn: { churned: 0, rate_percent: '0.0', mrr_lost: [] },
+      revenue: { invoices: 1, by_currency: [], by_country: [], by_module: [row('outlet', 300)], by_plan: [row('starter', 400)] },
+      usage: [],
+    }
+    platformApi.get.mockImplementation(async (path) => (path === 'platform/me' ? { data: OWNER } : path.startsWith('platform/reports/summary') ? { data: summary } : CATALOGUE[path] ?? { data: [] }))
+    renderApp('/platform/reports')
+
+    expect(await screen.findByText('Point of sale')).toBeInTheDocument()
+    expect(screen.getByText('Starter')).toBeInTheDocument()
+    expect(screen.getByText('No bundle (modules only)')).toBeInTheDocument()
+    expect(screen.getByText('Extra outlets')).toBeInTheDocument()
+    expect(screen.queryByText('pos')).not.toBeInTheDocument()
+    expect(screen.queryByText('starter')).not.toBeInTheDocument()
+  })
+
   it('shows only the areas a role allows', async () => {
     mockConsole({ 'platform/tenants': { data: [] } }, { ...OWNER, role: 'sales', abilities: ['platform.tenants.view', 'platform.catalogue.view', 'platform.reports.view'] })
     renderApp('/platform/tenants')
