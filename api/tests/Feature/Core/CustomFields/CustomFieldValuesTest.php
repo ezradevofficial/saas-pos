@@ -179,7 +179,8 @@ class CustomFieldValuesTest extends TestCase
             $this->assertArrayNotHasKey($hidden, $list->json('data.0.custom'));
 
             $csv = $this->get('/api/v1/items?format=csv', $headers)->assertOk()->streamedContent();
-            $this->assertStringNotContainsString($hidden === 'margin' ? '42' : 'SUP-77', $csv);
+            // As a whole cell: the Created and Updated times can hold "42" (17:42).
+            $this->assertDoesNotMatchRegularExpression('/(^|,)'.($hidden === 'margin' ? '42' : 'SUP-77').'(,|\r?\n|$)/m', $csv);
             $this->assertStringContainsString($hidden === 'margin' ? 'SUP-77' : '42', $csv);
             // Asking for the hidden column alone, sorting or filtering by it is refused.
             $this->get("/api/v1/items?format=csv&columns[]=cf_{$hidden}", [...$headers, 'Accept' => 'application/json'])->assertUnprocessable();
