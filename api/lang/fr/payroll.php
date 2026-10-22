@@ -66,6 +66,7 @@ return [
     'lines' => [
         'basic' => 'Salaire de base',
         'unpaid_leave' => 'Congé sans solde',
+        'reduced_pay_leave' => 'Congé payé aux :share de la rémunération (le reste retenu)',
         'overtime' => 'Heures supplémentaires',
         'night' => 'Majoration de nuit',
         'holiday' => 'Majoration jour férié',

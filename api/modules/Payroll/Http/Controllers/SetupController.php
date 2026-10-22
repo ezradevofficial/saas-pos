@@ -83,6 +83,8 @@ class SetupController
                 'not_applied' => PayrollPack::notApplied($c),
             ], $inForce),
             'researched' => $notices['researched'] !== [],
+            // CP-01: a value in force is researched at low confidence (the stronger notice).
+            'low_confidence' => collect($notices['researched'])->contains(fn (array $row) => ResearchStatus::lowResearch($row)),
             'missing' => $missing === [] ? null : MissingValues::describe($missing),
             'ready' => $missing === [],
             // CP-01: how many components in force are not confirmed yet. The pack's own to-do

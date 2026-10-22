@@ -35,6 +35,12 @@ final class HrPackSchema
             'statutory_leave_types' => ['present', 'array'],
             'statutory_leave_types.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/'],
             'statutory_leave_types.*.days' => ['present', 'nullable', 'integer', 'min:0', 'max:366'],
+            // CP-01: a paid type's share of pay as an exact fraction ("2/3"), less than 1.
+            'statutory_leave_types.*.pay_share' => ['sometimes', 'string', 'regex:/^[1-9][0-9]?\/[1-9][0-9]?\z/'],
+            // HR-13: more yearly days per completed years of service.
+            'statutory_leave_types.*.seniority' => ['sometimes', 'array'],
+            'statutory_leave_types.*.seniority.every_years' => ['required_with:statutory_leave_types.*.seniority', 'integer', 'min:1', 'max:50'],
+            'statutory_leave_types.*.seniority.days' => ['required_with:statutory_leave_types.*.seniority', 'integer', 'min:1', 'max:30'],
             'statutory_leave_types.*.needs_confirmation' => ['required', 'boolean'],
             'statutory_leave_types.*.effective_from' => ['required', 'date_format:Y-m-d'],
             'statutory_leave_types.*.effective_to' => ['present', 'nullable', 'date_format:Y-m-d'],
@@ -47,6 +53,16 @@ final class HrPackSchema
         // CP-01: researched rows carry their confidence (high or medium), date and sources.
         foreach ([...$content['identifier_types'], ...$content['statutory_leave_types']] as $row) {
             ResearchStatus::check($row, (string) $row['key']);
+        }
+
+        foreach ($content['statutory_leave_types'] as $type) {
+            if (array_key_exists('pay_share', $type)) {
+                [$numerator, $denominator] = array_map('intval', explode('/', (string) $type['pay_share']));
+
+                if (($type['paid'] ?? null) !== true || $numerator >= $denominator) {
+                    throw new InvalidArgumentException("statutory_leave_types.{$type['key']}: pay_share is a fraction below 1 of a paid type.");
+                }
+            }
         }
 
         foreach ($content['identifier_types'] as $type) {

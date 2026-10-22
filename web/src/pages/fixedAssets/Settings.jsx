@@ -5,6 +5,7 @@ import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Card, DataTable, Select, Switch } from '@/components/ds'
+import { ResearchStatus, ResearchedNotice } from '@/components/ResearchedNotice'
 import { useCompanySelection } from '@/layouts/companySelection'
 import { PageHeader } from '@/layouts/PageHeader'
 import { faKey, SETTINGS_EDIT, useSettings } from './fixedAssetsData'
@@ -53,12 +54,26 @@ export default function Settings() {
               <div className="flex flex-col gap-4">
                 <Switch label={t('fixedAssets.settings.taxBookOn')} checked={settings.tax_book} disabled={!edit} onChange={(on) => save.mutate({ tax_book: Boolean(on) })} />
                 {settings.tax_unconfirmed?.length ? <Alert tone="warning" title={t('fixedAssets.settings.unconfirmed')} /> : null}
+                {/* CP-01: classes from public research; low confidence shows the stronger notice. */}
+                {(settings.tax_classes ?? []).some((row) => row.status === 'researched') ? (
+                  <ResearchedNotice low={(settings.tax_classes ?? []).some((row) => row.status === 'researched' && row.confidence === 'low')} />
+                ) : null}
                 <DataTable
                   caption={t('fixedAssets.settings.classes')}
                   columns={[
                     { key: 'key', label: t('fixedAssets.categories.taxClass'), render: (row) => t(`fixedAssets.taxClasses.${row.key}`, { defaultValue: row.key }) },
                     { key: 'method', label: t('fixedAssets.fields.method'), render: (row) => (row.method ? t(`fixedAssets.taxMethods.${row.method}`) : t('fixedAssets.settings.needsConfirmation')) },
-                    { key: 'rate', label: t('fixedAssets.settings.rate'), align: 'end', render: (row) => (row.rate ? `${row.rate}%` : t('fixedAssets.settings.needsConfirmation')) },
+                    {
+                      key: 'rate',
+                      label: t('fixedAssets.settings.rate'),
+                      align: 'end',
+                      render: (row) => (row.rate ? (row.first_year_rate ? t('fixedAssets.settings.firstYearRate', { first: row.first_year_rate, rate: row.rate }) : `${row.rate}%`) : t('fixedAssets.settings.needsConfirmation')),
+                    },
+                    {
+                      key: 'status',
+                      label: t('fixedAssets.settings.status'),
+                      render: (row) => <ResearchStatus status={row.status ?? (row.needs_confirmation ? 'needs_confirmation' : 'confirmed')} confidence={row.confidence} researchedOn={row.researched_on} source={row.source ?? []} />,
+                    },
                   ]}
                   rows={(settings.tax_classes ?? []).map((row) => ({ ...row, id: `${row.key}:${row.effective_from ?? ''}` }))}
                   emptyText={t('fixedAssets.settings.noClasses')}

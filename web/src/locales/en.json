@@ -8276,7 +8276,8 @@
         "half_pay_days": "half-pay days",
         "events": "event days",
         "count_basis": "how days are counted"
-      }
+      },
+      "paidShare": "Paid at {{share}} of pay"
     },
     "week": {
       "description": "Planned shifts by employee and day.",
@@ -11612,7 +11613,9 @@
       "needsConfirmation": "Needs confirmation",
       "noClasses": "This country pack has no tax classes.",
       "toConfirm": "What the owner must confirm",
-      "saved": "Settings saved."
+      "saved": "Settings saved.",
+      "firstYearRate": "{{first}}% in the first year, then {{rate}}% of the rest",
+      "status": "Status"
     }
   },
   "ecommerce": {
@@ -13435,7 +13438,11 @@
     "researched": {
       "title": "Values from public research",
       "body": "Some statutory values come from public research and haven’t been confirmed by an accountant. Check them before filing.",
-      "link": "View statutory rates"
+      "link": "View statutory rates",
+      "low": {
+        "title": "Researched, low confidence: not confirmed by an accountant",
+        "body": "Some values in use come from public research whose sources conflict or are thin. Have an accountant check them before you file or pay."
+      }
     },
     "status": {
       "researched": "Researched",
@@ -13450,7 +13457,8 @@
     },
     "researchedOn": "researched {{date}}",
     "assumed": "Assumed until confirmed: {{fields}}",
-    "lowConfidence": "Research found conflicting sources, so no value is entered."
+    "lowConfidence": "Research found conflicting sources, so no value is entered.",
+    "lowBadge": "Researched, low confidence: not confirmed by an accountant"
   },
   "optOut": {
     "title": "Stop marketing emails",

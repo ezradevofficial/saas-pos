@@ -196,7 +196,7 @@ class RunCalculator
     private static function fingerprint(Run $run, PayrollEmployee $employee, Collection $leave, array $attendanceIds): string
     {
         sort($attendanceIds);
-        $days = $leave->map(fn (LeaveDay $d) => $d->date->toDateString().'='.$d->fraction.(($d->kind ?? 'unpaid') === 'unpaid' ? '' : ':'.$d->kind))->sort()->values()->all();
+        $days = $leave->map(fn (LeaveDay $d) => $d->date->toDateString().'='.$d->fraction.(($d->kind ?? 'unpaid') === 'unpaid' ? '' : ':'.$d->kind).($d->pay_share === null ? '' : '@'.$d->pay_share))->sort()->values()->all();
 
         return hash('sha256', json_encode([
             'hire' => $employee->hire_date->gte($run->period_start) ? $employee->hire_date->toDateString() : null,
@@ -494,7 +494,27 @@ class RunCalculator
             $inputs['half_pay_days'] = (string) $halfPay;
         }
 
+        // CP-01: leave paid at a share of pay (CD maternity at 2/3): the rest of the daily rate is deducted.
+        $reduced = $leave->filter(fn (LeaveDay $d) => $d->kind === 'reduced_pay' && $d->pay_share !== null);
         $leave = $leave->filter(fn (LeaveDay $d) => ($d->kind ?? 'unpaid') === 'unpaid');
+
+        if ($last?->pay_basis === 'monthly' && $reduced->isNotEmpty()) {
+            $withheld = BigDecimal::zero();
+            $reducedDays = BigDecimal::zero();
+
+            foreach ($reduced as $d) {
+                [$numerator, $denominator] = array_map('intval', explode('/', (string) $d->pay_share));
+                $reducedDays = $reducedDays->plus($d->fraction);
+                $withheld = $withheld->plus(BigDecimal::of($d->fraction)->multipliedBy($denominator - $numerator)->dividedBy($denominator, 12, RoundingMode::HalfUp));
+            }
+
+            if ($daily === null) {
+                $errors[] = 'monthly_days_missing';
+            } elseif ($withheld->isPositive()) {
+                $inputs['reduced_pay_days'] = (string) $reducedDays;
+                $earnings[] = ['code' => 'reduced_pay_leave', 'name' => __('payroll.lines.reduced_pay_leave', ['share' => (string) $reduced->first()->pay_share]), 'source' => 'leave', 'amount_minor' => self::minor($daily->multipliedBy($withheld)->negated()), 'taxable' => true, 'contributory' => true, 'quantity' => (string) $reducedDays];
+            }
+        }
 
         if ($last?->pay_basis === 'monthly') {
             $leaveDays = $leave->reduce(fn (BigDecimal $sum, LeaveDay $d) => $sum->plus($d->fraction), BigDecimal::zero());

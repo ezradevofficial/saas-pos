@@ -65,6 +65,7 @@ return [
     'lines' => [
         'basic' => 'Basic pay',
         'unpaid_leave' => 'Unpaid leave',
+        'reduced_pay_leave' => 'Leave paid at :share of pay (the rest withheld)',
         'overtime' => 'Overtime',
         'night' => 'Night premium',
         'holiday' => 'Public holiday premium',

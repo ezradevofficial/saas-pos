@@ -24,13 +24,13 @@ use Modules\HR\Support\HrPack;
  */
 class LeaveTypes
 {
-    public const FIELDS = ['code', 'name', 'paid', 'accrual', 'entitlement_days', 'count_basis', 'carry_over_max_days', 'allow_negative', 'requires_document', 'accrues_from', 'qualifying_months', 'half_pay_days', 'events'];
+    public const FIELDS = ['code', 'name', 'paid', 'pay_share', 'accrual', 'entitlement_days', 'count_basis', 'carry_over_max_days', 'allow_negative', 'requires_document', 'accrues_from', 'qualifying_months', 'half_pay_days', 'events'];
 
     /** CP-01: what re-applying the pack fills in on a type still "Days needed" (with `accrual`). */
-    private const DAYS_FIELDS = ['entitlement_days', 'needs_confirmation', 'qualifying_months', 'half_pay_days', 'events', 'research', 'accrues_from'];
+    private const DAYS_FIELDS = ['entitlement_days', 'needs_confirmation', 'qualifying_months', 'half_pay_days', 'events', 'research', 'accrues_from', 'seniority'];
 
     /** Fields that come from the pack: changing one makes the days the company's own (no longer researched, CP-01). */
-    private const PACK_FIELDS = ['paid', 'entitlement_days', 'count_basis', 'qualifying_months', 'half_pay_days', 'events'];
+    private const PACK_FIELDS = ['paid', 'pay_share', 'entitlement_days', 'count_basis', 'qualifying_months', 'half_pay_days', 'events'];
 
     public function __construct(
         private readonly HrPack $pack,
@@ -70,6 +70,12 @@ class LeaveTypes
                         }
 
                         $current->fill($days)->save();
+                        $created[] = $current->refresh();
+                    } elseif ($current->paid === null && $current->research !== null && self::usable($type) && ($type['paid'] ?? null) !== null) {
+                        // CP-01: a pay the pack left unconfirmed (CD maternity) is taken once the pack gives it, while the
+                        // company has not made the type its own (research kept). Days already copied to Payroll follow.
+                        $current->fill(['paid' => (bool) $type['paid'], 'pay_share' => $type['paid'] ? ($type['pay_share'] ?? null) : null, 'research' => ResearchStatus::research($type)])->save();
+                        LeaveRequest::query()->where('leave_type_id', $current->id)->update(['updated_at' => now()]);
                         $created[] = $current->refresh();
                     }
 
@@ -121,12 +127,16 @@ class LeaveTypes
         return [
             // CP-01: null = the pay rate is not confirmed (CD maternity); runs with such days are blocked in Payroll.
             'paid' => array_key_exists('paid', $type) ? $type['paid'] : true,
+            // CP-01: a paid type's share of pay ("2/3": CD maternity); null is full pay.
+            'pay_share' => ($type['paid'] ?? true) === true ? ($type['pay_share'] ?? null) : null,
             'entitlement_days' => $usable ? (string) $type['days'] : null,
             'needs_confirmation' => ! $usable,
             'count_basis' => $type['count_basis'] ?? 'working_days',
             'qualifying_months' => $usable ? ($type['qualifying_months'] ?? null) : null,
             'half_pay_days' => $usable && isset($type['half_pay_days']) ? (string) $type['half_pay_days'] : null,
             'events' => $usable ? ($type['events'] ?? null) : null,
+            // HR-13: more days with seniority (CD: one working day per five years of service).
+            'seniority' => $usable ? ($type['seniority'] ?? null) : null,
             'research' => $usable ? ResearchStatus::research($type) : null,
             'accrues_from' => $usable ? CompanyClock::today($companyId) : null,
         ];
@@ -181,7 +191,11 @@ class LeaveTypes
                 throw Errors::make(422, 'entitlement_required', field: 'entitlement_days');
             }
 
-            $paidChanged = $type->isDirty('paid');
+            if ($type->paid !== true) {
+                $type->pay_share = null;
+            }
+
+            $paidChanged = $type->isDirty(['paid', 'pay_share']);
             $type->save();
 
             // CP-01: Payroll's copy of this type's leave follows its pay (unconfirmed, paid or unpaid) on the next sync.

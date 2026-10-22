@@ -262,7 +262,7 @@ export function RunDetail() {
         {status === 'pending' ? <Alert tone="info" title={t('payroll.run.pendingTitle')}>{t('payroll.run.pendingHelp')}</Alert> : null}
         {status === 'approved' ? <Alert tone="info" title={t('payroll.run.approvedTitle')}>{t('payroll.run.approvedHelp')}</Alert> : null}
         {status !== 'posted' && status !== 'cancelled' ? <RunReview review={run.review} /> : null}
-        {run.uses_researched_values ? <ResearchedNotice to="/payroll/settings?tab=statutory" /> : null}
+        {run.uses_researched_values ? <ResearchedNotice to="/payroll/settings?tab=statutory" low={Boolean(run.uses_low_confidence_values)} /> : null}
         {run.statutory?.researched?.some((row) => row.assumed_names?.length) ? (
           <Alert tone="info" title={t('payroll.run.assumedTitle')}>
             <ul className="flex flex-col gap-1">

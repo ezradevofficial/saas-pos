@@ -25,7 +25,10 @@ use Modules\HR\Support\Errors;
  *   31 December above the type's carry-over cap expires (`expiry:YYYY`).
  *
  * The yearly days are the full-pay days plus any half-pay days (KE sick
- * leave, HR-12); an accrual from researched days says so (CP-01).
+ * leave, HR-12), plus the type's seniority days (CD: one working day per
+ * five completed years of service, counted from the hire date at the
+ * year's first day for `annual`, at the month's end for `monthly`); an
+ * accrual from researched days says so (CP-01).
  * Amounts round half up to 2 decimals. Types that need confirmation are
  * skipped and reported (HR-12): days are never guessed.
  */
@@ -113,7 +116,8 @@ class Accruals
 
                 $daysInYear = $yearStart->daysInYear;
                 $employed = (int) $start->diffInDays($end) + 1;
-                $amount = $employed >= $daysInYear ? $entitlement : $entitlement->multipliedBy($employed)->dividedBy($daysInYear, 10, RoundingMode::HalfUp);
+                $yearly = $entitlement->plus(self::seniorityDays($type, $employee, $start));
+                $amount = $employed >= $daysInYear ? $yearly : $yearly->multipliedBy($employed)->dividedBy($daysInYear, 10, RoundingMode::HalfUp);
                 $posted += $this->ledger->post($employee->id, $type->id, 'accrual', (string) $amount->toScale(2, RoundingMode::HalfUp), $start->toDateString(), "accrual:{$year}", researched: $researched) === null ? 0 : 1;
 
                 continue;
@@ -140,13 +144,27 @@ class Accruals
 
                 $daysInMonth = $month->daysInMonth;
                 $employed = (int) $s->diffInDays($e) + 1;
-                $monthly = $entitlement->dividedBy(12, 10, RoundingMode::HalfUp);
+                $monthly = $entitlement->plus(self::seniorityDays($type, $employee, $monthEnd))->dividedBy(12, 10, RoundingMode::HalfUp);
                 $amount = $employed >= $daysInMonth ? $monthly : $monthly->multipliedBy($employed)->dividedBy($daysInMonth, 10, RoundingMode::HalfUp);
                 $posted += $this->ledger->post($employee->id, $type->id, 'accrual', (string) $amount->toScale(2, RoundingMode::HalfUp), $monthEnd->toDateString(), 'accrual:'.$month->format('Y-m'), researched: $researched) === null ? 0 : 1;
             }
         }
 
         return $posted;
+    }
+
+    /** HR-13: the type's extra yearly days for the employee's completed years of service on $on. */
+    private static function seniorityDays(LeaveType $type, Employee $employee, CarbonImmutable $on): int
+    {
+        $step = $type->seniority;
+
+        if (! is_array($step) || (int) ($step['every_years'] ?? 0) < 1 || $employee->hire_date === null || $employee->hire_date->greaterThan($on)) {
+            return 0;
+        }
+
+        $years = (int) $employee->hire_date->diffInYears($on, true);
+
+        return intdiv($years, (int) $step['every_years']) * (int) ($step['days'] ?? 0);
     }
 
     /** HR-13: the expiry of $year's carried balance, corrected to what the cap leaves now. */

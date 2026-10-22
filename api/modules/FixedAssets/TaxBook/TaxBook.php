@@ -19,7 +19,9 @@ use Modules\FixedAssets\Support\FaError;
  * year-of-acquisition rule is unconfirmed. With confirmed data, each
  * asset's yearly allowance, each year at the class row in force at that
  * year's end (review #11): straight line on its base cost, reducing
- * balance on its tax written-down value, in integer minor units, half up;
+ * balance on its tax written-down value, in integer minor units, half up
+ * (a class with a first-year rate: that rate on cost the year it enters
+ * service, then its rate on the residue, straight line);
  * the year it entered service counts as the pack's rule says (a full year,
  * or its months in service over 12). In the year of its disposal an asset
  * takes no allowance and its row says so, with the base proceeds; the
@@ -99,6 +101,8 @@ class TaxBook
             $cost = (int) $asset->base_cost_minor;
             $value = $cost;
             $first = $asset->in_service_on->year;
+            // KE Second Schedule: after a first-year rate, the residue (cost less the first allowance) is written off.
+            $residue = null;
 
             for ($y = $first; $y <= $year; $y++) {
                 $disposed = $asset->disposed_on !== null && $asset->disposed_on->year === $y;
@@ -109,7 +113,12 @@ class TaxBook
                 }
 
                 $share = $y === $first && $rule === 'pro_rata_months' ? 13 - $asset->in_service_on->month : 12;
-                $allowance = $disposed ? 0 : $this->allowance($class, $cost, $value, $share);
+                if ($y === $first && ($class['first_year_rate'] ?? null) !== null) {
+                    $allowance = $disposed ? 0 : $this->allowance(['method' => 'straight_line', 'rate' => $class['first_year_rate']], $cost, $value, $share);
+                    $residue = $cost - $allowance;
+                } else {
+                    $allowance = $disposed ? 0 : $this->allowance($class, $residue ?? $cost, $value, $share);
+                }
 
                 if ($y === $year) {
                     $proceeds = $disposed ? Disposal::query()->where('asset_id', $asset->id)->where('status', 'posted')->value('base_proceeds_minor') : null;
