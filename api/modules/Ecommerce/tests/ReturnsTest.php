@@ -298,12 +298,13 @@ class ReturnsTest extends TestCase
         $this->withAccounting();
         $this->inTenant(fn () => $this->list->forceFill(['tax_inclusive' => true])->save());
 
-        foreach (['1999', '33333', '100001', '7', '98765'] as $price) {
+        // 85 × 2 returned 1 + 1 is a case where sharing net and tax apart gave 74 + 12 for a total of 85.
+        foreach ([['85', '2', ['1', '1']], ['99', '2', ['1', '1']], ['1999', '7', ['1', '2', '4']], ['33333', '7', ['1', '2', '4']], ['100001', '7', ['1', '2', '4']], ['7', '7', ['1', '2', '4']]] as [$price, $ordered, $splits]) {
             $this->inTenant(fn () => ItemPrice::query()->where('item_id', $this->widget->id)->update(['amount_minor' => $price]));
-            $id = $this->delivered([[$this->widgetProduct, '7']]);
+            $id = $this->delivered([[$this->widgetProduct, $ordered]]);
             $line = $this->inTenant(fn () => OrderLine::query()->where('order_id', $id)->sole());
 
-            foreach (['1', '2', '4'] as $qty) {
+            foreach ($splits as $qty) {
                 $this->api('POST', "ecommerce/orders/{$id}/returns", ['reason' => 'Sweep', 'lines' => [['line_id' => $line->id, 'qty' => $qty]]])->assertCreated();
             }
 
