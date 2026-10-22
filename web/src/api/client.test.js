@@ -1,5 +1,5 @@
 import i18n from '@/i18n'
-import { api, ApiError, clearToken, deviceName, getCompanyId, getToken, onAuthEvent, setCompanyId, setToken } from './client'
+import { api, ApiError, clearToken, deviceName, endSupportTab, getCompanyId, getToken, isSupportTab, onAuthEvent, setCompanyId, setToken, startSupportTab } from './client'
 
 function respond(status, body, headers = {}) {
   return Promise.resolve(
@@ -18,7 +18,9 @@ describe('api client', () => {
     vi.stubGlobal('fetch', fetchMock)
     clearToken()
     setCompanyId(null)
+    endSupportTab()
     window.localStorage.clear()
+    window.sessionStorage.clear()
   })
 
   afterEach(() => {
@@ -55,6 +57,29 @@ describe('api client', () => {
     expect(window.localStorage.getItem('app.companyId')).toBe('c-9')
     expect(getToken()).toBe('t-1')
     expect(getCompanyId()).toBe('c-9')
+  })
+
+  // RBAC-13c, Phase 8 walkthrough: a support session opened in the same browser replaced the
+  // tenant's own sign-in (one localStorage token) and ending it signed the tenant out.
+  it('keeps a support session tab apart from the browser’s own sign-in', () => {
+    setToken('tenant-token')
+    setCompanyId('c-tenant')
+
+    startSupportTab()
+    expect(isSupportTab()).toBe(true)
+    expect(getToken()).toBeNull()
+    setToken('support-token')
+    setCompanyId('c-support')
+    expect(getToken()).toBe('support-token')
+    expect(getCompanyId()).toBe('c-support')
+    expect(window.localStorage.getItem('app.token')).toBe('tenant-token')
+    expect(window.localStorage.getItem('app.companyId')).toBe('c-tenant')
+
+    // Ending it (or a 401, which clears the token) returns the tab to the tenant's sign-in.
+    clearToken()
+    expect(isSupportTab()).toBe(false)
+    expect(getToken()).toBe('tenant-token')
+    expect(getCompanyId()).toBe('c-tenant')
   })
 
   it('keeps the token in memory when storage is blocked', () => {

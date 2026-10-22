@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { api } from '@/api/client'
+import { api, startSupportTab } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { useAuth } from '@/auth/AuthProvider'
 import { Alert } from '@/components/ds'
@@ -36,6 +36,8 @@ export default function SupportEnter() {
     api
       .post('auth/support-session', { code })
       .then((response) => {
+        // RBAC-13c: this tab only; the browser's own sign-in stays as it is.
+        startSupportTab()
         signIn({ token: response.data.token, user: undefined })
         navigate('/', { replace: true })
       })

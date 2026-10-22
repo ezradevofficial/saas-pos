@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { api, clearToken, getToken, onAuthEvent, setCompanyId, setToken, TOKEN_KEY } from '@/api/client'
+import { api, clearToken, getToken, isSupportTab, onAuthEvent, setCompanyId, setToken, TOKEN_KEY } from '@/api/client'
 import { setLocale } from '@/i18n'
 
 const AuthContext = createContext(null)
@@ -44,6 +44,8 @@ export function AuthProvider({ children }) {
     const onStorage = (event) => {
       // key null: the other tab cleared all storage.
       if (event.key !== TOKEN_KEY && event.key !== null) return
+      // RBAC-13c: a support session tab keeps its own token; other tabs' sign-ins don't move it.
+      if (isSupportTab()) return
       const next = event.key === null ? null : event.newValue
       setToken(next) // keeps this tab's in-memory copy in step
       queryClient.removeQueries()

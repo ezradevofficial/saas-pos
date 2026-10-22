@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { api, clearToken } from '@/api/client'
+import { api, endSupportTab } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
 import { Button, StatusBadge } from '@/components/ds'
@@ -26,12 +26,13 @@ export function SupportBanners() {
 function SessionBar({ session }) {
   const { t } = useTranslation()
   const locale = useLocale()
-  // The session's token is deleted with it: drop it here and leave the back office.
+  // The session's token is deleted with it: drop it here.
   const end = useMutation({
     mutationFn: () => api.post('support-session/end'),
+    // RBAC-13c: the tab returns to the browser's own sign-in, if any, which the session never touched.
     onSettled: () => {
-      clearToken()
-      window.location.assign('/sign-in')
+      endSupportTab()
+      window.location.assign('/')
     },
   })
   return (
