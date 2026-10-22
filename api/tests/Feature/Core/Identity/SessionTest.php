@@ -2,15 +2,19 @@
 
 namespace Tests\Feature\Core\Identity;
 
+use App\Core\Api\Auth\ApiKeyAwareGuard;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Services\SessionTimeout;
 use App\Core\Tenancy\Models\Tenant;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\CreatesIdentities;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
-// AUTH-09: users see and end their sessions; idle sessions time out.
+// AUTH-09: users see and end their sessions; idle sessions time out, correct to
+// within the last-used write interval (NFR-02, see SessionTimeout::isIdle).
 class SessionTest extends TestCase
 {
     use CreatesIdentities, RefreshTenantDatabase;
@@ -115,6 +119,91 @@ class SessionTest extends TestCase
         $token = $this->tokenFor($user);
 
         $this->asTenant($user->tenant_id, fn () => $user->forceFill(['status' => 'deactivated'])->save());
+
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertUnauthorized();
+    }
+
+    public function test_last_used_at_is_written_at_most_once_per_interval(): void
+    {
+        // NFR-02: two requests within the 60-second interval make one write; one after it makes another.
+        // Frozen, so the request's own run time never moves a step across the 60-second edge.
+        $this->freezeTime();
+        $token = $this->tokenFor($this->createUser());
+        $writes = 0;
+        DB::listen(function (QueryExecuted $query) use (&$writes) {
+            if (str_starts_with($query->sql, 'update "personal_access_tokens"')) {
+                $writes++;
+            }
+        });
+
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
+        $first = PersonalAccessToken::findToken($token)->last_used_at;
+        $this->travel(59)->seconds();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
+        $this->assertSame(1, $writes);
+        $this->assertEquals($first, PersonalAccessToken::findToken($token)->last_used_at);
+
+        $this->travel(1)->seconds();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
+        $this->assertSame(2, $writes);
+        $this->assertTrue(PersonalAccessToken::findToken($token)->last_used_at->gt($first));
+        DB::getEventDispatcher()->forget(QueryExecuted::class);
+    }
+
+    public function test_the_last_used_interval_is_configurable_and_capped(): void
+    {
+        config(['sanctum.last_used_at_seconds' => 0]);
+        $this->assertSame(0, ApiKeyAwareGuard::touchSeconds());
+        config(['sanctum.last_used_at_seconds' => 120]);
+        $this->assertSame(120, ApiKeyAwareGuard::touchSeconds());
+        config(['sanctum.last_used_at_seconds' => 3600]);
+        $this->assertSame(ApiKeyAwareGuard::MAX_TOUCH_SECONDS, ApiKeyAwareGuard::touchSeconds());
+
+        // 0 writes on every request.
+        config(['sanctum.last_used_at_seconds' => 0]);
+        $token = $this->tokenFor($this->createUser());
+        $writes = 0;
+        DB::listen(function (QueryExecuted $query) use (&$writes) {
+            if (str_starts_with($query->sql, 'update "personal_access_tokens"')) {
+                $writes++;
+            }
+        });
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
+        $this->travel(1)->seconds();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
+        $this->assertSame(2, $writes);
+        DB::getEventDispatcher()->forget(QueryExecuted::class);
+    }
+
+    public function test_the_idle_timeout_is_correct_to_within_the_write_interval(): void
+    {
+        // AUTH-09 with NFR-02: a request inside the interval is not recorded, so the
+        // session ends up to 60 seconds early, counted from the last recorded use, never late.
+        $token = $this->tokenFor($this->createUser());
+
+        $this->travel(1)->minutes();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk(); // recorded
+        $this->travel(59)->seconds();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk(); // within the interval: not recorded
+
+        // 59 minutes 30 seconds after the recorded use: still alive.
+        $this->travel(59 * 60 + 30 - 59)->seconds();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk(); // recorded again
+        $this->travel(60)->minutes();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertUnauthorized();
+    }
+
+    public function test_an_unrecorded_request_does_not_extend_the_timeout(): void
+    {
+        // AUTH-09 with NFR-02: the bound in SessionTimeout::isIdle. The real last request
+        // was 59 minutes 30 seconds ago, but the recorded one was 60 minutes 29 seconds ago.
+        $token = $this->tokenFor($this->createUser());
+
+        $this->travel(1)->minutes();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk(); // recorded
+        $this->travel(59)->seconds();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk(); // not recorded
+        $this->travel(59 * 60 + 30)->seconds();
 
         $this->getJson('/api/v1/me', $this->bearer($token))->assertUnauthorized();
     }
