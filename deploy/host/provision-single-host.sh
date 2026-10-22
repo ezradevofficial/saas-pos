@@ -583,43 +583,101 @@ SQL
     run bash "$REPO/api/database/scripts/provision-db.sh"
 }
 
+# nginx -t. A dry run with HOST_ROOT runs NGINX_TEST_CMD instead when it is
+# set (tests: a stub that reads the files under HOST_ROOT).
+nginx_test() {
+  if is_dry_run && [ -n "$HOST_ROOT" ] && [ -n "${NGINX_TEST_CMD:-}" ]; then
+    printf '[dry-run] nginx -t (NGINX_TEST_CMD)\n'
+    HOST_ROOT="$HOST_ROOT" "$NGINX_TEST_CMD"
+    return
+  fi
+  run nginx -t
+}
+
+# nginx_apply CHANGED: tests the files written since snapshot_begin, then
+# reloads nginx if anything changed. If the test fails, every one of those
+# files is put back as it was and nginx is not reloaded (NFR-01: a failed
+# run never leaves nginx with a config it cannot load).
+nginx_apply() {
+  if ! nginx_test; then
+    snapshot_restore
+    snapshot_end
+    die "nginx -t failed on the new configuration: the previous files are back and nginx was not reloaded. Fix the templates in deploy/host/templates, then run the nginx step again."
+  fi
+  snapshot_end
+  if [ "$1" != 0 ]; then
+    run systemctl reload nginx
+  fi
+}
+
+NGINX_HTTPS_FILES="/etc/nginx/snippets/app-web-headers.conf /etc/nginx/sites-available/app /etc/nginx/sites-enabled/app"
+
+# Writes the HTTPS site and its headers snippet. Adds to NGINX_CHANGED.
+write_nginx_https() {
+  local web_names="$1" headers https
+  headers="$(render_template "$TEMPLATES/nginx-web-headers.conf.tmpl" API_DOMAIN="$API_DOMAIN")"
+  https="$(render_template "$TEMPLATES/nginx-https.conf.tmpl" WEB_SERVER_NAMES="$web_names" API_DOMAIN="$API_DOMAIN" CERT_NAME="$CERT_NAME" DEPLOY_PATH="$DEPLOY_PATH")"
+  # shellcheck disable=SC2086 # one path per word
+  snapshot_path $NGINX_HTTPS_FILES
+  printf '%s\n' "$headers" | write_file /etc/nginx/snippets/app-web-headers.conf 0644 root:root
+  NGINX_CHANGED=$((NGINX_CHANGED + FILE_CHANGED))
+  printf '%s\n' "$https" | write_file /etc/nginx/sites-available/app 0644 root:root
+  NGINX_CHANGED=$((NGINX_CHANGED + FILE_CHANGED))
+  symlink /etc/nginx/sites-available/app /etc/nginx/sites-enabled/app
+  NGINX_CHANGED=$((NGINX_CHANGED + FILE_CHANGED))
+}
+
 step_nginx() {
   need_root nginx
   require_env APP_DOMAIN API_DOMAIN LETSENCRYPT_EMAIL
   local web_names="$APP_DOMAIN${CONSOLE_DOMAIN:+ $CONSOLE_DOMAIN}"
   local all_names="$web_names $API_DOMAIN"
+  local live="/etc/letsencrypt/live/$CERT_NAME/fullchain.pem" had_cert=0 http
   log "nginx: $all_names (certificate $CERT_NAME)"
   ensure_dir /var/www/acme 0755 root:root
+  if [ -f "$(host_path "$live")" ]; then
+    had_cert=1
+  fi
+  # Every file is written, then tested together: an HTTPS site enabled by an
+  # earlier run is rewritten from the current template before nginx -t, so a
+  # template change converges in one run (seen on staging, 2026-10-22).
+  snapshot_begin
+  snapshot_path /etc/nginx/conf.d/tls.conf /etc/nginx/nginx.conf /etc/nginx/sites-available/app-http \
+    /etc/nginx/sites-enabled/app-http /etc/nginx/sites-enabled/default
+  NGINX_CHANGED=0
   write_file /etc/nginx/conf.d/tls.conf 0644 root:root <"$TEMPLATES/nginx-tls.conf.tmpl"
-  local changed="$FILE_CHANGED" http
+  NGINX_CHANGED=$((NGINX_CHANGED + FILE_CHANGED))
   # Ubuntu's nginx.conf sets ssl_protocols (TLS 1.0 to 1.3) and
   # ssl_prefer_server_ciphers in the http block. With conf.d/tls.conf the
   # second one stops nginx, and the protocol lists add up, turning TLS 1.0
   # and 1.1 back on. Comment both out there; tls.conf is the only source.
   if grep -Eq '^[[:space:]]*(ssl_protocols|ssl_prefer_server_ciphers)[[:space:]]' "$(host_path /etc/nginx/nginx.conf)" 2>/dev/null; then
     run sed -i -E 's/^([[:space:]]*)(ssl_protocols|ssl_prefer_server_ciphers)([[:space:]])/\1# \2\3/' /etc/nginx/nginx.conf
-    changed=$((changed + 1))
+    NGINX_CHANGED=$((NGINX_CHANGED + 1))
   fi
   http="$(render_template "$TEMPLATES/nginx-http.conf.tmpl" SERVER_NAMES="$all_names")"
   printf '%s\n' "$http" | write_file /etc/nginx/sites-available/app-http 0644 root:root
-  changed=$((changed + FILE_CHANGED))
+  NGINX_CHANGED=$((NGINX_CHANGED + FILE_CHANGED))
   symlink /etc/nginx/sites-available/app-http /etc/nginx/sites-enabled/app-http
-  changed=$((changed + FILE_CHANGED))
+  NGINX_CHANGED=$((NGINX_CHANGED + FILE_CHANGED))
   # Ubuntu's welcome page: the link goes, the file stays.
   if [ -L "$(host_path /etc/nginx/sites-enabled/default)" ]; then
     run rm /etc/nginx/sites-enabled/default
-    changed=1
+    NGINX_CHANGED=$((NGINX_CHANGED + 1))
   fi
-  run nginx -t
-  [ "$changed" = 0 ] || run systemctl reload nginx
+  if [ "$had_cert" = 1 ]; then
+    write_nginx_https "$web_names"
+  fi
+  nginx_apply "$NGINX_CHANGED"
   run systemctl enable --now nginx
 
-  local live="/etc/letsencrypt/live/$CERT_NAME/fullchain.pem" domains="" name
+  local domains="" name issued=0
   for name in $all_names; do domains="$domains -d $name"; done
-  if [ ! -f "$(host_path "$live")" ] || ! probe openssl x509 -in "$live" -noout -text 2>/dev/null | grep -q "DNS:$API_DOMAIN"; then
+  if [ "$had_cert" = 0 ] || ! probe openssl x509 -in "$live" -noout -text 2>/dev/null | grep -q "DNS:$API_DOMAIN"; then
     # shellcheck disable=SC2086 # one -d per name
     run certbot certonly --webroot -w /var/www/acme --cert-name "$CERT_NAME" --expand \
       -m "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email -n $domains
+    issued=1
   fi
   write_file /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh 0755 root:root <<'EOF'
 #!/bin/sh
@@ -631,17 +689,14 @@ EOF
     note "the HTTPS site is written once the certificate exists"
     return 0
   fi
-  local headers https
-  headers="$(render_template "$TEMPLATES/nginx-web-headers.conf.tmpl" API_DOMAIN="$API_DOMAIN")"
-  https="$(render_template "$TEMPLATES/nginx-https.conf.tmpl" WEB_SERVER_NAMES="$web_names" API_DOMAIN="$API_DOMAIN" CERT_NAME="$CERT_NAME" DEPLOY_PATH="$DEPLOY_PATH")"
-  printf '%s\n' "$headers" | write_file /etc/nginx/snippets/app-web-headers.conf 0644 root:root
-  changed="$FILE_CHANGED"
-  printf '%s\n' "$https" | write_file /etc/nginx/sites-available/app 0644 root:root
-  changed=$((changed + FILE_CHANGED))
-  symlink /etc/nginx/sites-available/app /etc/nginx/sites-enabled/app
-  changed=$((changed + FILE_CHANGED))
-  run nginx -t
-  [ "$changed" = 0 ] || run systemctl reload nginx
+  # A first certificate: the HTTPS site goes in now. An expanded one: reload
+  # so nginx serves it (the site itself was written above).
+  if [ "$had_cert" = 0 ] || [ "$issued" = 1 ]; then
+    snapshot_begin
+    NGINX_CHANGED="$issued"
+    write_nginx_https "$web_names"
+    nginx_apply "$NGINX_CHANGED"
+  fi
 }
 
 step_services() {

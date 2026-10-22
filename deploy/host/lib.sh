@@ -210,3 +210,58 @@ symlink() {
   mkdir -p "$(dirname "$target")"
   ln -sfn "$to" "$target"
 }
+
+# Snapshots, to put a group of files back when a check on them fails (the
+# nginx step: nginx is never reloaded with a config that fails nginx -t).
+#   snapshot_begin; snapshot_path PATH...; change the files; then
+#   snapshot_restore if the check failed; snapshot_end.
+# Each path is recorded once, before its first change, as a file, a link
+# or absent. A dry run without HOST_ROOT writes nothing, so it records and
+# restores nothing either. Bash 3.2: a list file, no associative arrays.
+SNAPSHOT_DIR=""
+snapshot_begin() {
+  snapshot_end
+  if is_dry_run && [ -z "$HOST_ROOT" ]; then
+    return 0
+  fi
+  SNAPSHOT_DIR="$(mktemp -d)"
+  : >"$SNAPSHOT_DIR/paths"
+}
+snapshot_path() {
+  local path target n
+  [ -n "$SNAPSHOT_DIR" ] || return 0
+  for path in "$@"; do
+    if grep -qxF -- "$path" "$SNAPSHOT_DIR/paths"; then
+      continue
+    fi
+    target="$(host_path "$path")"
+    n="$(wc -l <"$SNAPSHOT_DIR/paths" | tr -d ' ')"
+    printf '%s\n' "$path" >>"$SNAPSHOT_DIR/paths"
+    if [ -L "$target" ]; then
+      readlink "$target" >"$SNAPSHOT_DIR/$n.link"
+    elif [ -f "$target" ]; then
+      cp -p "$target" "$SNAPSHOT_DIR/$n.file"
+    fi
+  done
+}
+snapshot_restore() {
+  local n=0 path target
+  [ -n "$SNAPSHOT_DIR" ] || return 0
+  while IFS= read -r path; do
+    target="$(host_path "$path")"
+    rm -f "$target"
+    if [ -f "$SNAPSHOT_DIR/$n.link" ]; then
+      ln -s "$(cat "$SNAPSHOT_DIR/$n.link")" "$target"
+    elif [ -f "$SNAPSHOT_DIR/$n.file" ]; then
+      cp -p "$SNAPSHOT_DIR/$n.file" "$target"
+    fi
+    note "restored $path"
+    n=$((n + 1))
+  done <"$SNAPSHOT_DIR/paths"
+}
+snapshot_end() {
+  if [ -n "$SNAPSHOT_DIR" ]; then
+    rm -rf "$SNAPSHOT_DIR"
+  fi
+  SNAPSHOT_DIR=""
+}
