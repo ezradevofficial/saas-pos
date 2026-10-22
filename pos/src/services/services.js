@@ -1,5 +1,6 @@
 import NetInfo from '@react-native-community/netinfo';
 import { createContext, useContext } from 'react';
+import { Platform } from 'react-native';
 import { createPinGate } from '../auth/pinGate';
 import { createClockGate } from '../hr/clockGate';
 import { createClockStore } from '../hr/clockStore';
@@ -55,7 +56,7 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   // ECOM-28: the rider screen, signed in with the rider's own token (never the device's).
   const riderCredentials = createRiderCredentials(credentialsBackend);
   const riderApi = riderApiOverride ?? createApiClient({ baseUrl, getToken: () => riderCredentials.token(), getLocale: () => i18n.language, fetchImpl });
-  const rider = createRider({ api: riderApi, store, credentials: riderCredentials });
+  const rider = createRider({ api: riderApi, store, credentials: riderCredentials, deleteFile: deletePhotoFile });
   return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, clockStore, clockGate, riderCredentials, rider };
 }
 
@@ -65,4 +66,24 @@ export function useServices() {
   const services = useContext(ServicesContext);
   if (!services) throw new Error('useServices needs a ServicesContext provider');
   return services;
+}
+
+/**
+ * ECOM-28: delete a delivery photo's file once it is uploaded or refused.
+ * expo-file-system is not declared in this app's package.json: it is a
+ * dependency of `expo` itself (installed and autolinked with it), so it is
+ * loaded here on first use rather than added as a new dependency. On the web
+ * preview (no camera photo) and if the module cannot be loaded this does
+ * nothing; the camera writes to the app's cache, which the OS clears.
+ */
+async function deletePhotoFile(uri) {
+  if (Platform.OS === 'web' || !uri) return;
+  let File;
+  try {
+    ({ File } = require('expo-file-system'));
+  } catch {
+    return;
+  }
+  const file = new File(uri);
+  if (file.exists) file.delete();
 }

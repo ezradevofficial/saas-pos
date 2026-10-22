@@ -70,8 +70,9 @@ function setup() {
   const store = createSyncStore(testDatabase());
   const credentials = createRiderCredentials(memoryBackend());
   const makeForm = (photo) => ({ photo: { uri: photo.uri, name: 'proof.jpg', type: 'image/jpeg' } });
-  const rider = createRider({ api: server, store, credentials, makeForm, makeId: () => `0192a5a0-0000-7000-8000-${String(++ids).padStart(12, '0')}` });
-  return { server, store, credentials, rider };
+  const deleteFile = jest.fn(async () => {});
+  const rider = createRider({ api: server, store, credentials, makeForm, deleteFile, makeId: () => `0192a5a0-0000-7000-8000-${String(++ids).padStart(12, '0')}` });
+  return { server, store, credentials, rider, deleteFile };
 }
 
 const sentUpdates = (server) => server.posts.filter((p) => p.path === 'ecommerce/rider/updates').flatMap((p) => p.body.updates);
@@ -337,6 +338,40 @@ describe('rider location tracker (ECOM-29)', () => {
   });
 });
 
+describe('rider sign-out (L7, ECOM-29)', () => {
+  async function queuedOffline() {
+    const context = setup();
+    await context.rider.signIn({ login: 'juma@example.test', password: 'secret-password' });
+    context.server.deliveries = [{ ...DELIVERY, status: 'picked_up' }, { ...DELIVERY, id: 'd-2', status: 'assigned' }];
+    await context.rider.refresh();
+    context.server.offline = true;
+    await context.rider.record('d-2', 'picked_up');
+    expect(await context.rider.recordLocation({ latitude: -1.28, longitude: 36.82 })).toBe(2);
+    const queue = (await context.store.meta())['rider:u-1'].queue;
+    expect(queue.map((u) => u.kind).sort()).toEqual(['location', 'location', 'status']);
+    return context;
+  }
+
+  it('drops the rider’s queued location points on sign-out and keeps the status updates', async () => {
+    const { store, rider } = await queuedOffline();
+    await rider.signOut();
+    const kept = (await store.meta())['rider:u-1'];
+    expect(kept.queue).toEqual([expect.objectContaining({ kind: 'status', delivery_id: 'd-2', status: 'picked_up' })]);
+    expect(kept.deliveries).toEqual([]);
+  });
+
+  it('drops the queued location points when a 401 signs the rider out', async () => {
+    const { server, store, credentials, rider } = await queuedOffline();
+    server.offline = false;
+    server.get = async () => ({ status: 401, body: { code: 'unauthenticated' } });
+    server.post = async () => ({ status: 401, body: { code: 'unauthenticated' } });
+    await rider.flush();
+    expect(await credentials.token()).toBeNull();
+    const kept = (await store.meta())['rider:u-1'];
+    expect(kept.queue.map((u) => u.kind)).toEqual(['status']);
+  });
+});
+
 async function waitForSent(server, length) {
   for (let i = 0; i < 50; i++) {
     const sent = sentUpdates(server).filter((update) => update.kind === 'location');
@@ -434,6 +469,54 @@ describe('rider photo proof (ECOM-28)', () => {
     expect(await credentials.token()).toBeNull();
     const kept = (await store.meta())['rider:u-1'];
     expect([kept.photos.length, kept.queue.length, kept.deliveries]).toEqual([1, 1, []]);
+  });
+
+  it('deletes the photo file once it is uploaded, and never while it is queued (L7)', async () => {
+    const { server, store, rider, deleteFile } = await pickedUp();
+    server.offline = true;
+    await rider.record('d-1', 'delivered', { photo_uri: 'file:///cache/proof-1.jpg' });
+    await rider.flush();
+    expect(deleteFile).not.toHaveBeenCalled();
+
+    server.offline = false;
+    server.photoAnswer = { status: 503, body: null };
+    await rider.flush();
+    server.photoAnswer = { status: 429, body: null };
+    await rider.flush();
+    expect(deleteFile).not.toHaveBeenCalled();
+    expect((await store.meta())['rider:u-1'].photos).toHaveLength(1);
+
+    server.photoAnswer = null;
+    await rider.flush();
+    expect(deleteFile).toHaveBeenCalledTimes(1);
+    expect(deleteFile).toHaveBeenCalledWith('file:///cache/proof-1.jpg');
+  });
+
+  it('deletes the photo file once it is refused (L7)', async () => {
+    const { server, rider, deleteFile } = await pickedUp();
+    server.photoAnswer = { status: 422, body: { code: 'code_locked', message: 'Locked' } };
+    await rider.record('d-1', 'delivered', { photo_uri: 'file:///cache/proof-1.jpg' });
+    await rider.flush();
+    expect(deleteFile).toHaveBeenCalledWith('file:///cache/proof-1.jpg');
+    expect((await rider.snapshot()).rejected).toEqual([expect.objectContaining({ kind: 'photo', error: 'code_locked' })]);
+  });
+
+  it('keeps the queue moving when a photo file cannot be deleted (L7)', async () => {
+    const { server, rider, deleteFile } = await pickedUp();
+    deleteFile.mockRejectedValue(new Error('gone'));
+    await rider.record('d-1', 'delivered', { photo_uri: 'file:///cache/proof-1.jpg' });
+    await rider.flush();
+    expect(deleteFile).toHaveBeenCalled();
+    expect(sentUpdates(server).map((u) => u.status)).toEqual(['delivered']);
+    expect((await rider.snapshot()).pending).toBe(0);
+  });
+
+  it('keeps the photo file on a 401 (L7)', async () => {
+    const { server, rider, deleteFile } = await pickedUp();
+    server.photoAnswer = { status: 401, body: { code: 'unauthenticated' } };
+    await rider.record('d-1', 'delivered', { photo_uri: 'file:///cache/proof-1.jpg' });
+    await rider.flush();
+    expect(deleteFile).not.toHaveBeenCalled();
   });
 
   it('picks a moderate picture size', () => {

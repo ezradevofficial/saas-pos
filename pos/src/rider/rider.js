@@ -16,12 +16,14 @@ import { NetworkError } from '../sync/api';
  *   new attempt is a new update with a new id.
  * - no answer (offline, a 5xx, a 429): stays queued and is sent again.
  * - 401: the rider is signed out; the queue stays on the phone for the next
- *   sign-in.
+ *   sign-in, except its location points (see below).
  *
  * A phone may be shared: everything is kept per rider (meta key
  * `rider:{user id}`: queue, rejected, deliveries, fetchedAt), only the
- * signed-in rider's queue is uploaded, and signing out drops their cached
- * deliveries (customers' names, phones and addresses) from the phone. A
+ * signed-in rider's queue is uploaded, and signing out (or a 401) drops
+ * their cached deliveries (customers' names, phones and addresses) and their
+ * unsent location points from the phone; status updates and photos stay
+ * queued for their next sign-in. A
  * customer's delivery code is kept only until its update is answered.
  *
  * Location (ECOM-29, KE DPA minimum data): while a delivery is active the
@@ -35,13 +37,15 @@ import { NetworkError } from '../sync/api';
  * because the server accepts a `delivered` update without a code only once
  * that delivery's photo is in. A refused photo is shown to the rider and its
  * code-less `delivered` update leaves the queue with it, so the rider can
- * deliver again.
+ * deliver again. The photo's file is deleted from the phone as soon as it is
+ * uploaded or refused (`deleteFile(uri)`, failures ignored); a photo still
+ * queued (offline, a 5xx or 429, a 401) keeps its file.
  */
 export const BATCH = 50;
 export const ACTIVE = ['assigned', 'picked_up'];
 const FINAL = ['delivered', 'failed'];
 
-export function createRider({ api, store, credentials, now = () => Date.now(), makeId = uuidv7, makeForm = defaultForm }) {
+export function createRider({ api, store, credentials, now = () => Date.now(), makeId = uuidv7, makeForm = defaultForm, deleteFile = async () => {} }) {
   // One write at a time on the rider keys, so an update queued during an upload is never lost.
   let chain = Promise.resolve();
   const locked = (task) => {
@@ -76,12 +80,26 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
     await store.setMeta({ [keyOf(userId)]: { ...current, ...patch } });
   }
 
-  /** The signed-in rider's cached deliveries leave the phone (their queue stays for them). */
-  async function forgetDeliveries() {
+  /**
+   * On sign-out: the signed-in rider's cached deliveries and unsent location
+   * points leave the phone (minimum data); their status updates and photos
+   * stay queued for their next sign-in.
+   */
+  async function forgetSession() {
     await locked(async () => {
-      const { userId } = await read();
-      await write(userId, { deliveries: [], fetchedAt: null });
+      const { userId, queue } = await read();
+      await write(userId, { deliveries: [], fetchedAt: null, queue: queue.filter((update) => update.kind !== 'location') });
     });
+  }
+
+  /** The photo's file leaves the phone; a failure never holds the queue up. */
+  async function dropFile(uri) {
+    if (!uri) return;
+    try {
+      await deleteFile(uri);
+    } catch {
+      // Left for the OS to clear (the camera writes to the app's cache).
+    }
   }
 
   async function emit() {
@@ -105,7 +123,7 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
   }
 
   async function signedOut() {
-    await forgetDeliveries();
+    await forgetSession();
     await credentials.clear();
     listeners.forEach((listener) => listener({ signedOut: true }));
   }
@@ -140,9 +158,9 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
         return { sent: false, status: response.status };
       }
       const accepted = response.status >= 200 && response.status < 300;
-      await locked(async () => {
+      const settled = await locked(async () => {
         const current = await read();
-        if (current.userId !== userId) return;
+        if (current.userId !== userId) return false;
         const patch = { photos: current.photos.filter((kept) => kept.id !== photo.id) };
         if (!accepted) {
           // Refused for good (not picked up, code locked, not a usable image, not the rider's): shown to the
@@ -156,7 +174,10 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
           ].slice(-20);
         }
         await write(userId, patch);
+        return true;
       });
+      // Uploaded or refused for good: the file is no longer needed on the phone.
+      if (settled) await dropFile(photo.uri);
       network = 'online';
       await emit();
     }
@@ -259,7 +280,7 @@ export function createRider({ api, store, credentials, now = () => Date.now(), m
       } catch {
         // offline: the token is dropped on the phone anyway
       }
-      await forgetDeliveries();
+      await forgetSession();
       await credentials.clear();
       // The location tracker stops on this.
       listeners.forEach((listener) => listener({ signedOut: true }));
