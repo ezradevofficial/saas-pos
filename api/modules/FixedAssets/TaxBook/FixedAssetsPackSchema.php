@@ -34,6 +34,7 @@ final class FixedAssetsPackSchema
             'classes.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,59}\z/'],
             'classes.*.method' => ['present', 'nullable', 'string', 'in:'.implode(',', TaxClasses::METHODS)],
             'classes.*.rate' => ['present', 'nullable', 'regex:/^\d{1,3}(\.\d{1,4})?\z/'],
+            'classes.*.first_year_rate' => ['sometimes', 'nullable', 'regex:/^\d{1,3}(\.\d{1,4})?\z/'],
             'classes.*.needs_confirmation' => ['required', 'boolean'],
             'classes.*.effective_from' => ['required', 'date_format:Y-m-d'],
             'classes.*.effective_to' => ['present', 'nullable', 'date_format:Y-m-d'],

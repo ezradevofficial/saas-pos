@@ -3,7 +3,7 @@
     "notes": "Fixed assets tax book reference data for Congolese companies (docs/modules/fixed-assets.md FA-20). Structure only: class keys. No method or rate is entered until it is confirmed from an official source with its legal reference and effective date; a class with a null method or rate, or needs_confirmation true, is unconfirmed and the tax book is refused. Labels live in lang/{locale}/fixed_assets.php (tax_classes.*).",
     "sources": [],
     "todo": [
-        "Public research (2026-10-17, docs/country-packs-research-2026-10.md) found no statutory class table; usual practice is straight line at commonly accepted rates (low confidence). Nothing is entered and the tax book stays refused.",
+        "Public research (2026-10-17, and again 2026-10-22, docs/country-packs-research-2026-10.md) found no statutory class table; usual practice is straight line at commonly accepted rates. Nothing is entered (no source states a rate) and the tax book stays refused.",
         "Code des impôts: confirm the classes of fiscally deductible depreciation (amortissements) and which assets fall in each.",
         "buildings (constructions): method (linéaire or dégressif with its coefficient), annual rate and effective date, with the legal reference.",
         "machinery (matériel et outillage): method, annual rate and effective date.",

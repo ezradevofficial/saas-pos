@@ -314,6 +314,7 @@ class BusinessCalendar
         }
 
         $days = [];
+        $moving = [];
         $jan1 = sprintf('%04d-01-01', $year);
         $dec31 = sprintf('%04d-12-31', $year);
 
@@ -323,7 +324,12 @@ class BusinessCalendar
 
         foreach ($rows as $row) {
             if ($row->date !== null) {
-                $days[substr((string) $row->date, 0, 10)] = true;
+                $date = substr((string) $row->date, 0, 10);
+                $days[$date] = true;
+
+                if ($row->sunday_rule !== null) {
+                    $moving[$date] = true;
+                }
 
                 continue;
             }
@@ -338,8 +344,36 @@ class BusinessCalendar
 
             if (($from === null || $date >= $from) && ($to === null || $date <= $to)) {
                 $days[$date] = true;
+
+                if ($row->sunday_rule !== null) {
+                    $moving[$date] = true;
+                }
             }
         }
+
+        // CP-01, KE Public Holidays Act s. 4: a holiday on a Sunday is moved to the first following day that is
+        // not itself a public holiday, and the Sunday is no longer one. In date order, so a Sunday Christmas
+        // goes past a Monday Boxing Day to the Tuesday. (No pack has a 31 December holiday that could move into the next year.)
+        ksort($moving);
+
+        foreach (array_keys($moving) as $date) {
+            $day = CarbonImmutable::parse($date);
+
+            if (! $day->isSunday()) {
+                continue;
+            }
+
+            unset($days[$date]);
+            $next = $day->addDay();
+
+            while (isset($days[$next->format('Y-m-d')])) {
+                $next = $next->addDay();
+            }
+
+            $days[$next->format('Y-m-d')] = true;
+        }
+
+        $days = array_filter($days, fn (string $d) => str_starts_with($d, $year.'-'), ARRAY_FILTER_USE_KEY);
 
         $this->holidays[$key] = ['at' => CarbonImmutable::now()->getTimestamp(), 'days' => $days];
 

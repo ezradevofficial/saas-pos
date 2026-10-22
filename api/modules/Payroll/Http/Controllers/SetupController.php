@@ -67,7 +67,7 @@ class SetupController
             'currency' => $pack['currency'] ?? null,
             'non_monthly' => $pack['non_monthly'] ?? null,
             'components' => array_map(fn (array $c) => [
-                'code' => $c['code'], 'name' => PayrollPack::label('components', $c['code']), 'kind' => $c['kind'], 'method' => $c['method'],
+                'code' => $c['code'], 'name' => PayrollPack::labelOf($c), 'display_code' => PayrollPack::displayCode($c), 'kind' => $c['kind'], 'method' => $c['method'],
                 'required' => $c['required'], 'when' => $c['when'], 'in_force' => $c['values'] !== null,
                 'effective_from' => $c['values']['effective_from'] ?? null,
                 'missing' => array_map(fn (string $f) => ['field' => $f, 'name' => PayrollPack::label('fields', $f)], $byCode[$c['code']] ?? []),
@@ -83,12 +83,14 @@ class SetupController
                 'not_applied' => PayrollPack::notApplied($c),
             ], $inForce),
             'researched' => $notices['researched'] !== [],
+            // CP-01: a value in force is researched at low confidence (the stronger notice).
+            'low_confidence' => collect($notices['researched'])->contains(fn (array $row) => ResearchStatus::lowResearch($row)),
             'missing' => $missing === [] ? null : MissingValues::describe($missing),
             'ready' => $missing === [],
             // CP-01: how many components in force are not confirmed yet. The pack's own to-do
             // notes are for the platform team (console, ADM-04) and never sent to tenants.
             'to_confirm' => count(array_filter($inForce, fn (array $c) => ($c['values'] === null ? ResearchStatus::NEEDS_CONFIRMATION : ResearchStatus::of($c['values'])) !== ResearchStatus::CONFIRMED)),
-            'returns' => array_map(fn (array $r) => ['key' => $r['key'], 'name' => PayrollPack::label('returns', $r['key']), 'needs_confirmation' => (bool) ($r['needs_confirmation'] ?? true) || ($r['layout'] ?? null) === null], $pack['returns'] ?? []),
+            'returns' => array_map(fn (array $r) => ['key' => $r['key'], 'name' => PayrollPack::label('returns', PayrollPack::returnDisplay($r, $today)), 'needs_confirmation' => (bool) ($r['needs_confirmation'] ?? true) || ($r['layout'] ?? null) === null], $pack['returns'] ?? []),
         ]]);
     }
 
@@ -164,7 +166,7 @@ class SetupController
             return null;
         }
 
-        return array_diff_key($values, array_flip([...ResearchStatus::FIELDS, 'effective_from', 'effective_to', 'needs_confirmation']));
+        return array_diff_key($values, array_flip([...ResearchStatus::FIELDS, 'effective_from', 'effective_to', 'needs_confirmation', 'display_code']));
     }
 
     public function payGroups(SetupListRequest $request): AnonymousResourceCollection

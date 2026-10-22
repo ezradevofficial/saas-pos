@@ -1,15 +1,17 @@
 {
     "code": "CD",
-    "notes": "HR reference data for Congolese companies (docs/modules/hr.md HR-03, HR-12, HR-13): identifier types and statutory leave types. Each row has a status (ResearchStatus): 'researched' values come from public research (docs/country-packs-research-2026-10.md) with their confidence, research date and sources; they are used, and leave records that use them say so until the owner confirms them through a pack release (ADM-04). A null 'paid' on a usable type means its pay rate is not confirmed (maternity: 2/3 of pay is cited, low confidence): requests are taken, and a payroll run with such days is blocked until the pay is confirmed. A null pattern enforces no format; a null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. Low-confidence research is never entered. events: per-event days within the type's yearly days (circumstantial leave: at most 10 working days a year, not deducted from annual leave, Code du travail art. 146). Labels live in lang/{locale}/hr.php (pack.*).",
+    "notes": "HR reference data for Congolese companies (docs/modules/hr.md HR-03, HR-12, HR-13): identifier types and statutory leave types. Each row has a status (ResearchStatus): 'researched' values come from public research (docs/country-packs-research-2026-10.md) with their confidence, research date and sources; they are used, and leave records that use them say so until the owner confirms them through a pack release (ADM-04). Owner decision 2026-10-22: low-confidence research is entered and used too, shown as 'Researched, low confidence: not confirmed by an accountant'. pay_share: a paid type paid at a share of pay, an exact fraction (maternity: 2/3, Code du travail art. 130); payroll deducts the rest of the daily rate. seniority: more yearly days per completed years of service (annual: one working day per five years, art. 141). A null pattern enforces no format; a null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. events: per-event days within the type's yearly days (circumstantial leave: at most 10 working days a year, not deducted from annual leave, Code du travail art. 146). Labels live in lang/{locale}/hr.php (pack.*).",
     "sources": [
+        "https://actualite.cd/2023/05/01/rdc-que-dit-le-code-du-travail-au-sujet-de-la-maternite",
         "https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail",
+        "https://fr.wikisource.org/wiki/Code_du_Travail_de_la_R%C3%A9publique_d%C3%A9mocratique_du_Congo",
         "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
     ],
     "todo": [
-        "Confirm every researched value, then publish it as confirmed through a pack release (ADM-04): maternity 14 weeks (98 calendar days) and circumstantial leave (10 working days a year; own marriage 2, birth of a child 2).",
-        "maternity: the pay during maternity leave (2/3 of pay is cited, low confidence). Until confirmed the type's pay is null: requests are taken, and a payroll run with maternity days is blocked ('Leave pay rate not confirmed') until the company or the pack confirms the pay.",
-        "annual: statutory annual leave (1.5 working days a month, or a 15/18/21-day seniority scale, are cited; low confidence), with the effective date.",
-        "sick: statutory sick leave (incapacité de travail) rules and pay (not found).",
+        "Confirm every researched value, then publish it as confirmed through a pack release (ADM-04): maternity 14 weeks (98 calendar days) at 2/3 of pay, annual leave (art. 141: 12 working days a year for adults, 18 for workers under 18, one more day per 5 years of service, after 12 months), and circumstantial leave (10 working days a year; own marriage 2, birth of a child 2).",
+        "annual (owner decision 2026-10-22): adults 1 working day per month (12 a year, medium: the Code's text), workers under 18 1.5 a month (18 a year, low), both +1 day per 5 years of seniority. Under 18 is read from the employee's date of birth at the start of the accrual period; an employee without a date of birth takes the adult rate (assumed).",
+        "sick: the Code du travail (art. 105) keeps 2/3 of cash pay for the whole suspension for ordinary illness, with no number of days; art. 106: 2/3 for the first six months for an occupational accident or disease; art. 60: the employer may end the contract after six months' uninterrupted incapacity. No day count is stated, so the type stays 'Days needed': each company sets its days (and pay).",
+        "maternity: a 2023 private member's bill proposes full pay; not adopted as far as found.",
         "circumstantial: the other events (death of a spouse, child or parent, and so on) and their days, with legal references.",
         "national_id and cnss_number: no reliable format found; not enforced."
     ],
@@ -34,34 +36,60 @@
             "key": "annual",
             "accrual": "annual",
             "count_basis": "working_days",
-            "paid": null,
-            "days": null,
-            "needs_confirmation": true,
-            "confidence": "low",
+            "paid": true,
+            "days": 12,
+            "qualifying_months": 12,
+            "seniority": {
+                "every_years": 5,
+                "days": 1
+            },
+            "under_age": {
+                "age": 18,
+                "days": 18,
+                "status": "researched",
+                "confidence": "low",
+                "researched_on": "2026-10-22",
+                "source": [
+                    "https://fr.wikisource.org/wiki/Code_du_Travail_de_la_R%C3%A9publique_d%C3%A9mocratique_du_Congo",
+                    "https://www.legavox.fr/blog/maxencekiyana/conge-droit-pour-travailleur-32101.htm"
+                ],
+                "needs_confirmation": false
+            },
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
             "source": [
-                "https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail",
+                "https://fr.wikisource.org/wiki/Code_du_Travail_de_la_R%C3%A9publique_d%C3%A9mocratique_du_Congo",
+                "https://www.legavox.fr/blog/maxencekiyana/conge-droit-pour-travailleur-32101.htm",
                 "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
             ],
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
             "effective_to": null,
-            "status": "needs_confirmation"
+            "assumed": [
+                "date_of_birth"
+            ]
         },
         {
             "key": "maternity",
             "accrual": "none",
             "count_basis": "calendar_days",
-            "paid": null,
+            "paid": true,
+            "pay_share": "2/3",
             "days": 98,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
             "status": "researched",
             "confidence": "medium",
-            "researched_on": "2026-10-17",
+            "researched_on": "2026-10-22",
             "source": [
+                "https://actualite.cd/2023/05/01/rdc-que-dit-le-code-du-travail-au-sujet-de-la-maternite",
+                "https://actualite.cd/2023/05/02/rdc-conge-de-maternite-faut-il-accorder-la-totalite-du-salaire-lemployee-des-kinois",
+                "https://fr.wikisource.org/wiki/Code_du_Travail_de_la_R%C3%A9publique_d%C3%A9mocratique_du_Congo",
                 "https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail",
                 "https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf"
             ],
-            "needs_confirmation": false,
-            "effective_from": "2026-01-01",
-            "effective_to": null
+            "needs_confirmation": false
         },
         {
             "key": "sick",
@@ -70,6 +98,10 @@
             "paid": null,
             "days": null,
             "needs_confirmation": true,
+            "confidence": "low",
+            "source": [
+                "https://fr.wikisource.org/wiki/Code_du_Travail_de_la_R%C3%A9publique_d%C3%A9mocratique_du_Congo"
+            ],
             "effective_from": "2026-01-01",
             "effective_to": null,
             "status": "needs_confirmation"

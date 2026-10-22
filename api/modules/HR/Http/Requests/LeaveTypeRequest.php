@@ -16,6 +16,8 @@ class LeaveTypeRequest extends SetupRowRequest
             'code' => [$required, 'string', 'max:40'],
             'name' => [$required, 'string', 'max:120'],
             'paid' => ['sometimes', 'boolean'],
+            // CP-01: a paid type's share of pay as an exact fraction ("2/3"); null is full pay.
+            'pay_share' => ['sometimes', 'nullable', 'string', 'regex:/^[1-9][0-9]?\/[1-9][0-9]?$/'],
             'accrual' => [$required, Rule::in(LeaveType::ACCRUALS)],
             'entitlement_days' => ['sometimes', 'nullable', 'string', 'regex:/^\d{1,3}(\.\d{1,2})?$/'],
             'count_basis' => [$required, Rule::in(LeaveType::COUNT_BASES)],

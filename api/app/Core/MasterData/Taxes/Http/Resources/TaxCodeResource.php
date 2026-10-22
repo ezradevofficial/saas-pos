@@ -34,6 +34,8 @@ class TaxCodeResource extends JsonResource
             'rate_needed' => ! $this->isExempt() && ($current === null || $current->isNeeded()),
             // CP-01: the rate in force comes from public research, not yet confirmed.
             'rate_researched' => $current !== null && $current->isResearched(),
+            // CP-01: researched at low confidence: not confirmed by an accountant (the stronger notice).
+            'rate_low_confidence' => $current !== null && $current->isLowConfidence(),
             'rates' => $this->rates->map(fn (TaxRate $rate) => $rate->toSummary())->values()->all(),
             'archived_at' => $this->archived_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

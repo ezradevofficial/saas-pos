@@ -36,7 +36,8 @@ function CurrentRate({ code }) {
     return (
       <span className="flex flex-col gap-1">
         <Percent value={code.current_rate.rate} />
-        <StatusBadge tone="warning">{t('packs.status.researched')}</StatusBadge>
+        <StatusBadge tone={code.rate_low_confidence ? 'danger' : 'warning'}>{t('packs.status.researched')}</StatusBadge>
+        {code.rate_low_confidence ? <span className="text-caption text-ink">{t('packs.lowBadge')}</span> : null}
       </span>
     )
   }
@@ -235,7 +236,7 @@ export function TaxCodes({ company }) {
         ) : null}
       </div>
       {needed > 0 ? <Alert tone="warning" title={t('taxes.neededAlert', { count: needed })} /> : null}
-      {(codes.data?.data ?? []).some((code) => code.rate_researched) ? <ResearchedNotice /> : null}
+      {(codes.data?.data ?? []).some((code) => code.rate_researched) ? <ResearchedNotice low={(codes.data?.data ?? []).some((code) => code.rate_low_confidence)} /> : null}
       {applied ? (
         <Alert tone="success" title={applied.added.length ? t('taxes.pack.added', { count: applied.added.length, codes: applied.added.join(', ') }) : t('taxes.pack.nothing')} />
       ) : null}

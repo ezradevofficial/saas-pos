@@ -52,13 +52,18 @@ class BusinessCalendarTest extends TestCase
 
     public function test_the_country_packs_holidays_are_loaded_and_movable_ones_are_not_guessed(): void
     {
-        $ke = PublicHoliday::query()->where('country', 'KE')->orderBy('month')->orderBy('day')->get();
-        $this->assertSame(['new_year', 'labour_day', 'madaraka_day', 'mashujaa_day', 'jamhuri_day', 'christmas_day', 'boxing_day'], $ke->pluck('key')->all());
+        // CP-01 (owner decision 2026-10-22): the Public Holidays Act Part I days, Mazingira Day included, researched.
+        $ke = PublicHoliday::query()->where('country', 'KE')->whereNull('date')->orderBy('month')->orderBy('day')->get();
+        $this->assertSame(['new_year', 'labour_day', 'madaraka_day', 'mazingira_day', 'mashujaa_day', 'jamhuri_day', 'christmas_day', 'boxing_day'], $ke->pluck('key')->all());
+        $this->assertSame(['next_free_day'], $ke->pluck('sunday_rule')->unique()->values()->all());
+        // Good Friday and Easter Monday as single dates (from Easter), 2026 to 2030.
+        $easter = PublicHoliday::query()->where('country', 'KE')->whereNotNull('date')->orderBy('date')->get();
+        $this->assertCount(10, $easter);
+        $this->assertSame(['2026-04-03', '2026-04-06'], $easter->take(2)->map(fn ($h) => substr((string) $h->date, 0, 10))->all());
         $this->assertSame(9, PublicHoliday::query()->where('country', 'CD')->count());
 
-        // Easter and Eid dates are never entered: they wait in the todo list.
+        // Gazetted (lunar) dates are never guessed: they wait in the todo list.
         $todo = HolidayFile::read(HolidayFile::path('KE'))->todo();
-        $this->assertNotEmpty(array_filter($todo, fn ($t) => str_contains($t, 'Good Friday')));
         $this->assertNotEmpty(array_filter($todo, fn ($t) => str_contains($t, 'Idd-ul-Fitr')));
 
         // Labels exist in both languages.
@@ -76,12 +81,36 @@ class BusinessCalendarTest extends TestCase
         // leaves the same rows, never duplicates.
         foreach ([1, 2] as $run) {
             $this->assertSame(0, Artisan::call('country-packs:holidays', ['code' => 'KE']));
-            $this->assertSame(7, PublicHoliday::query()->where('country', 'KE')->count());
+            $this->assertSame(18, PublicHoliday::query()->where('country', 'KE')->count());
         }
         $this->assertSame(9, PublicHoliday::query()->where('country', 'CD')->count());
 
         $this->expectException(QueryException::class);
         PublicHoliday::query()->create(['country' => 'KE', 'key' => 'invented', 'month' => 2, 'day' => 2]);
+    }
+
+    public function test_a_kenyan_holiday_on_a_sunday_moves_to_the_next_day_that_is_not_a_holiday(): void
+    {
+        // Public Holidays Act s. 4: Jamhuri Day, Sunday 12 December 2027, is observed on Monday 13 December.
+        $this->assertFalse($this->calendar->isHoliday(CarbonImmutable::parse('2027-12-12'), 'KE'));
+        $this->assertTrue($this->calendar->isHoliday(CarbonImmutable::parse('2027-12-13'), 'KE'));
+        // Mazingira Day, Sunday 10 October 2027, moves to Monday 11 October.
+        $this->assertTrue($this->calendar->isHoliday(CarbonImmutable::parse('2027-10-11'), 'KE'));
+        // Christmas on Sunday 25 December 2033 goes past Boxing Day (Monday 26) to Tuesday 27.
+        $this->assertTrue($this->calendar->isHoliday(CarbonImmutable::parse('2033-12-26'), 'KE'));
+        $this->assertTrue($this->calendar->isHoliday(CarbonImmutable::parse('2033-12-27'), 'KE'));
+        $this->assertFalse($this->calendar->isHoliday(CarbonImmutable::parse('2033-12-28'), 'KE'));
+        // A Saturday holiday does not move: Mazingira Day, Saturday 10 October 2026.
+        $this->assertTrue($this->calendar->isHoliday(CarbonImmutable::parse('2026-10-10'), 'KE'));
+        $this->assertFalse($this->calendar->isHoliday(CarbonImmutable::parse('2026-10-12'), 'KE'));
+        // Business days skip the observed Monday: Friday 10 December 2027 + 1 business day is Tuesday 14.
+        $this->assertLocal('2027-12-14 10:00', $this->calendar->due($this->at('2027-12-10 10:00'), 1, 'business_days', $this->nairobi()));
+        // CD packs have no Sunday rule: nothing moves.
+        $this->assertSame(0, PublicHoliday::query()->where('country', 'CD')->whereNotNull('sunday_rule')->count());
+
+        // A holiday row's research status is checked.
+        $this->expectException(InvalidArgumentException::class);
+        HolidayFile::fromArray(['code' => 'KE', 'sources' => [], 'todo' => [], 'holidays' => [['key' => 'x', 'month' => 2, 'day' => 3, 'status' => 'researched', 'needs_confirmation' => false]]]);
     }
 
     public function test_a_holiday_file_with_labels_or_impossible_days_is_refused(): void
@@ -187,10 +216,12 @@ class BusinessCalendarTest extends TestCase
 
             // Monday 11:30 + 1h: half an hour before lunch, half after.
             $this->assertLocal('2026-10-12 13:30', $this->calendar->due($this->at('2026-10-12 11:30'), 1, 'business_hours', $spec));
-            // Friday 16:00 + 3h: one hour Friday, two on Saturday morning.
-            $this->assertLocal('2026-10-10 11:00', $this->calendar->due($this->at('2026-10-09 16:00'), 3, 'business_hours', $spec));
+            // Friday 16:00 + 3h: one hour Friday, two on Saturday morning. (Moved from 9 October: Saturday
+            // 10 October 2026 is Mazingira Day since the 2026-10-22 pack, and a Saturday holiday does not move.)
+            $this->assertLocal('2026-10-03 11:00', $this->calendar->due($this->at('2026-10-02 16:00'), 3, 'business_hours', $spec));
+            $this->assertLocal('2026-10-12 10:00', $this->calendar->due($this->at('2026-10-09 16:00'), 3, 'business_hours', $spec));
             // Business days land on the nearest open time: Friday 16:00 + 1 day is Saturday, closed at 16:00.
-            $this->assertLocal('2026-10-10 13:00', $this->calendar->due($this->at('2026-10-09 16:00'), 1, 'business_days', $spec));
+            $this->assertLocal('2026-10-03 13:00', $this->calendar->due($this->at('2026-10-02 16:00'), 1, 'business_days', $spec));
         });
     }
 

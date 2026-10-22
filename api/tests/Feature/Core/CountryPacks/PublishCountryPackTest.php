@@ -88,7 +88,8 @@ class PublishCountryPackTest extends TestCase
                 $this->assertTrue($row->kind === 'exempt' || $row->rate !== null || $row->needs_confirmation, "{$code} {$row->code}");
             }
 
-            $this->assertSame(['VAT_WHT'], CountryPack::latest('KE')->summary['needs_confirmation']);
+            // Since 2026-10-22 no KE rate is still needed (withholding VAT is researched).
+            $this->assertSame([], $pack->summary['needs_confirmation']);
         }
 
         // Every rate in a shipped file is 0 by definition, or researched with its sources (never invented).

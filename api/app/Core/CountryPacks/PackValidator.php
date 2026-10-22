@@ -18,7 +18,8 @@ use JsonException;
  *
  * Warnings (shown, not blocking): rows still marked as needing
  * confirmation; their empty figures keep blocking what uses them at
- * runtime ("Rate needed"), as the shipped packs do.
+ * runtime ("Rate needed"), as the shipped packs do. CP-01: every row
+ * researched at low confidence (used, not confirmed by an accountant).
  *
  * The diff lists the entries added, removed and changed against the pack
  * in force, by the kind's keys (`tax_codes:VAT_STD@2026-01-01`), and the
@@ -272,6 +273,11 @@ class PackValidator
                 $errors[] = __('country_packs.releases.missing_value', ['path' => $where, 'fields' => implode(', ', $empty)]);
             } elseif ($node['needs_confirmation'] === true) {
                 $warnings[] = __('country_packs.releases.needs_confirmation', ['path' => $where]);
+            }
+
+            // CP-01 (owner decision 2026-10-22): a low-confidence researched row is used; approvers see each one.
+            if (ResearchStatus::low($node)) {
+                $warnings[] = __('country_packs.releases.low_confidence', ['path' => $where]);
             }
         }
 

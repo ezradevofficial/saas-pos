@@ -1,99 +1,168 @@
 {
     "code": "KE",
-    "notes": "Fixed assets tax book reference data for Kenyan companies (docs/modules/fixed-assets.md FA-20). Structure only: class keys. No method or rate is entered until it is confirmed from an official source with its legal reference and effective date; a class with a null method or rate, or needs_confirmation true, is unconfirmed and the tax book is refused. Labels live in lang/{locale}/fixed_assets.php (tax_classes.*).",
-    "sources": [],
+    "notes": "Fixed assets tax book reference data for Kenyan companies (docs/modules/fixed-assets.md FA-20): the Income Tax Act Second Schedule classes, each with its method and annual rate. Owner decision 2026-10-22: the researched rates are used at medium confidence (the consolidated Act and PwC agree; not confirmed by an accountant); the year-of-acquisition rule is low confidence (an inference). The Second Schedule states every rate 'per year, in equal instalments' (straight line) or as a first-year rate; first_year_rate is the rate the year an asset enters service, then rate applies to the residue. A class with a null method or rate, or needs_confirmation true, is unconfirmed and the tax book is refused. Labels live in lang/{locale}/fixed_assets.php (tax_classes.*).",
+    "sources": [
+        "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+        "https://taxsummaries.pwc.com/kenya/corporate/deductions",
+        "https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure",
+        "https://www.rsm.global/kenya/sites/default/files/media/RSMEA%20Newsletter_%20Overview%20of%20The%20Kenya%20Finance%20Act%202023-24_0.pdf"
+    ],
     "todo": [
-        "Public research (2026-10-17, docs/country-packs-research-2026-10.md) is low confidence, so nothing is entered and the tax book stays refused: commonly cited rates are commercial buildings 10%, computers 25%, motor vehicles 25%, manufacturing machinery 50% in year 1 then 25%, but sources disagree on straight line against reducing balance and on later Finance Act changes. KRA capital deduction notice: https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure",
-        "Income Tax Act, Second Schedule: confirm the official wear and tear classes and which assets fall in each.",
-        "buildings: method (straight line or reducing balance), annual rate and effective date, with the legal reference.",
-        "machinery: method, annual rate and effective date (including any split between heavy and other machinery).",
-        "motor_vehicles: method, annual rate and effective date.",
-        "computers: method, annual rate and effective date (computers, peripherals, calculators, copiers).",
-        "software: method, annual rate and effective date.",
-        "furniture: method, annual rate and effective date (furniture and fittings).",
-        "telecommunication: method, annual rate and effective date.",
-        "other: any other class (farm works, intangibles), its method and rate.",
-        "Investment deduction: whether it applies in the first year, for which assets and at what rate.",
-        "acquisition_rule: whether the year of acquisition counts as a full year (full_year) or pro rata by months in service (pro_rata_months), with the legal reference.",
-        "Disposals: the balancing allowance or charge in the year of disposal (until confirmed the tax book gives no allowance that year and computes no balancing adjustment)."
+        "Confirm (accountant) every class, then publish it as confirmed through a pack release (ADM-04). Medium confidence (owner decision 2026-10-22): the consolidated Act (Kenya Law, 2026-07-01) and PwC agree. The acquisition rule is low confidence.",
+        "buildings: commercial buildings 10% straight line. Hotels, buildings used for manufacture, hospitals and petroleum or gas storage take 50% in the first year then 25% of the residue; educational and industrial buildings and docks 10%. Use another class key for those when a company has them.",
+        "machinery: machinery used for manufacture (also hospital equipment, ships, aircraft): 50% in the first year of use, then 25% a year of the residue in equal instalments. Some summaries call the 25% reducing balance; the Act says equal instalments.",
+        "motor_vehicles: 25% straight line (heavy earth-moving equipment too); the cost of a non-commercial vehicle is capped at KES 3 million (para 6), not applied.",
+        "computers and software: 25% straight line (computers, peripheral hardware and software, calculators, copiers).",
+        "furniture: furniture and fittings 10% straight line. telecommunication: 10% straight line. other: other machinery 10% straight line.",
+        "Not modelled: the 100% investment deduction (para 1A thresholds), filming equipment 25%, exploration machinery and farm works 50% then 25%, fibre-optic IRU and spectrum licences 10%.",
+        "acquisition_rule: full year assumed. The Act gives each rate 'for each year of income' ('50% in the first year of use') and no time apportionment was found; this is a reading of the law, not a stated rule.",
+        "Disposals: the balancing allowance or charge in the year of disposal (paras 3 and 4; until confirmed the tax book gives no allowance that year and computes no balancing adjustment)."
     ],
     "acquisition_rule": {
-        "value": null,
-        "needs_confirmation": true,
-        "status": "needs_confirmation"
+        "value": "full_year",
+        "status": "researched",
+        "confidence": "low",
+        "researched_on": "2026-10-22",
+        "source": [
+            "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+            "https://taxsummaries.pwc.com/kenya/corporate/deductions"
+        ],
+        "needs_confirmation": false,
+        "assumed": [
+            "value"
+        ]
     },
     "classes": [
         {
             "key": "buildings",
-            "method": null,
-            "rate": null,
-            "needs_confirmation": true,
+            "method": "straight_line",
+            "rate": "10",
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+                "https://taxsummaries.pwc.com/kenya/corporate/deductions",
+                "https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure",
+                "https://www.rsm.global/kenya/sites/default/files/media/RSMEA%20Newsletter_%20Overview%20of%20The%20Kenya%20Finance%20Act%202023-24_0.pdf"
+            ],
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
-            "effective_to": null,
-            "status": "needs_confirmation"
+            "effective_to": null
         },
         {
             "key": "machinery",
-            "method": null,
-            "rate": null,
-            "needs_confirmation": true,
+            "method": "straight_line",
+            "rate": "25",
+            "first_year_rate": "50",
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+                "https://taxsummaries.pwc.com/kenya/corporate/deductions",
+                "https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure",
+                "https://www.rsm.global/kenya/sites/default/files/media/RSMEA%20Newsletter_%20Overview%20of%20The%20Kenya%20Finance%20Act%202023-24_0.pdf"
+            ],
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
-            "effective_to": null,
-            "status": "needs_confirmation"
+            "effective_to": null
         },
         {
             "key": "motor_vehicles",
-            "method": null,
-            "rate": null,
-            "needs_confirmation": true,
+            "method": "straight_line",
+            "rate": "25",
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+                "https://taxsummaries.pwc.com/kenya/corporate/deductions",
+                "https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure"
+            ],
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
-            "effective_to": null,
-            "status": "needs_confirmation"
+            "effective_to": null
         },
         {
             "key": "computers",
-            "method": null,
-            "rate": null,
-            "needs_confirmation": true,
+            "method": "straight_line",
+            "rate": "25",
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+                "https://taxsummaries.pwc.com/kenya/corporate/deductions",
+                "https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure"
+            ],
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
-            "effective_to": null,
-            "status": "needs_confirmation"
+            "effective_to": null
         },
         {
             "key": "software",
-            "method": null,
-            "rate": null,
-            "needs_confirmation": true,
+            "method": "straight_line",
+            "rate": "25",
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+                "https://taxsummaries.pwc.com/kenya/corporate/deductions",
+                "https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure"
+            ],
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
-            "effective_to": null,
-            "status": "needs_confirmation"
+            "effective_to": null
         },
         {
             "key": "furniture",
-            "method": null,
-            "rate": null,
-            "needs_confirmation": true,
+            "method": "straight_line",
+            "rate": "10",
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+                "https://taxsummaries.pwc.com/kenya/corporate/deductions",
+                "https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure"
+            ],
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
-            "effective_to": null,
-            "status": "needs_confirmation"
+            "effective_to": null
         },
         {
             "key": "telecommunication",
-            "method": null,
-            "rate": null,
-            "needs_confirmation": true,
+            "method": "straight_line",
+            "rate": "10",
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+                "https://taxsummaries.pwc.com/kenya/corporate/deductions",
+                "https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure"
+            ],
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
-            "effective_to": null,
-            "status": "needs_confirmation"
+            "effective_to": null
         },
         {
             "key": "other",
-            "method": null,
-            "rate": null,
-            "needs_confirmation": true,
+            "method": "straight_line",
+            "rate": "10",
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-22",
+            "source": [
+                "https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01",
+                "https://taxsummaries.pwc.com/kenya/corporate/deductions",
+                "https://www.kra.go.ke/news-center/public-notices/1529-applicable-capital-deduction-rates-on-written-down-values-residues-of-capital-expenditure"
+            ],
+            "needs_confirmation": false,
             "effective_from": "2026-01-01",
-            "effective_to": null,
-            "status": "needs_confirmation"
+            "effective_to": null
         }
     ]
 }

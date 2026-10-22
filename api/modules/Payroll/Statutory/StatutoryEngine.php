@@ -293,6 +293,8 @@ final class StatutoryEngine
     {
         return [
             'code' => $c['code'],
+            // CP-01: the code it is shown under (CD IRPP from 2026-01-01).
+            'display_code' => PayrollPack::displayCode($c),
             'kind' => $c['kind'],
             'method' => $c['method'],
             'base_minor' => $base,

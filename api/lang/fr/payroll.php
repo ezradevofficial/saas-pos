@@ -66,6 +66,7 @@ return [
     'lines' => [
         'basic' => 'Salaire de base',
         'unpaid_leave' => 'Congé sans solde',
+        'reduced_pay_leave' => 'Congé payé aux :share de la rémunération (le reste retenu)',
         'overtime' => 'Heures supplémentaires',
         'night' => 'Majoration de nuit',
         'holiday' => 'Majoration jour férié',
@@ -147,6 +148,8 @@ return [
             'nita' => 'Taxe NITA',
             'ipr' => 'IPR',
             'ipr_dependants' => 'Réduction d’IPR pour charges de famille',
+            'irpp' => 'IRPP',
+            'irpp_dependants' => 'Réduction d’IRPP pour charges de famille',
             'cnss' => 'CNSS pension',
             'cnss_risks' => 'CNSS risques professionnels',
             'cnss_family' => 'CNSS prestations familiales',
@@ -192,6 +195,7 @@ return [
             'min_monthly' => 'le minimum est mensuel',
             'rounding' => 'règle d’arrondi',
             'reduces_taxable' => 'réduction ou non du revenu imposable',
+            'legal_text' => 'l’arrêté interministériel lui-même n’a pas été trouvé',
         ],
         'returns' => [
             'paye' => 'Déclaration PAYE (P10)',
@@ -201,6 +205,7 @@ return [
             'nita' => 'Déclaration NITA',
             'p9' => 'Fiches fiscales P9',
             'ipr' => 'Déclaration IPR',
+            'irpp' => 'Déclaration IRPP',
             'cnss' => 'Déclaration CNSS',
             'inpp' => 'Déclaration INPP',
             'onem' => 'Déclaration ONEM',
