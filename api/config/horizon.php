@@ -185,7 +185,10 @@ return [
     |
     */
 
-    'memory_limit' => 64,
+    // NFR-01: the booted app alone uses about 65 MB, so the stock 64 made
+    // the master exit right after starting, in a restart loop under
+    // systemd (deploy rehearsal 2026-10-22).
+    'memory_limit' => (int) env('HORIZON_MEMORY_LIMIT', 192),
 
     /*
     |--------------------------------------------------------------------------

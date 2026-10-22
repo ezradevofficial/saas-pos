@@ -165,7 +165,7 @@ Prepare each host once (full provisioning steps, environment variables and owner
 - `<path>/api/.env`:
   - `DB_USERNAME=app`, plus the `DB_OWNER_*` owner credentials (the deploy commands run here). A separate queue or scheduler host leaves `DB_OWNER_*` out: workers and the scheduler only use the runtime role (ADR 002).
   - `APP_ENV`, `APP_KEY`, Redis and mail settings
-- The database roles from `api/database/scripts/create-roles.sql`, with strong passwords set via `ALTER ROLE`
+- The database roles and database from `api/database/scripts/provision-db.sh`, run as the cluster's admin with generated passwords (docs/deploy-linode.md, step 3). Never `setup-local-db.sh`: it drops the databases.
 - Connect directly or through **session** pooling only. The tenant setting is session-level, so transaction pooling would leak it (ADR 002).
 - POS device sync waits for the oldest running transaction **on the whole cluster** (ADR 004), so:
   - give the database a PostgreSQL cluster (or Managed PostgreSQL instance) of its own: no other application's long transactions there
@@ -177,7 +177,7 @@ Prepare each host once (full provisioning steps, environment variables and owner
 
 Outside `local` and `testing`, the API refuses to serve with development drivers (`App\Core\Support\EnvironmentGuard`, NFR-06): every HTTP request, a queue worker's first loop, and `schedule:run`, `schedule:work`, `queue:work`, `queue:listen` and `horizon` fail with the list of problems. Bootstrap and deploy commands (`composer install`'s `package:discover`, `config:*`, `optimize*`, `down`, `up`) never check, so a host with a bad config can always be repaired.
 
-`php artisan app:preflight` prints every check (mail transport, SMS driver, cache store, queue connection, `APP_KEY`, `APP_DEBUG`, and that the runtime database role is neither superuser nor BYPASSRLS and the owner is not a superuser) and exits 1 when one fails. The deploy runs it before migrating. Run it on the host after editing `.env`.
+`php artisan app:preflight` prints every check (mail transport, SMS driver, cache store, queue connection, that Redis answers, `APP_KEY`, `APP_DEBUG`, and that the runtime database role is neither superuser nor BYPASSRLS and the owner is not a superuser) and exits 1 when one fails. The deploy runs it before migrating. Run it on the host after editing `.env`.
 
 Before the first deploy of an environment, set in `<path>/api/.env`:
 
@@ -187,10 +187,10 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `NOTIFICATIONS_PUSH_DRIVER`, `NOTIFICATIONS_SMS_DRIVER`, `NOTIFICATIONS_WHATSAPP_DRIVER` empty (channel unavailable), `none` or a real provider, never `fake`.
 - [ ] `CACHE_STORE=redis` and `QUEUE_CONNECTION=redis` (the defaults), with `REDIS_*`
 - [ ] `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`: the web app's origin(s), comma-separated
-- [ ] `TRUSTED_PROXIES`: only the load balancer's backend range, so the client address (payment callback allowlist, rate limits) comes from its `X-Forwarded-For` and never from a caller's own header. On Linode the NodeBalancer reaches the backends from `192.168.255.0/24`. Leave empty when the API is reached directly. Never `*`. Outside `local` and `testing` an empty value logs a warning at every boot.
+- [ ] `TRUSTED_PROXIES`: only the load balancer's backend range, so the client address (payment callback allowlist, rate limits) comes from its `X-Forwarded-For` and never from a caller's own header. On Linode the NodeBalancer reaches the backends from `192.168.255.0/24`. Set `none` when the API is reached directly (a single staging host). Never `*`. Outside `local` and `testing` an empty value logs a warning at every boot. Applied from the cached config (before the 2026-10-22 rehearsal it was read with `env()` and silently ignored once `config:cache` ran).
 - [ ] HR: `HR_DIGEST_KEY` set (a random 32-byte key, separate from `APP_KEY`, kept with the other secrets); after changing it run `php artisan hr:rekey-digests` (docs/modules/hr.md).
 - [ ] Payments and fiscal: `PAYMENTS_CALLBACK_URL`, `MPESA_BASE_URL`, `MPESA_CALLBACK_IPS`, `ETIMS_BASE_URL` and the other values in [docs/integrations.md](docs/integrations.md); `PAYMENTS_ALLOW_FAKE`, `PAYMENTS_DRIVER_*` and `FISCAL_ALLOW_FAKE` unset. Keep payment callback tokens out of access logs (snippet in docs/integrations.md).
-- [ ] `DB_PLATFORM_*` (role `app_platform`, created once by hand like the others with `api/database/scripts/create-roles.sql`, its password changed): platform staff sign-in and catalogue edits (ADR 013). `PLATFORM_URL`: the console's own subdomain.
+- [ ] `DB_PLATFORM_*` (role `app_platform`, created with the others by `api/database/scripts/provision-db.sh`): platform staff sign-in and catalogue edits (ADR 013). `PLATFORM_URL`: the console's own subdomain.
 - [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations and the deploy commands: `permissions:sync`, `currencies:sync`, `country-packs:publish`, `country-packs:holidays`, the seed-defaults commands and `app:preflight`). Only the host the deploy runs on needs `DB_OWNER_*`.
 - [ ] Branding (BR-04, BR-05): `APP_BASE_DOMAIN`, `BRANDING_CNAME_TARGET`, the wildcard DNS and certificate, and Caddy's on-demand TLS `ask` pointed at `http://127.0.0.1:<port>/api/v1/tls/ask`, with `/api/v1/tls/ask` blocked from the public interface (see docs/integrations.md, Branding).
 - [ ] Horizon and the scheduler running, see [Queue workers](#queue-workers)
@@ -201,7 +201,7 @@ Each deploy:
 1. builds the web app
 2. puts the API in maintenance (`php artisan down --retry=60`, with the release already on the host; skipped on a first deploy). Requests get 503 until the last step.
 3. rsyncs `api/` and `web/dist`. The host's `.env`, `storage/` and `vendor/` are kept.
-4. deletes the previous release's `bootstrap/cache/config.php` and `routes-*.php`, so nothing boots with them
+4. deletes the previous release's `bootstrap/cache/config.php` and `routes-*.php`, so nothing boots with them, and creates the `storage/` skeleton (never rsynced, so a first deploy has none)
 5. runs `composer install --no-dev`, then `php artisan config:clear`
 6. runs `php artisan app:preflight`; the deploy stops here if a check fails
 7. runs `php artisan migrate --database=pgsql_owner --force`

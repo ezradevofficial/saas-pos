@@ -45,8 +45,10 @@ class TrustedProxiesTest extends TestCase
         $this->callbackVia('203.0.113.9', self::SAFARICOM_IP, $intent->provider_checkout_id)->assertForbidden();
 
         // The NodeBalancer's backend range is trusted: its X-Forwarded-For names the client.
-        TrustProxies::at(TrustedProxies::parse('192.168.255.0/24'));
-        TrustProxies::withHeaders(TrustedProxies::HEADERS);
+        // Applied from config, as at boot (deploy rehearsal 2026-10-22: env() is null once config is cached).
+        $this->assertEmpty(getenv('TRUSTED_PROXIES'));
+        config(['app.trusted_proxies' => '192.168.255.0/24']);
+        TrustedProxies::boot($this->app);
         $this->callbackVia('203.0.113.9', self::SAFARICOM_IP, $intent->provider_checkout_id)->assertForbidden();
         $this->callbackVia('192.168.255.14', '203.0.113.9', $intent->provider_checkout_id)->assertForbidden();
         $this->callbackVia('192.168.255.14', self::SAFARICOM_IP, $intent->provider_checkout_id)->assertOk();
@@ -58,5 +60,15 @@ class TrustedProxiesTest extends TestCase
         $this->assertSame([], TrustedProxies::parse(null));
         $this->assertSame([], TrustedProxies::parse('*, **'));
         $this->assertSame(['192.168.255.0/24', '10.0.0.1'], TrustedProxies::parse(' 192.168.255.0/24 ,10.0.0.1,'));
+        $this->assertSame([], TrustedProxies::parse('none'));
+    }
+
+    public function test_none_trusts_nobody(): void
+    {
+        $intent = $this->inTenant(fn () => PaymentIntent::query()->findOrFail($this->push()->assertCreated()->json('data.id')));
+        config(['app.trusted_proxies' => 'none']);
+        TrustedProxies::boot($this->app);
+
+        $this->callbackVia('192.168.255.14', self::SAFARICOM_IP, $intent->provider_checkout_id)->assertForbidden();
     }
 }
