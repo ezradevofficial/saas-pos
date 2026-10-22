@@ -55,6 +55,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Last-used write interval (NFR-02)
+    |--------------------------------------------------------------------------
+    |
+    | A token's last_used_at is written at most once per this many seconds
+    | (ApiKeyAwareGuard), not on every request. 0 writes on every request;
+    | values are capped at 300 so the idle timeout (AUTH-09, at least 15
+    | minutes) stays correct to within the interval (SessionTimeout).
+    |
+    */
+
+    'last_used_at_seconds' => (int) env('SANCTUM_LAST_USED_AT_SECONDS', 60),
+
+    /*
+    |--------------------------------------------------------------------------
     | Token Prefix
     |--------------------------------------------------------------------------
     |

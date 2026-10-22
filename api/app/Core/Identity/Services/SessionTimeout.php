@@ -26,6 +26,16 @@ final class SessionTimeout
         return max(self::MIN, min(self::MAX, $value));
     }
 
+    /**
+     * Idle when the last recorded use is at least the timeout ago.
+     *
+     * last_used_at is written at most once per ApiKeyAwareGuard::touchSeconds()
+     * (60 seconds by default, never more than 300; NFR-02), so it can lag the
+     * real last request by up to that interval. The timeout is therefore
+     * correct to within the interval: a session may end up to that many
+     * seconds before the full timeout has passed since its real last
+     * request, and never later.
+     */
     public static function isIdle(PersonalAccessToken $token, ?Tenant $tenant): bool
     {
         $lastActivity = $token->last_used_at ?? $token->created_at;
