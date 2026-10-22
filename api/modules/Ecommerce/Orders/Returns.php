@@ -72,6 +72,7 @@ final class Returns
      */
     public function quote(Order $order, array $input): array
     {
+        $this->assertOwnIds($order, $input);
         $this->assertReturnable($order);
 
         return $this->compute($order, $input, CarbonImmutable::now());
@@ -82,6 +83,7 @@ final class Returns
     {
         $return = Tx::run(function () use ($order, $by, $input) {
             $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $this->assertOwnIds($order, $input);
             $this->assertReturnable($order);
 
             $exchange = array_values($input['exchange'] ?? []);
@@ -205,6 +207,31 @@ final class Returns
                 'line_id' => $l->id, 'item_id' => $l->item_id, 'uom_id' => $l->uom_id, 'qty' => (string) $l->qty, 'qty_base' => (string) $l->qty_base,
             ])->values()->all());
         $this->postings->exchange($order, $return);
+    }
+
+    /**
+     * Ids from the client name lines of this order and products of its
+     * store (under the tenant's RLS), checked before anything else.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    private function assertOwnIds(Order $order, array $input): void
+    {
+        $lines = OrderLine::query()->where('order_id', $order->id)->pluck('id')->all();
+
+        foreach (array_values($input['lines'] ?? []) as $index => $entry) {
+            if (! in_array((string) ($entry['line_id'] ?? ''), $lines, true)) {
+                throw EcomError::make('return_line_invalid', field: "lines.{$index}.line_id");
+            }
+        }
+
+        foreach (array_values($input['exchange'] ?? []) as $index => $entry) {
+            $id = (string) ($entry['product_id'] ?? '');
+
+            if (! Str::isUuid($id) || ! Product::query()->where('store_id', $order->store_id)->whereKey($id)->exists()) {
+                throw EcomError::make('product_unavailable', field: "exchange.{$index}.product_id");
+            }
+        }
     }
 
     private function assertReturnable(Order $order): void
