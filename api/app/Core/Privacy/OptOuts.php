@@ -4,6 +4,7 @@ namespace App\Core\Privacy;
 
 use App\Core\MasterData\Parties\Party;
 use App\Core\Notifications\Channels;
+use App\Core\Notifications\EventType;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Privacy\Contracts\ReceivesOptOutReplies;
 use App\Core\Tenancy\TenantContext;
@@ -20,8 +21,10 @@ use Illuminate\Support\Facades\DB;
  *   channel. Using it withdraws consent on that channel once: the delivery
  *   keeps `opted_out_at`, and a second use records nothing.
  * - SMS and WhatsApp: the message ends with "Reply STOP to opt out"; a
- *   reply that is an opt-out keyword withdraws consent on that channel for
- *   the customers with that number (ReceivesOptOutReplies).
+ *   reply that is an opt-out keyword withdraws marketing consent on every
+ *   channel (an `any` refusal) for the customers with that number who
+ *   still consent on any channel (ReceivesOptOutReplies; owner decision
+ *   2026-10-22).
  *
  * Every withdrawal goes through Consents (audited) with evidence naming
  * the channel and where it came from, never the message.
@@ -108,11 +111,17 @@ final class OptOuts implements ReceivesOptOutReplies
 
         $parties = Party::query()->whereNull('archived_at')->whereRaw("'customer' = any(roles)")
             ->whereRaw('phones @> ?::jsonb', [json_encode([['number' => $phone]])])->pluck('id')->map(fn ($id) => (string) $id)->all();
-        $consenting = $this->consents->allowedAmong('customer', $parties, Consents::MARKETING, $channel);
+        // Owner decision 2026-10-22: a STOP withdraws marketing on every channel, not only the one it came by.
+        $consenting = [];
+        foreach (EventType::MARKETING_CHANNELS as $any) {
+            foreach ($this->consents->allowedAmong('customer', $parties, Consents::MARKETING, $any) as $party) {
+                $consenting[$party] = true;
+            }
+        }
 
-        foreach ($consenting as $party) {
-            $this->consents->record(null, 'customer', $party, Consents::MARKETING, $channel, false, 'opt_out_reply',
-                "Replied with an opt-out keyword by {$channel} ({$via}).");
+        foreach (array_keys($consenting) as $party) {
+            $this->consents->record(null, 'customer', (string) $party, Consents::MARKETING, 'any', false, 'opt_out_reply',
+                "Replied with an opt-out keyword by {$channel} ({$via}); withdrawn on every channel.");
         }
 
         return count($consenting);
