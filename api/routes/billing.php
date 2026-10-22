@@ -56,6 +56,8 @@ Route::middleware(['auth:platform', EnsurePlatformAccess::class])->prefix('platf
     Route::post('tenants/{tenant}/suspend', [PlatformTenantController::class, 'suspend'])->whereUuid('tenant');
     Route::post('tenants/{tenant}/reactivate', [PlatformTenantController::class, 'reactivate'])->whereUuid('tenant');
     Route::post('tenants/{tenant}/grace', [PlatformTenantController::class, 'grace'])->whereUuid('tenant');
+    // NFR-08: a closed tenant's export links, sent to its Owners again.
+    Route::post('tenants/{tenant}/closing-export/resend', [PlatformTenantController::class, 'resendClosingExport'])->whereUuid('tenant');
     // ADM-02: custom Enterprise deals (sales and finance draft, finance decides).
     Route::get('tenants/{tenant}/deals', [PlatformDealController::class, 'index'])->whereUuid('tenant');
     Route::post('tenants/{tenant}/deals', [PlatformDealController::class, 'store'])->whereUuid('tenant');

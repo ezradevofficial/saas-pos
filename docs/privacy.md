@@ -81,6 +81,20 @@ Today no module sends marketing yet (CRM campaigns and marketing lists are defer
 
 **Owner input: the SMS reply hook.** There is no inbound SMS path yet: the platform's SMS sender only sends. When an SMS provider is chosen, its delivery-report or inbound webhook must find the tenant the reply belongs to (a per-tenant shortcode, number or keyword) and call `ReceivesOptOutReplies::optOut('sms', $from, '<provider>')` in that tenant. A shared sender number cannot tell which business a STOP is for; the provider and numbering plan decide that. Likewise, marketing WhatsApp sent through the notification WhatsApp driver needs that provider's inbound webhook to call the same contract.
 
+## A closed business keeps a copy of its data
+
+A closed tenant refuses every sign-in (Phase 8 review H2), so its Owners could not export its data themselves. A business has a right to its data (data portability, Kenya Data Protection Act 2019, section 38). Built as the default; the owner to confirm (report, Decisions to confirm):
+
+- **When a tenant closes**, by whichever path (`TenantClosed`, raised by the tenant model), its full export (EXP-02, ADR 015) is built once: `purpose = closing`, one per tenant (a partial unique index). A running Owner's request never blocks it.
+- **Each active Owner with an email** gets a mail (en or fr, by their language) with a link to `GET /api/v1/closed-tenant-exports/{id}/download`. The link is a Laravel temporary signed URL naming the tenant and the Owner, valid until the export expires: `data_export.closing_link_days`, default 30 (`DATA_EXPORT_CLOSING_LINK_DAYS`). It works without signing in. It is single-purpose: it serves only the closing export, only while the tenant is closed, only to a user who is still an active Owner. The link is never stored or audited; the audit records how many were sent.
+- **Refusals**: a changed link answers 403 `export_link_invalid`, an expired one 410 `export_link_expired`, anything else 404. A browser gets a short page in its language instead of JSON.
+- **Downloads** are rate-limited per export (`data_export.downloads_per_hour`, 5), served in the tenant's context under row-level security, and audited in its chain (`core.tenant_export.download`). The request and the mails are audited too (`core.tenant_export.closing_request`, `.closing_links`).
+- **After expiry** the link answers 410 and `exports:expire` deletes the file like any expired export (the row stays, `expired`).
+- **Staff can send the links again** from the console (`POST platform/tenants/{tenant}/closing-export/resend`, `platform.tenants.manage`, with a reason), audited in the tenant's chain as the staff member (`core.tenant_export.closing_resend`) and in the platform chain.
+- **No export for a developer sandbox**: it holds sample data only, so nothing is built or sent when an idle sandbox closes. Nor for a tenant with no active Owner (an unverified sign-up pruned before anyone verified).
+- **Closing paths today**: an idle sandbox (`sandbox:expire`) and an unverified sign-up (`onboarding:prune-pending`) are the only ones, and neither gets an export. Staff do not close tenants, and dunning ends at read-only or suspended. Any later closing path gets the export without more code, since the tenant model raises the event.
+- Tests: `ClosingExportTest`.
+
 ## Decisions to confirm
 
 - **A buyer snapshot on each sale.** The alternative to keeping a fiscal customer's tax ID and legal name on the party: store the buyer's name and tax ID on each POS sale when it is made, so later refunds and voids read the snapshot and the party could be fully anonymised. It changes the POS schema (owner approval) and needs a backfill of existing sales.
@@ -91,6 +105,7 @@ Today no module sends marketing yet (CRM campaigns and marketing lists are defer
 - **The SMS opt-out route** (above): which SMS provider, and whether each tenant gets its own shortcode or number so a STOP reply can be matched to one business. Until then SMS customers opt out by the storefront account, the back office or the business.
 - **What a STOP withdraws**: the channel it arrived on only (a STOP by SMS leaves email and WhatsApp as they were). Counsel may prefer all channels.
 - **Opt-out keywords** (`privacy.opt_out_keywords`) and the link's lifetime (400 days).
+- **A closed business's export (above), built as the default.** Built once, with a signed link emailed to each active Owner for 30 days, resent by staff on request, none for sandboxes. The alternatives: no export (the Owner asks support), or a longer period. Owner and counsel to confirm the period and that a link by email is acceptable.
 
 - **Privacy duties while the tenant is read-only or suspended (Phase 8 review L8).** Logging, approving, rejecting and carrying out data subject requests, and recording a withdrawal of marketing consent, are allowed while the tenant is read-only for an unpaid invoice or suspended by platform staff (`EnforceSubscription`, class `privacy`). These are the tenant's legal obligations under the Kenya Data Protection Act 2019 and its deadlines keep running whatever the tenant owes. A new consent grant is still refused. Owner to confirm, with counsel, that the platform should keep these open in both states.
 

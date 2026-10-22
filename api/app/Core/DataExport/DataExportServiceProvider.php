@@ -6,8 +6,11 @@ use App\Core\DataExport\Console\ExpireExportsCommand;
 use App\Core\Notifications\Channels;
 use App\Core\Notifications\EventType;
 use App\Core\Notifications\EventTypes;
+use App\Core\Tenancy\Events\TenantClosed;
+use App\Core\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,6 +36,9 @@ class DataExportServiceProvider extends ServiceProvider
             mandatoryAllowed: true,
             langKey: 'data_export.notifications.ready',
         ));
+
+        // NFR-08: a closed tenant's Owners get its full export (built once, links by email).
+        Event::listen(TenantClosed::class, fn (TenantClosed $event) => app(TenantContext::class)->run($event->tenantId, fn () => app(TenantExports::class)->requestOnClosing()));
 
         if ($this->app->runningInConsole()) {
             $this->commands([ExpireExportsCommand::class]);

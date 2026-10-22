@@ -9,6 +9,7 @@ use App\Core\Billing\Models\Subscription;
 use App\Core\Billing\Operator\Accounts;
 use App\Core\Billing\Operator\Operator;
 use App\Core\Billing\Subscriptions\BillingTrial;
+use App\Core\DataExport\TenantExports;
 use App\Core\Http\ApiException;
 use App\Core\Limits\Models\UsageMeter;
 use App\Core\Platform\Models\PlatformUser;
@@ -232,6 +233,25 @@ class PlatformTenants
         });
 
         $this->platformAudit->record($action, null, ['tenant_id' => $tenant, ...$before], ['tenant_id' => $tenant, ...$after, 'reason' => $reason]);
+    }
+
+    /**
+     * NFR-08, EXP-02: send a closed tenant's Owners their export links again
+     * (lost email, new Owner). Audited in the tenant's chain as the staff
+     * member, and in the platform chain. 404 for an unknown tenant, 409 when
+     * it has no closing export ready.
+     */
+    public function resendClosingExport(string $tenant, string $reason, PlatformUser $staff): int
+    {
+        $sent = $this->tenants->run($tenant, function () use ($tenant, $staff, $reason) {
+            abort_unless(Tenant::query()->whereKey($tenant)->exists(), 404);
+
+            return $this->audit->actingAs(null, ['platform_user_id' => $staff->id, 'staff_name' => $staff->name], fn () => app(TenantExports::class)->resendClosingLinks($reason));
+        });
+
+        $this->platformAudit->record('platform.tenant.closing_export_resend', null, null, ['tenant_id' => $tenant, 'recipients' => $sent, 'reason' => $reason]);
+
+        return $sent;
     }
 
     public function account404(string $tenant): OperatorAccount
