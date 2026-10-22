@@ -7,7 +7,6 @@ use App\Core\Fiscal\Contracts\ListsFiscalDocuments;
 use App\Core\Fiscal\FiscalDocument;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Item;
-use App\Core\MasterData\Parties\Party;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Modules\POS\Models\Refund;
@@ -22,7 +21,10 @@ use Modules\POS\Models\SaleVoid;
  * the document's tenant, so the core never reads `pos_*`. A sale is an
  * invoice; a refund (its lines and quantities) and a void (the whole sale)
  * are credit notes naming the sale. Lines carry the tax code and the rate
- * the till applied, as sold; nothing is recomputed here.
+ * the till applied, as sold; nothing is recomputed here. The buyer is the
+ * sale's snapshot (`buyer_tax_id`, `buyer_name`, owner decision
+ * 2026-10-22), never the live party: a later change or anonymisation of
+ * the customer never changes the buyer of a sale, its refunds or its void.
  */
 class PosFiscalSource implements FiscalDocumentSource, ListsFiscalDocuments
 {
@@ -117,7 +119,6 @@ class PosFiscalSource implements FiscalDocumentSource, ListsFiscalDocuments
     /** @return array<string, mixed> */
     private function header(Sale $sale, string $type, string $id, ?string $number, string $issuedAt, ?string $cashierId): array
     {
-        $customer = $sale->customer_id === null ? null : Party::query()->find($sale->customer_id);
         $main = $sale->payments()->get()->sortByDesc(fn ($payment) => (int) $payment->amount_in_sale_minor)->first();
 
         return [
@@ -129,7 +130,7 @@ class PosFiscalSource implements FiscalDocumentSource, ListsFiscalDocuments
             'branch_id' => $sale->branch_id,
             'location_id' => $sale->location_id,
             'currency' => $sale->currency,
-            'customer' => $customer === null ? null : ['tin' => $customer->tax_id, 'name' => $customer->name],
+            'customer' => $sale->buyer_tax_id === null ? null : ['tin' => $sale->buyer_tax_id, 'name' => $sale->buyer_name],
             'payment_type' => in_array($main?->method_type, FiscalDocument::PAYMENT_TYPES, true) ? $main->method_type : 'other',
             'cashier' => $this->cashier($cashierId),
         ];

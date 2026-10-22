@@ -1,5 +1,5 @@
 {
-  "about": "POS-01, POS-03, AUTH-07, AUTH-08: a sale as the till uploads it (pos/src/pos/payloads.js), shared by pos/src/pos/payloads.fixture.test.js (the till builds this exact shape) and api/modules/POS/tests/SalePayloadFixtureTest.php (it passes UploadSalesRequest's rules). Two currencies, a manager's offline override on a line, change in KES.",
+  "about": "POS-01, POS-03, AUTH-07, AUTH-08: a sale as the till uploads it (pos/src/pos/payloads.js), shared by pos/src/pos/payloads.fixture.test.js (the till builds this exact shape) and api/modules/POS/tests/SalePayloadFixtureTest.php (it passes UploadSalesRequest's rules). Two currencies, a manager's offline override on a line, change in KES, and the buyer's tax identity (POS-10).",
   "sales": [
     {
       "id": "01a11ea7-0000-7000-8000-0000000000a1",
@@ -13,6 +13,8 @@
         "signature": "z249kNXKbGhVX6QUmw6N1z21fWwV9Y_T-8FtiNxjt5g"
       },
       "customer_id": "01a11ea7-0000-7000-8000-0000000000e1",
+      "buyer_tax_id": "P051234567X",
+      "buyer_name": "Duka Bora",
       "receipt_seq": 1,
       "receipt_number": "R-WL2-000001",
       "number_range_id": "01a11ea7-0000-7000-8000-0000000000f1",

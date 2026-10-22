@@ -157,10 +157,30 @@ describe('sale payload (POS-01, POS-03, CUR-04, CUR-06, CUR-09)', () => {
     // KES 959.00 paid for KES 565.00: KES 394.00 back, rounded down to whole shillings.
     expect(payload.change).toEqual({ currency: 'KES', amount_minor: '39400' });
     expect(payload.customer_id).toBe(IDS.customer);
+    // No tax id on the customer: no buyer snapshot.
+    expect(payload.buyer_tax_id).toBeUndefined();
+    expect(payload.buyer_name).toBeUndefined();
     expect(payload.lines[0]).toMatchObject({ qty: '2', unit_price_minor: '25000', list_price_minor: '25000', tax_inclusive: true, tax_code_id: IDS.vat, tax_rate: '16.0000', tax_minor: '6897', total_minor: '50000' });
     expect(payload.lines[0].actor_proof).toBeUndefined();
     expect(sale.local.rate_ids).toEqual([rates[0].id]);
     expect(engine.getStatus().pending).toBe(2);
+  });
+
+  it('keeps the buyer snapshot of a customer with a tax id on the sale, locally and in the upload (POS-08, POS-10)', async () => {
+    const { selling, catalogue, proofFor, database, engine, server } = await setup();
+    const proof = proofFor(cashier);
+    const shift = await selling.openShift({ user: cashier, actorProof: proof, openingFloat: [] });
+    const customer = { id: IDS.customer, name: 'Duka Bora', tax_id: ' P051234567X ' };
+    const sale = await selling.completeSale({ shift, user: cashier, actorProof: proof, cart: { ...cartWith(catalogue, [[IDS.bread, 1]]), customer }, catalogue, tenders: [tender(IDS.cash, 'KES', 6500)] });
+
+    const payload = stripLocal(sale);
+    expect(payload).toMatchObject({ customer_id: IDS.customer, buyer_tax_id: 'P051234567X', buyer_name: 'Duka Bora' });
+    expect(shapeProblems('sale', payload)).toEqual([]);
+    const [row] = await database.get('pos_sales').query().fetch();
+    expect([row._raw.buyer_tax_id, row._raw.buyer_name]).toEqual(['P051234567X', 'Duka Bora']);
+
+    await engine.push();
+    expect(server.state.stored.get(sale.id).record).toMatchObject({ buyer_tax_id: 'P051234567X', buyer_name: 'Duka Bora' });
   });
 
   it('gives change in USD at the shop rate, rounded down, with the rate on the change', async () => {

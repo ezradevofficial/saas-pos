@@ -32,14 +32,19 @@ export function overridePayload(override) {
  * A completed sale. `lines` are cart lines with their computed amounts
  * (`amounts`), `payments` the tenders with their share in the sale
  * currency (`inDue`) and rate, `change` the tender result's change.
+ * `buyer` ({ taxId, name }) is the customer's tax identity at the sale,
+ * sent only when the customer has a tax id (POS-08, POS-10).
  */
-export function salePayload({ id, shiftId, cashierId, actorProof, customerId, number, soldAt, offline, currency, priceListId, lines, totals, payments, change, changeRate, extensions }) {
+export function salePayload({ id, shiftId, cashierId, actorProof, customerId, buyer, number, soldAt, offline, currency, priceListId, lines, totals, payments, change, changeRate, extensions }) {
   return clean({
     id,
     shift_id: shiftId,
     cashier_id: cashierId,
     actor_proof: actorProof ?? undefined,
     customer_id: customerId ?? undefined,
+    // POS-08, POS-10: the buyer's tax identity as printed (both or neither, only with a customer).
+    buyer_tax_id: customerId && buyer?.taxId ? buyer.taxId : undefined,
+    buyer_name: customerId && buyer?.taxId ? buyer.name : undefined,
     receipt_seq: number.seq,
     receipt_number: number.number,
     number_range_id: number.rangeId,

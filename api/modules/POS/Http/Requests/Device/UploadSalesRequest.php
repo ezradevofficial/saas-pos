@@ -18,7 +18,10 @@ class UploadSalesRequest extends FormRequest
             'sales.*.id' => $this->deviceId(),
             'sales.*.shift_id' => ['required', 'uuid'],
             'sales.*.cashier_id' => ['required', 'uuid'],
-            'sales.*.customer_id' => ['nullable', 'uuid'],
+            // POS-08, POS-10: the buyer's tax identity as the till printed it; needs the customer, both or neither.
+            'sales.*.customer_id' => ['nullable', 'uuid', 'required_with:sales.*.buyer_tax_id,sales.*.buyer_name'],
+            'sales.*.buyer_tax_id' => ['nullable', 'string', 'max:50', 'required_with:sales.*.buyer_name'],
+            'sales.*.buyer_name' => ['nullable', 'string', 'max:255', 'required_with:sales.*.buyer_tax_id'],
             'sales.*.receipt_seq' => ['required', 'integer', 'min:1'],
             'sales.*.receipt_number' => ['required', 'string', 'max:80'],
             'sales.*.sold_at' => ['required', 'date'],
