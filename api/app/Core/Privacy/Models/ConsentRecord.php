@@ -27,12 +27,13 @@ use LogicException;
  * @property ?string $recorded_by
  * @property CarbonImmutable $recorded_at
  * @property ?string $evidence
+ * @property ?string $wording_version
  */
 class ConsentRecord extends Model
 {
     use BelongsToTenant, HasUuids;
 
-    protected $fillable = ['subject_type', 'subject_id', 'purpose', 'channel', 'granted', 'source', 'recorded_by', 'recorded_at', 'evidence'];
+    protected $fillable = ['subject_type', 'subject_id', 'purpose', 'channel', 'granted', 'source', 'recorded_by', 'recorded_at', 'evidence', 'wording_version'];
 
     protected function casts(): array
     {

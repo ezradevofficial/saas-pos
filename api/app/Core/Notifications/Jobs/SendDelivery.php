@@ -14,6 +14,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Mail\MailActions;
 use App\Core\Notifications\Mail\NotificationMail;
 use App\Core\Notifications\Models\NotificationDelivery;
+use App\Core\Privacy\Consents;
 use App\Core\Tenancy\Jobs\TenantAware;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Bus\Queueable;
@@ -42,7 +43,8 @@ use Throwable;
  * The raw error goes to the log; the row keeps a safe code.
  *
  * A delivery to a contact that is not a user (ADR 009) has no user to
- * re-check. Secret placeholders (an invitation link) are filled in from
+ * re-check. A marketing delivery re-checks its customer's consent on its
+ * channel (NFR-08): a withdrawal after queueing skips it (`no_consent`). Secret placeholders (an invitation link) are filled in from
  * the job's own `secrets` at hand-over, and the job is encrypted on the
  * queue, so the secret is never stored in a table.
  */
@@ -145,6 +147,14 @@ class SendDelivery implements ShouldBeEncrypted, ShouldQueue
         // The message needs a secret the job no longer carries (ADR 009).
         if ($type !== null && array_diff($this->secretsIn($delivery, $type), array_keys($this->secrets)) !== []) {
             return NotificationDelivery::REASON_SECRET_MISSING;
+        }
+
+        // NFR-08: a marketing message goes only while the customer still consents on its channel.
+        if ($delivery->consent_subject_id !== null || $type?->marketing === true) {
+            if ($delivery->consent_subject_id === null
+                || ! app(Consents::class)->allows('customer', (string) $delivery->consent_subject_id, Consents::MARKETING, $delivery->channel)) {
+                return NotificationDelivery::REASON_NO_CONSENT;
+            }
         }
 
         // A contact that is not a user yet (NotificationAddress): only the channel can be missing.

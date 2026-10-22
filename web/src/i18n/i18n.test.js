@@ -1,6 +1,6 @@
 import en from '../locales/en.json'
 import fr from '../locales/fr.json'
-import i18n, { initialLocale, LOCALE_STORAGE_KEY, resolveLocale, setLocale } from './index'
+import i18n, { initialLocale, isLocaleLoaded, loadLocale, LOCALE_STORAGE_KEY, resolveLocale, setLocale } from './index'
 
 function flatten(object, prefix = '') {
   return Object.entries(object).flatMap(([key, value]) =>
@@ -43,6 +43,45 @@ describe('i18n', () => {
     expect(i18n.t('common.cancel')).toBe('Cancel')
     setLocale('fr')
     expect(i18n.t('common.cancel')).toBe('Annuler')
+  })
+
+  describe('loading only the active language (NFR-02)', () => {
+    beforeEach(async () => {
+      await setLocale('en')
+      // setup.js loads both for the screen tests; start from the app's state: English only.
+      i18n.removeResourceBundle('fr', 'translation')
+    })
+    afterEach(() => loadLocale('fr'))
+
+    it('fetches French on the switch and stays in English until it has arrived', async () => {
+      expect(isLocaleLoaded('en')).toBe(true)
+      expect(isLocaleLoaded('fr')).toBe(false)
+
+      const switching = setLocale('fr')
+      expect(i18n.language).toBe('en')
+      expect(i18n.t('common.cancel')).toBe('Cancel')
+
+      await switching
+      expect(isLocaleLoaded('fr')).toBe(true)
+      expect(i18n.language).toBe('fr')
+      expect(i18n.t('common.cancel')).toBe('Annuler')
+      expect(document.documentElement.lang).toBe('fr')
+      expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('fr')
+    })
+
+    it('switches back at once to a language already loaded', async () => {
+      await setLocale('fr')
+      setLocale('en')
+      expect(i18n.t('common.cancel')).toBe('Cancel')
+    })
+
+    it('keeps the last choice when an earlier one arrives later', async () => {
+      const french = setLocale('fr')
+      setLocale('en')
+      await french
+      expect(i18n.language).toBe('en')
+      expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en')
+    })
   })
 
   it('resolves a locale from the first supported candidate, else en', () => {

@@ -12077,7 +12077,13 @@
       "hello": "Bonjour {{name}}",
       "signOut": "Se déconnecter",
       "orders": "Vos commandes",
-      "noOrders": "Aucune commande pour le moment."
+      "noOrders": "Aucune commande pour le moment.",
+      "marketing": "Offres et nouveautés",
+      "marketingOn": "Vous recevez les offres et nouveautés. Vous pouvez les arrêter ici à tout moment.",
+      "marketingOff": "Vous ne recevez ni offres ni nouveautés."
+    },
+    "consent": {
+      "marketing_2026_10": "Envoyez-moi les offres et nouveautés de {{store}} par SMS, WhatsApp ou e-mail. Je peux les arrêter à tout moment dans mon compte."
     }
   },
   "admin": {

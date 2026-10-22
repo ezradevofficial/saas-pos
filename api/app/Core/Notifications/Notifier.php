@@ -9,6 +9,7 @@ use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Notifications\Models\NotificationPreference;
 use App\Core\Notifications\Templates\Templates;
+use App\Core\Privacy\Consents;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -40,6 +41,11 @@ use InvalidArgumentException;
  * yet (NotificationAddress, e.g. an invitation) and carry secrets (e.g. the
  * invitation link) that are never stored: they travel in the encrypted
  * SendDelivery job only. One-time codes never go through here (ADR 009).
+ *
+ * NFR-08: marketing event types go to customer contacts only, each naming
+ * its customer; a customer without marketing consent on the address's
+ * channel (Consents) gets a skipped delivery `no_consent` and nothing is
+ * sent. SendDelivery checks consent again before handing over.
  */
 class Notifier
 {
@@ -49,6 +55,7 @@ class Notifier
         private readonly Preferences $preferences,
         private readonly Templates $templates,
         private readonly ChannelDrivers $drivers,
+        private readonly Consents $consents,
     ) {}
 
     /** @return Collection<int, NotificationDelivery> the deliveries created, every recipient and channel */
@@ -78,8 +85,9 @@ class Notifier
         foreach ($type->secrets as $name) {
             $markers[$name] = '{'.$name.'}';
         }
+        $consenting = $type->marketing ? $this->consenting($event->addresses) : [];
 
-        return DB::transaction(function () use ($event, $type, $users, $overrides, $mandatory, $preferences, $tenantId, $link, $markers) {
+        return DB::transaction(function () use ($event, $type, $users, $overrides, $mandatory, $preferences, $tenantId, $link, $markers, $consenting) {
             $deliveries = collect();
             $queue = function (NotificationDelivery $delivery) use ($tenantId, $event, $deliveries) {
                 if ($delivery->status === NotificationDelivery::QUEUED) {
@@ -147,19 +155,39 @@ class Notifier
                     'recipient' => $address->to,
                 ];
 
-                $queue($address->channel === Channels::SMS && ! $this->drivers->available(Channels::SMS, $type)
-                    ? $this->skipped($row, NotificationDelivery::REASON_CHANNEL_UNAVAILABLE)
-                    : NotificationDelivery::create([...$row, 'status' => NotificationDelivery::QUEUED]));
+                if ($type->marketing) {
+                    $row['consent_subject_id'] = $address->customerId;
+                }
+
+                $queue(match (true) {
+                    $type->marketing && ! isset($consenting[$address->channel][$address->customerId]) => $this->skipped($row, NotificationDelivery::REASON_NO_CONSENT),
+                    $address->channel !== Channels::EMAIL && ! $this->drivers->available($address->channel, $type) => $this->skipped($row, NotificationDelivery::REASON_CHANNEL_UNAVAILABLE),
+                    default => NotificationDelivery::create([...$row, 'status' => NotificationDelivery::QUEUED]),
+                });
             }
 
             return $deliveries;
         });
     }
 
-    /** Addresses and secrets are for system event types only, and secrets only for the type's secret placeholders. */
+    /**
+     * Addresses are for system and marketing event types only, secrets for
+     * system types and their secret placeholders only. A marketing type
+     * reaches customer contacts only, each naming its customer (NFR-08).
+     */
     private static function assertSystemOnly(EventType $type, NotificationEvent $event): void
     {
-        if (! $type->system && ($event->addresses !== [] || $event->secrets !== [])) {
+        if ($type->marketing) {
+            if ($event->recipientIds !== []) {
+                throw new InvalidArgumentException("[{$type->key}] is a marketing event type: it reaches customer contacts only, not users.");
+            }
+
+            foreach ($event->addresses as $address) {
+                if ($address->customerId === null || ! Str::isUuid($address->customerId)) {
+                    throw new InvalidArgumentException("[{$type->key}] is a marketing event type: each address names its customer, whose consent decides.");
+                }
+            }
+        } elseif (! $type->system && ($event->addresses !== [] || $event->secrets !== [])) {
             throw new InvalidArgumentException("[{$type->key}] is not a system event type: it reaches users only and has no secrets.");
         }
 
@@ -186,6 +214,30 @@ class Notifier
         Log::warning('Notification link dropped: only relative app paths are allowed', ['event_type' => $eventType, 'link' => mb_substr($link, 0, 200)]);
 
         return null;
+    }
+
+    /**
+     * NFR-08: the customers who consented to marketing, by channel, in one
+     * query per channel used.
+     *
+     * @param  list<NotificationAddress>  $addresses
+     * @return array<string, array<string, true>> channel => customer id => true
+     */
+    private function consenting(array $addresses): array
+    {
+        $byChannel = [];
+        foreach ($addresses as $address) {
+            $byChannel[$address->channel][] = (string) $address->customerId;
+        }
+
+        $consenting = [];
+        foreach ($byChannel as $channel => $ids) {
+            $consenting[$channel] = array_fill_keys(
+                $this->consents->allowedAmong('customer', array_unique($ids), Consents::MARKETING, $channel), true,
+            );
+        }
+
+        return $consenting;
     }
 
     /** In-app: in the inbox at once, delivered (NOT-01). */

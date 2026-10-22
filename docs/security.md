@@ -129,26 +129,47 @@ Today secrets live in each host's `api/.env` (mode 600, owned by the deploy user
 2. **Doppler or Infisical (hosted)**: a secrets manager with audit logs, rotation and per-environment access; the host fetches at boot with a service token (`doppler run -- php artisan ...` or a rendered `.env`). Small monthly fee; Infisical can also be self-hosted.
 3. **HashiCorp Vault (self-hosted on its own Linode)**: the most control (dynamic database credentials, leases), and the most operations work. Worth it once there is a team to run it.
 
-Recommendation: option 2 before production launch. Whatever is chosen: rotate `HR_DIGEST_KEY` with `hr:rekey-digests` and database passwords with `ALTER ROLE` (ADR 002). Rotating `APP_KEY` needs Laravel's `APP_PREVIOUS_KEYS` so values encrypted with the old key stay readable; there is no bulk re-encrypt command yet (a follow-up), so the old key must stay in `APP_PREVIOUS_KEYS` until one exists.
+Recommendation: option 2 before production launch. Whatever is chosen: rotate `HR_DIGEST_KEY` with `hr:rekey-digests`, database passwords with `ALTER ROLE` (ADR 002), and `APP_KEY` with the runbook below.
 
-### Rotating `APP_KEY` (rehearsed 2026-10-22)
+## Rotating `APP_KEY` (runbook)
 
-On every API and queue host of the environment, the same values:
+`APP_KEY` encrypts the sensitive columns (the models' `encrypted` casts and the procurement tender keys), queued jobs marked encrypted, and signs URLs. Rotate it once a year, when someone who could read it leaves, and at once if it may have leaked. `php artisan app:reencrypt` re-encrypts every encrypted column with the new key.
 
-```sh
-cd <path>/api
-OLD="$(grep '^APP_KEY=' .env | cut -d= -f2-)"
-NEW="base64:$(openssl rand -base64 32)"
-# Keep any earlier keys: APP_PREVIOUS_KEYS is comma-separated, newest first.
-sed -i "s|^APP_KEY=.*|APP_KEY=$NEW|" .env
-grep -q '^APP_PREVIOUS_KEYS=' .env && sed -i "s|^APP_PREVIOUS_KEYS=|APP_PREVIOUS_KEYS=$OLD,|" .env || echo "APP_PREVIOUS_KEYS=$OLD" >> .env
-php artisan config:cache
-sudo systemctl reload php8.3-fpm
-php artisan horizon:terminate        # systemd starts Horizon on the new key
-php artisan app:preflight
-```
+**What the command does.** It finds the columns itself: every `encrypted`, `encrypted:<type>` or `AsEncrypted` cast of a model in `app/` and `modules/`, plus the columns encrypted by hand (`EncryptedColumns::MANUAL`, today `procurement_tenders.seal_secret` and `public_token_secret`); `KeyRotationTest` fails if code elsewhere starts calling `Crypt`. Tenant tables are processed tenant by tenant, every tenant whatever its status (the security-definer function `app_tenants_for_key_rotation()`, ids only), each under its own row-level security as the runtime role; `platform_users` through the platform connection. It never uses the owner's credentials, so it runs on the API host with its normal `.env` (it needs `DB_PLATFORM_*`). Rows are read in chunks by primary key (`--chunk`, default 500), one transaction each. A value the new key already opens is left alone, and a row is written only if its value is still the one read, so the command is idempotent, can be stopped and run again, and never overwrites a value saved meanwhile. It prints counts per column (re-encrypted, already current, failed), never a value, a ciphertext or a row id, and exits 1 if any value opens with no key.
 
-What the rehearsal showed: with the old key in `APP_PREVIOUS_KEYS`, a device secret encrypted before the rotation still verified and sign-in worked. Without it, the same request answered 500 (`DecryptException: The MAC is invalid`): every encrypted column (device secrets, 2FA secrets, payment and SSO credentials, HR identifiers) becomes unreadable. Sign-in tokens are hashes and `HR_DIGEST_KEY` is separate, so neither changes. Record the rotation in the vault and keep the old key there.
+**Steps.**
+
+1. Make the new key on a workstation: `php artisan key:generate --show`. Store it in the vault with the date.
+2. On **every** API and queue host (and the scheduler), set the same values: `APP_KEY` to the new key and the old one at the front of `APP_PREVIOUS_KEYS` (comma-separated, newest first, keeping any older key still listed). New values now use the new key; old ones still open. Rehearsed on 2026-10-22:
+
+   ```sh
+   cd <path>/api
+   OLD="$(grep '^APP_KEY=' .env | cut -d= -f2-)"
+   NEW="base64:$(openssl rand -base64 32)"   # or the key made in step 1
+   # Keep any earlier keys: APP_PREVIOUS_KEYS is comma-separated, newest first.
+   sed -i "s|^APP_KEY=.*|APP_KEY=$NEW|" .env
+   grep -q '^APP_PREVIOUS_KEYS=' .env && sed -i "s|^APP_PREVIOUS_KEYS=|APP_PREVIOUS_KEYS=$OLD,|" .env || echo "APP_PREVIOUS_KEYS=$OLD" >> .env
+   php artisan config:cache
+   sudo systemctl reload php8.3-fpm
+   php artisan horizon:terminate        # systemd starts Horizon on the new key
+   php artisan app:preflight
+   ```
+
+   What the rehearsal showed: with the old key in `APP_PREVIOUS_KEYS`, a device secret encrypted before the rotation still verified and sign-in worked. Without it, the same request answered 500 (`DecryptException: The MAC is invalid`): every encrypted column (device secrets, 2FA secrets, payment and SSO credentials, HR identifiers) is unreadable until `app:reencrypt` has run. Sign-in tokens are hashes and `HR_DIGEST_KEY` is separate, so neither changes.
+3. `php artisan app:reencrypt --dry-run`: how many values each column will re-encrypt. A failure here means a value no listed key opens: stop and investigate before going on.
+4. `php artisan app:reencrypt`. On a large database it can be staged in quiet hours with `--stop-after=50000`; run it again until it no longer says it stopped.
+5. Run it once more: it must report `Re-encrypted: 0` and `failed: 0`.
+6. Wait for what still carries the old key outside the columns: queued encrypted jobs (let Horizon's queues drain; retry or flush `failed_jobs`), signed download links (15 minutes; Laravel accepts previous keys meanwhile) and staff sign-in challenges (minutes). A day is plenty.
+7. Remove the old key from `APP_PREVIOUS_KEYS` on every server and deploy. Run `php artisan app:reencrypt --dry-run`: `failed: 0` proves everything opens with the new key alone. If it fails, put the old key back and repeat from step 4.
+8. Note the date and the counts in the security log. `HR_DIGEST_KEY` is separate (`hr:rekey-digests`); so are the procurement bid seals, which use the tender keys (ADR 019; `procurement:rewrap-keys` still works and `app:reencrypt` covers the same columns).
+
+**Backups.** A restore from before the rotation holds values under the old key. Keep the old key in the vault (never in an `.env`) for as long as such backups are kept (docs/backups.md); after that kind of restore, put it in `APP_PREVIOUS_KEYS` and run steps 3 to 7.
+
+### Decisions to confirm
+
+- **Rotation schedule**: once a year and after any suspected exposure or the departure of someone who held the key. The owner may choose another interval.
+- **How long to keep an old key** in the vault: as long as the backups made before the rotation (the backup retention period), so a restore stays readable.
+- **Who runs it**: whoever deploys, from the API host, as part of a planned change; it is not scheduled.
 
 ## OWASP Top 10 (2021) and the controls that cover it
 

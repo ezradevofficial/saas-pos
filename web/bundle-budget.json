@@ -1,6 +1,6 @@
 {
-  "_about": "NFR-02, checked by scripts/bundle-budget.mjs after every build. Measured 2026-10-17 after lazy routes: entry 413 kB (116 kB gzip), first load 523 kB gzip. About 10% headroom. Raise only with a reason in the commit message.",
+  "_about": "NFR-02, checked by scripts/bundle-budget.mjs after every build. Measured 2026-10-17 after lazy routes: entry 413 kB (116 kB gzip). Measured 2026-10-22 after loading only the active language: first load 440 kB gzip with the larger catalogue (French), down from 554 kB with both. About 10% headroom. Raise only with a reason in the commit message.",
   "entryRawKb": 460,
   "entryGzipKb": 130,
-  "initialGzipKb": 580
+  "initialGzipKb": 485
 }
