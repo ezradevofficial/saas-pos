@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import { NotInReadOnlySession } from './auth/NotInReadOnlySession'
 import { Navigate } from 'react-router'
 import { GuestOnly, RequireAuth } from './auth/RequireAuth'
 import { RequirePermission } from './auth/RequirePermission'
@@ -912,7 +913,7 @@ export const routes = [
       { path: '/settings/forms', element: <RequirePermission permission="core.custom_form_type.manage" tenantWide><FormTypes /></RequirePermission> },
       // LAY-03: the layouts of the item, party and custom forms, for the organisation and its roles.
       { path: '/settings/layouts/forms', handle: { wide: true }, element: <RequirePermission permission={LAYOUT_VIEW} tenantWide><FormLayoutDesigner /></RequirePermission> },
-      { path: '/dashboard/customise', handle: { wide: true }, element: <DashboardDesigner key="mine" personal /> },
+      { path: '/dashboard/customise', handle: { wide: true }, element: <NotInReadOnlySession><DashboardDesigner key="mine" personal /></NotInReadOnlySession> },
       { path: '/settings/sessions', element: <Sessions /> },
       // NOT-01, NOT-03, NOT-04, NOT-06: the inbox, one's own settings, and the admin's texts and log.
       { path: '/notifications', element: <Inbox /> },

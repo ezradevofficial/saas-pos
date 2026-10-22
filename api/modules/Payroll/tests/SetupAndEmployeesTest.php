@@ -79,7 +79,10 @@ class SetupAndEmployeesTest extends TestCase
         $this->assertFalse($data['ready']);
         $this->assertSame('PAYE', $data['components'][0]['name']);
         $this->assertContains('bands', array_column($data['components'][0]['missing'], 'field'));
-        $this->assertNotEmpty($data['todo']);
+        // Phase 8 walkthrough: the pack's internal to-do text is not sent to tenants; a count is.
+        $this->assertArrayNotHasKey('todo', $data);
+        $this->assertSame(count($data['components']) - count(array_filter($data['components'], fn (array $c) => $c['status'] === 'confirmed')), $data['to_confirm']);
+        $this->assertGreaterThan(0, $data['to_confirm']);
     }
 
     public function test_employees_pay_setup_and_items(): void

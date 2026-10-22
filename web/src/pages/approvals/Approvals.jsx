@@ -14,6 +14,7 @@ import { ApprovalDetail } from './ApprovalDetail'
 import { TABS } from './approvalData'
 import { ApprovalList } from './ApprovalList'
 import { DelegationDialog } from './DelegationDialog'
+import { useSupportSession } from '@/auth/useSupportSession'
 
 const DEFAULT_TAB = 'waiting'
 /** Below this width the list and the detail stack: one shows at a time. */
@@ -44,6 +45,7 @@ function ReceivedDelegations() {
  */
 export default function Approvals() {
   const { t } = useTranslation()
+  const support = useSupportSession()
   const locale = useLocale()
   const navigate = useNavigate()
   const { approvalId } = useParams()
@@ -77,9 +79,12 @@ export default function Approvals() {
         title={t('approvals.title')}
         description={t('approvals.description')}
         actions={
-          <Button icon="clock" onClick={() => setDelegating(true)}>
-            {t('approvals.delegation.open')}
-          </Button>
+          // RBAC-13: a support session never approves, so it never delegates either.
+          support.active ? null : (
+            <Button icon="clock" onClick={() => setDelegating(true)}>
+              {t('approvals.delegation.open')}
+            </Button>
+          )
         }
       />
       <ReceivedDelegations />

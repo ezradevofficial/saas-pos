@@ -69,6 +69,12 @@ class PlatformReports
             ->map(fn (Collection $group, string $k) => [...self::split($k), 'accounts' => $group->count(), 'amount_minor' => (int) $group->sum($net)])
             ->sortKeys()->values()->all();
 
+        // ADM-06: the account's bundle, else its period invoice's bundle line (an account
+        // synced before operator_accounts.bundle existed has none), as revenue by plan reads
+        // it; "custom" only when neither has one.
+        $plan = fn (OperatorAccount $a) => $a->bundle
+            ?? (collect(($invoices[$a->customer_tenant_id] ?? null)?->lines ?? [])->firstWhere('type', 'bundle')['key'] ?? 'custom');
+
         $byModule = [];
 
         foreach ($accounts as $account) {
@@ -76,7 +82,7 @@ class PlatformReports
 
             // Review L5: the account's MRR shared out by its plan lines (overage left out), so
             // MRR by module adds up to MRR: the annual discount and coupons fall proportionally.
-            foreach (self::shareOut($net($account), $invoice === null ? [] : self::netLines($invoice, withOverage: false), $account->bundle ?? 'custom') as $key => $amount) {
+            foreach (self::shareOut($net($account), $invoice === null ? [] : self::netLines($invoice, withOverage: false), $plan($account)) as $key => $amount) {
                 $k = "{$key}|{$account->currency}";
                 $byModule[$k] = ($byModule[$k] ?? 0) + $amount;
             }
@@ -88,7 +94,7 @@ class PlatformReports
             'accounts' => $accounts->count(),
             'by_currency' => $sum($accounts, fn () => 'all'),
             'by_country' => $sum($accounts, fn (OperatorAccount $a) => $a->country),
-            'by_plan' => $sum($accounts, fn (OperatorAccount $a) => $a->bundle ?? 'custom'),
+            'by_plan' => $sum($accounts, $plan),
             'by_module' => array_map(fn (string $k, int $amount) => [...self::split($k), 'amount_minor' => $amount], array_keys($byModule), array_values($byModule)),
         ];
     }

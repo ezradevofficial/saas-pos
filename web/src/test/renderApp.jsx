@@ -68,6 +68,8 @@ export function resetSession() {
   setCompanyId(null)
   try {
     window.localStorage.clear()
+    // RBAC-13c: a support session tab's token lives in sessionStorage.
+    window.sessionStorage.clear()
   } catch {
     // ignore
   }

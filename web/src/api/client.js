@@ -8,34 +8,69 @@ import i18n from '@/i18n'
 export const TOKEN_KEY = 'app.token'
 const COMPANY_KEY = 'app.companyId'
 
-// localStorage can be blocked (private mode, storage policies); values then
+// RBAC-13c: a tab opened for a support session keeps its token and company in
+// sessionStorage (this tab only), so it never replaces the tenant's own sign-in
+// in localStorage, which the browser's other tabs share, and vice versa.
+const SUPPORT_TAB_KEY = 'app.supportTab'
+
+// Web storage can be blocked (private mode, storage policies); values then
 // live in memory for this tab only.
 const memory = new Map()
 
-function read(key) {
+function storage(session) {
   try {
-    const value = window.localStorage.getItem(key)
+    return session ? window.sessionStorage : window.localStorage
+  } catch {
+    return null
+  }
+}
+
+function rawRead(key, session) {
+  try {
+    const value = storage(session)?.getItem(key) ?? null
     if (value !== null) return value
   } catch {
     // Fall back to memory below.
   }
-  return memory.get(key) ?? null
+  return memory.get(`${session ? 's' : 'l'}:${key}`) ?? null
 }
 
-function write(key, value) {
-  if (value === null || value === undefined || value === '') memory.delete(key)
-  else memory.set(key, String(value))
+function rawWrite(key, value, session) {
+  const memoryKey = `${session ? 's' : 'l'}:${key}`
+  const empty = value === null || value === undefined || value === ''
+  if (empty) memory.delete(memoryKey)
+  else memory.set(memoryKey, String(value))
   try {
-    if (value === null || value === undefined || value === '') window.localStorage.removeItem(key)
-    else window.localStorage.setItem(key, String(value))
+    if (empty) storage(session)?.removeItem(key)
+    else storage(session)?.setItem(key, String(value))
   } catch {
     // Kept in memory.
   }
 }
 
+/** Whether this tab is a support session (RBAC-13c). */
+export const isSupportTab = () => rawRead(SUPPORT_TAB_KEY, true) === '1'
+
+const read = (key) => rawRead(key, isSupportTab())
+const write = (key, value) => rawWrite(key, value, isSupportTab())
+
+/** Makes this tab a support session tab: its token and company live in this tab only. */
+export function startSupportTab() {
+  rawWrite(TOKEN_KEY, null, true)
+  rawWrite(COMPANY_KEY, null, true)
+  rawWrite(SUPPORT_TAB_KEY, '1', true)
+}
+
+/** Ends this tab's support session; the tab is back on the browser's own sign-in, if any. */
+export function endSupportTab() {
+  rawWrite(TOKEN_KEY, null, true)
+  rawWrite(COMPANY_KEY, null, true)
+  rawWrite(SUPPORT_TAB_KEY, null, true)
+}
+
 export const getToken = () => read(TOKEN_KEY)
 export const setToken = (token) => write(TOKEN_KEY, token)
-export const clearToken = () => write(TOKEN_KEY, null)
+export const clearToken = () => (isSupportTab() ? endSupportTab() : write(TOKEN_KEY, null))
 export const getCompanyId = () => read(COMPANY_KEY)
 export const setCompanyId = (id) => write(COMPANY_KEY, id)
 

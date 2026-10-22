@@ -8,6 +8,7 @@ use App\Core\Localisation\Http\SetLocale;
 use App\Core\Observability\Http\RecordMetrics;
 use App\Core\Observability\Http\RequestId;
 use App\Core\Observability\Http\SecurityHeaders;
+use App\Core\Observability\Http\UpAsJson;
 use App\Core\Platform\SupportAccess\Http\EnforceSupportSession;
 use App\Core\Rbac\Http\Middleware\EnsureModuleActive;
 use App\Core\Support\Http\EnforceEnvironment;
@@ -38,6 +39,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // NFR-10: the request id comes first, so every log line of the
         // request (even a refused one) and every job it queues carries it.
         $middleware->prepend(RequestId::class);
+        // NFR-01, NFR-06: /up always answers JSON (Laravel's page loads third-party fonts).
+        $middleware->prepend(UpAsJson::class);
         // NFR-06: security headers on every response; NFR-02, NFR-10:
         // request counts and latency for /metrics.
         $middleware->append(SecurityHeaders::class);

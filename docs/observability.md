@@ -55,7 +55,7 @@ Health probes and the scrape itself are not counted. `-1` means the value could 
 
 | Route | Answers | For |
 | --- | --- | --- |
-| `GET /up` | 200 when the app boots (Laravel), with `X-Sync-Lag-*` headers | process managers, existing monitors |
+| `GET /up` | 200 `{"status":"up"}` when the app boots (Laravel), always JSON (no page, no third-party fonts), with `X-Sync-Lag-*` headers | process managers, existing monitors |
 | `GET /health/live` | 200 `{"status":"ok"}`, no dependency | liveness |
 | `GET /health/ready` | 200 when the database, Redis, the queue connection and the media disk (write, read, delete a probe) all answer; 503 otherwise, naming only which check failed | the NodeBalancer's health check and the uptime monitor |
 

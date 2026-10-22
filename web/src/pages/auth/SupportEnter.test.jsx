@@ -44,6 +44,7 @@ function renderEnter() {
 describe('Support session entry (RBAC-13)', () => {
   beforeEach(() => {
     resetSession()
+    window.sessionStorage.clear()
     vi.clearAllMocks()
     pending = null
     mockApi(api)
@@ -51,11 +52,15 @@ describe('Support session entry (RBAC-13)', () => {
 
   it('exchanges the code from the fragment once, even when a first render is thrown away, and wipes the fragment', async () => {
     api.post.mockResolvedValue({ data: { token: 'support-token' } })
+    // RBAC-13c: the browser's own sign-in, which the support tab must leave alone.
+    window.localStorage.setItem('app.token', 'tenant-token')
     window.history.replaceState(null, '', '/support/enter#code=t-1.secret')
     renderEnter()
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('auth/support-session', { code: 't-1.secret' }))
     expect(api.post).toHaveBeenCalledTimes(1)
     expect(window.location.hash).toBe('')
+    await waitFor(() => expect(window.sessionStorage.getItem('app.token')).toBe('support-token'))
+    expect(window.localStorage.getItem('app.token')).toBe('tenant-token')
   })
 })
