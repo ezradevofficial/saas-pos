@@ -610,6 +610,10 @@ class TenantIsolationTest extends TestCase
         ['as_of' => '2100-01-01'],
         // ACC-08: a fiscal year's periods (both tenants have 2026).
         ['year' => '2026'],
+        // RBAC-04 (security review 5): the roles the user may grant, anywhere or tenant-wide, for an invite
+        // (a place of tenant B's is refused as not found: GrantableRolesTest).
+        ['grantable_at' => 'any'],
+        ['grantable_at' => 'tenant', 'grantable_for' => 'invite'],
         // STR-12, STR-14: consumption by cost centre (both tenants issued to theirs), the issue voucher.
         ['group' => 'cost_centre', 'document' => 'issue_voucher'],
         // MFG-05: an explosion for a quantity at a moment.
@@ -630,7 +634,9 @@ class TenantIsolationTest extends TestCase
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
     public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id',
         // MKT-02: the OAuth authorization request of the consent screen (no tenant ids).
-        'client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method'];
+        'client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method',
+        // RBAC-04: role pickers' grantable roles.
+        'grantable_at', 'grantable_for'];
 
     private TwoTenants $tenants;
 
