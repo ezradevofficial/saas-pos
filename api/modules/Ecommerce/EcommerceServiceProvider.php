@@ -68,8 +68,9 @@ class EcommerceServiceProvider extends ServiceProvider
         'store' => ['view', 'manage'],
         // ECOM-22: `create` takes phone and WhatsApp orders; `manage` moves orders through their statuses.
         'order' => ['view', 'create', 'manage', 'cancel', 'refund'],
-        // ECOM-27, ECOM-28: `deliver` is the rider's own (own deliveries only).
-        'delivery' => ['view', 'assign', 'deliver'],
+        // ECOM-27, ECOM-28: `deliver` is the rider's own (own deliveries only). ECOM-29: `track` reads a
+        // rider's position and trail (personal data, KE DPA: apart from the board's `view`).
+        'delivery' => ['view', 'assign', 'deliver', 'track'],
         'rider' => ['manage'],
         'cashup' => ['view', 'manage'],
         'whatsapp' => ['view', 'reply'],
