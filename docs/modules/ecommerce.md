@@ -176,43 +176,82 @@ Five parts:
     next one first needs a proof of work (sha256 of `nonce:solution`
     starting with N zeros), checked on the server with no third party.
 
-14. **Rider location is kept only while it is needed** (ECOM-40). The trail
-    exists only while a delivery is active and is deleted (not archived:
-    it is personal data, not a business record) when it ends or changes
-    rider; the latest point stays on the delivery as the last known
-    position (ECOM-29). Positions stay out of the append-only audit log.
-    Reading them is its own permission, `ecommerce.delivery.track`, held
-    by the Owner and the Branch Manager templates only.
+14. **Rider location is kept only while it is needed** (ECOM-40, security
+    review M3: decision to confirm 1 settled as "clear"). The trail exists
+    only while a delivery is active and is deleted (personal data, not a
+    business record) when it ends or changes rider; the last position is
+    cleared then too, only its time stays (ECOM-21). Positions stay out of
+    the audit log and of the update rows (location points leave no row:
+    their ids are remembered in the cache for 9 days, review M5); update
+    fingerprints are HMACs with their own key (review M1). Reading
+    positions is its own permission, `ecommerce.delivery.track`, held by
+    the Owner and the Branch Manager templates only. The trail and last
+    positions are the rider's personal data, and the customer's too
+    (through the order's party).
 15. **A partial return never refunds the delivery fee**; the whole-order
     return (with its fee choice) stays for an order with no partial
-    return, and a partial return closes it.
-16. **Loyalty is left as it is on partial returns and exchanges.** Points
-    earned stay; a refund goes back to money tenders only (M-Pesa, card,
-    cash), and a part paid by points or a gift card is flagged
-    `loyalty_share` on the return for staff (Loyalty has no partial
-    reverse yet).
+    return, and a partial return closes it (checked under the order's
+    lock, review H2).
+16. **Loyalty on partial returns (review M6).** Each partial return takes
+    back its share of the points the order earned, pro rata to the money
+    returned so far (LOY-04, Loyalty's `reverseEarnShare`, once per
+    return, only while Loyalty is active). A refund goes back to money
+    tenders only (M-Pesa, card, cash, counting only payments that hold
+    money, review L4); a part paid by points or a gift card is flagged
+    `loyalty_share` on the return for staff.
 17. **WhatsApp adds to SMS and email**, it does not replace them, so the
-    delivery code always reaches the customer by SMS.
-18. **Proof photos keep the picture only**: re-encoded as JPEG on upload.
+    delivery code always reaches the customer by SMS. A guest's number
+    (not proven by a sign-in code) gets WhatsApp only once the order is
+    paid or accepted, and a phone gets at most 20 order messages a day
+    (`ecommerce.notifications.per_phone_per_day`, review L6).
+18. **Proof photos keep the picture only** (review H3, L1, L2): the size is
+    read from the header first (at most 4,096 pixels a side and 12
+    megapixels), the picture scaled to 1,600 pixels and re-encoded as JPEG
+    (no metadata); without GD nothing is stored. A photo is taken only
+    while the delivery is picked up, so the delivered proof never changes.
+    Uploads are limited per rider (20 photos, 30 update batches a minute).
+    The staff link is a signed URL naming its user, checked again against
+    that user's access, and not tied to a session (review L3).
 19. **Exchanges keep the order's rate** (CUR-04): base amounts of a return
     and its exchange use the order's own fx snapshot.
+20. **Refund limits count the whole order (review H1, RBAC-06).** A return's
+    refund is added to the order's other refunds (refunded or due, not
+    rejected) and compared with the user's `max_refund_amount`, at creation
+    and again when paying back, so splitting a return gets round nothing.
+    Above the limit the return goes for approval through the approvals
+    engine (`ecommerce.return`, a Branch Manager of the order's branch,
+    never the requester, APR-07), as CRM does for discounts above the limit:
+    until approved nothing of it moves (stock, posting, fiscal note,
+    money), and a rejection gives its quantities back. An approved return's
+    refund is then paid back without a second check.
+21. **The customer sees the rider only at their own stop (review M2).** The
+    safer rule was chosen: the position is shown only while this order is
+    the rider's one picked-up delivery; with several picked up together,
+    every customer sees "on its way" without a position (no rider choice
+    and no guess about the current stop).
+22. **Exchange cash is on record (review L5).** Collecting a difference
+    needs a reference; cash a rider collects waits in COD clearing and
+    joins their next cash-up.
 
 ## Decisions to confirm
 
 The owner approved the follow-ups (ECOM-40 to ECOM-44) without settling
 these details; the safer option was taken in each case:
 
-1. **Last known position after delivery.** The latest point stays on the
-   delivery after it ends (the trail is deleted). Option: clear it too,
-   or after a retention period.
+1. ~~Last known position after delivery~~: settled by the security review
+   (M3): cleared when the delivery ends (decision 14).
 2. **Who tracks riders.** `ecommerce.delivery.track` is in the Owner and
    Branch Manager templates only (not Admin, Read-only Auditor or
    Cashier). Tenants can grant it on copied roles.
 3. **Interval and accuracy.** 60 seconds, balanced accuracy, foreground
    only, at most 500 points per delivery. Option: a longer interval to
    save data and battery.
-4. **Loyalty on partial returns** (decision 16): earned points are not
-   reversed and the loyalty-paid share is not paid back automatically.
+4. **Loyalty on partial returns** (decision 16): earned points are now
+   reversed pro rata (review M6); the loyalty-paid share is still not paid
+   back automatically (flagged `loyalty_share`).
+9. **Who approves refunds above a limit** (decision 20): one Branch Manager
+   of the order's branch; tenants may change the flow (WF-02).
+10. **Message cap** (decision 17): 20 order messages a phone a day.
 5. **Exchange collection** is recorded by hand (cash, or a till M-Pesa
    reference); an STK push for the difference is not offered.
 6. **Exchange items** are priced with today's promotions for everyone;
