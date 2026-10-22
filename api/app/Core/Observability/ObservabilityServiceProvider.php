@@ -3,6 +3,7 @@
 namespace App\Core\Observability;
 
 use App\Core\Observability\Console\BackupVerify;
+use App\Core\Observability\Console\ReencryptColumns;
 use App\Core\Observability\Console\StatusSnapshot;
 use App\Core\Observability\Health\Readiness;
 use App\Core\Observability\Http\HealthController;
@@ -47,7 +48,7 @@ class ObservabilityServiceProvider extends ServiceProvider
         Route::get('metrics', MetricsController::class)->name('metrics');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([StatusSnapshot::class, BackupVerify::class]);
+            $this->commands([StatusSnapshot::class, BackupVerify::class, ReencryptColumns::class]);
         }
 
         // The tenant id (never a name) on every log line and Sentry event.

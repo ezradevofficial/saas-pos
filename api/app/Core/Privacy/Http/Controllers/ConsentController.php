@@ -32,6 +32,7 @@ class ConsentController
             (bool) $request->validated('granted'),
             'back_office',
             $request->validated('evidence'),
+            $request->validated('wording_version'),
         );
         $record->load('recorder');
 

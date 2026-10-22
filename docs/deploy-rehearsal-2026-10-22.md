@@ -58,7 +58,7 @@ The deploy itself: `api/` was copied with the workflow's exact `rsync` excludes,
 Not changed, worth knowing:
 
 - `health:status` exits 0 when only Horizon is missing (`degraded`); the deploy treats it as a warning anyway.
-- There is still no bulk re-encrypt after an `APP_KEY` rotation: the old key must stay in `APP_PREVIOUS_KEYS` (docs/security.md).
+- At the rehearsal there was no bulk re-encrypt after an `APP_KEY` rotation; `php artisan app:reencrypt` now does it, after which the old key may leave `APP_PREVIOUS_KEYS` (docs/security.md, "Rotating APP_KEY").
 - `php artisan serve` is a stand-in; PHP-FPM, nginx, TLS, HSTS, the NodeBalancer health check and Caddy were not exercised.
 
 ## Owner inputs still needed

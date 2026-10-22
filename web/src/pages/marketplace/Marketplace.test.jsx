@@ -68,6 +68,8 @@ describe('Marketplace (MKT-01, MKT-02)', () => {
     expect(await screen.findByText('See items')).toBeInTheDocument()
     expect(screen.getByText('See and change contacts')).toBeInTheDocument()
     expect(screen.getByText('sale.completed.v1')).toBeInTheDocument()
+    // Phase 8 Marketplace walkthrough: events in plain words, not only their keys.
+    expect(screen.getByText('Sale completed')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open the app' })).toHaveAttribute('href', 'https://sync.example.com')
   })
 
@@ -83,6 +85,9 @@ describe('Marketplace (MKT-01, MKT-02)', () => {
     await waitForOption(role, 'Integration')
     chooseOption(role, 'Integration')
     expect(within(role.closest('div').parentElement).queryByText('Owner')).not.toBeInTheDocument()
+    // Phase 8 Marketplace walkthrough: the single role row is named for the app, not "Role 1".
+    expect(screen.getByRole('group', { name: 'Role for this app' })).toBeInTheDocument()
+    expect(screen.queryByText('Role 1')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Approve and install' }))
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('oauth/authorize', expect.objectContaining({

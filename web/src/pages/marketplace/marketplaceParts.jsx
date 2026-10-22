@@ -6,6 +6,7 @@ import { Money } from '@/components/ds'
 import { Field } from '@/components/ds/Field'
 import { Textarea } from '@/components/ui/textarea'
 import { useLocale } from '@/lib/useLocale'
+import { eventLabel } from '@/pages/settings/webhooks/webhookShared'
 
 /** An app's logo, or its first letter on a quiet tile when it has none. */
 export function AppLogo({ name, url, size = 'md' }) {
@@ -65,9 +66,11 @@ export function EventList({ events = [] }) {
   if (events.length === 0) return <p className="text-ink-muted">{t('marketplace.noEvents')}</p>
   return (
     <ul className="flex flex-wrap gap-2">
+      {/* HOOK-01: each event in plain words, its versioned key beside it for developers. */}
       {events.map((event) => (
-        <li key={event} className="rounded-md border border-border px-2 py-1 font-mono text-caption text-ink">
-          {event}
+        <li key={event} className="flex items-baseline gap-2 rounded-md border border-border px-2 py-1 text-caption text-ink">
+          <span>{eventLabel(t, event)}</span>
+          <span className="font-mono text-ink-muted">{event}</span>
         </li>
       ))}
     </ul>

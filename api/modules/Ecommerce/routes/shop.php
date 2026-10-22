@@ -37,5 +37,6 @@ Route::middleware([ShopSecurityHeaders::class, 'throttle:'.EcommerceServiceProvi
         Route::post('auth/verify', [ShopAuthController::class, 'verify'])->middleware('throttle:'.EcommerceServiceProvider::VERIFY_LIMITER);
         Route::post('auth/sign-out', [ShopAuthController::class, 'signOut']);
         Route::get('account', [ShopAuthController::class, 'account']);
+        Route::put('account/marketing-consent', [ShopAuthController::class, 'marketingConsent']);
     });
 });

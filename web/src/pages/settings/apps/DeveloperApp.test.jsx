@@ -34,4 +34,18 @@ describe('DeveloperApp', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'New webhook secret, end the old one now' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('developer/apps/app-1/webhook-secret', { immediate: true }))
   })
+
+  // Phase 8 Marketplace walkthrough: the scope picker words each scope as the consent screen does, key beside it.
+  it('offers scopes in plain words with their keys', async () => {
+    const draft = { id: 'v-2', version: 2, status: 'draft', name: 'Stock sync', description: 'Keeps items and stock in step with the warehouse system.', category: 'productivity', scopes: [], redirect_uris: [], webhook_events: [], pricing: { model: 'free' } }
+    mockRoutes(api, [
+      ['developer/apps/app-1', { data: { ...APP, versions: [draft, ...APP.versions] } }],
+      ['developer', { data: { developer: { id: 'd-1', name: 'Acme Labs' }, catalogue: { scopes: ['core.item.read', 'core.item.write'], scope_labels: { 'core.item.read': 'See items', 'core.item.write': 'See and change items' }, webhook_events: [], categories: ['productivity'], currencies: ['KES'], share_percent: 80 } } }],
+    ], { permissions: tenantWide(['core.developer.manage']) })
+    renderApp('/settings/developer-apps/app-1')
+
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Permissions' }))
+    expect(await screen.findByRole('option', { name: 'See items · core.item.read' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'See and change items · core.item.write' })).toBeInTheDocument()
+  })
 })

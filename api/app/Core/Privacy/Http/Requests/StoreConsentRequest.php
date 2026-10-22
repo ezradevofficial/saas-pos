@@ -20,6 +20,8 @@ class StoreConsentRequest extends PrivacyRequestAction
             'granted' => ['required', 'boolean'],
             // The back office records what the customer said; other sources come from their modules.
             'evidence' => ['nullable', 'string', 'max:500'],
+            // The version of the wording the customer agreed to, when there was one (a form, a notice).
+            'wording_version' => ['nullable', 'string', 'max:40'],
         ];
     }
 }

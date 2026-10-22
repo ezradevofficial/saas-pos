@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { eventLabel } from '@/pages/settings/webhooks/webhookShared'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
@@ -125,7 +126,7 @@ function DraftEditor({ app, draft, catalogue }) {
         <MultiSelect
           label={t('developerApps.fields.scopes')}
           help={t('developerApps.fields.scopesHelp')}
-          options={catalogue.scopes.map((scope) => ({ value: scope, label: scope }))}
+          options={catalogue.scopes.map((scope) => ({ value: scope, label: catalogue.scope_labels?.[scope] ? `${catalogue.scope_labels[scope]} · ${scope}` : scope }))}
           value={form.scopes}
           onChange={set('scopes')}
           error={fieldError('scopes')}
@@ -134,7 +135,7 @@ function DraftEditor({ app, draft, catalogue }) {
           <TextField label={t('developerApps.fields.webhookUrl')} type="url" value={form.webhook_url} onChange={(event) => set('webhook_url')(event.target.value)} error={fieldError('webhook_url')} />
           <MultiSelect
             label={t('developerApps.fields.webhookEvents')}
-            options={catalogue.webhook_events.map((event) => ({ value: event, label: event }))}
+            options={catalogue.webhook_events.map((event) => ({ value: event, label: `${eventLabel(t, event)} · ${event}` }))}
             value={form.webhook_events}
             onChange={set('webhook_events')}
             error={fieldError('webhook_events')}

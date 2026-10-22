@@ -136,7 +136,7 @@ function CreateKeyDialog({ open, onClose, onCreated }) {
         </div>
         <div className="flex flex-col gap-2">
           <p className="text-ink-muted">{t('apiKeys.create.roleText')}</p>
-          <AssignmentFields index={0} value={shownRow} onChange={setRow} options={options} errors={errors.fields} />
+          <AssignmentFields index={0} legend={t('apiKeys.roleLegend')} value={shownRow} onChange={setRow} options={options} errors={errors.fields} />
         </div>
         {scopesQuery.isError ? <Alert tone="danger" title={errorMessage(scopesQuery.error)} /> : null}
         <ScopePicker groups={scopesQuery.data?.data ?? []} value={scopes} onChange={setScopes} error={errors.fields.scopes} />

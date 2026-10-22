@@ -12180,7 +12180,13 @@
       "hello": "Hello {{name}}",
       "signOut": "Sign out",
       "orders": "Your orders",
-      "noOrders": "No orders yet."
+      "noOrders": "No orders yet.",
+      "marketing": "Offers and news",
+      "marketingOn": "You get offers and news. You can stop them here at any time.",
+      "marketingOff": "You don’t get offers or news."
+    },
+    "consent": {
+      "marketing_2026_10": "Send me offers and news from {{store}} by SMS, WhatsApp or email. I can stop them at any time in my account."
     }
   },
   "admin": {
@@ -12801,6 +12807,7 @@
     "portal": "Developer portal",
     "empty": "No API keys yet. Create one to connect another system.",
     "noRole": "No role (revoked)",
+    "roleLegend": "Role for this key",
     "neverUsed": "Never used",
     "overlapUntil": "Previous secret works until {{when}}",
     "expiresOn": "Expires {{when}}",
@@ -13368,6 +13375,7 @@
       "events": "It will receive these events",
       "actsAs": "It acts as",
       "actsAsHelp": "Choose a role and where it applies. The app can never do more than this role allows, and you can only choose what you could give a person.",
+      "roleLegend": "Role for this app",
       "cannotInstall": "You cannot install apps. Ask an Owner or Admin.",
       "cannotPay": "This app adds to your subscription. Ask someone who manages the subscription to install it.",
       "deny": "Deny",

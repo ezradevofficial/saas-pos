@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
-import { Alert, Button, Card, Checkbox, Money, Select, StatusBadge, TextField } from '@/components/ds'
+import { Alert, Button, Card, Checkbox, Money, Select, StatusBadge, Switch, TextField } from '@/components/ds'
 import { formatRelative } from '@/lib/dates'
 import { formatAmount } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
@@ -476,23 +476,43 @@ export function ShopOrder() {
   )
 }
 
-/** ECOM-08: sign in with a code by SMS or email; the customer's orders. */
+/**
+ * NFR-08: the marketing consent wording the storefront shows, by version. The
+ * API records the version with the answer (config privacy.wording_versions);
+ * a changed text gets a new version and a new key, never an edited one.
+ */
+export const MARKETING_WORDING = '2026_10'
+
+function MarketingWording({ store }) {
+  const { t } = useTranslation()
+  return t('shop.consent.marketing_2026_10', { store: store?.name ?? '' })
+}
+
+/** ECOM-08: sign in with a code by SMS or email; the customer's orders; marketing consent (NFR-08). */
 export function ShopAccount() {
   const { t } = useTranslation()
-  const { handle } = useShop()
+  const { handle, store } = useShop()
   const queryClient = useQueryClient()
   const [signedIn, setSignedIn] = useState(() => Boolean(getShopSession(handle)))
   const [contact, setContact] = useState('')
   const [challenge, setChallenge] = useState(null)
   const [code, setCode] = useState('')
+  // Unticked by default: consent is a positive act (KE DPA).
+  const [marketing, setMarketing] = useState(false)
   const account = useQuery({ queryKey: ['shop', handle, 'account'], queryFn: () => shop(handle, 'GET', 'account'), enabled: signedIn, retry: false })
   const send = useMutation({ mutationFn: () => requestCode(handle, contact), onSuccess: (response) => setChallenge(response.data) })
   const verify = useMutation({
-    mutationFn: () => shop(handle, 'POST', 'auth/verify', { body: { challenge_id: challenge.challenge_id, code } }),
+    mutationFn: () => shop(handle, 'POST', 'auth/verify', {
+      body: { challenge_id: challenge.challenge_id, code, ...(marketing ? { marketing_consent: true, wording_version: MARKETING_WORDING } : {}) },
+    }),
     onSuccess: (response) => {
       setShopSession(handle, response.data.token)
       setSignedIn(true)
     },
+  })
+  const consent = useMutation({
+    mutationFn: (granted) => shop(handle, 'PUT', 'account/marketing-consent', { body: granted ? { granted, wording_version: MARKETING_WORDING } : { granted } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shop', handle, 'account'] }),
   })
   const signOut = useMutation({
     mutationFn: () => shop(handle, 'POST', 'auth/sign-out'),
@@ -527,6 +547,18 @@ export function ShopAccount() {
             ))}
           </ul>
         </Card>
+        <Card title={t('shop.account.marketing')}>
+          <div className="flex flex-col gap-2">
+            <Switch
+              checked={data.customer.marketing_consent}
+              disabled={consent.isPending}
+              onChange={(next) => consent.mutate(next)}
+              label={<MarketingWording store={store} />}
+            />
+            <p className="text-caption text-ink-muted">{data.customer.marketing_consent ? t('shop.account.marketingOn') : t('shop.account.marketingOff')}</p>
+            {consent.error ? <Alert tone="danger">{errorMessage(consent.error)}</Alert> : null}
+          </div>
+        </Card>
       </div>
     )
   }
@@ -536,6 +568,7 @@ export function ShopAccount() {
         <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); verify.mutate() }}>
           <p className="text-body text-ink-muted">{t('shop.account.codeSent', { destination: challenge.destination })}</p>
           <TextField label={t('shop.account.code')} inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} error={verify.error ? errorMessage(verify.error) : undefined} />
+          <Checkbox checked={marketing} onChange={(event) => setMarketing(event.target.checked)} label={<MarketingWording store={store} />} />
           <Button type="submit" variant="primary" disabled={code.length !== 6} loading={verify.isPending}>{t('shop.account.verify')}</Button>
         </form>
       ) : (

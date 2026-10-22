@@ -221,8 +221,10 @@ these details; the safer option was taken in each case:
 7. **WhatsApp alongside SMS** (decision 17): option to send WhatsApp
    instead of SMS for customers who opted in (cheaper, less certain).
 8. **Core change for WhatsApp contacts**: the core notifier's contact
-   addresses (ADR 009) now accept WhatsApp, with a widened check on
-   `notification_deliveries` (core migration); flagged for the core spec.
+   addresses (ADR 009) accept WhatsApp for any contact, not only a
+   customer named for a marketing consent check, so a guest's
+   transactional order messages can use it (order notices are not
+   marketing types). Flagged for the core spec.
 
 ## Data model
 

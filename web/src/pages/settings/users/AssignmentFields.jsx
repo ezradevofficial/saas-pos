@@ -7,7 +7,7 @@ import { scopeLabel } from './assignments'
  * company, branch, location) and the place itself (RBAC-04). `options`
  * (useGrantOptions) holds only what the user may grant.
  */
-export function AssignmentFields({ index, value, onChange, onRemove, options, errors = {} }) {
+export function AssignmentFields({ index, value, onChange, onRemove, options, errors = {}, legend }) {
   const { t } = useTranslation()
   const set = (patch) => onChange({ ...value, ...patch })
   const number = index + 1
@@ -16,7 +16,8 @@ export function AssignmentFields({ index, value, onChange, onRemove, options, er
 
   return (
     <fieldset className="grid gap-3 rounded-md border border-border p-4 sm:grid-cols-3">
-      <legend className="px-1 text-label text-ink">{t('users.assignment.legend', { number })}</legend>
+      {/* A single row (an app, a key) names what it is for; numbers only tell several rows apart. */}
+      <legend className="px-1 text-label text-ink">{legend ?? t('users.assignment.legend', { number })}</legend>
       <Select
         label={t('users.assignment.role')}
         placeholder={t('users.assignment.rolePlaceholder')}

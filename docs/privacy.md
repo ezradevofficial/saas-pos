@@ -56,11 +56,28 @@ The anonymisation's audit entry names the tables and columns changed, never the 
 
 Consent records for customers (shared by CRM and E-commerce, which both use the party): per purpose (`marketing`) and channel (email, SMS, WhatsApp, or all), each grant or withdrawal a new record with who recorded it, where it came from (back office, storefront, import, lead form) and what the person said. Records are append-only (a database trigger refuses edits and deletes); the latest per channel is the current answer, and `Consents::allows()` answers whether a customer may be contacted on a channel now. Settings → Privacy shows the current answer, the history, and records new answers.
 
-Follow-up: the storefront already asks for consent at sign-up (`ecom_customers.consent`); recording that answer through `Consents` (source `storefront`), and marketing sends checking `Consents::allows()`, are the next steps.
+Each record also keeps the **wording version** the person saw (`wording_version`), so it proves exactly which text they agreed to.
+
+### Storefront sign-up
+
+The storefront's sign-in (a code by SMS or email) shows a box, unticked by default: "Send me offers and news from {store} by SMS, WhatsApp or email. I can stop them at any time in my account." Ticked, the API (`MarketingConsent` in E-commerce, through `Consents`) records a grant for every channel (`any`), source `storefront`, the wording version the page sent, and evidence naming the store, the sign-in code's id (the proof the contact was verified) and the language; never the phone or email. The customer's party is created then if it has none, since consent belongs to the party. An unticked box records nothing: no record means no consent, and it never withdraws a consent given elsewhere (at the till). The account page has a switch that withdraws (a refusal for `any`) or grants again with the wording shown. `ecom_customers.consent` is no longer the answer; `Consents` is.
+
+**Wording versions** are listed in `config/privacy.php` (`wording_versions.storefront_marketing`, current first) and the text is in the web catalogue under a key naming the version (`shop.consent.marketing_2026_10`, `MARKETING_WORDING` in `ShopPages.jsx`). A changed text gets a new version and a new key, never an edit; the API refuses a version it does not list.
+
+### Marketing sends check consent first
+
+All messages go through the core Notifier (NOT-02). An event type declared `marketing: true` (a campaign, an offer by SMS, WhatsApp or email) goes only to customer contacts, each naming the customer's party; a user recipient or an address without a customer is refused. For each address the Notifier checks `Consents` for that channel (one query per channel, `allowedAmong()`); without consent the delivery is written as skipped with the reason `no_consent` and nothing is sent. The queued job checks again before handing over, so a withdrawal after queueing stops the message. Transactional types (order updates, delivery codes, receipts, invitations) are not marketing and are unaffected.
+
+Today no module sends marketing yet (CRM campaigns and marketing lists are deferred, docs/modules/crm.md); any that is added must declare its event types `marketing: true`. Tests: `MarketingConsentGateTest` (core) and `MarketingConsentTest` (E-commerce), web `ShopConsent.test.jsx`.
 
 ## Decisions to confirm
 
 - **A buyer snapshot on each sale.** The alternative to keeping a fiscal customer's tax ID and legal name on the party: store the buyer's name and tax ID on each POS sale when it is made, so later refunds and voids read the snapshot and the party could be fully anonymised. It changes the POS schema (owner approval) and needs a backfill of existing sales.
+- **Storefront consent wording and scope.** The text (version `2026_10`) and its single box for all three channels (SMS, WhatsApp, email). Counsel may want one box per channel, or the store's identity as controller spelled out. A new text is a new version.
+- **A party created at sign-up when the box is ticked.** Consent is recorded on the customer's party, so a consenting shopper gets one at sign-up instead of at their first signed-in order. The alternative is to keep the answer on the storefront account until the party exists.
+- **An unticked box records nothing.** The alternative is to record a refusal, which would also withdraw a consent given at the till; we chose not to.
+- **No marketing sends exist yet.** The gate is in the Notifier for event types marked `marketing`; campaigns (CRM, deferred) must use it. Confirm that every future campaign goes through the Notifier rather than its own sender.
+- **An unsubscribe link in each marketing message**, and STOP replies by SMS and WhatsApp, are not built: withdrawal is from the storefront account or the back office today. Kenya's direct-marketing rules expect a simple opt-out in each message; to build with campaigns.
 
 ## To confirm (owner and counsel)
 

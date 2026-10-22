@@ -7,6 +7,7 @@ return [
         'sandbox_daily_limit' => 'This developer sandbox used its :max API requests for today. Try again tomorrow.',
         'route_refused' => 'API keys can’t be used here. Use this endpoint from the app, or see the developer portal for what keys can reach.',
         'scope_missing' => 'This API key doesn’t have the :scope scope. Add the scope to the key, or use another key.',
+        'scope_missing_app' => 'This app wasn’t given the :scope scope. Ask for it in a new version of the app; the organisation then consents to it.',
         'idempotency_key_invalid' => 'The Idempotency-Key header must be 1 to 255 letters, digits, dashes, underscores, dots or colons.',
         'idempotency_mismatch' => 'This Idempotency-Key was already used for a different request. Use a new key for a new request.',
         'idempotency_in_progress' => 'A request with this Idempotency-Key is still running. Wait for it to finish, then send it again.',

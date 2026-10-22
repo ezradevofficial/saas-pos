@@ -44,6 +44,7 @@ return [
         'channel_unavailable' => 'This channel isn’t set up yet.',
         'user_deactivated' => 'The user is no longer active.',
         'secret_missing' => 'The link in this message can no longer be sent. Send a new one.',
+        'no_consent' => 'The customer hasn’t agreed to marketing messages on this channel.',
     ],
 
     'delivery_errors' => [
