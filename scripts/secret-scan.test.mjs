@@ -24,6 +24,7 @@ test('finds each kind of secret', () => {
   assert.deepEqual(rules(`dsn: ${fake.sentry}`), ['sentry-dsn'])
   assert.deepEqual(rules(fake.appKey), ['laravel-app-key'])
   assert.deepEqual(rules(fake.dbPassword), ['assigned-secret'])
+  assert.deepEqual(rules('HR_DIGEST_' + 'KEY=base64:' + 'c2VjcmV0LXZhbHVlLWhlcmU='), ['assigned-secret'])
 })
 
 test('leaves placeholders and local defaults alone', () => {
@@ -33,6 +34,8 @@ test('leaves placeholders and local defaults alone', () => {
     'APP_KEY=',
     'SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}',
     'HR_DIGEST_KEY=<a random 32-byte key>',
+    // A documented command that generates the value, not a value.
+    'echo "HR_DIGEST_KEY=base64:$(openssl rand -base64 32)"',
     'METRICS_TOKEN=null',
     'postgres://app:app@127.0.0.1:5432/app',
     "password: 'password'",
