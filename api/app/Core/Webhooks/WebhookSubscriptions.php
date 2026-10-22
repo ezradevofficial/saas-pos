@@ -7,6 +7,7 @@ use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Webhooks\Delivery\WebhookEndpoints;
@@ -25,6 +26,10 @@ use Illuminate\Support\Facades\DB;
  *   job (flushed before every job, on a new request and on every change
  *   here), so raising an event costs nothing per occurrence and a tenant
  *   without subscriptions never queues anything (UploadQueryBudgetTest).
+ * - sends(): whether the current tenant is active, memoised the same way.
+ *   A suspended or closed tenant sends nothing (Phase 8 review M2): no
+ *   fan-out, and deliveries already made wait (WebhookDeliverer) until it
+ *   is active again.
  * - create, update, rotate, archive: audited as `core.webhook.*`, never
  *   with the URL or a secret. The secret is returned once, by create and
  *   rotate. A rotation keeps the previous secret signing for
@@ -38,6 +43,9 @@ class WebhookSubscriptions
     /** @var array<string, array<string, true>> tenant id => subscribed type keys */
     private array $memo = [];
 
+    /** @var array<string, bool> tenant id => active */
+    private array $active = [];
+
     public function __construct(
         private readonly TenantContext $tenants,
         private readonly Auditor $auditor,
@@ -49,7 +57,7 @@ class WebhookSubscriptions
     {
         $tenantId = $this->tenants->id();
 
-        if ($tenantId === null) {
+        if ($tenantId === null || ! $this->sends()) {
             return false;
         }
 
@@ -64,9 +72,25 @@ class WebhookSubscriptions
         return isset($this->memo[$tenantId][$type]);
     }
 
+    /**
+     * HOOK-01, ADM-01c (Phase 8 review M2): whether the current tenant may
+     * send webhooks: only while it is active. Read once per request or job.
+     */
+    public function sends(): bool
+    {
+        $tenantId = $this->tenants->id();
+
+        if ($tenantId === null) {
+            return false;
+        }
+
+        return $this->active[$tenantId] ??= Tenant::query()->whereKey($tenantId)->value('status') === 'active';
+    }
+
     public function flush(): void
     {
         $this->memo = [];
+        $this->active = [];
     }
 
     /**

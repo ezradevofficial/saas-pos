@@ -92,7 +92,7 @@ Staff permissions: `platform.marketplace.view` (owner, support, finance, complia
 - **The developers' ledger** (`marketplace_payables`, an operator tenant table, `GlobalTables::OPERATOR`). When an operator invoice is paid (`OperatorInvoicePaid`, raised in the operator's context inside the paying transaction), each `app` line earns the app's developer 80 % (`marketplace.developer_share_percent`) of the line's amount net of discount and tax, half up, once per line (unique index). Append-only (no update or delete grant).
 - **Payouts are manual** until a provider is chosen: staff see balances per developer and currency, a developer's ledger, and record a payout with its reference, never more than the balance (serialised per developer and currency). Audited in the operator's chain and the platform chain.
 - **Sandboxes** install paid apps free (API-05: never billed).
-- **Suspended tenants** follow the existing rules: billing keeps working; app tokens stop because the tenant is not active, like every other non-exempt access.
+- **Suspended tenants** follow the existing rules: billing keeps working; app tokens stop because the tenant is not active, like every other non-exempt access. Webhooks to installed apps stop too (Phase 8 review M2, ADR 021): nothing is fanned out while the tenant is suspended, and deliveries already made wait, then resume when it is active again.
 
 ### First-party connectors (MKT-04)
 

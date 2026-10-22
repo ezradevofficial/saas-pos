@@ -12,6 +12,7 @@ use App\Core\Webhooks\Jobs\SendWebhook;
 use App\Core\Webhooks\Models\WebhookDelivery;
 use App\Core\Webhooks\Models\WebhookSubscription;
 use App\Core\Webhooks\Principals\WebhookPrincipals;
+use App\Core\Webhooks\WebhookSubscriptions;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -28,12 +29,16 @@ use Illuminate\Support\Str;
  * the fields the principal's rules hide (RBAC-05), so hidden values are
  * never stored or sent. The rows are written in one transaction and each
  * is sent by its own job once committed.
+ *
+ * A tenant that is not active (suspended, closed) fans nothing out
+ * (Phase 8 review M2), user and app subscriptions alike.
  */
 class WebhookFanOut
 {
     public function __construct(
         private readonly WebhookCatalogue $catalogue,
         private readonly WebhookPrincipals $principals,
+        private readonly WebhookSubscriptions $subscriptions,
     ) {}
 
     /**
@@ -42,6 +47,10 @@ class WebhookFanOut
      */
     public function fanOut(string $typeKey, string $eventId, string $occurredAt, array $captured): array
     {
+        if (! $this->subscriptions->sends()) {
+            return [];
+        }
+
         $subscriptions = WebhookSubscription::query()->where('active', true)->whereNull('archived_at')
             ->whereJsonContains('events', $typeKey)->orderBy('created_at')->get();
         $type = $this->catalogue->active($typeKey);

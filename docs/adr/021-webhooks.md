@@ -123,6 +123,10 @@ The public API (API-01..05, branch `feat/public-api`) is being built in parallel
   - No answer, or any non-2xx answer, is retried after 1 min, 5 min, 30 min, 2 h, 6 h and 24 h (`webhooks.backoff`), so there are 7 attempts in all.
   - A refused address (SSRF guard), a subscription archived or disabled meanwhile, or a principal who may no longer see the event fails the delivery at once.
   - After the last attempt the delivery is `failed` (the dead-letter state). It stays in the log and can be replayed.
+- **Suspended tenants (Phase 8 review M2, ADM-01c).** Webhooks go out only while the tenant is active (`WebhookSubscriptions::sends()`, read once per request or job). This covers people's subscriptions and marketplace apps' alike.
+  - While a tenant is suspended or closed, events it raises (approvals and payroll still run) are not dispatched or fanned out: no delivery is made, and nothing is sent for them later.
+  - Deliveries made before the suspension are held, not dead-lettered. `SendWebhook` leaves them `pending` or `retrying` without claiming them or spending an attempt. `webhooks:sweep` keeps queueing them, and once the tenant is active again the next attempt is sent and the back-off goes on from where it stopped.
+  - Held deliveries are still pruned after `webhooks.retention_days`, like the rest of the log, so a suspension longer than that loses them.
 - **Auto-disable.**
   - Each delivery that fails for good adds one to the subscription's consecutive failure count, and each delivered one resets it.
   - At `webhooks.disable_after` (default 10) the subscription is switched off (`disabled_reason = failing`).

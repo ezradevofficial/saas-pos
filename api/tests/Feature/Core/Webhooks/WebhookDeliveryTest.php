@@ -10,6 +10,7 @@ use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use App\Core\Tenancy\Models\Tenant;
 use App\Core\Webhooks\Delivery\WebhookDeliverer;
 use App\Core\Webhooks\Delivery\WebhookEndpoints;
 use App\Core\Webhooks\Delivery\WebhookFanOut;
@@ -19,6 +20,7 @@ use App\Core\Webhooks\Jobs\SendWebhook;
 use App\Core\Webhooks\Jobs\SweepWebhooks;
 use App\Core\Webhooks\Models\WebhookDelivery;
 use App\Core\Webhooks\Models\WebhookSubscription;
+use App\Core\Webhooks\WebhookSubscriptions;
 use Carbon\CarbonImmutable;
 use Illuminate\Bus\UniqueLock;
 use Illuminate\Contracts\Cache\Repository as Cache;
@@ -455,6 +457,69 @@ class WebhookDeliveryTest extends TestCase
     }
 
     /** A worker picks the queued SendWebhook up: its unique lock is released (ShouldBeUniqueUntilProcessing). */
+    /**
+     * Phase 8 review M2 (HOOK-01, ADM-01c): a suspended tenant sends nothing: what it raises
+     * (an approval is still allowed to run) is not fanned out, and a retry already waiting is
+     * held without spending an attempt, then sent once the tenant is active again.
+     */
+    public function test_a_suspended_tenant_sends_nothing_and_held_retries_resume_after_reactivation(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-16 09:00:00');
+        Http::fake(['*' => Http::sequence()->push('down', 503)->push('ok', 200)]);
+        Queue::fake();
+        $this->subscribe();
+        $this->happen();
+        Queue::assertPushed(FanOutWebhookEvent::class, function (FanOutWebhookEvent $job) {
+            $this->inTenant(fn () => $job->handle(app(WebhookFanOut::class)));
+
+            return true;
+        });
+        $delivery = $this->deliveries()->sole();
+        $this->workerStarts($delivery->id);
+        $this->inTenant(fn () => app(WebhookDeliverer::class)->deliver($delivery->id));
+        $this->assertSame([WebhookDelivery::RETRYING, 1], [$delivery->fresh()->status, $delivery->fresh()->attempts]);
+
+        $setStatus = function (string $status) {
+            $this->inTenant(fn () => Tenant::query()->whereKey($this->owner->tenant_id)->update(['status' => $status]));
+            app(WebhookSubscriptions::class)->flush();
+        };
+        $setStatus('suspended');
+
+        // Raised while suspended: nothing is queued, and a fan-out job already queued makes no delivery.
+        Queue::fake();
+        $this->happen(['thingId' => 'thing-2']);
+        Queue::assertNotPushed(FanOutWebhookEvent::class);
+        $this->assertSame([], $this->inTenant(fn () => app(WebhookFanOut::class)->fanOut('thing.happened.v1', (string) Str::uuid7(), now()->toIso8601ZuluString(), ['data' => ['thing_id' => 'thing-3', 'company_id' => $this->acme->id], 'company_id' => $this->acme->id])));
+
+        // The waiting retry comes due: held, no request, no attempt spent, never failed.
+        $this->travel(2)->minutes();
+        $this->workerStarts($delivery->id);
+        $this->inTenant(fn () => app(WebhookDeliverer::class)->deliver($delivery->id));
+        $this->assertSame([WebhookDelivery::RETRYING, 1], [$delivery->fresh()->status, $delivery->fresh()->attempts]);
+        Http::assertSentCount(1);
+        $this->assertCount(1, $this->deliveries());
+
+        // Reactivated: the sweep queues it again and it is sent.
+        $setStatus('active');
+        $this->travel(20)->minutes();
+        Queue::fake();
+        $this->artisan('webhooks:sweep')->assertSuccessful();
+        Queue::assertPushed(SweepWebhooks::class, function (SweepWebhooks $job) {
+            $this->inTenant(fn () => $job->handle());
+
+            return true;
+        });
+        Queue::assertPushed(SendWebhook::class, function (SendWebhook $job) use ($delivery) {
+            $this->workerStarts($job->deliveryId);
+            $this->inTenant(fn () => app(WebhookDeliverer::class)->deliver($job->deliveryId));
+
+            return $job->deliveryId === $delivery->id;
+        });
+        $this->assertSame([WebhookDelivery::DELIVERED, 2], [$delivery->fresh()->status, $delivery->fresh()->attempts]);
+        Http::assertSentCount(2);
+        CarbonImmutable::setTestNow();
+    }
+
     private function workerStarts(string $deliveryId): void
     {
         (new UniqueLock(app(Cache::class)))->release(new SendWebhook($this->owner->tenant_id, $deliveryId));
