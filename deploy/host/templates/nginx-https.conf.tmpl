@@ -4,9 +4,9 @@
 
 # The web app and the platform console (the same static build, <path>/web).
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    # HTTP/2 goes on the listen line: nginx 1.24 (Ubuntu 24.04) lacks the separate http2 directive.
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name @WEB_SERVER_NAMES@;
     ssl_certificate     /etc/letsencrypt/live/@CERT_NAME@/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/@CERT_NAME@/privkey.pem;
@@ -30,9 +30,8 @@ server {
 # The API (<path>/api/public). Its own headers (SecurityHeaders, HSTS in
 # production) come from the app.
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name @API_DOMAIN@;
     ssl_certificate     /etc/letsencrypt/live/@CERT_NAME@/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/@CERT_NAME@/privkey.pem;

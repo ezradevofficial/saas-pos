@@ -150,6 +150,8 @@ check "https: headers in every web location" test "$(grep -c 'include /etc/nginx
 check "headers: CSP names the API" has "$headers" "connect-src 'self' https://api\.example\.test"
 check "headers: HSTS" has "$headers" 'Strict-Transport-Security "max-age=31536000; includeSubDomains"'
 check "headers: frame-ancestors none" has "$headers" "frame-ancestors 'none'"
+check "https: http2 on the listen lines (nginx 1.24)" test "$(grep -c 'listen 443 ssl http2;' "$site")" = 2
+check "https: no separate http2 directive (nginx 1.25.1+ only)" lacks "$site" '^[[:space:]]*http2 on;'
 check "tls: 1.2 and 1.3 only" has "$R/etc/nginx/conf.d/tls.conf" '^ssl_protocols TLSv1.2 TLSv1.3;$'
 check "tls: Ubuntu's own ssl_protocols and cipher preference are commented out" has "$out3" 'sed -i -E .*ssl_prefer_server_ciphers.* /etc/nginx/nginx\.conf$'
 check "no placeholder left in nginx files" lacks "$site" '@[A-Z_]+@'
