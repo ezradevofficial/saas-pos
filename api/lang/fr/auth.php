@@ -43,6 +43,13 @@ return [
         'already_applied' => 'Cette validation du responsable a déjà été appliquée à cette action. Il n’y a rien d’autre à faire.',
     ],
 
+    // AUTH-01..AUTH-05 : mode e-mail uniquement, aucun fournisseur SMS configuré (SmsAvailability).
+    'sms_unavailable' => [
+        'use_email' => 'Les SMS ne sont pas encore disponibles. Utilisez votre adresse e-mail.',
+        'no_email' => 'Les SMS ne sont pas encore disponibles, nous ne pouvons donc pas vous envoyer de code. Demandez au Propriétaire ou au support d’ajouter une adresse e-mail à votre compte.',
+        'two_factor' => 'Les codes par SMS ne sont pas encore disponibles. Utilisez plutôt une application d’authentification.',
+    ],
+
     'code' => [
         'invalid' => 'Ce code n’est pas valide. Vérifiez-le et réessayez.',
         'expired' => 'Ce code a expiré. Demandez-en un nouveau.',

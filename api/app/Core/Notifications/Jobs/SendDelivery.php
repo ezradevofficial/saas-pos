@@ -14,6 +14,7 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Mail\MailActions;
 use App\Core\Notifications\Mail\NotificationMail;
 use App\Core\Notifications\Models\NotificationDelivery;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Privacy\Consents;
 use App\Core\Privacy\OptOuts;
 use App\Core\Tenancy\Jobs\TenantAware;
@@ -156,6 +157,11 @@ class SendDelivery implements ShouldBeEncrypted, ShouldQueue
                 || ! app(Consents::class)->allows('customer', (string) $delivery->consent_subject_id, Consents::MARKETING, $delivery->channel)) {
                 return NotificationDelivery::REASON_NO_CONSENT;
             }
+        }
+
+        // NOT-01: SMS went into email-only mode after the delivery was queued.
+        if ($delivery->channel === Channels::SMS && ! app(SmsAvailability::class)->available()) {
+            return NotificationDelivery::REASON_SMS_UNAVAILABLE;
         }
 
         // A contact that is not a user yet (NotificationAddress): only the channel can be missing.

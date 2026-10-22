@@ -9,6 +9,7 @@ use App\Core\Identity\Models\LoginEvent;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Support\LoginIdentifier;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Sso\SsoEnforcement;
 use App\Core\Tenancy\ClosedTenant;
 use App\Core\Tenancy\TenantContext;
@@ -80,6 +81,12 @@ class Authenticate
         if ($user->status === User::STATUS_PENDING) {
             $this->recordFailure($user, $ip, $userAgent, SignInResult::UNVERIFIED);
             [$channel, $destination] = $user->email !== null ? ['email', $user->email] : ['sms', $user->phone];
+
+            // AUTH-01: a phone-only account can't get its code in email-only mode; the Owner or support adds an email.
+            if ($channel === 'sms' && ! app(SmsAvailability::class)->available()) {
+                throw SmsAvailability::refusal(null, 'auth.sms_unavailable.no_email');
+            }
+
             // Past the send limits the account is still unverified; the
             // code already sent stays valid, so no new challenge id.
             try {
@@ -120,9 +127,17 @@ class Authenticate
      */
     public function twoFactorChallenge(User $user): string
     {
+        // AUTH-03: in email-only mode an SMS-method code goes to a verified
+        // email instead; without one the sign-in is refused, never let
+        // through without its second factor.
+        $sms = app(SmsAvailability::class)->available();
+        $bySms = $user->two_factor_method === TwoFactor::METHOD_SMS;
+
         [$channel, $destination] = match (true) {
-            $user->two_factor_method === TwoFactor::METHOD_SMS && $user->phone !== null => ['sms', $user->phone],
-            $user->two_factor_method === TwoFactor::METHOD_SMS => ['email', $user->email],
+            $bySms && $user->phone !== null && $sms => ['sms', $user->phone],
+            $bySms && $user->phone === null && $user->email !== null => ['email', $user->email],
+            $bySms && $user->email !== null && $user->email_verified_at !== null => ['email', $user->email],
+            $bySms => throw SmsAvailability::refusal(null, 'auth.sms_unavailable.no_email'),
             default => [null, null],
         };
 

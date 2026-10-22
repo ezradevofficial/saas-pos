@@ -58,7 +58,10 @@ jobs:
           node-version: '24'
           cache: npm
 
-      - run: npm ci
+      # Only the web app is built here, and it needs no install scripts.
+      # On the staging runner @sentry/cli's postinstall failed with
+      # "spawn sh ENOENT" (the React Native SDK's CLI, unused in this job).
+      - run: npm ci --ignore-scripts
 
       # NFR-10: the release is the commit; Sentry is on only when the
       # environment's SENTRY_WEB_DSN variable is set. Hidden source maps are

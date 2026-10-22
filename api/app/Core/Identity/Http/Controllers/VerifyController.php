@@ -11,6 +11,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Services\Authenticate;
 use App\Core\Identity\Services\Challenges;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Onboarding\TenantSlugs;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
@@ -77,6 +78,11 @@ class VerifyController
         // (with the password), so codes cannot be guessed resend by resend.
         if ($this->challenges->isExhausted($old)) {
             throw new ApiException(422, 'challenge_exhausted', __('auth.code.exhausted'), ['challenge_id' => [__('auth.code.exhausted')]]);
+        }
+
+        // AUTH-01: a code by SMS can't be resent in email-only mode.
+        if ($old->channel === 'sms' && ! app(SmsAvailability::class)->available()) {
+            throw SmsAvailability::refusal('challenge_id', 'auth.sms_unavailable.no_email');
         }
 
         // Consumes $old; refused with 429 past the send limits.

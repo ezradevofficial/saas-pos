@@ -71,8 +71,8 @@ class PreflightTest extends TestCase
         foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Redis', 'Mail server', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role', 'Platform database role', 'Error tracking', 'Backups', 'Metrics access'] as $label) {
             $this->assertStringContainsString($label, $output);
         }
-        // No SMS provider yet: a warning, not a failure.
-        $this->assertStringContainsString('SMS_DRIVER not set', $output);
+        // AUTH-01..05: no SMS provider yet is email-only mode, a warning, not a failure.
+        $this->assertMatchesRegularExpression('/SMS driver.*SMS unavailable: email-only mode \\(SMS_DRIVER not set.*WARN/', $output);
         $this->assertStringContainsString('Ready.', $output);
     }
 
@@ -177,7 +177,18 @@ class PreflightTest extends TestCase
         [$code, $output] = $this->preflight();
 
         $this->assertSame(0, $code, $output);
-        $this->assertMatchesRegularExpression('/SMS driver.*SMS_DRIVER some-provider is not a provider this release implements.*WARN/', $output);
+        $this->assertMatchesRegularExpression('/SMS driver.*SMS unavailable: email-only mode \\(SMS_DRIVER some-provider is not a provider this release implements.*WARN/', $output);
+    }
+
+    /** AUTH-01..05: SMS switched off on purpose is email-only mode too, a warning. */
+    public function test_sms_switched_off_is_email_only_mode(): void
+    {
+        $this->production(['services.sms.driver' => 'none']);
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(0, $code, $output);
+        $this->assertMatchesRegularExpression('/SMS driver.*SMS unavailable: email-only mode \\(SMS_DRIVER is none.*WARN/', $output);
     }
 
     /** ADR 025: a wrong mailbox password or a blocked port stops the deploy, not the first verification code. */

@@ -53,6 +53,19 @@ class AssistedOnboardingTest extends TestCase
         ], $overrides), $this->staffBearer($staff));
     }
 
+    /** AUTH-05: in email-only mode the Owner can't be invited by phone; no tenant is made. */
+    public function test_a_phone_contact_is_refused_in_email_only_mode(): void
+    {
+        config(['services.sms.driver' => 'none']);
+        $staff = $this->staff(PlatformUser::ROLE_SUPPORT);
+
+        $this->create($staff, ['email' => null, 'phone' => '+243810000001'])
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'sms_unavailable')
+            ->assertJsonValidationErrors('phone');
+        $this->assertNull(DB::selectOne('select auth_tenant_for_login(?) as tenant_id', ['+243810000001'])->tenant_id);
+    }
+
     public function test_staff_create_a_tenant_and_the_customer_becomes_owner_while_staff_lose_access(): void
     {
         $staff = $this->staff(PlatformUser::ROLE_SUPPORT);

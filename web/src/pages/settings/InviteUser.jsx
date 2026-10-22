@@ -8,6 +8,7 @@ import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, Icon, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { contactPayload } from '@/lib/contact'
+import { useSmsAvailable } from '@/lib/useSmsAvailable'
 import { useErrorFocus } from '@/lib/useErrorFocus'
 import { AssignmentFields } from './users/AssignmentFields'
 import { assignmentBody, emptyAssignment, offeredRow, useGrantOptions } from './users/assignments'
@@ -36,6 +37,8 @@ export default function InviteUser() {
   const alertRef = useRef(null)
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
+  // AUTH-05: in email-only mode the invitation goes to an email address.
+  const sms = useSmsAvailable()
   const [rows, setRows] = useState(() => [emptyAssignment()])
   const options = useGrantOptions({ invite: true, rows })
 
@@ -90,8 +93,9 @@ export default function InviteUser() {
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField label={t('users.fields.name')} value={name} onChange={(event) => setName(event.target.value)} error={errors.fields.name} autoComplete="off" required />
             <TextField
-              label={t('users.fields.contact')}
-              help={t('users.invite.contactHelp')}
+              label={sms ? t('users.fields.contact') : t('users.fields.email')}
+              help={sms ? t('users.invite.contactHelp') : t('users.invite.emailHelp')}
+              type={sms ? 'text' : 'email'}
               value={contact}
               onChange={(event) => setContact(event.target.value)}
               error={errors.fields.contact}

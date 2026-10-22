@@ -10,6 +10,7 @@ use App\Core\Identity\Services\SessionTimeout;
 use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Sms\LogSmsSender;
 use App\Core\Notifications\Sms\NullSmsSender;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Notifications\Sms\SmsSender;
 use App\Core\Platform\SupportAccess\SupportAccess;
 use App\Core\Tenancy\Models\Device;
@@ -22,11 +23,12 @@ class IdentityServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // The log driver only where messages may land in a log (local,
-        // testing) or when chosen explicitly (refused elsewhere by
-        // EnvironmentGuard). Anywhere else without a provider, sending throws.
+        // The driver SmsAvailability says is in effect: the log driver only
+        // where messages may land in a log (local, testing). In email-only
+        // mode (no provider) sending throws; every caller asks
+        // SmsAvailability first, so nothing reaches it.
         $this->app->bindIf(SmsSender::class, function ($app) {
-            $driver = config('services.sms.driver') ?? ($app->environment(['local', 'testing']) ? 'log' : null);
+            $driver = $app->make(SmsAvailability::class)->driver();
 
             // Keep in step with SmsSender::DRIVERS (app:preflight warns on any other name).
             return match ($driver) {

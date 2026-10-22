@@ -8,6 +8,7 @@ use App\Core\Notifications\Jobs\SendDelivery;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Notifications\Models\NotificationPreference;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Notifications\Templates\Templates;
 use App\Core\Privacy\Consents;
 use App\Core\Tenancy\TenantContext;
@@ -37,6 +38,10 @@ use InvalidArgumentException;
  * reason when the user has no contact for them or no driver is configured.
  * Jobs are dispatched after the surrounding transaction commits.
  *
+ * NOT-01 (email-only mode, SmsAvailability): an SMS delivery is skipped
+ * with the reason `sms_unavailable`, never counted as sent, and the
+ * message falls back to WhatsApp where configured, else to email.
+ *
  * System event types (ADR 009) may also go to contacts that are not users
  * yet (NotificationAddress, e.g. an invitation) and carry secrets (e.g. the
  * invitation link) that are never stored: they travel in the encrypted
@@ -56,6 +61,7 @@ class Notifier
         private readonly Templates $templates,
         private readonly ChannelDrivers $drivers,
         private readonly Consents $consents,
+        private readonly SmsAvailability $sms,
     ) {}
 
     /** @return Collection<int, NotificationDelivery> the deliveries created, every recipient and channel */
@@ -115,6 +121,15 @@ class Notifier
                     $channels[] = Channels::SMS;
                 }
 
+                // NOT-01: in email-only mode SMS is skipped (`sms_unavailable`) and the message goes by WhatsApp where configured, else by email.
+                if (in_array(Channels::SMS, $channels, true) && ! $this->sms->available()) {
+                    $fallback = $this->smsFallback($type, $user, $channels);
+
+                    if ($fallback !== null) {
+                        $channels[] = $fallback;
+                    }
+                }
+
                 foreach ($channels as $channel) {
                     $message = $this->templates->effective($type, $channel, $locale, $overrides)->render($values, $channel);
                     $row = [
@@ -164,11 +179,28 @@ class Notifier
                     }
                 }
 
+                $smsOff = $address->channel === Channels::SMS && ! $this->sms->available();
+
                 $queue(match (true) {
                     $type->marketing && ! isset($consenting[$address->channel][$address->customerId]) => $this->skipped($row, NotificationDelivery::REASON_NO_CONSENT),
+                    $smsOff => $this->skipped($row, NotificationDelivery::REASON_SMS_UNAVAILABLE),
                     $address->channel !== Channels::EMAIL && ! $this->drivers->available($address->channel, $type) => $this->skipped($row, NotificationDelivery::REASON_CHANNEL_UNAVAILABLE),
                     default => NotificationDelivery::create([...$row, 'status' => NotificationDelivery::QUEUED]),
                 });
+
+                // NOT-01: a transactional text (an order update) goes to the same number by WhatsApp where configured;
+                // an email address in the same event (the order's) still gets its own delivery. Marketing never
+                // changes channel: consent is per channel (NFR-08).
+                if ($smsOff && ! $type->marketing && in_array(Channels::WHATSAPP, $type->channels, true) && $this->drivers->available(Channels::WHATSAPP, $type)) {
+                    $message = $this->templates->effective($type, Channels::WHATSAPP, $locale, $overrides)->render($values, Channels::WHATSAPP);
+                    $queue(NotificationDelivery::create([
+                        ...$row,
+                        'channel' => Channels::WHATSAPP,
+                        'subject' => $message->subject,
+                        'body' => $message->body,
+                        'status' => NotificationDelivery::QUEUED,
+                    ]));
+                }
             }
 
             return $deliveries;
@@ -284,9 +316,35 @@ class Notifier
         ]);
     }
 
+    /**
+     * NOT-01: the channel a user's message falls back to when SMS is
+     * unavailable, or null when one it already goes on reaches them: WhatsApp
+     * where configured and the user has a verified phone, else email.
+     *
+     * @param  list<string>  $channels  the channels the message already goes on
+     */
+    private function smsFallback(EventType $type, User $user, array $channels): ?string
+    {
+        $emailReaches = $user->email !== null && $user->email_verified_at !== null;
+        $whatsapp = in_array(Channels::WHATSAPP, $type->channels, true) && $this->drivers->available(Channels::WHATSAPP, $type)
+            && $user->phone !== null && $user->phone_verified_at !== null;
+
+        return match (true) {
+            in_array(Channels::EMAIL, $channels, true) && $emailReaches,
+            in_array(Channels::WHATSAPP, $channels, true) && $whatsapp => null,
+            $whatsapp => Channels::WHATSAPP,
+            in_array(Channels::EMAIL, $type->channels, true) && ! in_array(Channels::EMAIL, $channels, true) => Channels::EMAIL,
+            default => null,
+        };
+    }
+
     /** Push to the user's devices, SMS and WhatsApp to a verified phone, through the channel's driver. */
     private function driven(array $row, User $user, string $channel, EventType $type): NotificationDelivery
     {
+        if ($channel === Channels::SMS && ! $this->sms->available()) {
+            return $this->skipped($row, NotificationDelivery::REASON_SMS_UNAVAILABLE);
+        }
+
         if (! $this->drivers->available($channel, $type)) {
             return $this->skipped($row, NotificationDelivery::REASON_CHANNEL_UNAVAILABLE);
         }

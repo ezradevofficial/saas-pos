@@ -9,6 +9,7 @@ use App\Core\Identity\Models\Invitation;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Services\Challenges;
 use App\Core\Identity\Services\Invitations;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Onboarding\Models\OnboardingState;
 use App\Core\Onboarding\Onboarding;
 use App\Core\Platform\Models\PlatformUser;
@@ -65,6 +66,11 @@ class AssistedOnboarding
      */
     public function create(PlatformUser $staff, array $data): array
     {
+        // AUTH-05: the Owner's invitation by phone goes out by SMS; refused in email-only mode, before any tenant is made.
+        if (($data['email'] ?? null) === null) {
+            app(SmsAvailability::class)->assertAvailable('phone');
+        }
+
         $contact = (string) (($data['email'] ?? null) ?? $data['phone']);
 
         // Check, then create, under an advisory lock on the contact: two staff (or a double

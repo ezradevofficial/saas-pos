@@ -2,6 +2,7 @@
 
 namespace App\Core\Support\Console;
 
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Notifications\Sms\SmsSender;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Rbac\Console\SyncPermissions;
@@ -59,6 +60,19 @@ class Preflight extends Command
         return self::SUCCESS;
     }
 
+    /** Why text messages are off: phone sign-up, phone codes and SMS notifications are refused or skipped. */
+    private static function emailOnly(mixed $driver): string
+    {
+        $why = match (true) {
+            $driver === null || $driver === '' => 'SMS_DRIVER not set',
+            $driver === SmsAvailability::NONE => 'SMS_DRIVER is none',
+            ! in_array($driver, SmsSender::DRIVERS, true) => 'SMS_DRIVER '.$driver.' is not a provider this release implements',
+            default => 'SMS_DRIVER '.$driver.' is for local and testing only',
+        };
+
+        return "SMS unavailable: email-only mode ({$why}; phone sign-up and codes by SMS are refused)";
+    }
+
     /** @return array<string, callable(): array{string, ?string}> status ok|warn|skip|fail, and a detail */
     private function checks(Repository $config, bool $development): array
     {
@@ -69,9 +83,10 @@ class Preflight extends Command
             $checks[$label] = fn () => match (true) {
                 $development => ['skip', 'development drivers allowed here'],
                 $problem !== null => ['fail', $problem],
-                $label === 'SMS driver' && $config->get('services.sms.driver') === null => ['warn', 'SMS_DRIVER not set: text messages fail with SmsNotConfigured'],
-                // Deploy rehearsal (2026-10-22): an unknown name passed as ready while sending nothing.
-                $label === 'SMS driver' && ! in_array($config->get('services.sms.driver'), SmsSender::DRIVERS, true) => ['warn', 'SMS_DRIVER '.$config->get('services.sms.driver').' is not a provider this release implements: text messages fail with SmsNotConfigured'],
+                // AUTH-01..05, NOT-01 (owner decision 2026-10-22): no provider is a supported
+                // email-only mode, a warning. Deploy rehearsal (2026-10-22): an unknown name
+                // passed as ready while sending nothing.
+                $label === 'SMS driver' && ! $this->laravel->make(SmsAvailability::class)->available() => ['warn', self::emailOnly($config->get('services.sms.driver'))],
                 default => ['ok', null],
             };
         }
