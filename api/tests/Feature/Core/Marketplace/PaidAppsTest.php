@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Marketplace;
 
+use App\Core\Billing\Catalogue\Models\CatalogueCoupon;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Marketplace\Connectors\FirstParty;
 use App\Core\Marketplace\Models\MarketplacePayable;
@@ -18,7 +19,7 @@ use Tests\TestCase;
 // MKT-03 (ADR 024): paid apps are app lines of the subscription's invoices
 // (free during the trial, pro-rated when installed in a paid period, on
 // every renewal); when an invoice is paid the developer earns 80 % of the
-// line net of discount and tax in the operator's ledger; staff pay out by
+// line net of tax (a plan coupon never reaches app lines) in the operator's ledger; staff pay out by
 // hand with a reference, never more than the balance.
 class PaidAppsTest extends TestCase
 {
@@ -75,6 +76,34 @@ class PaidAppsTest extends TestCase
         $next = collect($this->invoices())->where('kind', 'renewal')->last();
         $this->assertNotSame($renewal->id, $next->id);
         $this->assertSame([], $this->appLines($next->id));
+    }
+
+    /**
+     * ADR 024 decision 9 (owner decision 2026-10-22): a plan coupon applies to
+     * the plan lines only, never spread across app lines, so the developer
+     * earns 80 % of the app's full price net of tax.
+     */
+    public function test_a_plan_coupon_never_lowers_the_app_line_or_the_developers_share(): void
+    {
+        (new CatalogueCoupon(['code' => 'TEN-PERCENT', 'kind' => 'percent', 'percent' => 10]))->save();
+        $this->postJson('/api/v1/subscription/change', [...self::STARTER, 'coupon' => 'TEN-PERCENT', 'expected_charge' => 0], $this->headersFor())->assertOk();
+        $app = $this->listedApp(['pricing' => self::PAID]);
+        $this->install($app);
+
+        $first = $this->activate();
+        $coupon = collect($first->lines)->firstWhere('type', 'coupon');
+        $this->assertNotNull($coupon);
+        $this->assertLessThan(0, $coupon['amount']);
+
+        $line = $this->appLines($first->id)[0];
+        $this->assertSame([50000, 0, 50000], [$line['amount'], $line['discount_minor'], $line['net_minor']]);
+        // The whole coupon sits on the plan lines.
+        $plan = collect($first->lines)->filter(fn (array $l) => $l['amount'] > 0 && $l['type'] !== 'app');
+        $this->assertSame(-$coupon['amount'], $plan->sum('discount_minor'));
+
+        $earning = $this->inOperator(fn () => MarketplacePayable::where('kind', 'earning')->sole());
+        $base = 50000 - (int) ($line['tax_minor'] ?? 0);
+        $this->assertSame([$base, intdiv(2 * $base * 80 + 100, 200)], [$earning->base_minor, $earning->amount_minor]);
     }
 
     public function test_installed_in_a_paid_period_the_rest_of_the_period_is_charged_now(): void
