@@ -1,5 +1,12 @@
 <?php
 
+// NFR-07: tenant files go to the object store whenever a bucket is
+// configured (AWS_BUCKET), with no other switch; MEDIA_DISK overrides it
+// (`media`: the local disk, `s3`: the bucket).
+$tenantFiles = (string) env('MEDIA_DISK', '') !== ''
+    ? (string) env('MEDIA_DISK')
+    : ((string) env('AWS_BUCKET', '') !== '' ? 's3' : 'media');
+
 $objectStorage = [
     'driver' => 's3',
     'key' => env('AWS_ACCESS_KEY_ID'),
@@ -33,12 +40,13 @@ return [
 
     /*
     | NFR-07, TEN-01: the disk new tenant files are written to
-    | (App\Core\Files\TenantFiles::disk()): `media` (local) in development
-    | and tests, `s3` (Linode Object Storage) in staging and production.
+    | (App\Core\Files\TenantFiles::disk()): `s3` (Linode Object Storage)
+    | as soon as AWS_BUCKET is set (staging and production), else `media`
+    | (local, development and tests). MEDIA_DISK overrides either way.
     | app:preflight fails in production on anything but an object store it
     | can write, read and delete a probe object on.
     */
-    'tenant_files' => env('MEDIA_DISK', 'media'),
+    'tenant_files' => $tenantFiles,
 
     /*
     |--------------------------------------------------------------------------
@@ -81,10 +89,10 @@ return [
 
         // MD-02 and every other tenant file, from before the object store:
         // the disk name older rows carry. Local (storage/app/media) in
-        // development and tests; with MEDIA_DISK=s3 it is the same bucket as
+        // development and tests; on the object store it is the same bucket as
         // `s3`, so those rows read the files that
         // `storage:migrate-to-object-storage` copied there under the same keys.
-        'media' => env('MEDIA_DISK', 'media') === 's3' ? $objectStorage : [
+        'media' => $tenantFiles === 's3' ? $objectStorage : [
             'driver' => 'local',
             'root' => storage_path('app/media'),
             'visibility' => 'private',

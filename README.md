@@ -194,7 +194,7 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations and the deploy commands: `permissions:sync`, `currencies:sync`, `country-packs:publish`, `country-packs:holidays`, the seed-defaults commands and `app:preflight`). Only the host the deploy runs on needs `DB_OWNER_*`.
 - [ ] Branding (BR-04, BR-05): `APP_BASE_DOMAIN`, `BRANDING_CNAME_TARGET`, the wildcard DNS and certificate, and Caddy's on-demand TLS `ask` pointed at `http://127.0.0.1:<port>/api/v1/tls/ask`, with `/api/v1/tls/ask` blocked from the public interface (see docs/integrations.md, Branding).
 - [ ] Horizon and the scheduler running, see [Queue workers](#queue-workers)
-- [ ] tenant files (NFR-07): `MEDIA_DISK=s3` and the `AWS_*` variables for a private Linode Object Storage bucket, see [Media storage](#media-storage). `app:preflight` fails in production without them.
+- [ ] tenant files (NFR-07): the `AWS_*` variables for a private Linode Object Storage bucket (`AWS_BUCKET` switches it on), see [Media storage](#media-storage). `app:preflight` fails in production without them.
 
 Each deploy:
 
@@ -276,10 +276,10 @@ The Horizon dashboard (`/horizon`) shows every tenant's job payloads. It opens o
 
 #### Media storage
 
-Tenant files (item images, branding, documents, attachments, imports, exports, proof photos) live on the disk `MEDIA_DISK` names, at keys that start with the tenant, e.g. `tenants/{tenant}/items/{item}/{uuid}.{ext}` (TEN-01). They are never served from a public path: the API streams them behind temporary signed URLs bound to the user (15 minutes for images), which check the tenant and the user's access again.
+Tenant files (item images, branding, documents, attachments, imports, exports, proof photos) live on the tenant files disk (the bucket once `AWS_BUCKET` is set), at keys that start with the tenant, e.g. `tenants/{tenant}/items/{item}/{uuid}.{ext}` (TEN-01). They are never served from a public path: the API streams them behind temporary signed URLs bound to the user (15 minutes for images), which check the tenant and the user's access again.
 
-- **Local** (`MEDIA_DISK=media`, development and tests): files under `api/storage/app/media`.
-- **Linode Object Storage** (`MEDIA_DISK=s3`, staging and production): a private S3-compatible bucket, never presigned. Variables, the preflight check and `storage:migrate-to-object-storage` for files kept on disk before: [docs/deploy-linode.md, Object Storage](docs/deploy-linode.md#object-storage).
+- **Local** (no `AWS_BUCKET`, development; tests force it with `MEDIA_DISK=media`): files under `api/storage/app/media`.
+- **Linode Object Storage** (`AWS_BUCKET` set, staging and production): a private S3-compatible bucket, never presigned. Variables, the preflight check and `storage:migrate-to-object-storage` for files kept on disk before: [docs/deploy-linode.md, Object Storage](docs/deploy-linode.md#object-storage).
 
 #### If a deploy stops
 

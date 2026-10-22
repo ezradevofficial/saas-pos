@@ -9,9 +9,10 @@ use InvalidArgumentException;
  * TEN-01, NFR-07: where tenant files go and what they are called.
  *
  * Disk: every new file is written to the disk named by
- * `filesystems.tenant_files` (MEDIA_DISK): `media` (local,
+ * `filesystems.tenant_files`: `media` (local,
  * storage/app/media) in development and tests, `s3` (Linode Object
- * Storage, one private bucket) in staging and production. A row keeps the
+ * Storage, one private bucket) once AWS_BUCKET is set (staging and
+ * production; MEDIA_DISK overrides). A row keeps the
  * disk it was written to, and readers open that disk, so files written
  * before a switch stay readable (on the object store the `media` disk is
  * the same bucket, see config/filesystems.php).
