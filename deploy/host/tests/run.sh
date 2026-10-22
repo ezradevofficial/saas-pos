@@ -156,6 +156,64 @@ check "tls: 1.2 and 1.3 only" has "$R/etc/nginx/conf.d/tls.conf" '^ssl_protocols
 check "tls: Ubuntu's own ssl_protocols and cipher preference are commented out" has "$out3" 'sed -i -E .*ssl_prefer_server_ciphers.* /etc/nginx/nginx\.conf$'
 check "no placeholder left in nginx files" lacks "$site" '@[A-Z_]+@'
 
+# A stub nginx -t for the sandbox: it reads every enabled site under
+# HOST_ROOT (links are absolute, as on the host), logs what it saw, and
+# fails as nginx 1.24 does on "http2 on;" or on the BOGUS marker.
+cat >"$WORK/stub-nginx-t" <<EOF
+#!/usr/bin/env bash
+status=0
+for link in "\$HOST_ROOT"/etc/nginx/sites-enabled/*; do
+  [ -e "\$link" ] || [ -L "\$link" ] || continue
+  file="\$HOST_ROOT\$(readlink "\$link")"
+  if grep -Eq '^[[:space:]]*(http2 on;|bogus_directive)' "\$file"; then
+    echo "fail \$(basename "\$link")" >>"$WORK/nginx-t.calls"
+    status=1
+  fi
+done
+[ "\$status" != 0 ] || echo pass >>"$WORK/nginx-t.calls"
+exit "\$status"
+EOF
+chmod +x "$WORK/stub-nginx-t"
+
+echo "nginx: a stale HTTPS site and a template change converge in one run (NFR-01)"
+# The staging host on 2026-10-22: the HTTPS site from the old template
+# (a separate "http2 on;", refused by nginx 1.24) is still enabled.
+printf 'server {\n    listen 443 ssl;\n    http2 on;\n    server_name app.example.test;\n}\n' >"$site"
+ln -sfn /etc/nginx/sites-available/app "$R/etc/nginx/sites-enabled/app"
+rm -f "$WORK/nginx-t.calls"
+out4="$WORK/provision-nginx-stale.out"
+if NGINX_TEST_CMD="$WORK/stub-nginx-t" HOST_ROOT="$R" provision --steps nginx >"$out4" 2>&1; then ok "stale site: the nginx step succeeds in one run"; else bad "stale site: the nginx step succeeds in one run" "$(tail -10 "$out4")"; fi
+check "stale site: rewritten from the current template" test "$(grep -c 'listen 443 ssl http2;' "$site")" = 2
+check "stale site: no separate http2 directive left" lacks "$site" '^[[:space:]]*http2 on;'
+check "stale site: nginx -t never saw the stale file" lacks "$WORK/nginx-t.calls" '^fail'
+check "stale site: nginx -t ran" has "$WORK/nginx-t.calls" '^pass$'
+check "stale site: nginx reloaded for the new site" has "$out4" 'systemctl reload nginx'
+check "stale site: still enabled" test -L "$R/etc/nginx/sites-enabled/app"
+
+echo "nginx: a config that fails nginx -t is rolled back, never reloaded (NFR-01)"
+# A copy of deploy/host whose HTTPS template nginx would refuse.
+H2="$WORK/host-bad"
+cp -R "$HOST_DIR" "$H2"
+printf 'bogus_directive on;\n' >>"$H2/templates/nginx-https.conf.tmpl"
+cp "$site" "$WORK/site-before"
+rm -f "$headers" "$WORK/nginx-t.calls"
+out5="$WORK/provision-nginx-bad.out"
+if NGINX_TEST_CMD="$WORK/stub-nginx-t" HOST_ROOT="$R" bash "$H2/provision-single-host.sh" --dry-run --steps nginx >"$out5" 2>&1; then
+  bad "bad template: the nginx step stops" "$(tail -10 "$out5")"
+else
+  ok "bad template: the nginx step stops"
+fi
+check "bad template: nginx -t failed on the new site" has "$WORK/nginx-t.calls" '^fail app$'
+check "bad template: says the previous files are back" has "$out5" 'previous files are back'
+check "bad template: the HTTPS site is the previous one" cmp -s "$site" "$WORK/site-before"
+check "bad template: a file that was absent is absent again" test ! -e "$headers"
+check "bad template: the site is still enabled" test "$(readlink "$R/etc/nginx/sites-enabled/app")" = /etc/nginx/sites-available/app
+check "bad template: nginx not reloaded" lacks "$out5" 'systemctl reload nginx'
+check "bad template: certbot not reached" lacks "$out5" 'certbot'
+rm -f "$WORK/nginx-t.calls"
+if NGINX_TEST_CMD="$WORK/stub-nginx-t" HOST_ROOT="$R" provision --steps nginx >"$WORK/provision-nginx-fixed.out" 2>&1; then ok "fixed template: the next run converges"; else bad "fixed template: the next run converges" "$(tail -10 "$WORK/provision-nginx-fixed.out")"; fi
+check "fixed template: the headers snippet is back" test -f "$headers"
+
 echo "Provisioning with backups on (go-live)"
 base_env
 backup_env
