@@ -58,8 +58,11 @@ class DeveloperAppsTest extends TestCase
     public function test_registering_needs_the_terms_and_the_catalogue_is_offered(): void
     {
         $this->putJson('/api/v1/developer', ['name' => 'Acme Labs', 'email' => 'dev@acme.example'], $this->headersFor())->assertUnprocessable()->assertJsonValidationErrors('accept_terms');
-        $this->getJson('/api/v1/developer', $this->headersFor())->assertOk()->assertJsonPath('data.developer', null)
-            ->assertJsonPath('data.catalogue.share_percent', 80);
+        $catalogue = $this->getJson('/api/v1/developer', $this->headersFor())->assertOk()->assertJsonPath('data.developer', null)
+            ->assertJsonPath('data.catalogue.share_percent', 80)->json('data.catalogue');
+        // Phase 8 Marketplace walkthrough: the scope picker words each scope as the consent screen does.
+        $this->assertSame('See items', $catalogue['scope_labels']['core.item.read']);
+        $this->assertSame(count($catalogue['scopes']), count($catalogue['scope_labels']));
 
         $this->register();
         $this->getJson('/api/v1/developer', $this->headersFor())->assertOk()->assertJsonPath('data.developer.name', 'Acme Labs');
