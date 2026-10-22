@@ -99,7 +99,9 @@ class OAuthInstallTest extends TestCase
         $this->getJson('/api/v1/items', $headers)->assertOk()->assertHeader('RateLimit-Limit');
         $this->postJson('/api/v1/parties', ['kind' => 'person', 'name' => 'Amani', 'roles' => ['customer']], $headers)->assertCreated();
         // Read scope only for items.
-        $this->postJson('/api/v1/items', ['name' => 'Tea'], $headers)->assertForbidden()->assertJsonPath('code', 'api_scope_missing');
+        $this->postJson('/api/v1/items', ['name' => 'Tea'], $headers)->assertForbidden()->assertJsonPath('code', 'api_scope_missing')
+            // Phase 8 Marketplace walkthrough: an app is told about its consent, not about editing a key.
+            ->assertJsonPath('message', __('api.errors.scope_missing_app', ['scope' => 'core.item.write']));
         // Not a public route: refused before the controller runs.
         $this->getJson('/api/v1/me', $headers)->assertForbidden()->assertJsonPath('code', 'api_key_route_refused');
         $this->getJson('/api/v1/users', $headers)->assertForbidden();
