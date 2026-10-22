@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
-import { apiError, mockApi, renderApp, resetSession } from '@/test/renderApp'
+import { apiError, mockApi, renderApp, resetSession, signedIn } from '@/test/renderApp'
 import { getPlatformToken, PLATFORM_TOKEN_KEY, platformApi, setPlatformToken } from './platformClient'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -116,6 +116,18 @@ describe('Platform console', () => {
     const { router } = renderApp('/platform/catalogue')
     await waitFor(() => expect(router.state.location.pathname).toBe('/platform/enrol'))
     expect(await screen.findByRole('heading', { name: 'Set up your authenticator app' })).toBeInTheDocument()
+  })
+
+  it('shows the platform name on staff sign-in, never the tenant of a session in the same browser (ADR 013)', async () => {
+    // Phase 8 walkthrough: a tenant session open in the same browser put its
+    // name in the header of the platform sign-in page.
+    signedIn()
+    renderApp('/platform/sign-in')
+
+    expect(await screen.findByRole('heading', { name: 'Platform sign-in' })).toBeInTheDocument()
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('me'))
+    expect(within(screen.getByRole('banner')).getByText(import.meta.env.VITE_APP_NAME)).toBeInTheDocument()
+    expect(screen.queryByText('Amani Retail Group')).not.toBeInTheDocument()
   })
 
   it('redirects to sign-in without a staff session', async () => {
