@@ -25,6 +25,7 @@ return [
         'version_not_draft' => 'Seule une version brouillon peut être modifiée. Créez une nouvelle version pour la changer.',
         'developer_suspended' => 'Votre compte développeur est suspendu. Contactez l’équipe de la plateforme.',
         'developer_not_registered' => 'Inscrivez-vous comme développeur avant d’ajouter une application.',
+        'developer_sandbox' => 'Les applications d’un bac à sable développeur ne peuvent pas être soumises ni publiées. Inscrivez-vous comme développeur depuis le compte réel de votre entreprise pour publier une application.',
         'payout_over_balance' => 'Le montant dépasse ce qui est dû à ce développeur dans cette devise.',
         'courier_not_configured' => 'Aucun transporteur n’est encore configuré. L’équipe de la plateforme doit ajouter un transporteur et ses identifiants.',
         'shipment_not_found' => 'Le transporteur n’a aucune livraison avec cette référence.',

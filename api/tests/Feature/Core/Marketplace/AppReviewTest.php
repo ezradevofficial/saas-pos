@@ -3,11 +3,15 @@
 namespace Tests\Feature\Core\Marketplace;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Http\ApiException;
+use App\Core\Marketplace\AppReview;
 use App\Core\Marketplace\AppSecrets;
 use App\Core\Marketplace\Models\AppInstallation;
+use App\Core\Marketplace\Models\MarketplaceAppVersion;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Rbac\Console\SyncPermissions;
+use App\Core\Tenancy\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\Concerns\BuildsMarketplace;
@@ -62,6 +66,24 @@ class AppReviewTest extends TestCase
         $this->getJson("/api/v1/marketplace/apps/{$app['app_id']}", $this->headersFor())->assertOk()->assertJsonPath('data.name', 'Stock sync');
         $this->assertSame(1, PlatformDatabase::connection()->table('platform_audit_logs')->where('action', 'platform.marketplace.approve')->count());
         $this->postJson("/api/v1/platform/marketplace/versions/{$app['version_id']}/approve", $this->seen($app['app_id'], $app['version_id']), $this->reviewer())->assertStatus(409);
+    }
+
+    /** Phase 8 review H2: an idle sandbox is closed, which would stop its apps for every customer, so none is listed. */
+    public function test_a_version_from_a_developer_sandbox_is_never_approved(): void
+    {
+        $sandbox = Tenant::provision(['name' => 'Dev sandbox', 'is_sandbox' => true]);
+        $version = (new MarketplaceAppVersion)->forceFill([
+            'id' => (string) Str::uuid7(), 'app_id' => (string) Str::uuid7(), 'developer_tenant_id' => $sandbox->id,
+            'version' => 1, 'status' => MarketplaceAppVersion::SUBMITTED, 'submitted_at' => now(),
+        ]);
+
+        try {
+            app(AppReview::class)->approve(new PlatformUser, $version, null, $version->submitted_at->toIso8601String());
+            $this->fail('A sandbox version was approved.');
+        } catch (ApiException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+            $this->assertSame('developer_sandbox', $e->errorCode);
+        }
     }
 
     /** Security review 3: a version withdrawn, edited and submitted again after the reviewer opened it is not approved. */

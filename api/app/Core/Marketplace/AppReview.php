@@ -2,6 +2,7 @@
 
 namespace App\Core\Marketplace;
 
+use App\Core\Api\Sandbox\Sandbox;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Marketplace\Jobs\AppStatusNotice;
@@ -18,7 +19,8 @@ use Carbon\CarbonImmutable;
  * ADM-05 (docs/adr/024-marketplace.md): platform staff review apps.
  *
  * - Approve a submitted version: it becomes the listed one, and the app's
- *   OAuth client takes its redirect URIs. Installs that consented to fewer
+ *   OAuth client takes its redirect URIs. A developer sandbox's version is
+ *   never approved (409 `developer_sandbox`, Phase 8 review H2). Installs that consented to fewer
  *   scopes or events keep them until their tenant consents again.
  * - Reject it with a reason; the developer makes a new version.
  * - Suspend an app (with a reason): it leaves the listing, its tokens are
@@ -46,6 +48,11 @@ class AppReview
     public function approve(PlatformUser $staff, MarketplaceAppVersion $version, ?string $note, string $seenSubmittedAt): MarketplaceAppVersion
     {
         $this->assertSubmitted($version);
+
+        // Phase 8 review H2: a sandbox closes when idle, which would stop its apps for every customer.
+        if ($version->developer_tenant_id !== null && $this->tenants->run($version->developer_tenant_id, fn () => app(Sandbox::class)->active())) {
+            throw new ApiException(409, 'developer_sandbox', __('marketplace.errors.developer_sandbox'));
+        }
 
         PlatformDatabase::transaction(function () use ($staff, &$version, $note, $seenSubmittedAt) {
             $version = MarketplaceAppVersion::on(PlatformDatabase::CONNECTION)->lockForUpdate()->findOrFail($version->id);

@@ -12,8 +12,11 @@ return [
         // Access tokens are short; refresh tokens rotate on every use.
         'access_token_minutes' => (int) env('MARKETPLACE_ACCESS_TOKEN_MINUTES', 60),
         'refresh_token_days' => (int) env('MARKETPLACE_REFRESH_TOKEN_DAYS', 30),
-        // Token requests per client address a minute (the token endpoint is public).
-        'token_requests_per_minute' => (int) env('MARKETPLACE_TOKEN_REQUESTS_PER_MINUTE', 30),
+        // Token requests a minute (the token endpoint is public). Phase 8 review M5: counted per
+        // client id, so one app refreshing for many tenants from one address is not refused
+        // with the others behind that address, with a looser ceiling per address over all clients.
+        'token_requests_per_minute' => (int) env('MARKETPLACE_TOKEN_REQUESTS_PER_MINUTE', 120),
+        'token_requests_per_minute_per_ip' => (int) env('MARKETPLACE_TOKEN_REQUESTS_PER_MINUTE_PER_IP', 600),
     ],
 
     // MKT-03: the developer's share of a paid app line (net of discount and tax); the platform keeps the rest.

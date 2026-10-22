@@ -26,6 +26,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Laravel\Passport\Bridge;
 use Laravel\Passport\Passport;
 
@@ -86,11 +87,26 @@ class MarketplaceServiceProvider extends ServiceProvider
         // MKT-03: the developers' share of each paid app line, when its invoice is paid.
         Event::listen(OperatorInvoicePaid::class, [Payables::class, 'onInvoicePaid']);
 
-        RateLimiter::for(self::TOKEN_LIMITER, fn (Request $request) => Limit::perMinute(max(1, (int) config('marketplace.oauth.token_requests_per_minute', 30)))->by('oauth-token|'.$request->ip()));
+        // Phase 8 review M5: per client id (one app refreshing for many tenants from one address
+        // is not refused with every other app behind it), plus a looser ceiling per address. The
+        // client's window is per address too: a client id is public, so anyone sending it from
+        // elsewhere never uses up the real app's window.
+        RateLimiter::for(self::TOKEN_LIMITER, fn (Request $request) => [
+            Limit::perMinute(max(1, (int) config('marketplace.oauth.token_requests_per_minute', 120)))->by('oauth-token|client|'.self::tokenClientId($request).'|'.$request->ip()),
+            Limit::perMinute(max(1, (int) config('marketplace.oauth.token_requests_per_minute_per_ip', 600)))->by('oauth-token|ip|'.$request->ip()),
+        ]);
         RateLimiter::for(self::AUTHORIZE_LIMITER, fn (Request $request) => Limit::perMinute(30)->by('oauth-authorize|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         if ($this->app->runningInConsole()) {
             $this->commands([ConnectorCommand::class]);
         }
+    }
+
+    /** The client a token request names (body or HTTP Basic) when it is a client id at all, else `none`. */
+    private static function tokenClientId(Request $request): string
+    {
+        $id = $request->input('client_id', $request->getUser());
+
+        return is_string($id) && Str::isUuid($id) ? strtolower($id) : 'none';
     }
 }

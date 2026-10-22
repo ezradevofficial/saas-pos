@@ -215,9 +215,10 @@ class ApiConventionsTest extends TestCase
         $this->assertSame(2, $this->inTenant(fn () => (int) DB::table('api_key_usage_days')->where('api_key_id', $key['id'])->value('requests')));
     }
 
-    public function test_failed_key_authentications_are_limited_per_ip(): void
+    /** Review item 5, Phase 8 review M5: per key id and address, counted once the key fails to resolve. */
+    public function test_failed_key_authentications_are_limited_per_key_and_address(): void
     {
-        config(['api.rate_limits.failed_auth_per_ip' => 3]);
+        config(['api.rate_limits.failed_auth_per_token' => 3]);
         $wrong = 'sk_live_'.str_repeat('a', 16).'_'.str_repeat('B', 40);
 
         foreach (range(1, 3) as $i) {
@@ -225,8 +226,13 @@ class ApiConventionsTest extends TestCase
         }
 
         $this->getJson('/api/v1/companies', $this->keyHeaders($wrong))->assertStatus(429)->assertJsonPath('code', 'rate_limited')->assertHeader('Retry-After');
-        // A valid key from the same address is refused too until the window ends.
+        // Guessing another secret for the same key id is limited too.
+        $this->getJson('/api/v1/companies', $this->keyHeaders('sk_live_'.str_repeat('a', 16).'_'.str_repeat('C', 40)))->assertStatus(429);
+        // A valid key, and another wrong key, from the same address are not held back by it.
         $key = $this->apiKey();
-        $this->getJson('/api/v1/companies', $this->keyHeaders($key['secret']))->assertStatus(429);
+        $this->getJson('/api/v1/companies', $this->keyHeaders($key['secret']))->assertOk();
+        $this->getJson('/api/v1/companies', $this->keyHeaders('sk_live_'.str_repeat('b', 16).'_'.str_repeat('B', 40)))->assertUnauthorized();
+        // Nor is the same key id from another address.
+        $this->withServerVariables(['REMOTE_ADDR' => '10.20.30.40'])->getJson('/api/v1/companies', $this->keyHeaders($wrong))->assertUnauthorized();
     }
 }

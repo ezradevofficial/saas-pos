@@ -6,6 +6,8 @@ use App\Core\Api\ApiKeys;
 use App\Core\Api\Models\ApiKey;
 use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
+use App\Core\Marketplace\AppSecrets;
+use App\Core\Marketplace\Models\MarketplaceApp;
 use App\Core\Rbac\OwnerGuard;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
@@ -18,6 +20,12 @@ use Illuminate\Support\Facades\DB;
  * `closed` (nobody signs in, keys stop) and its keys are revoked. Its
  * Owners are emailed `warn_days_before` (7) days earlier, once. Activity:
  * the latest sign-in, key use, or the sandbox's creation. Audited.
+ *
+ * Phase 8 review H2: a sandbox whose developer has a listed app, or an app
+ * installed by any tenant, is never closed for inactivity: closing it
+ * would stop that app for every customer (`marketplace_developer_active`).
+ * New apps can no longer be listed from a sandbox (DeveloperApps::submit,
+ * AppReview::approve); this keeps the ones listed before serving.
  */
 class SandboxExpiry
 {
@@ -32,7 +40,7 @@ class SandboxExpiry
     {
         $tenant = Tenant::query()->whereKey($this->tenants->require())->firstOrFail();
 
-        if (! $tenant->is_sandbox || $tenant->status !== 'active') {
+        if (! $tenant->is_sandbox || $tenant->status !== 'active' || $this->servesApps($tenant)) {
             return 'active';
         }
 
@@ -61,6 +69,27 @@ class SandboxExpiry
         }
 
         return 'active';
+    }
+
+    /** Whether the sandbox's developer has an app listed, or installed in any tenant. */
+    private function servesApps(Tenant $tenant): bool
+    {
+        $apps = MarketplaceApp::query()->where('developer_tenant_id', $tenant->id);
+
+        if ((clone $apps)->whereNotNull('listed_version_id')->exists()) {
+            return true;
+        }
+
+        $runtime = DB::connection(TenantContext::CONNECTION);
+
+        foreach ((clone $apps)->pluck('id') as $appId) {
+            // Answers the app's own developer tenant (ADR 002); tenant ids only.
+            if (app(AppSecrets::class)->installedTenants((string) $appId, $runtime) !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function lastActivity(Tenant $tenant): CarbonImmutable
