@@ -2,6 +2,7 @@
 
 namespace Modules\Ecommerce\Http\Controllers;
 
+use App\Core\Files\TenantFiles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -73,8 +74,9 @@ class RiderAppController
         }
 
         $file = $request->file('photo');
-        $path = 'tenants/'.$ecomDelivery->tenant_id.'/ecommerce/proofs/'.$ecomDelivery->id.'.'.$file->extension();
-        Storage::disk('local')->putFileAs(dirname($path), $file, basename($path));
+        // NFR-07: the tenant files disk (Linode Object Storage in production), never the server's own disk.
+        $path = TenantFiles::key($ecomDelivery->tenant_id, 'ecommerce', 'proofs', $ecomDelivery->id.'.'.$file->extension());
+        Storage::disk(TenantFiles::disk())->putFileAs(dirname($path), $file, basename($path));
         $ecomDelivery->forceFill(['proof_kind' => $ecomDelivery->proof_kind ?? 'photo', 'proof_photo_path' => $path])->save();
 
         return response()->json(['data' => ['id' => $ecomDelivery->id, 'proof_kind' => $ecomDelivery->proof_kind]], 201);

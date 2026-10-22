@@ -2,6 +2,7 @@
 
 namespace App\Core\Observability\Health;
 
+use App\Core\Files\TenantFiles;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -66,8 +67,8 @@ class Readiness
     /** Writes, reads back and deletes a small probe file. */
     private function storage(): void
     {
-        $disk = Storage::disk($this->config->get('observability.health.storage_disk', 'media'));
-        $path = 'health/'.Str::uuid7().'.txt';
+        $disk = Storage::disk($this->config->get('observability.health.storage_disk') ?: TenantFiles::disk());
+        $path = TenantFiles::platformKey('health', Str::uuid7().'.txt');
         $value = (string) microtime(true);
 
         try {

@@ -17,6 +17,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\TestCase;
 
 // CF-01, CF-02, CF-03, CF-06, RBAC-05: custom values on items and parties:
@@ -26,7 +27,7 @@ use Tests\TestCase;
 // not change them. Lookups stay inside the tenant and the user's reach.
 class CustomFieldValuesTest extends TestCase
 {
-    use BuildsOrganisation, RefreshTenantDatabase;
+    use BuildsOrganisation, RefreshTenantDatabase, UsesObjectStorage;
 
     private string $eachUom;
 
@@ -319,6 +320,27 @@ class CustomFieldValuesTest extends TestCase
             ->assertUnprocessable();
         $this->post('/api/v1/custom-field-files', ['entity' => 'item', 'field' => 'ghost', 'file' => UploadedFile::fake()->create('a.pdf', 1, 'application/pdf')], [...$this->headersFor(), 'Accept' => 'application/json'])
             ->assertUnprocessable()->assertJsonValidationErrors('field');
+    }
+
+    /** NFR-07: a file field's file goes to the object store under the tenant; the link is the signed API route, short-lived and user-bound. */
+    public function test_file_fields_on_the_object_store(): void
+    {
+        $this->useObjectStorage();
+        $this->field(['key' => 'manual', 'type' => 'file']);
+        [$clerk] = $this->clerk();
+
+        $file = $this->post('/api/v1/custom-field-files', ['entity' => 'item', 'field' => 'manual', 'file' => UploadedFile::fake()->create('manual.pdf', 20, 'application/pdf')], [...$this->headersFor(), 'Accept' => 'application/json'])
+            ->assertCreated()->json('data');
+        $row = $this->inTenant(fn () => CustomFieldFile::findOrFail($file['id']));
+        $this->assertOnObjectStorage($row->disk, $row->path, $this->owner->tenant_id, 'custom-fields/item/');
+
+        $id = $this->item(['manual' => $file['id']])->assertCreated()->json('data.id');
+        $url = $this->getJson("/api/v1/items/{$id}", $this->headersFor())->json('data.custom.manual.url');
+        $this->assertSignedApiUrl($url);
+        $this->get($url)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->get(str_replace('user='.$this->owner->id, 'user='.$clerk->id, $url))->assertForbidden();
+        $this->travel(16)->minutes();
+        $this->get($url)->assertForbidden();
     }
 
     public function test_merge_fields_offer_the_fields_the_reader_may_see(): void

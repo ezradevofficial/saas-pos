@@ -38,7 +38,8 @@ return [
         // The connection the readiness check pings (the runtime role).
         'database_connection' => env('HEALTH_DATABASE_CONNECTION', 'pgsql'),
         // The disk whose write and read the readiness check proves.
-        'storage_disk' => env('HEALTH_STORAGE_DISK', 'media'),
+        // Empty: the tenant files disk (MEDIA_DISK).
+        'storage_disk' => env('HEALTH_STORAGE_DISK'),
         // Readiness is for the load balancer: a stopped Horizon does not take
         // the API out of rotation unless this is true (it still shows in
         // /metrics and the status snapshot).

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\TestCase;
 
 // MKT-01 (ADR 024): a tenant registers as a developer and manages apps:
@@ -22,14 +23,14 @@ use Tests\TestCase;
 // the developer's reach.
 class DeveloperAppsTest extends TestCase
 {
-    use BuildsOrganisation, RefreshTenantDatabase;
+    use BuildsOrganisation, RefreshTenantDatabase, UsesObjectStorage;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->setUpOrganisation();
-        Storage::fake('local');
+        Storage::fake('media');
     }
 
     private function register(): void
@@ -125,6 +126,19 @@ class DeveloperAppsTest extends TestCase
             $this->assertRefused(fn () => DB::table('marketplace_app_versions')->where('id', $version->id)->update(['reviewed_by' => $version->id]));
             $this->assertRefused(fn () => DB::table('marketplace_apps')->where('id', $id)->update(['listed_version_id' => $version->id]));
         });
+    }
+
+    /** NFR-07, TEN-01: an app's logo goes to the object store under the developer's tenant and is streamed by the API. */
+    public function test_a_logo_goes_to_the_object_store_under_the_developers_tenant(): void
+    {
+        $this->useObjectStorage();
+        $this->register();
+        $id = $this->postJson('/api/v1/developer/apps', $this->appBody(), $this->headersFor())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/developer/apps/{$id}/logo", ['logo' => UploadedFile::fake()->image('logo.png', 256, 256)], $this->headersFor())->assertOk();
+
+        $path = $this->inTenant(fn () => MarketplaceAppVersion::query()->where('app_id', $id)->sole()->logo_path);
+        $this->assertOnObjectStorage('s3', $path, $this->owner->tenant_id, "marketplace/apps/{$id}/");
+        $this->get("/api/v1/developer/apps/{$id}/logo", $this->headersFor())->assertOk();
     }
 
     public function test_rotating_secrets_and_archiving(): void

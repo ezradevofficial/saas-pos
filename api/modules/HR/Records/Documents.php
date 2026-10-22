@@ -23,9 +23,9 @@ use Throwable;
  * `media` disk, never public; the custom field file types and size) at
  * `tenants/{tenant}/hr/documents/{uuid}.{ext}`. Who sees one follows its
  * category (a sensitive group's view permission, else `hr.document.view`),
- * at the employee's place. Readers get a temporary URL (the object store's
- * on s3, else a signed route bound to them), checked again on download;
- * every link issued is audited (HR-11).
+ * at the employee's place. Readers get a temporary signed route bound to them
+ * (streamed from its disk), checked again on download;
+ * every download is audited (HR-11).
  */
 class Documents
 {

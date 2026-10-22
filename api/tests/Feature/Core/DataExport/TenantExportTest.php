@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
 use Mockery;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\Concerns\WithoutOwnerConnection;
 use Tests\TestCase;
 use ZipArchive;
@@ -37,7 +38,7 @@ use ZipArchive;
  */
 class TenantExportTest extends TestCase
 {
-    use BuildsOrganisation, RefreshTenantDatabase, WithoutOwnerConnection;
+    use BuildsOrganisation, RefreshTenantDatabase, UsesObjectStorage, WithoutOwnerConnection;
 
     protected function setUp(): void
     {
@@ -348,6 +349,47 @@ class TenantExportTest extends TestCase
         $listed = collect($this->getJson('/api/v1/tenant-exports', $this->headersFor())->assertOk()->json('data'))->keyBy('id');
         $this->assertSame(['expired', false], [$listed[$export->id]['status'], $listed[$export->id]['can_download']]);
         $this->assertSame('failed', $listed[$queued->id]['status']);
+    }
+
+    /**
+     * NFR-07: on the object store the export reads the tenant's files from
+     * the bucket, writes its zip there under the tenant, is downloaded only
+     * through the short-lived signed API link, and the expiry job deletes
+     * it from the bucket.
+     */
+    public function test_on_the_object_store_the_export_lives_in_the_bucket_and_expiry_deletes_it_there(): void
+    {
+        $this->useObjectStorage();
+        $other = $this->otherTenant();
+        $bucket = Storage::disk('s3');
+        $bucket->put("tenants/{$this->owner->tenant_id}/items/item-1/photo.jpg", 'item image');
+        $bucket->put("tenants/{$other['user']->tenant_id}/items/item-9/photo.jpg", 'other tenant image');
+
+        $export = $this->export();
+        $this->assertSame(TenantExport::READY, $export->status, (string) $export->failure);
+        $this->assertSame('s3', $export->disk);
+        $this->assertSame("tenants/{$this->owner->tenant_id}/exports/{$export->id}.zip", $export->path);
+        $bucket->assertExists($export->path);
+        $bucket->assertMissing("{$export->path}.part");
+        $this->assertSame([], Storage::disk('media')->allFiles());
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($bucket->path($export->path)));
+        $this->assertSame('item image', $zip->getFromName('files/items/item-1/photo.jpg'));
+        $this->assertStringNotContainsString('other tenant image', $this->allContent($zip));
+        $zip->close();
+
+        $url = $this->link($export);
+        $this->assertSignedApiUrl($url);
+        $this->assertSame($bucket->get($export->path), $this->get($url)->assertOk()->streamedContent());
+        $this->travel(6)->minutes();
+        $this->get($url)->assertForbidden();
+        $this->travelBack();
+
+        $this->withoutOwnerConnection();
+        $this->artisan('exports:expire', ['--at' => CarbonImmutable::now()->addDays(7)->addMinute()->toIso8601String()])->assertSuccessful();
+        $bucket->assertMissing($export->path);
+        $this->assertSame(TenantExport::EXPIRED, $this->inTenant(fn () => $export->fresh()->status));
     }
 
     public function test_running_builds_go_stale_from_their_start_and_queued_ones_after_a_day(): void

@@ -2,6 +2,7 @@
 
 namespace App\Core\Support\Console;
 
+use App\Core\Files\TenantFiles;
 use App\Core\Notifications\Sms\SmsSender;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Rbac\Console\SyncPermissions;
@@ -11,6 +12,8 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -101,6 +104,11 @@ class Preflight extends Command
             ? $this->role(PlatformDatabase::CONNECTION, allowBypassRls: false)
             : ['warn', 'DB_PLATFORM_* not set: the platform console cannot sign in'];
 
+        // NFR-07: tenant files live in Linode Object Storage. In production the
+        // tenant files disk must be the object store and this host must be
+        // able to write, read back and delete a probe object there.
+        $checks['Object storage'] = fn () => $this->objectStorage($config, $development);
+
         // NFR-10: reported, never fatal, so a host can go live before the owner chooses.
         $checks['Error tracking'] = fn () => match (true) {
             $development => ['skip', 'not needed here'],
@@ -116,6 +124,48 @@ class Preflight extends Command
         };
 
         return $checks;
+    }
+
+    /** @return array{string, ?string} */
+    private function objectStorage(Repository $config, bool $development): array
+    {
+        $disk = TenantFiles::disk();
+
+        if (! TenantFiles::isObjectStore($disk)) {
+            return match (true) {
+                $development => ['skip', "tenant files on the local disk [{$disk}]"],
+                $this->laravel->environment('production') => ['fail', "MEDIA_DISK is [{$disk}], not the object store: set MEDIA_DISK=s3 and the AWS_* variables (docs/deploy-linode.md, Object Storage)"],
+                default => ['warn', "tenant files on this server's disk [{$disk}]: set MEDIA_DISK=s3 (docs/deploy-linode.md, Object Storage)"],
+            };
+        }
+
+        foreach (['key' => 'AWS_ACCESS_KEY_ID', 'secret' => 'AWS_SECRET_ACCESS_KEY', 'region' => 'AWS_DEFAULT_REGION', 'bucket' => 'AWS_BUCKET', 'endpoint' => 'AWS_ENDPOINT'] as $setting => $variable) {
+            if (! filled($config->get("filesystems.disks.{$disk}.{$setting}"))) {
+                return ['fail', "{$variable} is not set"];
+            }
+        }
+
+        $storage = Storage::disk($disk);
+        $key = TenantFiles::platformKey('preflight', Str::uuid7().'.txt');
+        $value = Str::random(32);
+
+        try {
+            if (! $storage->put($key, $value)) {
+                return ['fail', 'the bucket refused a probe write'];
+            }
+
+            if ($storage->get($key) !== $value) {
+                return ['fail', 'the probe object read back something else'];
+            }
+        } finally {
+            rescue(fn () => $storage->delete($key), report: false);
+        }
+
+        if ($storage->exists($key)) {
+            return ['fail', 'the probe object could not be deleted'];
+        }
+
+        return ['ok', (string) $config->get("filesystems.disks.{$disk}.bucket")];
     }
 
     /** @return array{string, ?string} */
