@@ -59,7 +59,8 @@ server {
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
     # Styles: 'unsafe-inline' is needed for tenant themes, applied at run time as CSS variables
     # on elements (BR-01). No inline scripts. connect-src names the API and, when Sentry is on,
-    # its ingest host. img-src allows presigned Object Storage URLs (MD-02).
+    # its ingest host. Images come from the API, never straight from Object Storage
+    # (NFR-07), so https://*.linodeobjects.com in img-src is no longer needed.
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.linodeobjects.com; font-src 'self' data:; connect-src 'self' https://api.example.com https://*.ingest.sentry.io; frame-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
 
     location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; try_files $uri =404; }
@@ -117,7 +118,7 @@ Check a host with `nmap --script ssl-enum-ciphers -p 443 <host>` or SSL Labs: on
 
 - **Database**: Linode Managed PostgreSQL encrypts its storage and its backups at rest (Linode's managed database service; confirm on the cluster's settings page when it is created). A self-managed PostgreSQL on a Linode instance must use an encrypted volume: Linode Block Storage volumes are encrypted at rest when the volume's encryption option is on (the default for new volumes in supported regions; check it when creating the volume, it cannot be turned on later).
 - **Linode instances**: create them with disk encryption on (Linode's local disk encryption, available in most regions); confirm per region.
-- **Object Storage** (media, exports, status): Linode Object Storage is encrypted at rest; buckets are private and URLs presigned for 15 minutes (MD-02, ADR 015).
+- **Object Storage** (every tenant file, exports): Linode Object Storage is encrypted at rest; buckets are private and nothing is presigned: the API streams each file after its own checks, behind signed links of 5 to 15 minutes bound to the user (NFR-07, docs/deploy-linode.md, Object Storage).
 - **In the application**: the most sensitive fields are encrypted with the app key on top (payment provider credentials, webhook signing secrets, HR identifiers with a separate digest key `HR_DIGEST_KEY`); passwords, PINs and tokens are stored only as hashes.
 - **Owner action**: record in this file the region, the cluster and the encryption setting of each environment once provisioned (docs/deploy-linode.md).
 
