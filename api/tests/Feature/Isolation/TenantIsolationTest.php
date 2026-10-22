@@ -753,9 +753,6 @@ class TenantIsolationTest extends TestCase
         $called = 0;
 
         foreach ($this->apiRoutes() as $route) {
-            // Each route is called with every list query for B's and A's ids: a route under a
-            // per-user `throttle:60,1` starts its own minute, so the suite's own volume is never a 429.
-            RateLimiter::clear(sha1((string) $a->id('user')));
             // Staff routes hold no tenant data and refuse tenant tokens (PlatformAuthTest); a tenant token is 401 there.
             if ($this->isPlatform($route)) {
                 $this->assertSame(401, $this->json($this->methods($route)[0], $this->uriWith($route, $b, platform: true), [], $a->bearer())->getStatusCode(), "{$route->uri()} accepted a tenant token");
@@ -788,6 +785,9 @@ class TenantIsolationTest extends TestCase
             foreach ($this->methods($route) as $method) {
                 // A GET is also called with every list query (filters included).
                 foreach ($method === 'GET' ? self::LIST_QUERIES : [[]] as $query) {
+                    // Every list query is sent with B's and then A's ids, more than a per-user
+                    // `throttle:60,1` route allows a minute: the suite's own volume is never a 429.
+                    RateLimiter::clear(sha1((string) $a->id('user')));
                     $suffix = $query === [] ? '' : '?'.http_build_query($query);
                     $uri = $this->uriWith($route, $b).$suffix;
                     $response = $this->json($method, $uri, $method === 'GET' ? [] : $this->hijackBody($b), $this->bearerFor($route, $a));
