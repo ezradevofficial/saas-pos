@@ -46,6 +46,8 @@ class AuthCodeRepository implements AuthCodeRepositoryInterface
             return true;
         }
 
+        $this->tokens->refuseClosedTenant();
+
         // Claimed once: two exchanges racing for one code never both pass (security review).
         $claimed = OAuthAuthCode::query()->whereKey(OAuthTokens::hash($codeId))->where('revoked', false)
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))->update(['revoked' => true]);

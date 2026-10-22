@@ -8,12 +8,20 @@ namespace App\Core\Marketplace\Connectors;
  * `2026_12_15_000200_seed_first_party_connectors`, with fixed ids so every
  * environment has the same ones. Keys match `marketplace.connectors`.
  * Texts are stored once (names and texts are not per-language).
+ *
+ * `available` (Phase 8 review L6): a connector whose scopes have no public
+ * API route yet cannot work, so it is not listed, not shown, not installable
+ * and cannot be set up (`marketplace:connector`) until its routes exist. The
+ * courier connector needs the e-commerce deliveries and orders, and the
+ * biometric one the HR attendance device API, on `public-api` routes.
+ * ConnectorsTest fails when an available connector asks for a scope that no
+ * public route (or webhook event it receives) serves.
  */
 final class FirstParty
 {
     public const DEVELOPER = '019a0000-0000-7000-8000-00000000d001';
 
-    /** @var array<string, array{app: string, version: string, client: string, slug: string, name: string, tagline: string, description: string, category: string, scopes: list<string>, events: list<string>}> */
+    /** @var array<string, array{app: string, version: string, client: string, slug: string, name: string, tagline: string, description: string, category: string, scopes: list<string>, events: list<string>, available: bool}> */
     public const CONNECTORS = [
         'courier' => [
             'app' => '019a0000-0000-7000-8000-00000000a001',
@@ -26,6 +34,7 @@ final class FirstParty
             'category' => 'delivery',
             'scopes' => ['core.location.read', 'core.party.read', 'ecommerce.delivery.write', 'ecommerce.order.read'],
             'events' => ['order.paid.v1', 'order.status_changed.v1'],
+            'available' => false,
         ],
         'messaging' => [
             'app' => '019a0000-0000-7000-8000-00000000a002',
@@ -38,6 +47,7 @@ final class FirstParty
             'category' => 'messaging',
             'scopes' => ['core.party.read', 'ecommerce.order.read', 'pos.sale.read'],
             'events' => ['order.status_changed.v1', 'sale.completed.v1'],
+            'available' => true,
         ],
         'bi' => [
             'app' => '019a0000-0000-7000-8000-00000000a003',
@@ -50,6 +60,7 @@ final class FirstParty
             'category' => 'analytics',
             'scopes' => ['core.branch.read', 'core.company.read', 'core.item.read', 'core.item_category.read', 'core.location.read', 'core.party.read', 'inventory.stock.read', 'pos.sale.read'],
             'events' => [],
+            'available' => true,
         ],
         'biometric' => [
             'app' => '019a0000-0000-7000-8000-00000000a004',
@@ -62,6 +73,7 @@ final class FirstParty
             'category' => 'attendance',
             'scopes' => ['hr.attendance.write', 'hr.device.read', 'hr.employee.read'],
             'events' => [],
+            'available' => false,
         ],
     ];
 
@@ -69,5 +81,17 @@ final class FirstParty
     public static function appIds(): array
     {
         return array_map(fn (array $connector) => $connector['app'], self::CONNECTORS);
+    }
+
+    /** @return list<string> the app ids of connectors that are not available yet */
+    public static function unavailableAppIds(): array
+    {
+        return array_values(array_map(fn (array $connector) => $connector['app'], array_filter(self::CONNECTORS, fn (array $connector) => ! $connector['available'])));
+    }
+
+    /** Whether $appId is a first-party connector that is not available yet. */
+    public static function unavailable(string $appId): bool
+    {
+        return in_array($appId, self::unavailableAppIds(), true);
     }
 }

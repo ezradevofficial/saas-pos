@@ -19,9 +19,15 @@ use Illuminate\Support\Facades\Schema;
 // reservations the same way (ECOM-14).
 return new class extends Migration
 {
+    /**
+     * Dropped in this order by down(): every table before the tables it
+     * points at (Phase 8 review L10: payments and deliveries before cash-ups,
+     * cash-ups before riders). Orders and conversations point at each other;
+     * down() drops both foreign keys first.
+     */
     private const TABLES = [
-        'ecom_messages', 'ecom_conversations', 'ecom_delivery_updates', 'ecom_deliveries', 'ecom_cashups', 'ecom_riders',
-        'ecom_order_events', 'ecom_payments', 'ecom_reservations', 'ecom_order_lines', 'ecom_orders', 'ecom_addresses',
+        'ecom_messages', 'ecom_delivery_updates', 'ecom_deliveries', 'ecom_payments', 'ecom_cashups', 'ecom_riders',
+        'ecom_order_events', 'ecom_reservations', 'ecom_order_lines', 'ecom_conversations', 'ecom_orders', 'ecom_addresses',
         'ecom_customer_sessions', 'ecom_customer_codes', 'ecom_customers', 'ecom_zones', 'ecom_products', 'ecom_stores',
     ];
 
@@ -573,6 +579,8 @@ return new class extends Migration
         DB::statement('drop function if exists public.ecom_whatsapp_tenant(text)');
         DB::statement('drop function if exists public.app_tenants_with_expired_ecom_reservations(timestamptz)');
         DB::statement('alter table if exists ecom_conversations drop constraint if exists ecom_conversations_order_fk');
+        // Phase 8 review L10: orders point back at their WhatsApp conversation, which is dropped first.
+        DB::statement('alter table if exists ecom_orders drop constraint if exists ecom_orders_conversation_id_foreign');
 
         foreach (self::TABLES as $table) {
             Schema::dropIfExists($table);

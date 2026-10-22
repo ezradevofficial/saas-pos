@@ -21,7 +21,11 @@ return [
     'ticket_seconds' => (int) env('SSO_TICKET_SECONDS', 120),
 
     // POST auth/sso/start, per address a minute.
-    'start_per_minute' => (int) env('SSO_START_PER_MINUTE', 20),
+    'start_per_minute' => (int) env('SSO_START_PER_MINUTE', 60),
+    // The callback, ACS and completion: per flow (its state, relay state or ticket) a minute,
+    // and per address a minute over all flows (Phase 8 review L3).
+    'callback_per_flow_per_minute' => (int) env('SSO_CALLBACK_PER_FLOW_PER_MINUTE', 10),
+    'callback_per_minute_per_ip' => (int) env('SSO_CALLBACK_PER_MINUTE_PER_IP', 300),
 
     // SAML metadata fetched by URL: at most this many bytes, within this many seconds.
     'metadata_max_bytes' => 1_048_576,

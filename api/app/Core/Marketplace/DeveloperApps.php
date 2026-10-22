@@ -2,6 +2,7 @@
 
 namespace App\Core\Marketplace;
 
+use App\Core\Api\Sandbox\Sandbox;
 use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
@@ -148,6 +149,11 @@ class DeveloperApps
 
         if ($app->status === MarketplaceApp::SUSPENDED) {
             throw new ApiException(422, 'app_suspended', __('marketplace.errors.app_suspended'));
+        }
+
+        // Phase 8 review H2: only a live tenant's apps are listed; a sandbox closes when idle (API-05).
+        if (app(Sandbox::class)->active()) {
+            throw new ApiException(403, 'developer_sandbox', __('marketplace.errors.developer_sandbox'));
         }
 
         $errors = $this->incomplete($app, $version);

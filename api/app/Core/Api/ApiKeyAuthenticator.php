@@ -4,15 +4,14 @@ namespace App\Core\Api;
 
 use App\Core\Api\Models\ApiKey;
 use App\Core\Audit\AuditContext;
-use App\Core\Http\ApiErrorRenderer;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Tenancy\ClosedTenant;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * API-02, API-05 (ADR 020): turns `sk_<mode>_<id>_<secret>` into the key's
@@ -28,7 +27,9 @@ use Illuminate\Support\Facades\RateLimiter;
  * 3. A key is accepted only on a route marked `public-api:<resource>`;
  *    elsewhere the request is refused with 403 `api_key_route_refused`.
  *
- * Any failure leaves no tenant behind and answers null (401).
+ * Any failure leaves no tenant behind and answers null (401); a token
+ * failing too often from one address answers 429 (FailedAuthLimit). A
+ * valid key of a closed tenant answers 403 `tenant_closed`.
  */
 class ApiKeyAuthenticator
 {
@@ -42,16 +43,6 @@ class ApiKeyAuthenticator
 
     public function authenticate(Request $request, string $plain): ?User
     {
-        // Review item 5: guessing keys from one address is limited (429 before any lookup).
-        $failures = 'api-key-failures|'.$request->ip();
-        $max = max(1, (int) config('api.rate_limits.failed_auth_per_ip', 20));
-
-        if (RateLimiter::tooManyAttempts($failures, $max)) {
-            $retry = max(1, RateLimiter::availableIn($failures));
-
-            throw new ApiException(429, 'rate_limited', ApiErrorRenderer::retryMessage($retry), headers: ['Retry-After' => $retry]);
-        }
-
         // The guard is asked again on every Auth::user() of a failed request: count the failure once.
         if ($request->attributes->get(self::FAILED) === true) {
             return null;
@@ -61,7 +52,8 @@ class ApiKeyAuthenticator
 
         if ($principal === null) {
             $request->attributes->set(self::FAILED, true);
-            RateLimiter::hit($failures, (int) config('api.rate_limits.failed_auth_decay_seconds', 600));
+            // Review item 5, Phase 8 review M5: failures are limited per key id and address, after the lookup.
+            FailedAuthLimit::fail(FailedAuthLimit::key('api-key', ApiKeyToken::parse($plain)?->publicId ?? $plain, $request->ip()));
 
             return null;
         }
@@ -107,11 +99,16 @@ class ApiKeyAuthenticator
             && $key->kind === ApiKey::KIND_KEY
             && $key->matchesSecret($token->secret, $now)
             && $key->isUsable($now)
-            && $principal?->isServicePrincipal() === true
-            && Tenant::query()->whereKey($tenantId)->value('status') === 'active';
+            && $principal?->isServicePrincipal() === true;
+        $status = $valid ? Tenant::query()->whereKey($tenantId)->value('status') : null;
 
-        if (! $valid) {
+        if (! $valid || $status !== 'active') {
             $this->tenants->set(null);
+
+            // Phase 8 review H2: a valid key of a closed tenant is told why (403 `tenant_closed`).
+            if ($status === 'closed') {
+                throw ClosedTenant::exception();
+            }
 
             return null;
         }

@@ -25,6 +25,7 @@ return [
         'version_not_draft' => 'Only a draft version can be changed. Make a new version to change it.',
         'developer_suspended' => 'Your developer account is suspended. Contact the platform team.',
         'developer_not_registered' => 'Register as a developer before you add an app.',
+        'developer_sandbox' => 'Apps from a developer sandbox can’t be submitted or listed. Register as a developer from your live business account to publish an app.',
         'payout_over_balance' => 'The amount is more than this developer is owed in that currency.',
         'courier_not_configured' => 'No courier is set up yet. The platform team must add a courier and its credentials.',
         'shipment_not_found' => 'The courier has no delivery with that reference.',

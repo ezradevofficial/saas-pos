@@ -5,6 +5,7 @@ namespace App\Core\Marketplace\Console;
 use App\Core\Marketplace\AppSecrets;
 use App\Core\Marketplace\Connectors\FirstParty;
 use App\Core\Marketplace\Http\Requests\VersionContentRules;
+use App\Core\Marketplace\Jobs\ConnectorChangeNotice;
 use App\Core\Marketplace\Jobs\RollAppWebhookSecret;
 use App\Core\Marketplace\Models\MarketplaceApp;
 use App\Core\Marketplace\OAuth\OAuthClient;
@@ -21,6 +22,9 @@ use Illuminate\Support\Str;
  * signing secret once, for the connector service's own configuration.
  * Runs on the platform connection (no owner credentials); audited in the
  * platform chain. `--disable` makes the connector not configured again.
+ * Disabling and rotating are audited in each installing tenant's chain
+ * too (ConnectorChangeNotice, Phase 8 review L7). A connector that is not
+ * available yet (FirstParty) is never set up.
  */
 class ConnectorCommand extends Command
 {
@@ -45,9 +49,17 @@ class ConnectorCommand extends Command
         if ($this->option('disable')) {
             $client->forceFill(['revoked' => true])->save();
             $audit->record('platform.marketplace.connector_disabled', $app, null, ['connector' => $key]);
+            $this->tellInstalls($appSecrets, $app->id, $key, ConnectorChangeNotice::DISABLED);
             $this->info("The {$key} connector is no longer configured.");
 
             return self::SUCCESS;
+        }
+
+        // Phase 8 review L6: its scopes have no public API route yet, so it could not work.
+        if (! $connector['available']) {
+            $this->error("The {$key} connector is not available yet: its public API routes do not exist. Nothing was changed.");
+
+            return self::FAILURE;
         }
 
         $redirect = (string) config("marketplace.connectors.{$key}.redirect_uri");
@@ -79,6 +91,10 @@ class ConnectorCommand extends Command
         PlatformDatabase::connection()->table('oauth_clients')->where('id', $client->id)->update(['redirect_uris' => json_encode([$redirect]), 'revoked' => false, 'secret' => OAuthClient::CONFIDENTIAL, 'updated_at' => now()]);
         $audit->record('platform.marketplace.connector_setup', $app, null, ['connector' => $key, 'redirect_uri' => $redirect, 'new_secrets' => $fresh]);
 
+        if ($this->option('rotate')) {
+            $this->tellInstalls($appSecrets, $app->id, $key, ConnectorChangeNotice::ROTATED);
+        }
+
         $this->info("The {$key} connector is configured. Client id: {$client->id}");
 
         foreach ($secrets as $name => $value) {
@@ -90,5 +106,13 @@ class ConnectorCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /** Phase 8 review L7: each installing tenant audits the change in its own chain (one job per tenant). */
+    private function tellInstalls(AppSecrets $appSecrets, string $appId, string $key, string $change): void
+    {
+        foreach ($appSecrets->installedTenants($appId) as $tenantId) {
+            ConnectorChangeNotice::dispatch($tenantId, $appId, $key, $change);
+        }
     }
 }

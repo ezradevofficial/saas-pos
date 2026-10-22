@@ -13,6 +13,7 @@ use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\RoleManager;
 use App\Core\Rbac\Scope;
 use App\Core\Sso\SsoEnforcement;
+use App\Core\Tenancy\ClosedTenant;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -108,6 +109,8 @@ class Invitations
         abort_if($tenantId === null, 404);
 
         $this->tenants->set($tenantId);
+        // Phase 8 review H2: a closed tenant's invitations are not opened or accepted.
+        ClosedTenant::refuse($tenantId);
         $invitation = Invitation::where('token_hash', $hash)->first();
         abort_if($invitation === null, 404);
 

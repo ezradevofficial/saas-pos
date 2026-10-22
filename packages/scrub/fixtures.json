@@ -96,6 +96,46 @@
     [
       "token request client_secret=Abc123xyz failed",
       "token request client_secret=[redacted] failed"
+    ],
+    [
+      "Key sk_live_a1b2c3d4e5f6g7h8_Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zAb7dEf0h was refused",
+      "Key [token] was refused"
+    ],
+    [
+      "sandbox key sk_test_0000aaaa1111bbbb_Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zAb7dEf0h",
+      "sandbox key [token]"
+    ],
+    [
+      "Signing with whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw/zoi9BUcWvQ= failed",
+      "Signing with [token] failed"
+    ],
+    [
+      "Entry code 0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b.Q9w8E7r6T5y4U3i2O1p0AsDfGhJkLzXcVbNm1234QwErTyUi expired",
+      "Entry code [token] expired"
+    ],
+    [
+      "Client secret Q9w8E7r6T5y4U3i2O1p0AsDfGhJkLzXcVbNm1234QwErTyUi was shown once",
+      "Client secret [token] was shown once"
+    ],
+    [
+      "https://app.example/sso/done#ticket=Zx9Yw8Vu7&next=/home",
+      "https://app.example/sso/done#ticket=[redacted]&next=/home"
+    ],
+    [
+      "https://app.example/oauth/callback#code=abc123&state=xyz789",
+      "https://app.example/oauth/callback#code=[redacted]&state=[redacted]"
+    ],
+    [
+      "POST /acs SAMLResponse=PHNhbWxwOlJlc3BvbnNl&RelayState=s3cr3t",
+      "POST /acs SAMLResponse=[redacted]&RelayState=[redacted]"
+    ],
+    [
+      "Digest 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 and trace 4bf92f3577b34da6a3ce929d0e0e4736 kept",
+      "Digest 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 and trace 4bf92f3577b34da6a3ce929d0e0e4736 kept"
+    ],
+    [
+      "Tenant 0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b and NotificationsServiceProvider are kept",
+      "Tenant 0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b and NotificationsServiceProvider are kept"
     ]
   ],
   "objects": [
@@ -259,7 +299,14 @@
     "consumer_key",
     "security_credential",
     "SecurityCredential",
-    "code_verifier"
+    "code_verifier",
+    "SAMLResponse",
+    "SAMLRequest",
+    "RelayState",
+    "ticket",
+    "binding",
+    "state",
+    "entry_code"
   ],
   "plainKeys": [
     "name",
@@ -278,6 +325,9 @@
     "status_code",
     "currency_code",
     "item_code",
-    "error_code"
+    "error_code",
+    "order_state",
+    "sync_state",
+    "ticket_count"
   ]
 }
