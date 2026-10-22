@@ -135,6 +135,8 @@ check "second run restarts nothing it configured" lacks "$out2" 'systemctl (rest
 echo "HTTPS once the certificate exists"
 mkdir -p "$R/etc/letsencrypt/live/platform"
 : >"$R/etc/letsencrypt/live/platform/fullchain.pem"
+mkdir -p "$R/etc/nginx"
+printf 'http {\n\tssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;\n\tssl_prefer_server_ciphers on;\n}\n' >"$R/etc/nginx/nginx.conf"
 out3="$WORK/provision-nginx.out"
 if HOST_ROOT="$R" provision --steps nginx >"$out3" 2>&1; then ok "nginx step"; else bad "nginx step" "$(tail -10 "$out3")"; fi
 site="$R/etc/nginx/sites-available/app"
@@ -149,6 +151,7 @@ check "headers: CSP names the API" has "$headers" "connect-src 'self' https://ap
 check "headers: HSTS" has "$headers" 'Strict-Transport-Security "max-age=31536000; includeSubDomains"'
 check "headers: frame-ancestors none" has "$headers" "frame-ancestors 'none'"
 check "tls: 1.2 and 1.3 only" has "$R/etc/nginx/conf.d/tls.conf" '^ssl_protocols TLSv1.2 TLSv1.3;$'
+check "tls: Ubuntu's own ssl_protocols and cipher preference are commented out" has "$out3" 'sed -i -E .*ssl_prefer_server_ciphers.* /etc/nginx/nginx\.conf$'
 check "no placeholder left in nginx files" lacks "$site" '@[A-Z_]+@'
 
 echo "Provisioning with backups on (go-live)"
