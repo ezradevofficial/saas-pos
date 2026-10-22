@@ -70,6 +70,15 @@ All messages go through the core Notifier (NOT-02). An event type declared `mark
 
 Today no module sends marketing yet (CRM campaigns and marketing lists are deferred, docs/modules/crm.md); any that is added must declare its event types `marketing: true`. Tests: `MarketingConsentGateTest` (core) and `MarketingConsentTest` (E-commerce), web `ShopConsent.test.jsx`.
 
+### Every marketing message carries an opt-out
+
+- **Email.** The footer has an unsubscribe link to the web page `/opt-out/{token}?lang=<the email's language>`, and the email carries `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers (RFC 8058) pointing at `POST /api/v1/opt-out/{token}`, so mail clients offer a one-click unsubscribe. No sign-in is needed. The token (`OptOutTokens`) is `<tenant id>.<delivery id>.<signature>`, the signature an HMAC of the app key under a purpose label of its own, so no other signed value is accepted and a changed id breaks it; keys in `APP_PREVIOUS_KEYS` still verify, so links survive a key rotation. The signed tenant is entered and only that marketing delivery is read under its row-level security, so a token never reaches another tenant. Opening the page only reads the state (mail scanners open links); the button (or the one-click POST) withdraws consent for the delivery's channel once: the delivery keeps `opted_out_at`, and a reused link answers "already" and records nothing. Links work for 400 days after the email was sent (`OptOuts::LINK_DAYS`); the API answers the state and the language only, never who the customer is.
+- **SMS and WhatsApp.** Each marketing text ends with "Reply STOP to opt out." (French: "Répondez STOP pour ne plus en recevoir."). A reply that is an opt-out keyword alone (`privacy.opt_out_keywords`: STOP, STOP ALL, UNSUBSCRIBE, END, ARRÊT, DÉSABONNER, any case) withdraws consent on that channel for every customer of that tenant with the number (`OptOuts`, behind the `ReceivesOptOutReplies` contract). Today it is wired to the store WhatsApp inbox (E-commerce): a STOP to a store's WhatsApp number withdraws WhatsApp marketing.
+- **Evidence.** Each withdrawal is a consent record through `Consents` (audited), source `opt_out_link` or `opt_out_reply`, with evidence naming the channel and where it came from (the delivery id, or `store_whatsapp`), never the message.
+- Tests: `MarketingOptOutTest` (link, headers, tampering, reuse, another tenant, expiry, STOP, the next send skipped), E-commerce `MarketingConsentTest` (STOP to the store WhatsApp), web `OptOut.test.jsx`.
+
+**Owner input: the SMS reply hook.** There is no inbound SMS path yet: the platform's SMS sender only sends. When an SMS provider is chosen, its delivery-report or inbound webhook must find the tenant the reply belongs to (a per-tenant shortcode, number or keyword) and call `ReceivesOptOutReplies::optOut('sms', $from, '<provider>')` in that tenant. A shared sender number cannot tell which business a STOP is for; the provider and numbering plan decide that. Likewise, marketing WhatsApp sent through the notification WhatsApp driver needs that provider's inbound webhook to call the same contract.
+
 ## Decisions to confirm
 
 - **A buyer snapshot on each sale.** The alternative to keeping a fiscal customer's tax ID and legal name on the party: store the buyer's name and tax ID on each POS sale when it is made, so later refunds and voids read the snapshot and the party could be fully anonymised. It changes the POS schema (owner approval) and needs a backfill of existing sales.
@@ -77,7 +86,9 @@ Today no module sends marketing yet (CRM campaigns and marketing lists are defer
 - **A party created at sign-up when the box is ticked.** Consent is recorded on the customer's party, so a consenting shopper gets one at sign-up instead of at their first signed-in order. The alternative is to keep the answer on the storefront account until the party exists.
 - **An unticked box records nothing.** The alternative is to record a refusal, which would also withdraw a consent given at the till; we chose not to.
 - **No marketing sends exist yet.** The gate is in the Notifier for event types marked `marketing`; campaigns (CRM, deferred) must use it. Confirm that every future campaign goes through the Notifier rather than its own sender.
-- **An unsubscribe link in each marketing message**, and STOP replies by SMS and WhatsApp, are not built: withdrawal is from the storefront account or the back office today. Kenya's direct-marketing rules expect a simple opt-out in each message; to build with campaigns.
+- **The SMS opt-out route** (above): which SMS provider, and whether each tenant gets its own shortcode or number so a STOP reply can be matched to one business. Until then SMS customers opt out by the storefront account, the back office or the business.
+- **What a STOP withdraws**: the channel it arrived on only (a STOP by SMS leaves email and WhatsApp as they were). Counsel may prefer all channels.
+- **Opt-out keywords** (`privacy.opt_out_keywords`) and the link's lifetime (400 days).
 
 ## To confirm (owner and counsel)
 

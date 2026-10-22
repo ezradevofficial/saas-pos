@@ -13450,5 +13450,12 @@
     "researchedOn": "researched {{date}}",
     "assumed": "Assumed until confirmed: {{fields}}",
     "lowConfidence": "Research found conflicting sources, so no value is entered."
+  },
+  "optOut": {
+    "title": "Stop marketing emails",
+    "intro": "You will stop getting offers and news by email from this business. Messages about your orders still reach you.",
+    "confirm": "Stop marketing emails",
+    "doneTitle": "You are unsubscribed",
+    "doneText": "You won’t get offers or news by email from this business any more. To get them again, tell the business."
   }
 }

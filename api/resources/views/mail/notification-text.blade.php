@@ -9,4 +9,9 @@
 @endif
 
 --
+@if ($unsubscribe ?? null)
+{{ __('notifications.marketing.footer') }}
+{{ __('notifications.marketing.unsubscribe') }}: {!! $unsubscribe !!}
+@else
 {{ __('notifications.mail.footer', ['app' => config('app.name')]) }}
+@endif
