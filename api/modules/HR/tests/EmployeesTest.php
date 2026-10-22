@@ -55,10 +55,10 @@ class EmployeesTest extends TestCase
         $this->assertSame('EMP-00002', $this->hire(['first_name' => 'Baraka'])->assertCreated()->json('data.number'));
         Event::assertDispatched(EmployeeHired::class, fn (EmployeeHired $e) => $e->employeeId === $data['id'] && $e->hireDate === '2026-01-05' && ! $e->rehired && $e->locationId === $this->locationA->id);
 
-        // HR-12: the company's first hire copied its country's statutory leave types, days needed.
+        // HR-12, CP-01: the company's first hire copied its country's statutory leave types, with the researched days.
         $types = $this->inTenant(fn () => LeaveType::query()->orderBy('code')->get());
         $this->assertSame(['annual', 'maternity', 'paternity', 'sick'], $types->pluck('statutory_key')->sort()->values()->all());
-        $this->assertTrue($types->every(fn (LeaveType $t) => $t->needs_confirmation && $t->entitlement_days === null));
+        $this->assertTrue($types->every(fn (LeaveType $t) => ! $t->needs_confirmation && $t->entitlement_days !== null && $t->researched()));
 
         // HR-37: audited.
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'hr.employee.create')->where('auditable_id', $data['id'])->exists()));

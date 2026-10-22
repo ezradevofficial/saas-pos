@@ -73,9 +73,10 @@ class EmployeeController
 
     public function identifiers(PutIdentifiersRequest $request, Employee $hrEmployee, Identifiers $identifiers): EmployeeResource
     {
-        $identifiers->put($hrEmployee, $request->validated('identifiers'));
+        $warnings = $identifiers->put($hrEmployee, $request->validated('identifiers'));
 
-        return EmployeeResource::make($hrEmployee->refresh()->load(self::DETAIL))->detail();
+        // CP-01: values kept outside a format that only warns (KE national ID).
+        return EmployeeResource::make($hrEmployee->refresh()->load(self::DETAIL))->detail()->additional(['meta' => ['warnings' => $warnings]]);
     }
 
     public function setClockPin(SetClockPinRequest $request, Employee $hrEmployee, ClockPins $pins): JsonResponse

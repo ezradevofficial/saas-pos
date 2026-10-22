@@ -17,6 +17,10 @@ return [
         'pay_group_other_company' => 'Choisissez un groupe de paie de la société de l’employé.',
         'item_other_company' => 'Choisissez une rubrique de la société de l’employé.',
         'item_flag_kind' => 'Le réglage :flag ne s’applique pas à ce type de rubrique. Laissez-le désactivé.',
+        'pre_tax_category_needs_pre_tax' => 'Une catégorie avant impôt ne s’applique qu’à une retenue prise avant l’impôt. Activez « Avant impôt » ou retirez la catégorie.',
+        'pre_tax_category_required' => 'Choisissez le plafond légal dont relève cette retenue (retraite, fonds médical de retraite ou intérêts hypothécaires). Une retenue hors de ces catégories n’est pas déduite avant l’impôt.',
+        'component_always_applies' => ':component ne peut pas être marqué non applicable : toutes les entreprises de ce pays en sont redevables.',
+        'component_confirmed' => ':component a désormais une valeur confirmée ou recherchée : elle s’applique. Il n’y a rien à marquer.',
         'item_paid' => 'Cette rubrique ponctuelle a été payée par une paie comptabilisée et ne peut plus changer. Ajoutez-en une nouvelle.',
         'currency_mismatch' => 'Utilisez la devise de paie de l’employé.',
         'instalment_above_principal' => 'La mensualité ne peut pas dépasser le montant prêté.',
@@ -47,6 +51,7 @@ return [
         'rate_missing' => 'Il manque un taux de change pour la date de paie. Ajoutez-le dans les taux de change.',
         'paid_in_other_run' => 'Déjà dans la paie d’un autre groupe pour ces jours. Retirez l’employé de l’un des groupes.',
         'net_negative' => 'Le net à payer est négatif. Réduisez une retenue ou une mensualité de prêt.',
+        'leave_pay_unconfirmed' => 'Taux de rémunération du congé non confirmé (par exemple le congé de maternité en RDC) : cette période comprend un congé dont la rémunération n’est pas confirmée. Confirmez la rémunération du type de congé dans les RH, puis recalculez.',
     ],
 
     'line_warnings' => [
@@ -148,6 +153,9 @@ return [
             'inpp' => 'INPP',
             'onem' => 'ONEM',
             'family_allowance' => 'Allocations familiales',
+            'pension_deduction' => 'Plafond de déduction retraite et NSSF',
+            'post_retirement_medical_deduction' => 'Plafond de déduction du fonds médical de retraite',
+            'mortgage_interest_deduction' => 'Plafond de déduction des intérêts hypothécaires',
         ],
         'fields' => [
             'period' => 'aucune période en vigueur',
@@ -174,6 +182,16 @@ return [
             'max_dependants' => 'nombre maximal de personnes à charge',
             'taxable' => 'imposabilité',
             'contributory' => 'assujettissement aux cotisations',
+            'min_minor' => 'impôt minimum',
+            'category' => 'catégorie avant impôt',
+        ],
+        'assumed' => [
+            'base_cap_minor' => 'pas de plafond sur l’assiette',
+            'residency' => 'accordée à chaque salarié (la résidence n’est pas enregistrée)',
+            'min_order' => 'le minimum s’applique avant le plafond de 30 % (le plafond l’emporte)',
+            'min_monthly' => 'le minimum est mensuel',
+            'rounding' => 'règle d’arrondi',
+            'reduces_taxable' => 'réduction ou non du revenu imposable',
         ],
         'returns' => [
             'paye' => 'Déclaration PAYE (P10)',

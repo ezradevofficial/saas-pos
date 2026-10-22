@@ -320,6 +320,7 @@ class TenantIsolationTest extends TestCase
         'dashboard_source' => 'approvals.mine', // LAY-01: dashboard/sources/{dashboard_source}: a registered data source key; the data is the caller's own
         'marketplace_app' => TwoTenants::MARKETPLACE_APP, // MKT-01: marketplace/apps/{marketplace_app}: a listed app, global; what the page shows of the install is the caller's
         'importer' => 'customers', // IMP-01: imports/importers/{importer}/template: a registered importer key; custom field columns are the caller's tenant's
+        'component' => 'inpp', // CP-01: payroll/statutory/{company}/not-applicable/{component}: a pack component code; the company is B's
     ];
 
     /**

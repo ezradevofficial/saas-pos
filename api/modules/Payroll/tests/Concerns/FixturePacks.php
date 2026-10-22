@@ -8,7 +8,9 @@ namespace Modules\Payroll\Tests\Concerns;
  * Kenyan or Congolese rates and must never be copied into the country
  * packs (CLAUDE.md: rates are never invented). Each fixture is the real
  * pack's structure (read from api/country-packs) with these values filled
- * in and confirmed, so the tests also prove the shipped structure works.
+ * in and confirmed (research status removed), so the tests also prove the
+ * shipped structure works. Values a fixture does not set keep the shipped
+ * (researched) figure, e.g. the KE pre-tax deduction limits.
  */
 final class FixturePacks
 {
@@ -31,7 +33,7 @@ final class FixturePacks
     public static function cd(array $overrides = []): array
     {
         return self::fill('CD', [
-            'ipr' => ['bands' => [['up_to_minor' => '100000', 'rate' => '0'], ['up_to_minor' => '1000000', 'rate' => '15'], ['up_to_minor' => null, 'rate' => '30']], 'max_rate' => '25', 'rounding' => ['mode' => 'half_up', 'unit_minor' => '1']],
+            'ipr' => ['bands' => [['up_to_minor' => '100000', 'rate' => '0'], ['up_to_minor' => '1000000', 'rate' => '15'], ['up_to_minor' => null, 'rate' => '30']], 'max_rate' => '25', 'min_minor' => '__absent__', 'rounding' => ['mode' => 'half_up', 'unit_minor' => '1']],
             'ipr_dependants' => ['rate' => '2', 'max_dependants' => 9],
             // No ceiling in the fixture: the value is removed (absent = does not apply).
             'cnss' => ['employee_rate' => '4', 'employer_rate' => '4', 'base_cap_minor' => '__absent__', 'reduces_taxable' => true, 'rounding' => ['mode' => 'half_up', 'unit_minor' => '1']],
@@ -52,6 +54,9 @@ final class FixturePacks
         foreach ($pack['components'] as &$component) {
             foreach ($component['periods'] as &$period) {
                 $period['needs_confirmation'] = false;
+                // Fixture values are fictional and confirmed: no research status (CP-01).
+                unset($period['status'], $period['confidence'], $period['researched_on'], $period['source'], $period['assumed']);
+                $period['status'] = 'confirmed';
 
                 foreach ($values[$component['code']] ?? [] as $key => $value) {
                     if ($value === '__absent__') {

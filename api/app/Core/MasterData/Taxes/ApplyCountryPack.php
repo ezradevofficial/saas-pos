@@ -73,6 +73,7 @@ class ApplyCountryPack
                         'effective_from' => $period->effective_from,
                         'effective_to' => $period->effective_to,
                         'needs_confirmation' => $period->rate === null || $period->needs_confirmation,
+                        'research' => $period->research,
                         'source' => TaxRate::SOURCE_PACK,
                     ]);
                 }

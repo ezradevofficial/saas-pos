@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property ?string $monthly_days
  * @property bool $premiums_taxable
  * @property bool $premiums_contributory
+ * @property ?array<string, array{reason: string, marked_by: ?string, marked_at: string}> $not_applicable CP-01: pack components the company does not owe
  */
 class Settings extends Model implements HasScope
 {
@@ -41,7 +42,7 @@ class Settings extends Model implements HasScope
 
     protected function casts(): array
     {
-        return ['premiums_taxable' => 'boolean', 'premiums_contributory' => 'boolean'];
+        return ['premiums_taxable' => 'boolean', 'premiums_contributory' => 'boolean', 'not_applicable' => 'array'];
     }
 
     public function scope(): Scope

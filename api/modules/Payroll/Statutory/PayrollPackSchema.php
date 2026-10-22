@@ -3,6 +3,7 @@
 namespace Modules\Payroll\Statutory;
 
 use App\Core\CountryPacks\PackSchemas;
+use App\Core\CountryPacks\ResearchStatus;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 
@@ -15,6 +16,13 @@ use InvalidArgumentException;
  */
 final class PayrollPackSchema
 {
+    /**
+     * CP-01: the required charges a company may mark "not applicable"
+     * (`may_not_apply`), by country. CD INPP: sources conflict on its
+     * rates and some companies are exempt.
+     */
+    public const MAY_NOT_APPLY = ['CD' => ['inpp']];
+
     public static function register(PackSchemas $schemas): void
     {
         $schemas->register('payroll', fn (array $content) => self::check($content), ['components' => ['code'], 'returns' => ['key']], ['components.*.periods' => null],
@@ -45,6 +53,29 @@ final class PayrollPackSchema
 
         if ($validator->fails()) {
             throw new InvalidArgumentException(implode(' ', $validator->errors()->all()));
+        }
+
+        foreach ($content['components'] as $component) {
+            $required = (bool) ($component['required'] ?? true);
+
+            // CP-01: a statutory charge every company owes cannot be marked "not applicable" by a company,
+            // except the components the platform allows explicitly.
+            if (($component['may_not_apply'] ?? false) === true && $required && in_array($component['kind'], ['contribution', 'income_tax', 'levy'], true)
+                && ! in_array($component['code'], self::MAY_NOT_APPLY[$content['code']] ?? [], true)) {
+                throw new InvalidArgumentException("components.{$component['code']}: may_not_apply is not allowed on a required charge outside PayrollPackSchema::MAY_NOT_APPLY.");
+            }
+
+            // A component left out while unconfirmed must be optional: a required one blocks instead.
+            if (array_key_exists('unconfirmed', $component) && ($component['unconfirmed'] !== 'not_applied' || $required)) {
+                throw new InvalidArgumentException("components.{$component['code']}: unconfirmed: not_applied is only allowed on a component with required false.");
+            }
+        }
+
+        // CP-01: a researched period carries its confidence (high or medium), date and sources; low confidence is never entered.
+        foreach ($content['components'] as $component) {
+            foreach ($component['periods'] as $period) {
+                ResearchStatus::check($period, "components.{$component['code']}.{$period['effective_from']}");
+            }
         }
     }
 }

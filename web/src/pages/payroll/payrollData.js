@@ -10,6 +10,8 @@ import { useHrMutation } from '@/pages/hr/hrForms'
 export const PERM = {
   settingsView: 'payroll.settings.view',
   settingsManage: 'payroll.settings.manage',
+  // CP-01: marking a pack component not applicable (Owner and Admin).
+  statutoryExempt: 'payroll.statutory.exempt',
   employeeView: 'payroll.employee.view',
   employeeManage: 'payroll.employee.manage',
   loanView: 'payroll.loan.view',

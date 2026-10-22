@@ -7,6 +7,8 @@ use App\Core\Currency\CurrencyDecimals;
 use App\Core\Exports\ExportValues;
 use App\Core\Exports\ListExport;
 use App\Core\Exports\SpreadsheetCell;
+use App\Core\Tenancy\CompanyClock;
+use App\Core\Tenancy\Models\Company;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -24,7 +26,7 @@ class PerformanceController
 {
     public function __invoke(PerformanceRequest $request, SupplierPerformance $performance, Places $places, ListExport $exports, Auditor $auditor): JsonResponse|StreamedResponse
     {
-        $to = $request->validated('to', CarbonImmutable::now()->toDateString());
+        $to = $request->validated('to') ?? $this->today($request->validated('company'));
         $from = $request->validated('from', CarbonImmutable::parse($to)->subDays(89)->toDateString());
         $rows = $performance->rows($from, $to, $request->validated('company'), $request->validated('party'),
             fn (Builder $query, string $column) => $places->filter($query, $request->user(), 'procurement.performance.view', $column));
@@ -54,5 +56,21 @@ class PerformanceController
 
             fclose($out);
         }, "supplier-performance-{$from}-{$to}.csv", ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * The default period ends on the company's today. With no company filter
+     * it ends on the latest today among the tenant's companies, so nothing
+     * dated today anywhere falls outside it (between 00:00 and 03:00 in
+     * Nairobi the UTC date is still yesterday).
+     */
+    private function today(?string $companyId): string
+    {
+        if ($companyId !== null) {
+            return CompanyClock::today($companyId);
+        }
+
+        return Company::query()->pluck('timezone')->push('UTC')
+            ->map(fn (?string $zone) => CarbonImmutable::now($zone ?: 'UTC')->toDateString())->max();
     }
 }

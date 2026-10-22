@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Payroll\Models\Run;
 use Modules\Payroll\Statutory\MissingValues;
+use Modules\Payroll\Statutory\PayrollPack;
 use Modules\Payroll\Support\PayFields;
 
 /**
@@ -47,6 +48,18 @@ class RunResource extends JsonResource
             ],
             // Review fix 5: the statutory pack the run was calculated from.
             'pack' => $run->inputs['pack'] ?? null,
+            // CP-01: researched pack values the run used (the web app shows the notice), components left out
+            // while unconfirmed and those the company marked not applicable.
+            'statutory' => [
+                // S1: each researched value with its component's name and its assumptions worded for people.
+                'researched' => array_map(fn (array $row) => [...$row, 'name' => PayrollPack::label('components', $row['component']),
+                    'assumed_names' => array_map(fn (string $f) => PayrollPack::assumedLabel($f), $row['assumed'] ?? [])], $run->inputs['statutory']['researched'] ?? []),
+                'not_applied' => $run->inputs['statutory']['not_applied'] ?? [],
+                // HR-12: statutory half-pay leave days (KE sick leave) paid in full for now: {days, employees}.
+                'half_pay_paid_in_full' => $run->inputs['statutory']['half_pay_paid_in_full'] ?? null,
+                'not_applicable' => array_map(fn (array $row) => [...$row, 'name' => PayrollPack::label('components', $row['component'])], $run->inputs['statutory']['not_applicable'] ?? []),
+            ],
+            'uses_researched_values' => ($run->inputs['statutory']['researched'] ?? []) !== [],
             // Decisions 29, 33, 40: open attendance periods, late HR changes since the last run, employees without a pay group.
             'review' => [
                 'attendance_open' => $run->inputs['review']['attendance_open'] ?? [],

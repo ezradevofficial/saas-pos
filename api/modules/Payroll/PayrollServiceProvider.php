@@ -78,6 +78,8 @@ class PayrollServiceProvider extends ServiceProvider
         'pay' => ['view'],
         // PAY-19: payslips of others (the employee sees their own without it, PAY-24).
         'payslip' => ['view'],
+        // CP-01: mark a pack component the company does not owe "not applicable" (Owner and Admin only).
+        'statutory' => ['exempt'],
         // PAY-20.
         'payment' => ['export'],
         // PAY-21.

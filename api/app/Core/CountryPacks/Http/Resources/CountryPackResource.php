@@ -29,6 +29,8 @@ class CountryPackResource extends JsonResource
             'sources' => $this->summary['sources'] ?? [],
             'todo' => $this->summary['todo'] ?? [],
             'needs_confirmation' => $this->summary['needs_confirmation'] ?? [],
+            // CP-01: codes whose rate comes from public research, not yet confirmed.
+            'researched' => $this->summary['researched'] ?? [],
             'changes' => $this->summary['changes'] ?? null,
             'tax_codes' => $this->whenLoaded('taxCodes', fn () => $this->taxCodes->map(fn (PackTaxCode $code) => [
                 'code' => $code->code,
@@ -39,6 +41,7 @@ class CountryPackResource extends JsonResource
                 'effective_from' => $code->effective_from->toDateString(),
                 'effective_to' => $code->effective_to?->toDateString(),
                 'fiscal_code' => $code->fiscal_code,
+                'research' => $code->research,
             ])->values()->all()),
         ];
     }

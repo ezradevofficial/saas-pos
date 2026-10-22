@@ -2,6 +2,7 @@
 
 namespace Modules\Payroll\Statutory;
 
+use App\Core\CountryPacks\ResearchStatus;
 use Carbon\CarbonImmutable;
 
 /**
@@ -12,12 +13,19 @@ use Carbon\CarbonImmutable;
  * its period still `needs_confirmation`, or when a value its method needs
  * is null, absent or malformed. Weekly and bi-weekly runs also need the
  * pack's `non_monthly` rule. Values are never guessed.
+ *
+ * CP-01: a period is usable when confirmed or `researched` at high or
+ * medium confidence (ResearchStatus); low-confidence research is never
+ * usable. A component the company marked not applicable (`may_not_apply`
+ * in the pack, payroll settings) is not checked, and one with
+ * `unconfirmed: not_applied` is left out while unusable instead of
+ * blocking the run (PayrollPack::applicable).
  */
 final class MissingValues
 {
     /** method => [values it always needs, values it may have]. */
     public const METHODS = [
-        'bands' => [['bands', 'rounding'], ['max_rate']],
+        'bands' => [['bands', 'rounding'], ['max_rate', 'min_minor']],
         'rate' => [['rounding'], ['employee_rate', 'employer_rate', 'base_cap_minor', 'employee_min_minor', 'employee_max_minor', 'reduces_taxable']],
         'tiers' => [['tiers', 'rounding', 'reduces_taxable'], []],
         'fixed' => [['rounding'], ['employee_minor', 'employer_minor', 'reduces_taxable']],
@@ -26,15 +34,17 @@ final class MissingValues
         'relief_rate' => [['rate', 'cap_minor'], []],
         'reduction_per_dependant' => [['rate', 'max_dependants'], []],
         'allowance_per_child' => [['amount_minor', 'taxable', 'contributory', 'rounding'], []],
+        'deduction_cap' => [['cap_minor'], []],
     ];
 
     public const MODES = ['half_up', 'down', 'up'];
 
     /**
-     * @param  array{insurance_premiums?: bool, dependants?: bool, children?: bool}  $used  conditions an employee of the run meets
+     * @param  array<string, bool>  $used  conditions an employee of the run meets (insurance_premiums, dependants, children, pre-tax categories)
+     * @param  list<string>  $notApplicable  components the company marked not applicable
      * @return list<array{component: string, fields: list<string>}>
      */
-    public static function check(array $pack, CarbonImmutable $payDate, string $frequency, array $used = []): array
+    public static function check(array $pack, CarbonImmutable $payDate, string $frequency, array $used = [], array $notApplicable = []): array
     {
         $missing = [];
 
@@ -42,7 +52,7 @@ final class MissingValues
             $missing[] = ['component' => 'pack', 'fields' => ['non_monthly']];
         }
 
-        foreach (PayrollPack::inForce($pack, $payDate) as $component) {
+        foreach (PayrollPack::applicable(PayrollPack::inForce($pack, $payDate), $notApplicable) as $component) {
             if (! $component['required'] && ($component['when'] === null || ! ($used[$component['when']] ?? false))) {
                 continue;
             }
@@ -83,7 +93,7 @@ final class MissingValues
 
         $fields = [];
 
-        if (($values['needs_confirmation'] ?? true) !== false) {
+        if (! ResearchStatus::usable($values)) {
             $fields[] = 'needs_confirmation';
         }
 

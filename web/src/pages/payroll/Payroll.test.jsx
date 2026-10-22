@@ -225,6 +225,68 @@ describe('Payroll screens', () => {
     expect(screen.getByText('Layout to be confirmed')).toBeInTheDocument()
   })
 
+  it('says a run used researched values and links to the statutory rates (CP-01)', async () => {
+    const run = {
+      ...RUN,
+      status: 'calculated',
+      uses_researched_values: true,
+      statutory: {
+        researched: [
+          { component: 'paye', name: 'PAYE', confidence: 'medium', assumed_names: [] },
+          { component: 'personal_relief', name: 'Personal relief', confidence: 'high', assumed_names: ['given to every employee (residency not recorded)'] },
+        ],
+        not_applied: [],
+        not_applicable: [{ component: 'inpp', name: 'INPP', reason: 'Exempted by letter 2026/14' }],
+      },
+    }
+    setup([['payroll/runs/r-1', { data: run }], [/^payroll\/runs\/r-1\/lines/, page([])]], [PERM.runView, PERM.runPrepare])
+    renderApp('/payroll/runs/r-1')
+    expect(await screen.findByText('Some statutory values come from public research and haven’t been confirmed by an accountant. Check them before filing.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'View statutory rates' })).toHaveAttribute('href', '/payroll/settings?tab=statutory')
+    expect(screen.getByText('Marked not applicable for this company: INPP')).toBeInTheDocument()
+    expect(screen.getByText('Exempted by letter 2026/14')).toBeInTheDocument()
+    // S1: every assumption is shown on the run.
+    expect(screen.getByText('Personal relief: given to every employee (residency not recorded)')).toBeInTheDocument()
+  })
+
+  it('lists each value’s research and marks a component not applicable with a reason (CP-01)', async () => {
+    const pack = {
+      country: 'CD',
+      available: true,
+      currency: 'CDF',
+      non_monthly: null,
+      researched: true,
+      components: [
+        { code: 'ipr', name: 'IPR', kind: 'income_tax', method: 'bands', required: true, when: null, in_force: true, effective_from: '2026-01-01', missing: [], status: 'researched', confidence: 'medium', researched_on: '2026-10-17', source: ['https://business.monrespro.cd/blog/ipr'], assumed: [{ field: 'rounding', name: 'rounding rule' }], may_not_apply: false, not_applicable: null, not_applied: false },
+        { code: 'inpp', name: 'INPP', kind: 'levy', method: 'headcount_rate', required: true, when: null, in_force: true, effective_from: '2026-01-01', missing: [{ field: 'needs_confirmation', name: 'needs confirmation' }], status: 'needs_confirmation', confidence: 'low', researched_on: null, source: [], assumed: [], may_not_apply: true, not_applicable: null, not_applied: false },
+      ],
+      missing: 'INPP: needs confirmation',
+      ready: false,
+      todo: [],
+      returns: [],
+    }
+    setup([['payroll/statutory/c-1', { data: pack }], ['payroll/settings/c-1', { data: { company_id: 'c-1', premiums_taxable: true, premiums_contributory: true, not_applicable: {} } }]], [PERM.settingsView, PERM.statutoryExempt])
+    api.post.mockResolvedValue({ data: { company_id: 'c-1', not_applicable: { inpp: { reason: 'Exempted' } } } })
+    renderApp('/payroll/settings?tab=statutory')
+    const table = await screen.findByRole('table', { name: 'Statutory rates in force' })
+    const ipr = within(table).getByRole('row', { name: /IPR/ })
+    expect(within(ipr).getByText('Researched')).toBeInTheDocument()
+    expect(within(ipr).getByText('Medium confidence · researched 17 Oct 2026')).toBeInTheDocument()
+    expect(within(ipr).getByRole('link', { name: 'business.monrespro.cd' })).toHaveAttribute('href', 'https://business.monrespro.cd/blog/ipr')
+    expect(within(ipr).getByText('Assumed until confirmed: rounding rule')).toBeInTheDocument()
+    expect(screen.getByText('Values from public research')).toBeInTheDocument()
+
+    const inpp = within(table).getByRole('row', { name: /INPP/ })
+    expect(within(inpp).getByText('Research found conflicting sources, so no value is entered.')).toBeInTheDocument()
+    fireEvent.click(within(inpp).getByRole('button', { name: 'Mark not applicable' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Mark INPP not applicable' })
+    const confirm = within(dialog).getByRole('button', { name: 'Mark not applicable' })
+    expect(confirm).toBeDisabled()
+    fireEvent.change(within(dialog).getByLabelText(/Reason/), { target: { value: 'Exempted by letter 2026/14' } })
+    fireEvent.click(confirm)
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('payroll/statutory/c-1/not-applicable', { component: 'inpp', reason: 'Exempted by letter 2026/14' }))
+  })
+
   it('lists my payslips and shows My payslips in the sidebar (PAY-24)', async () => {
     const payslip = { id: 'ps-1', number: 'PS-2026-00011', run: { id: 'r-1', number: 'PR-2026-00003', kind: 'regular', period_start: '2026-10-01', period_end: '2026-10-31', pay_date: '2026-10-31' }, employee: GRACE, issued_at: '2026-10-31T09:00:00Z', gross: money('6000000'), net: money('4800000') }
     setup([['hr/me', { data: { id: 'e-1', number: 'EMP-00001', name: 'Grace Achieng' } }], [/^payroll\/me\/payslips\?/, page([payslip])]], [])

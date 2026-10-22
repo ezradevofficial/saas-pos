@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property CarbonImmutable $date
  * @property string $fraction
  * @property ?CarbonImmutable $cancelled_at
+ * @property string $kind unpaid (deducted), pay_unconfirmed (blocks the run) or half_pay (CP-01)
  */
 class LeaveDay extends Model
 {

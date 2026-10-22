@@ -38,6 +38,7 @@ class SetupResource extends JsonResource
                 'contributory' => $row->contributory,
                 'pre_tax' => $row->pre_tax,
                 'insurance_premium' => $row->insurance_premium,
+                'pre_tax_category' => $row->pre_tax_category,
                 'archived_at' => $row->archived_at?->toIso8601String(),
             ],
             $row instanceof Settings => [
@@ -50,6 +51,8 @@ class SetupResource extends JsonResource
                 'monthly_days' => Refs::decimal($row->monthly_days),
                 'premiums_taxable' => (bool) $row->premiums_taxable,
                 'premiums_contributory' => (bool) $row->premiums_contributory,
+                // CP-01: pack components the company marked not applicable.
+                'not_applicable' => (object) ($row->not_applicable ?? []),
             ],
             default => [],
         };

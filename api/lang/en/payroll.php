@@ -16,6 +16,10 @@ return [
         'pay_group_other_company' => 'Choose a pay group of the employee’s company.',
         'item_other_company' => 'Choose a pay item of the employee’s company.',
         'item_flag_kind' => 'The setting :flag doesn’t apply to this kind of item. Leave it off.',
+        'pre_tax_category_needs_pre_tax' => 'A pre-tax category applies only to a deduction taken before tax. Turn on "Before tax" or clear the category.',
+        'pre_tax_category_required' => 'Choose the statutory limit this deduction falls under (pension, post-retirement medical fund or mortgage interest). A deduction outside them isn’t taken before tax.',
+        'component_always_applies' => ':component can’t be marked not applicable: every company of this country owes it.',
+        'component_confirmed' => ':component has a confirmed or researched value now, so it applies. There is nothing to mark.',
         'item_paid' => 'This one-off item was paid by a posted run, so it can’t change. Add a new item instead.',
         'currency_mismatch' => 'Use the employee’s pay currency.',
         'instalment_above_principal' => 'The instalment can’t be more than the amount lent.',
@@ -46,6 +50,7 @@ return [
         'rate_missing' => 'An exchange rate for the pay date is missing. Add it in exchange rates.',
         'paid_in_other_run' => 'Already in another pay group’s run for these days. Take them out of one pay group.',
         'net_negative' => 'Net pay is below zero. Reduce a deduction or a loan instalment.',
+        'leave_pay_unconfirmed' => 'Leave pay rate not confirmed (for example DR Congo maternity pay): this period has leave of a type whose pay isn’t confirmed. Confirm the leave type’s pay in HR, then calculate again.',
     ],
 
     'line_warnings' => [
@@ -147,6 +152,9 @@ return [
             'inpp' => 'INPP',
             'onem' => 'ONEM',
             'family_allowance' => 'Family allowance',
+            'pension_deduction' => 'Pension and NSSF deduction limit',
+            'post_retirement_medical_deduction' => 'Post-retirement medical fund deduction limit',
+            'mortgage_interest_deduction' => 'Mortgage interest deduction limit',
         ],
         'fields' => [
             'period' => 'no period in force',
@@ -173,6 +181,16 @@ return [
             'max_dependants' => 'maximum dependants',
             'taxable' => 'whether it is taxable',
             'contributory' => 'whether contributions apply',
+            'min_minor' => 'minimum tax',
+            'category' => 'pre-tax category',
+        ],
+        'assumed' => [
+            'base_cap_minor' => 'no ceiling on the base',
+            'residency' => 'given to every employee (residency not recorded)',
+            'min_order' => 'the minimum applies before the 30% cap (the cap wins)',
+            'min_monthly' => 'the minimum is per month',
+            'rounding' => 'rounding rule',
+            'reduces_taxable' => 'whether it reduces taxable pay',
         ],
         'returns' => [
             'paye' => 'PAYE return (P10)',

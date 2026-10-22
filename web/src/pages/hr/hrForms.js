@@ -117,9 +117,9 @@ export function personalBody(form) {
 /** The fields the personal form shows errors for. */
 export const PERSONAL_FIELDS = ['personal_email', 'personal_phone', ...ADDRESS_FIELDS.map((key) => `address.${key}`), ...[0, 1, 2, 3, 4].flatMap((index) => ['name', 'relationship', 'phone', 'alt_phone', 'email'].map((key) => `emergency_contacts.${index}.${key}`))]
 
-export const blankLeave = () => ({ leave_type_id: '', start_date: '', end_date: '', start_half: false, end_half: false, reason: '' })
-export const LEAVE_FIELDS = ['employee_id', 'leave_type_id', 'start_date', 'end_date', 'start_half', 'end_half', 'reason']
-export const leaveBody = (form) => ({ ...form, reason: form.reason.trim() || null })
+export const blankLeave = () => ({ leave_type_id: '', start_date: '', end_date: '', start_half: false, end_half: false, reason: '', event: '' })
+export const LEAVE_FIELDS = ['employee_id', 'leave_type_id', 'start_date', 'end_date', 'start_half', 'end_half', 'reason', 'event']
+export const leaveBody = (form) => ({ ...form, reason: form.reason.trim() || null, event: form.event || null })
 
 export const EMPLOYEE_FIELDS = ['first_name', 'middle_name', 'last_name', 'gender', 'hire_date', 'branch_id', 'location_id', 'department_id', 'position_id', 'reports_to_id', 'clock_methods', 'work_email', 'work_phone', 'biometric_ref', 'company_id', 'user_id']
 

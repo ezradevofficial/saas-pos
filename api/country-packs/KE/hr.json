@@ -1,24 +1,118 @@
 {
     "code": "KE",
-    "notes": "HR reference data for Kenyan companies (docs/modules/hr.md HR-03, HR-12). Structure only: identifier types and statutory leave types. No figure is entered until it is confirmed from an official source: a null pattern enforces no format, and a null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. Labels live in lang/{locale}/hr.php (pack.*).",
-    "sources": [],
+    "notes": "HR reference data for Kenyan companies (docs/modules/hr.md HR-03, HR-12, HR-13): identifier types and statutory leave types. Each row has a status (ResearchStatus): 'researched' values come from public research (docs/country-packs-research-2026-10.md) with their confidence, research date and sources; they are used, and leave records that use them say so until the owner confirms them through a pack release (ADM-04). A null pattern enforces no format (patterns are checked on the value upper-cased without spaces, dashes, dots or slashes; a format check only, no checksum). A null days value makes the leave type 'Days needed' (requests and accrual refused) until a tenant confirms it. qualifying_months: months of service before the type can be taken; half_pay_days: days at half pay after the full-pay days, in the same year; events: per-event days within the type's yearly days. Labels live in lang/{locale}/hr.php (pack.*).",
+    "sources": [
+        "https://arthurdejong.org/python-stdnum/doc/2.0/stdnum.ke.pin",
+        "https://hreastafrica.com/employment-act-kenya",
+        "https://www.kenyans.co.ke/news/42601-labour-laws-kenya-maternity-other-types-work-leaves",
+        "https://www.kictanet.or.ke/understanding-maisha-namba-kenyas-new-digital-identity-system/",
+        "https://youverify.co/en/blogs/the-new-kenyan-id-card-maisha-namba-explained"
+    ],
     "todo": [
-        "kra_pin: confirm the KRA PIN format (letter, 9 digits, letter) from KRA and its legal reference before enforcing a pattern.",
-        "national_id: confirm the national identity card number format (and the Maisha Namba / UPI format) before enforcing a pattern.",
-        "annual: statutory annual leave days and the qualifying service (Employment Act, 2007, s. 28), with the effective date.",
-        "maternity: statutory maternity leave days and pay (Employment Act, 2007, s. 29), with the effective date.",
-        "paternity: statutory paternity leave days (Employment Act, 2007, s. 29(8)), with the effective date.",
-        "sick: statutory sick leave days at full and at half pay and the qualifying service (Employment Act, 2007, s. 30).",
+        "Confirm (accountant or labour lawyer) every researched value, then publish it as confirmed through a pack release (ADM-04): the KRA PIN and national ID formats, and the annual, maternity, paternity and sick leave days.",
+        "national_id: the 7 to 9 digit format has no authoritative source (the Maisha Namba carries the existing ID number; its digit count is not published in the sources found), so it only warns (enforce: warn). Confirm the format, including the Maisha Namba / UPI.",
+        "sick: the statute's maximum (30 days full pay, then 15 days half pay in 12 months, after 2 months' service) is used; some guides say 7 + 7. Payroll does not yet reduce pay for half-pay sick days: the leave request records how many there are.",
         "Other leave (compassionate, pre-adoptive leave under s. 29A, study): confirm which are statutory and their days."
     ],
     "identifier_types": [
-        {"key": "national_id", "required": false, "pattern": null},
-        {"key": "kra_pin", "required": false, "pattern": null}
+        {
+            "key": "national_id",
+            "required": false,
+            "pattern": "^[0-9]{7,9}$",
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://youverify.co/en/blogs/the-new-kenyan-id-card-maisha-namba-explained",
+                "https://www.kictanet.or.ke/understanding-maisha-namba-kenyas-new-digital-identity-system/"
+            ],
+            "needs_confirmation": false,
+            "enforce": "warn"
+        },
+        {
+            "key": "kra_pin",
+            "required": false,
+            "pattern": "^[AP][0-9]{9}[A-Z]$",
+            "status": "researched",
+            "confidence": "high",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://arthurdejong.org/python-stdnum/doc/2.0/stdnum.ke.pin"
+            ],
+            "needs_confirmation": false
+        }
     ],
     "statutory_leave_types": [
-        {"key": "annual", "accrual": "annual", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "maternity", "accrual": "none", "count_basis": "calendar_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "paternity", "accrual": "none", "count_basis": "calendar_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "sick", "accrual": "annual", "count_basis": "working_days", "paid": null, "days": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null}
+        {
+            "key": "annual",
+            "accrual": "annual",
+            "count_basis": "working_days",
+            "paid": true,
+            "days": 21,
+            "qualifying_months": 12,
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://hreastafrica.com/employment-act-kenya",
+                "https://www.kenyans.co.ke/news/42601-labour-laws-kenya-maternity-other-types-work-leaves"
+            ],
+            "needs_confirmation": false,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "maternity",
+            "accrual": "none",
+            "count_basis": "calendar_days",
+            "paid": true,
+            "days": 90,
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://hreastafrica.com/employment-act-kenya",
+                "https://www.kenyans.co.ke/news/42601-labour-laws-kenya-maternity-other-types-work-leaves"
+            ],
+            "needs_confirmation": false,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "paternity",
+            "accrual": "none",
+            "count_basis": "calendar_days",
+            "paid": true,
+            "days": 14,
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://hreastafrica.com/employment-act-kenya",
+                "https://www.kenyans.co.ke/news/42601-labour-laws-kenya-maternity-other-types-work-leaves"
+            ],
+            "needs_confirmation": false,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        },
+        {
+            "key": "sick",
+            "accrual": "annual",
+            "count_basis": "working_days",
+            "paid": true,
+            "days": 30,
+            "half_pay_days": 15,
+            "qualifying_months": 2,
+            "status": "researched",
+            "confidence": "medium",
+            "researched_on": "2026-10-17",
+            "source": [
+                "https://hreastafrica.com/employment-act-kenya",
+                "https://www.kenyans.co.ke/news/42601-labour-laws-kenya-maternity-other-types-work-leaves"
+            ],
+            "needs_confirmation": false,
+            "effective_from": "2026-01-01",
+            "effective_to": null
+        }
     ]
 }

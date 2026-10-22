@@ -17,7 +17,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Effective dates are inclusive; a new rate closes the previous one the day
  * before it starts. `source` is `pack` for rows copied from the country
  * pack (they follow its new versions, CP-03) and `tenant` for rows the
- * tenant entered. Audited as `core.tax_rate.*`.
+ * tenant entered. Audited as `core.tax_rate.*`. `research` (CP-01) is set
+ * on a pack row whose rate comes from public research, not yet confirmed:
+ * its confidence, research date and source URLs. Such a rate is used; the
+ * tax lines computed with it say so (TaxAmount::$researched).
  */
 class TaxRate extends Model implements HasScope
 {
@@ -27,7 +30,7 @@ class TaxRate extends Model implements HasScope
 
     public const SOURCE_TENANT = 'tenant';
 
-    protected $fillable = ['tax_code_id', 'rate', 'effective_from', 'effective_to', 'needs_confirmation', 'source'];
+    protected $fillable = ['tax_code_id', 'rate', 'effective_from', 'effective_to', 'needs_confirmation', 'source', 'research'];
 
     protected function casts(): array
     {
@@ -35,6 +38,7 @@ class TaxRate extends Model implements HasScope
             'effective_from' => 'immutable_date',
             'effective_to' => 'immutable_date',
             'needs_confirmation' => 'boolean',
+            'research' => 'array',
         ];
     }
 
@@ -48,12 +52,18 @@ class TaxRate extends Model implements HasScope
         return $this->rate === null || $this->needs_confirmation;
     }
 
+    /** CP-01: the rate comes from public research and is not yet confirmed. */
+    public function isResearched(): bool
+    {
+        return $this->research !== null && ! $this->isNeeded();
+    }
+
     public function scope(): Scope
     {
         return Scope::company($this->taxCode->company_id);
     }
 
-    /** @return array{id: string, rate: ?string, effective_from: string, effective_to: ?string, needs_confirmation: bool, source: string} */
+    /** @return array{id: string, rate: ?string, effective_from: string, effective_to: ?string, needs_confirmation: bool, source: string, research: ?array} */
     public function toSummary(): array
     {
         return [
@@ -63,6 +73,7 @@ class TaxRate extends Model implements HasScope
             'effective_to' => $this->effective_to?->toDateString(),
             'needs_confirmation' => $this->needs_confirmation,
             'source' => $this->source,
+            'research' => $this->research,
         ];
     }
 }

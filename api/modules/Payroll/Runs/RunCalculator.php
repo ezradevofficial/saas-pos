@@ -31,6 +31,7 @@ use Modules\Payroll\Models\Run;
 use Modules\Payroll\Models\RunLine;
 use Modules\Payroll\Models\Settings;
 use Modules\Payroll\Statutory\MissingValues;
+use Modules\Payroll\Statutory\NotApplicableMarks;
 use Modules\Payroll\Statutory\PayrollPack;
 use Modules\Payroll\Statutory\StatutoryEngine;
 use Modules\Payroll\Statutory\StatutoryInput;
@@ -67,6 +68,7 @@ class RunCalculator
         private readonly ExchangeRates $rates,
         private readonly CurrencyDecimals $decimals,
         private readonly AttendanceRecords $attendanceRecords,
+        private readonly NotApplicableMarks $marks,
     ) {}
 
     /** @var array<string, ?FxSnapshot> rates read in this calculation, by "from/to" (one query per pair, not per line) */
@@ -109,10 +111,17 @@ class RunCalculator
                 $used['insurance_premiums'] = $used['insurance_premiums'] || $p['insurance_minor'] > 0;
                 $used['dependants'] = $used['dependants'] || $employees[$id]->dependants > 0;
                 $used['children'] = $used['children'] || $employees[$id]->children > 0;
+
+                foreach ($p['pre_tax_by_category'] as $category => $minor) {
+                    $used[$category] = ($used[$category] ?? false) || BigInteger::of($minor)->isPositive();
+                }
             }
         }
 
-        $missing = array_filter($prepared) === [] ? [] : MissingValues::check($pack, $run->pay_date, $group->frequency, $used);
+        // CP-01: components the company marked not applicable (audited), for the period in force on the pay date;
+        // marks whose period became usable are voided (audited) first.
+        $notApplicable = NotApplicableMarks::inEffect($pack, $this->marks->refresh($company->id, $pack), $run->pay_date);
+        $missing = array_filter($prepared) === [] ? [] : MissingValues::check($pack, $run->pay_date, $group->frequency, $used, array_keys($notApplicable));
 
         if ($missing !== []) {
             $run->fill(['missing' => $missing])->save();
@@ -120,7 +129,8 @@ class RunCalculator
             throw Errors::make(422, 'statutory_rates_missing', ['country' => (string) $company->country, 'missing' => MissingValues::describe($missing)], extra: ['missing' => $missing]);
         }
 
-        $components = PayrollPack::inForce($pack, $run->pay_date);
+        $inForce = PayrollPack::inForce($pack, $run->pay_date);
+        $components = PayrollPack::applicable($inForce, array_keys($notApplicable));
         $headcount = $this->headcount($company->id, $run->period_end);
         $lines = [];
 
@@ -147,6 +157,9 @@ class RunCalculator
         // Review fix 5: what the run was calculated from (the pack's source and hash); decisions 29, 33, 40: what the reviewer should know.
         $run->fill(['missing' => null, 'totals' => $this->totals($run, $lines, $previous, $employees), 'inputs' => [
             'pack' => $this->packs->source($company->country, $run->pay_date),
+            // CP-01: researched values used, components left out while unconfirmed, those marked not applicable,
+            // and statutory half-pay leave days paid in full (HR-12: KE sick leave beyond its full-pay days).
+            'statutory' => [...PayrollPack::notices($inForce, $used, $notApplicable), 'half_pay_paid_in_full' => self::halfPayDays($lines)],
             'review' => $this->review($run, $group, $previous),
         ]])->save();
     }
@@ -183,7 +196,7 @@ class RunCalculator
     private static function fingerprint(Run $run, PayrollEmployee $employee, Collection $leave, array $attendanceIds): string
     {
         sort($attendanceIds);
-        $days = $leave->map(fn (LeaveDay $d) => $d->date->toDateString().'='.$d->fraction)->sort()->values()->all();
+        $days = $leave->map(fn (LeaveDay $d) => $d->date->toDateString().'='.$d->fraction.(($d->kind ?? 'unpaid') === 'unpaid' ? '' : ':'.$d->kind))->sort()->values()->all();
 
         return hash('sha256', json_encode([
             'hire' => $employee->hire_date->gte($run->period_start) ? $employee->hire_date->toDateString() : null,
@@ -469,6 +482,20 @@ class RunCalculator
         $leave = collect($data['leave'][$employee->employee_id] ?? []);
         $inputs['fingerprint'] = self::fingerprint($run, $employee, $leave, $inputs['attendance_ids']);
 
+        // CP-01: leave whose pay rate is not confirmed (CD maternity) blocks the line; half-pay days (KE sick
+        // leave) are paid in full for now and counted for the run's notice.
+        if ($leave->contains(fn (LeaveDay $d) => $d->kind === 'pay_unconfirmed')) {
+            $errors[] = 'leave_pay_unconfirmed';
+        }
+
+        $halfPay = $leave->filter(fn (LeaveDay $d) => $d->kind === 'half_pay')->reduce(fn (BigDecimal $sum, LeaveDay $d) => $sum->plus($d->fraction), BigDecimal::zero());
+
+        if ($halfPay->isPositive()) {
+            $inputs['half_pay_days'] = (string) $halfPay;
+        }
+
+        $leave = $leave->filter(fn (LeaveDay $d) => ($d->kind ?? 'unpaid') === 'unpaid');
+
         if ($last?->pay_basis === 'monthly') {
             $leaveDays = $leave->reduce(fn (BigDecimal $sum, LeaveDay $d) => $sum->plus($d->fraction), BigDecimal::zero());
 
@@ -541,7 +568,7 @@ class RunCalculator
             if ($item->kind === Item::EARNING) {
                 $earnings[] = [...$row, 'taxable' => $item->taxable, 'contributory' => $item->contributory];
             } else {
-                $deductions[] = [...$row, 'pre_tax' => $item->pre_tax, 'insurance_premium' => $item->insurance_premium];
+                $deductions[] = [...$row, 'pre_tax' => $item->pre_tax, 'insurance_premium' => $item->insurance_premium, 'pre_tax_category' => $item->pre_tax ? $item->pre_tax_category : null];
             }
         }
 
@@ -582,6 +609,7 @@ class RunCalculator
             'contributory_minor' => $sum($earnings, 'contributory'),
             'pre_tax_minor' => $sum($deductions, 'pre_tax'),
             'insurance_minor' => (int) $sum($deductions, 'insurance_premium'),
+            'pre_tax_by_category' => self::byCategory($deductions),
             'fx' => $fx,
             'errors' => $errors,
             'warnings' => $warnings,
@@ -616,6 +644,7 @@ class RunCalculator
             basic: $in($p['basic_minor']),
             preTax: $in($p['pre_tax_minor']),
             insurancePremiums: $in((string) $p['insurance_minor']),
+            preTaxByCategory: array_map($in, $p['pre_tax_by_category']),
             dependants: $employee->dependants,
             children: $employee->children,
             headcount: $headcount,
@@ -841,6 +870,46 @@ class RunCalculator
     }
 
     /** Rows with the same $key summed (amounts as digit strings). */
+    /**
+     * CP-01: the run's half-pay leave days paid in full (null when none).
+     *
+     * @return array{days: string, employees: int}|null
+     */
+    private static function halfPayDays(array $lines): ?array
+    {
+        $days = BigDecimal::zero();
+        $employees = 0;
+
+        foreach ($lines as $line) {
+            if (isset($line['inputs']['half_pay_days'])) {
+                $days = $days->plus($line['inputs']['half_pay_days']);
+                $employees++;
+            }
+        }
+
+        return $employees === 0 ? null : ['days' => (string) $days->toScale(2), 'employees' => $employees];
+    }
+
+    /**
+     * PAY-07: pre-tax deductions by statutory category (the pack limits each).
+     *
+     * @return array<string, string>
+     */
+    private static function byCategory(array $deductions): array
+    {
+        $byCategory = [];
+
+        foreach ($deductions as $row) {
+            if (($row['pre_tax'] ?? false) && ($row['pre_tax_category'] ?? null) !== null) {
+                $byCategory[$row['pre_tax_category']] = (string) BigInteger::of($byCategory[$row['pre_tax_category']] ?? '0')->plus($row['amount_minor']);
+            }
+        }
+
+        ksort($byCategory);
+
+        return $byCategory;
+    }
+
     private static function merge(array $rows, string $key): array
     {
         $merged = [];

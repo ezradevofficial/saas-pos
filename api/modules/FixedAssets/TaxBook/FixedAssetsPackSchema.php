@@ -3,6 +3,7 @@
 namespace Modules\FixedAssets\TaxBook;
 
 use App\Core\CountryPacks\PackSchemas;
+use App\Core\CountryPacks\ResearchStatus;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 
@@ -40,6 +41,13 @@ final class FixedAssetsPackSchema
 
         if ($validator->fails()) {
             throw new InvalidArgumentException(implode(' ', $validator->errors()->all()));
+        }
+
+        // CP-01: each class row and the acquisition rule carry their status (ResearchStatus), like the other packs.
+        ResearchStatus::check($content['acquisition_rule'], 'acquisition_rule');
+
+        foreach ($content['classes'] as $row) {
+            ResearchStatus::check($row, "classes.{$row['key']}.{$row['effective_from']}");
         }
     }
 }

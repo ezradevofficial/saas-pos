@@ -3,6 +3,7 @@
 namespace Modules\Payroll\Statutory;
 
 use App\Core\CountryPacks\PackDocuments;
+use App\Core\CountryPacks\ResearchStatus;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
@@ -10,9 +11,10 @@ use Carbon\CarbonInterface;
  * CP-01, CP-02, PAY-07: Payroll's country-pack data
  * (`api/country-packs/{CODE}/payroll.json`): the statutory components with
  * their effective-dated values, the return types and the payment file
- * layouts. The packs ship structure only: every figure is null ("rate
- * needed") until the owner confirms it, and a run is refused while one it
- * needs is missing (MissingValues, PAY-08).
+ * layouts. A figure is confirmed, `researched` (public research, used and
+ * recorded on each run, CP-01) or null ("rate needed") until the owner
+ * confirms it; a run is refused while one it needs is missing
+ * (MissingValues, PAY-08).
  *
  * Tests inject fixture packs with fake(); fixture rates never reach the
  * pack files.
@@ -158,12 +160,89 @@ class PayrollPack
                 'applies_to' => $component['applies_to'] ?? null,
                 'when' => $component['when'] ?? null,
                 'required' => (bool) ($component['required'] ?? true),
+                // A deduction limit: its pre-tax category and the components whose employee shares it includes.
+                'category' => $component['category'] ?? null,
+                'includes' => array_values((array) ($component['includes'] ?? [])),
+                // CP-01: a company may mark it not applicable; `not_applied` leaves it out while unconfirmed.
+                'may_not_apply' => (bool) ($component['may_not_apply'] ?? false),
+                'unconfirmed' => $component['unconfirmed'] ?? null,
                 'values' => $values,
                 'overlapping' => $overlapping,
             ];
         }
 
         return $components;
+    }
+
+    /**
+     * CP-01: the components a run uses: without those the company marked
+     * not applicable (only components the pack allows to be) and those
+     * left out while unconfirmed (`unconfirmed: not_applied`, e.g. CD IPR
+     * dependants: no reduction until confirmed).
+     *
+     * @param  list<array<string, mixed>>  $components  from inForce
+     * @param  list<string>  $notApplicable
+     * @return list<array<string, mixed>>
+     */
+    public static function applicable(array $components, array $notApplicable = []): array
+    {
+        return array_values(array_filter($components, fn (array $c) => ! self::notApplicable($c, $notApplicable) && ! self::notApplied($c)));
+    }
+
+    /** The company marked $component not applicable, and the pack allows it. */
+    public static function notApplicable(array $component, array $notApplicable): bool
+    {
+        return ($component['may_not_apply'] ?? false) && in_array($component['code'], $notApplicable, true);
+    }
+
+    /** $component is left out of runs while its period is not usable (`unconfirmed: not_applied`). */
+    public static function notApplied(array $component): bool
+    {
+        return ($component['unconfirmed'] ?? null) === 'not_applied' && (($component['values'] ?? null) === null || ! ResearchStatus::usable($component['values']));
+    }
+
+    /**
+     * CP-01: what a run records about the pack values it used: each
+     * component with a researched period (its confidence, research date,
+     * sources and assumed fields), the components left out while
+     * unconfirmed, and those the company marked not applicable.
+     *
+     * @param  list<array<string, mixed>>  $components  from inForce
+     * @param  array<string, bool>  $used  conditions an employee of the run meets
+     * @param  array<string, array<string, mixed>>  $notApplicable  the company's marks, by component code
+     * @return array{researched: list<array<string, mixed>>, not_applied: list<string>, not_applicable: list<array<string, mixed>>}
+     */
+    public static function notices(array $components, array $used, array $notApplicable): array
+    {
+        $notices = ['researched' => [], 'not_applied' => [], 'not_applicable' => []];
+
+        foreach ($components as $c) {
+            if (self::notApplicable($c, array_keys($notApplicable))) {
+                $notices['not_applicable'][] = ['component' => $c['code'], ...$notApplicable[$c['code']]];
+
+                continue;
+            }
+
+            $relevant = $c['required'] || ($c['when'] !== null && ($used[$c['when']] ?? false));
+
+            if (! $relevant) {
+                continue;
+            }
+
+            if (self::notApplied($c)) {
+                $notices['not_applied'][] = $c['code'];
+
+                continue;
+            }
+
+            $research = $c['values'] === null ? null : ResearchStatus::research($c['values']);
+
+            if ($research !== null) {
+                $notices['researched'][] = ['component' => $c['code'], 'effective_from' => $c['values']['effective_from'] ?? null, ...$research];
+            }
+        }
+
+        return $notices;
     }
 
     /** @return list<array<string, mixed>> the pack's return types */
@@ -176,6 +255,14 @@ class PayrollPack
     public function paymentFormat(?string $country, string $key): ?array
     {
         return $this->of($country)['payment_formats'][$key] ?? null;
+    }
+
+    /** S1: an assumption worded for people (its own wording, else the field's). */
+    public static function assumedLabel(string $field): string
+    {
+        $label = self::label('assumed', $field);
+
+        return $label === $field ? self::label('fields', $field) : $label;
     }
 
     /** The en/fr label of a pack component or return type. */

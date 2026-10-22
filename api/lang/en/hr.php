@@ -29,6 +29,7 @@ return [
         'rehire_before_termination' => 'The new hire date must be after the termination date.',
         'identifier_type_unknown' => 'The identifier type :type isn’t used in the company’s country.',
         'identifier_format' => 'The :type doesn’t have the expected format. Check it and try again.',
+        'identifier_format_unusual' => 'This :type doesn’t look like the usual format. It was saved; check it if it was a typing mistake.',
         'identifier_taken' => 'Another employee of this company has this :type.',
         'contract_overlap' => 'Another contract is in force on these dates. End it first.',
         'contract_end_required' => 'A fixed-term contract needs an end date.',
@@ -38,6 +39,9 @@ return [
         'entitlement_required' => 'A leave type that accrues needs its days per year.',
         'leave_type_other_company' => 'Choose a leave type of the employee’s company.',
         'leave_days_needed' => 'The days of :type aren’t confirmed yet. Ask HR to enter and confirm them.',
+        'leave_qualifying_service' => ':type can be taken after :months months of service, from :date. Choose a later start date.',
+        'leave_event_unknown' => 'This event isn’t one of the events of :type. Choose one from the list, or leave the event empty.',
+        'leave_event_days' => ':event gives at most :days days. Shorten the request.',
         'leave_balance_short' => 'Not enough leave left: :available days available.',
         'leave_overlap' => 'Another leave request covers some of these dates.',
         'leave_outside_employment' => 'These dates are outside the employee’s employment.',
@@ -143,6 +147,10 @@ return [
             'paternity' => 'Paternity leave',
             'sick' => 'Sick leave',
             'circumstantial' => 'Circumstantial leave',
+        ],
+        'leave_events' => [
+            'marriage' => 'Own marriage',
+            'birth' => 'Birth of a child',
         ],
     ],
     'numbering' => [

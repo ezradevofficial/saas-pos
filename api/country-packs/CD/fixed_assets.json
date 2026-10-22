@@ -3,6 +3,7 @@
     "notes": "Fixed assets tax book reference data for Congolese companies (docs/modules/fixed-assets.md FA-20). Structure only: class keys. No method or rate is entered until it is confirmed from an official source with its legal reference and effective date; a class with a null method or rate, or needs_confirmation true, is unconfirmed and the tax book is refused. Labels live in lang/{locale}/fixed_assets.php (tax_classes.*).",
     "sources": [],
     "todo": [
+        "Public research (2026-10-17, docs/country-packs-research-2026-10.md) found no statutory class table; usual practice is straight line at commonly accepted rates (low confidence). Nothing is entered and the tax book stays refused.",
         "Code des impôts: confirm the classes of fiscally deductible depreciation (amortissements) and which assets fall in each.",
         "buildings (constructions): method (linéaire or dégressif with its coefficient), annual rate and effective date, with the legal reference.",
         "machinery (matériel et outillage): method, annual rate and effective date.",
@@ -14,13 +15,65 @@
         "Disposals: the tax treatment in the year of disposal (until confirmed the tax book gives no allowance that year and computes no adjustment).",
         "Any accelerated or exceptional depreciation."
     ],
-    "acquisition_rule": {"value": null, "needs_confirmation": true},
+    "acquisition_rule": {
+        "value": null,
+        "needs_confirmation": true,
+        "status": "needs_confirmation"
+    },
     "classes": [
-        {"key": "buildings", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "machinery", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "motor_vehicles", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "computers", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "furniture", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null},
-        {"key": "other", "method": null, "rate": null, "needs_confirmation": true, "effective_from": "2026-01-01", "effective_to": null}
+        {
+            "key": "buildings",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "status": "needs_confirmation"
+        },
+        {
+            "key": "machinery",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "status": "needs_confirmation"
+        },
+        {
+            "key": "motor_vehicles",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "status": "needs_confirmation"
+        },
+        {
+            "key": "computers",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "status": "needs_confirmation"
+        },
+        {
+            "key": "furniture",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "status": "needs_confirmation"
+        },
+        {
+            "key": "other",
+            "method": null,
+            "rate": null,
+            "needs_confirmation": true,
+            "effective_from": "2026-01-01",
+            "effective_to": null,
+            "status": "needs_confirmation"
+        }
     ]
 }

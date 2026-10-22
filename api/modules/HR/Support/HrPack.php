@@ -48,7 +48,9 @@ class HrPack
         $types = [];
 
         foreach ($this->of($country)['identifier_types'] as $type) {
-            $types[$type['key']] = ['key' => $type['key'], 'required' => (bool) ($type['required'] ?? false), 'pattern' => $type['pattern'] ?? null];
+            // CP-01: `enforce: warn` makes a format a hint (a value outside it is kept and warned); else it is refused.
+            $types[$type['key']] = ['key' => $type['key'], 'required' => (bool) ($type['required'] ?? false), 'pattern' => $type['pattern'] ?? null,
+                'enforce' => ($type['enforce'] ?? 'reject') === 'warn' ? 'warn' : 'reject'];
         }
 
         return $types;

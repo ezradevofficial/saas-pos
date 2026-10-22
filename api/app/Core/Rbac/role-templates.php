@@ -44,7 +44,9 @@ return [
             // CRM (docs/modules/crm.md): reads every CRM record at the branches it reaches and sets the module up.
             'crm.*.view', 'crm.settings.manage', 'crm.scope.branch',
             // E-commerce (docs/modules/ecommerce.md): reads it all, sets up stores and riders.
-            'ecommerce.*.view', 'ecommerce.store.manage', 'ecommerce.rider.manage'],
+            'ecommerce.*.view', 'ecommerce.store.manage', 'ecommerce.rider.manage',
+            // CP-01: exempting the company from a pack component (payroll.statutory.exempt).
+            'payroll.statutory.exempt'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         // AUTH-11: and single sign-on (whoever controls the IdP signs in as anyone linked).
@@ -254,6 +256,8 @@ return [
             // HR-33: what payroll pays from: contracts and pay, pay accounts and identifiers, leave and attendance.
             'hr.contract.view', 'hr.pay.view', 'hr.bank.view', 'hr.identity.view', 'hr.leave.view', 'hr.attendance.view',
         ],
+        // CP-01: exempting the company from a pack component is the Owner's and Admin's (payroll.statutory.exempt).
+        'except' => ['payroll.statutory.exempt'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],

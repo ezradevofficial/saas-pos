@@ -72,6 +72,27 @@ describe('Taxes', () => {
     expect(screen.getByText('1 tax code has no confirmed rate. Add the rate from an official source before using it.')).toBeInTheDocument()
   })
 
+  it('marks a researched rate and shows the public research notice (CP-01)', async () => {
+    const research = { confidence: 'high', researched_on: '2026-10-17', source: ['https://trykintsugi.com/vat'] }
+    const researched = code({
+      id: 't-1',
+      code: 'VAT_STD',
+      name: 'VAT, standard rate',
+      kind: 'vat',
+      rate_needed: false,
+      rate_researched: true,
+      current_rate: { id: 'r-1', rate: '16.0000', effective_from: '2026-01-01', effective_to: null, needs_confirmation: false, source: 'pack', research },
+      rates: [{ id: 'r-1', rate: '16.0000', effective_from: '2026-01-01', effective_to: null, needs_confirmation: false, source: 'pack', research }],
+    })
+    mockRoutes(api, [['companies/c-1/tax-codes?per_page=200', { data: [researched] }], [/^companies\/c-1\/tax-codes\?/, page([researched])], [/^tax-categories\?/, page([])], ['master-data/settings', { data: [] }]], { permissions: EDITOR, companies: [CD_COMPANY] })
+    renderApp('/settings/taxes')
+
+    const std = (await screen.findByText('VAT_STD')).closest('tr')
+    expect(within(std).getByText('16%')).toBeInTheDocument()
+    expect(within(std).getByText('Researched')).toBeInTheDocument()
+    expect(await screen.findByText('Some statutory values come from public research and haven’t been confirmed by an accountant. Check them before filing.')).toBeInTheDocument()
+  })
+
   it('adds a rate from a date with a percent typed in the UI language', async () => {
     taxes()
     api.post.mockResolvedValue({ data: CODES[0] })
