@@ -33,6 +33,10 @@ use Symfony\Component\HttpFoundation\Response;
  * - the user's own account: signing out (here or everywhere), revoking a
  *   session, two-factor and their own POS PIN;
  * - the full data export (EXP-02, `tenant-exports`), its download link included;
+ * - data protection duties (NFR-08, Phase 8 review L8): logging, approving,
+ *   rejecting and carrying out data subject requests, and recording a
+ *   withdrawal of marketing consent (a new grant stays refused). The KE DPA
+ *   deadlines keep running whatever the tenant owes;
  * - the till's own sign-in and device security (PIN, overrides, secret);
  * - POS uploads (sales, shifts, voids, refunds, cash movements, number
  *   ranges, payments at the till, and staff clock-ins from tills and
@@ -45,7 +49,8 @@ use Symfony\Component\HttpFoundation\Response;
  * ADM-01c (owner decision 2026-10-17): a tenant suspended by platform
  * staff answers 403 `tenant_suspended` to every write except billing,
  * the user's own account, the data export, approvals and payroll (runs,
- * corrections, cancellation and statutory returns). Tills stop.
+ * corrections, cancellation and statutory returns) and data protection
+ * duties (privacy requests, consent withdrawals). Tills stop.
  */
 class EnforceSubscription
 {
@@ -64,6 +69,12 @@ class EnforceSubscription
     public const POS_UPLOAD = 'pos_upload';
 
     public const STAFF = 'staff';
+
+    /** NFR-08: data subject requests, never blocked (legal deadlines). */
+    public const PRIVACY = 'privacy';
+
+    /** NFR-08: recording a consent answer; only a withdrawal passes while writes are refused. */
+    public const CONSENT = 'consent';
 
     public const BLOCKED = 'blocked';
 
@@ -118,6 +129,12 @@ class EnforceSubscription
         'POST support-access/{support_access_grant}/deny' => self::ACCOUNT,
         'POST support-access/{support_access_grant}/revoke' => self::ACCOUNT,
         'POST support-session/end' => self::ACCOUNT,
+        // NFR-08 (Phase 8 review L8): data protection duties run whatever the tenant owes.
+        'POST privacy/requests' => self::PRIVACY,
+        'POST privacy/requests/{privacy_request}/approve' => self::PRIVACY,
+        'POST privacy/requests/{privacy_request}/reject' => self::PRIVACY,
+        'POST privacy/requests/{privacy_request}/execute' => self::PRIVACY,
+        'POST privacy/consents' => self::CONSENT,
         'POST tenant-exports' => self::EXPORT,
         'POST tenant-exports/{tenant_export}/link' => self::EXPORT,
         'POST pos/number-ranges' => self::POS_UPLOAD,
@@ -144,6 +161,11 @@ class EnforceSubscription
     public function handle(Request $request, Closure $next): Response
     {
         $class = self::classify($request->method(), $request->route());
+
+        // NFR-08: a consent withdrawal is a duty; a new grant is an ordinary write.
+        if ($class === self::CONSENT) {
+            $class = filter_var($request->input('granted'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false ? self::PRIVACY : self::BLOCKED;
+        }
 
         if ($this->startsBilling($request, $class) && $this->sandbox->active()) {
             throw new ApiException(403, 'sandbox_not_billed', __('api.errors.sandbox_not_billed'));
@@ -172,7 +194,7 @@ class EnforceSubscription
             throw new ApiException(403, 'tenant_suspended', __('platform.tenants.suspended'));
         }
 
-        if ($subscription === null || ! $subscription->refusesWrites() || in_array($class, [self::BILLING, self::APPROVAL, self::ACCOUNT, self::EXPORT, self::DEVICE, self::STAFF], true)) {
+        if ($subscription === null || ! $subscription->refusesWrites() || in_array($class, [self::BILLING, self::APPROVAL, self::ACCOUNT, self::EXPORT, self::DEVICE, self::STAFF, self::PRIVACY], true)) {
             return $next($request);
         }
 
@@ -209,10 +231,10 @@ class EnforceSubscription
         return $class === self::BILLING || in_array(strtoupper($request->method()).' '.$uri, self::SANDBOX_REFUSED, true);
     }
 
-    /** ADM-01c: what a suspended tenant may still write (the read-only classes for billing, account, export, approvals and payroll). */
+    /** ADM-01c: what a suspended tenant may still write (the read-only classes for billing, account, export, approvals, payroll and privacy duties). */
     public static function allowedWhileSuspended(string $class, Route|string|null $route): bool
     {
-        if (in_array($class, [self::ALLOWED, self::BILLING, self::ACCOUNT, self::EXPORT, self::APPROVAL], true)) {
+        if (in_array($class, [self::ALLOWED, self::BILLING, self::ACCOUNT, self::EXPORT, self::APPROVAL, self::PRIVACY], true)) {
             return true;
         }
 

@@ -165,6 +165,10 @@ class PlatformTenantManagementTest extends TestCase
             'POST subscription/subscribe' => true,
             'POST tenant-exports' => true,
             'POST auth/sign-out' => true,
+            // NFR-08 (Phase 8 review L8): privacy requests always; consents only as withdrawals (decided per request).
+            'POST privacy/requests' => true,
+            'POST privacy/requests/{privacy_request}/execute' => true,
+            'POST privacy/consents' => false,
             'POST hr/timesheets/approve' => false,
             'POST hr/me/clock' => false,
             'POST pos/sales' => false,
