@@ -306,7 +306,8 @@ jobs:
   npm-audit:
     name: security (npm audit)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    # Two audit attempts, each of which may wait out a registry timeout.
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

@@ -1,9 +1,10 @@
 // NFR-06: the npm audit gate's own test.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { advisories, evaluate } from './npm-audit.mjs'
+import { advisories, completed, evaluate } from './npm-audit.mjs'
 
 const report = {
+  metadata: { vulnerabilities: { high: 1, critical: 1 } },
   vulnerabilities: {
     braces: { via: [{ source: 1, name: 'braces', severity: 'high', title: 'DoS', url: 'https://github.com/advisories/GHSA-aaaa' }] },
     micromatch: { via: ['braces'] },
@@ -36,4 +37,11 @@ test('ignores an exception reviewed more than 90 days out (review low)', () => {
 
 test('reports allow-list entries that are no longer needed', () => {
   assert.deepEqual(evaluate({ vulnerabilities: {} }, [{ id: 'GHSA-old', review_by: '2027-01-01' }], '2026-10-17').unused, ['GHSA-old'])
+})
+
+test('an audit that did not complete is not a pass (registry timeout)', () => {
+  assert.equal(completed(report), true)
+  assert.equal(completed({ error: { code: 'ENOAUDIT', summary: 'audit endpoint returned an error' } }), false)
+  assert.equal(completed({}), false)
+  assert.equal(completed(null), false)
 })
