@@ -12,12 +12,18 @@ import { testDatabase } from '../../test/testDatabase';
 
 const DELIVERY = { id: 'd-1', status: 'assigned', order_number: 'WEB-A-2026-00001', customer_name: 'Wanjiku', customer_phone: '+254712345678', address: { line: 'Mpaka Road 12', area: 'Westlands' }, currency: 'KES', collect_minor: '136000' };
 
-function riderServer() {
+function riderServer({ sms } = {}) {
   const server = {
     offline: false,
     updates: [],
-    async get(path) {
+    asked: [],
+    async get(path, options) {
       if (server.offline) throw new NetworkError(new Error('offline'));
+      // AUTH-01: the platform's public settings, asked without the rider's token.
+      if (path === 'public/branding' && sms !== undefined) {
+        server.asked.push(options);
+        return { status: 200, body: { data: null, meta: { sms_available: sms } } };
+      }
       return path === 'ecommerce/rider/deliveries' ? { status: 200, body: { data: [DELIVERY] } } : { status: 404, body: null };
     },
     async post(path, body) {
@@ -33,8 +39,8 @@ function riderServer() {
   return server;
 }
 
-async function setup() {
-  const rider = riderServer();
+async function setup(options) {
+  const rider = riderServer(options);
   const services = createServices({ database: testDatabase(), api: fakeServer(), riderApi: rider, credentialsBackend: memoryBackend(), netInfo: null });
   await render(<App services={services} display={false} />);
   return { rider, services };
@@ -47,6 +53,27 @@ async function signIn() {
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
   return screen.findByTestId('delivery-d-1');
 }
+
+describe('Rider sign-in in email-only mode (AUTH-01)', () => {
+  it('asks for an email address when text messages aren’t available', async () => {
+    const { rider } = await setup({ sms: false });
+    await fireEvent.press(await screen.findByRole('button', { name: 'Sign in as a rider' }));
+
+    expect(await screen.findByLabelText('Email address')).toBeTruthy();
+    expect(screen.queryByLabelText('Email or phone')).toBeNull();
+    expect(screen.getByText(/Text messages aren’t available yet/)).toBeTruthy();
+    expect(rider.asked).toEqual([{ auth: false }]);
+  });
+
+  it('keeps email or phone while text messages are available', async () => {
+    const { rider } = await setup({ sms: true });
+    await fireEvent.press(await screen.findByRole('button', { name: 'Sign in as a rider' }));
+
+    await waitFor(() => expect(rider.asked).toHaveLength(1));
+    expect(await screen.findByLabelText('Email or phone')).toBeTruthy();
+    expect(screen.queryByLabelText('Email address')).toBeNull();
+  });
+});
 
 describe('Rider screen (ECOM-28, ECOM-29)', () => {
   it('shows the rider’s delivery with the cash to collect, currency first', async () => {

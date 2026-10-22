@@ -43,6 +43,13 @@ return [
         'already_applied' => 'This manager approval was already applied to this action. Nothing more to do.',
     ],
 
+    // AUTH-01..AUTH-05: email-only mode, no SMS provider configured (SmsAvailability).
+    'sms_unavailable' => [
+        'use_email' => 'Text messages aren’t available yet. Use your email address.',
+        'no_email' => 'Text messages aren’t available yet, so we can’t send you a code. Ask your Owner or support to add an email address to your account.',
+        'two_factor' => 'Codes by text message aren’t available yet. Use an authenticator app instead.',
+    ],
+
     'code' => [
         'invalid' => 'This code is not valid. Check it and try again.',
         'expired' => 'This code has expired. Ask for a new one.',

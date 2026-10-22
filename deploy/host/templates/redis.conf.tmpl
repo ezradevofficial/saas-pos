@@ -1,0 +1,10 @@
+# Included at the end of /etc/redis/redis.conf by provision-single-host.sh
+# (ADR 025). Local only, with a password. Redis holds the queues as well as
+# the cache, so it never evicts: a full Redis refuses writes, which the
+# health checks report, instead of silently dropping queued jobs.
+bind 127.0.0.1 -::1
+protected-mode yes
+port 6379
+requirepass @REDIS_REQUIREPASS@
+maxmemory @REDIS_MAXMEMORY@
+maxmemory-policy noeviction

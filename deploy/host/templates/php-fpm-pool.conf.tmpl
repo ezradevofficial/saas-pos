@@ -1,0 +1,20 @@
+; ADR 025: the API's PHP-FPM pool, sized for a small shared host. Runs as the
+; deploy user (who owns the release and its storage/); nginx reaches it
+; through the default socket.
+[app]
+user = @DEPLOY_USER@
+group = @DEPLOY_USER@
+listen = /run/php/php8.3-fpm.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+pm = dynamic
+pm.max_children = @FPM_MAX_CHILDREN@
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+pm.max_requests = 500
+; Above the runtime connection's statement timeout (DB_STATEMENT_TIMEOUT, 120 s).
+request_terminate_timeout = 130s
+catch_workers_output = yes
+decorate_workers_output = no

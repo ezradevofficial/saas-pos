@@ -524,7 +524,8 @@
       "businessName": "Business name",
       "country": "Country",
       "language": "Language",
-      "code": "6-digit code"
+      "code": "6-digit code",
+      "email": "Email address"
     },
     "countries": {
       "KE": "Kenya",
@@ -576,12 +577,14 @@
       "qrAlt": "QR code for your authenticator app",
       "manual": "Or enter this key by hand:",
       "smsSent": "Enter the code sent to {{destination}}.",
-      "submit": "Turn on two-step sign-in"
+      "submit": "Turn on two-step sign-in",
+      "smsUnavailable": "Codes by text message aren’t available yet, so use an authenticator app."
     },
     "forgot": {
       "title": "Reset your password",
       "intro": "Enter your email or phone number and we will send you a code.",
-      "submit": "Send code"
+      "submit": "Send code",
+      "introEmail": "Enter your email address and we will send you a code."
     },
     "reset": {
       "title": "Choose a new password",
@@ -647,7 +650,8 @@
         "link_email_mismatch": "The identity provider signed in someone else. Sign in there with your own account, then try again.",
         "name_id_transient": "Your identity provider sent a one-time user ID. Ask your administrator to send the email address or a persistent ID."
       }
-    }
+    },
+    "emailOnly": "Text messages aren’t available yet, so use your email address."
   },
   "home": {
     "greeting": {
@@ -968,7 +972,8 @@
     "fields": {
       "name": "Full name",
       "contact": "Email or phone number",
-      "language": "Language"
+      "language": "Language",
+      "email": "Email address"
     },
     "invite": {
       "title": "Invite a user",
@@ -978,7 +983,8 @@
       "rolesText": "Give at least one role, and say where it applies. A branch role covers its locations; a company role covers its branches.",
       "addRole": "Add another role",
       "send": "Send invitation",
-      "sent": "Invitation sent to {{name}}. It is valid for 7 days."
+      "sent": "Invitation sent to {{name}}. It is valid for 7 days.",
+      "emailHelp": "The invitation link is sent here. Text messages aren’t available yet, so use an email address."
     },
     "assignment": {
       "legend": "Role {{number}}",
@@ -5471,7 +5477,8 @@
       "contact": "Contact email or phone number",
       "handover": "The 14-day trial starts with these modules. The customer becomes Owner when they accept; your setup access ends then.",
       "submit": "Create tenant",
-      "openTenant": "Open {{name}}"
+      "openTenant": "Open {{name}}",
+      "email": "Contact email address"
     },
     "customers": {
       "title": "Tenants",
@@ -12083,7 +12090,9 @@
       "noOrders": "No orders yet.",
       "marketing": "Offers and news",
       "marketingOn": "You get offers and news. You can stop them here at any time.",
-      "marketingOff": "You don’t get offers or news."
+      "marketingOff": "You don’t get offers or news.",
+      "email": "Email address",
+      "emailHelp": "We send you a 6-digit code. Codes by text message aren’t available yet."
     },
     "consent": {
       "marketing_2026_10": "Send me offers and news from {{store}} by SMS, WhatsApp or email. I can stop them at any time in my account."
