@@ -7,6 +7,7 @@ use App\Core\Api\ApiRateLimits;
 use App\Core\Api\ApiScopes;
 use App\Core\Api\ApiUsage;
 use App\Core\Api\Idempotency;
+use App\Core\Api\Models\ApiKey;
 use App\Core\Api\Sandbox\Sandbox;
 use App\Core\Api\Sandbox\SandboxCaps;
 use App\Core\Http\ApiException;
@@ -58,7 +59,10 @@ class PublicApi
         if (! ApiScopes::allows($key->scopeList(), $resource, $write)) {
             $scope = $resource.'.'.($write ? ApiScopes::WRITE : ApiScopes::READ);
 
-            throw new ApiException(403, 'api_scope_missing', __('api.errors.scope_missing', ['scope' => $scope]), extra: ['scope' => $scope]);
+            // An app's token is not a key its holder can edit: it was given what the organisation consented to.
+            $message = $key->kind === ApiKey::KIND_APP ? 'api.errors.scope_missing_app' : 'api.errors.scope_missing';
+
+            throw new ApiException(403, 'api_scope_missing', __($message, ['scope' => $scope]), extra: ['scope' => $scope]);
         }
 
         // Only admitted requests are counted: a 429 is not usage.
