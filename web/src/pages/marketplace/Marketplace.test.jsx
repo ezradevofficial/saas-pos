@@ -68,6 +68,8 @@ describe('Marketplace (MKT-01, MKT-02)', () => {
     expect(await screen.findByText('See items')).toBeInTheDocument()
     expect(screen.getByText('See and change contacts')).toBeInTheDocument()
     expect(screen.getByText('sale.completed.v1')).toBeInTheDocument()
+    // Phase 8 Marketplace walkthrough: events in plain words, not only their keys.
+    expect(screen.getByText('Sale completed')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open the app' })).toHaveAttribute('href', 'https://sync.example.com')
   })
 
