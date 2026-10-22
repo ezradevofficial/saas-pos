@@ -40,8 +40,10 @@ class CoreServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Behind the NodeBalancer, an empty TRUSTED_PROXIES makes every client one address.
-        TrustedProxies::warnIfMissing((string) $this->app->environment(), env('TRUSTED_PROXIES'));
+        // Only the load balancer may report the client's address: the payment
+        // callback allowlist and rate limits use the real client address,
+        // never a spoofed X-Forwarded-For. Warns when a real environment has none.
+        TrustedProxies::boot($this->app);
 
         // NFR-06: no log mailer, log SMS, or non-Redis cache or queue outside
         // local and testing. Checked at the runtime entry points (requests via

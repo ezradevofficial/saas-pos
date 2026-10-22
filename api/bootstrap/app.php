@@ -12,7 +12,6 @@ use App\Core\Observability\Http\UpAsJson;
 use App\Core\Platform\SupportAccess\Http\EnforceSupportSession;
 use App\Core\Rbac\Http\Middleware\EnsureModuleActive;
 use App\Core\Support\Http\EnforceEnvironment;
-use App\Core\Support\TrustedProxies;
 use App\Core\Sync\Http\SyncLagHeader;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\Http\RequireTenant;
@@ -56,12 +55,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // L10N-01: first in the group, so even an authentication error is
         // translated; ApplyTenantLocale repeats the choice after auth.
         $middleware->api(prepend: [SetLocale::class]);
-        // Only the load balancer may report the client's address (TRUSTED_PROXIES,
-        // empty by default): the payment callback allowlist and rate limits
-        // use the real client address, never a spoofed X-Forwarded-For.
-        if (($proxies = TrustedProxies::parse(env('TRUSTED_PROXIES'))) !== []) {
-            $middleware->trustProxies(at: $proxies, headers: TrustedProxies::HEADERS);
-        }
+        // TRUSTED_PROXIES is applied by TrustedProxies::boot (CoreServiceProvider),
+        // from config: env() here is null once config is cached.
         // RBAC-08: `module:{name}` after `tenant`.
         $middleware->alias(['module' => EnsureModuleActive::class]);
         // TEN-01, SUB-05: `tenant` refuses a request without a tenant, then

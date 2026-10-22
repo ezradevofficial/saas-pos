@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Support;
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
 
 // NFR-06: `app:preflight` prints every check and exits 1 when one fails.
@@ -50,7 +51,7 @@ class PreflightTest extends TestCase
         [$code, $output] = $this->preflight();
 
         $this->assertSame(0, $code, $output);
-        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role', 'Platform database role', 'Error tracking', 'Metrics access'] as $label) {
+        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Redis', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role', 'Platform database role', 'Error tracking', 'Metrics access'] as $label) {
             $this->assertStringContainsString($label, $output);
         }
         // No SMS provider yet: a warning, not a failure.
@@ -131,5 +132,34 @@ class PreflightTest extends TestCase
         $this->assertSame(1, $code);
         $this->assertMatchesRegularExpression('/Owner database role.*FAIL/s', $output);
         DB::purge('pgsql_owner');
+    }
+
+    /** NFR-01, deploy rehearsal 2026-10-22: Redis was never checked, so a wrong client passed and the migration failed. */
+    public function test_an_unreachable_redis_fails_and_is_reported_not_thrown(): void
+    {
+        $this->production();
+        config(['database.redis.default.port' => 1]);
+        Redis::purge('default');
+
+        try {
+            [$code, $output] = $this->preflight();
+        } finally {
+            config(['database.redis.default.port' => env('REDIS_PORT', 6379)]);
+            Redis::purge('default');
+        }
+
+        $this->assertSame(1, $code, $output);
+        $this->assertMatchesRegularExpression('/Redis .*FAIL/', $output);
+    }
+
+    /** Deploy rehearsal 2026-10-22: a provider name the release does not implement sends nothing; warn, never pass silently. */
+    public function test_an_sms_driver_this_release_does_not_implement_warns(): void
+    {
+        $this->production(['services.sms.driver' => 'some-provider']);
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(0, $code, $output);
+        $this->assertMatchesRegularExpression('/SMS driver.*SMS_DRIVER some-provider is not a provider this release implements.*WARN/', $output);
     }
 }
