@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Platform;
 
+use App\Core\Billing\Models\OperatorInvoice;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRates;
@@ -65,20 +66,21 @@ class PlatformReportsTest extends TestCase
         $finance = $this->staffBearer($this->staff(PlatformUser::ROLE_FINANCE));
         $data = $this->getJson('/api/v1/platform/reports/summary?from=2026-11-01&to=2026-11-30', $finance)->assertOk()->json('data');
 
-        // MRR now: A only (C left), KES 3,900.00 on Starter in Kenya.
+        // MRR now: A only (C left), KES 3,900.00 on Starter in Kenya, net of tax as revenue is:
+        // less 433.33 at the pinned 12.5%, split as the invoice splits it.
         $this->assertSame(1, $data['mrr']['accounts']);
-        $this->assertSame([['key' => 'all', 'currency' => 'KES', 'accounts' => 1, 'amount_minor' => 390000]], $data['mrr']['by_currency']);
-        $this->assertSame([['key' => 'KE', 'currency' => 'KES', 'accounts' => 1, 'amount_minor' => 390000]], $data['mrr']['by_country']);
-        $this->assertSame([['key' => 'starter', 'currency' => 'KES', 'accounts' => 1, 'amount_minor' => 390000]], $data['mrr']['by_plan']);
-        $this->assertSame([['key' => 'starter', 'currency' => 'KES', 'amount_minor' => 390000]], $data['mrr']['by_module']);
+        $this->assertSame([['key' => 'all', 'currency' => 'KES', 'accounts' => 1, 'amount_minor' => 346667]], $data['mrr']['by_currency']);
+        $this->assertSame([['key' => 'KE', 'currency' => 'KES', 'accounts' => 1, 'amount_minor' => 346667]], $data['mrr']['by_country']);
+        $this->assertSame([['key' => 'starter', 'currency' => 'KES', 'accounts' => 1, 'amount_minor' => 346667]], $data['mrr']['by_plan']);
+        $this->assertSame([['key' => 'starter', 'currency' => 'KES', 'amount_minor' => 346667]], $data['mrr']['by_module']);
 
         // Trials: three started, two converted.
         $this->assertSame(['started' => 3, 'converted' => 2, 'conversion_percent' => '66.7'], array_intersect_key($data['trials'], array_flip(['started', 'converted', 'conversion_percent'])));
         $this->assertSame([['country' => 'CD', 'started' => 1, 'converted' => 0], ['country' => 'KE', 'started' => 2, 'converted' => 2]], $data['trials']['by_country']);
 
-        // Churn: C, with the MRR it paid; one of the two accounts paying at the start of the range.
+        // Churn: C, with the MRR it paid (net of tax); one of the two accounts paying at the start of the range.
         $this->assertSame(1, $data['churn']['churned']);
-        $this->assertSame([['currency' => 'KES', 'accounts' => 1, 'amount_minor' => 390000]], $data['churn']['mrr_lost']);
+        $this->assertSame([['currency' => 'KES', 'accounts' => 1, 'amount_minor' => 346667]], $data['churn']['mrr_lost']);
 
         // Revenue: two first invoices paid in November, net of tax: KES 3,900.00 less 433.33 at 12.5%, twice.
         $this->assertSame(2, $data['revenue']['invoices']);
@@ -149,5 +151,13 @@ class PlatformReportsTest extends TestCase
 
         $this->assertSame(array_sum(array_column($mrr['by_currency'], 'amount_minor')), array_sum(array_column($mrr['by_module'], 'amount_minor')));
         $this->assertCount(2, $mrr['by_module']);
+    }
+
+    /** CP-02: with no rate on the invoice (none confirmed), MRR is left as billed, never guessed. */
+    public function test_mrr_without_a_tax_rate_is_left_as_billed(): void
+    {
+        $this->assertSame(390000, PlatformReports::netOfTax(390000, null));
+        $this->assertSame(390000, PlatformReports::netOfTax(390000, new OperatorInvoice(['tax_rate' => null])));
+        $this->assertSame(336207, PlatformReports::netOfTax(390000, new OperatorInvoice(['tax_rate' => '16.0000'])));
     }
 }

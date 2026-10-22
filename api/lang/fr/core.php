@@ -162,6 +162,7 @@ return [
             'zero_rated' => 'Taux zéro',
         ],
         'rate_needed' => 'Taux à saisir',
+        'rate_researched' => ':rate (recherché)',
         'exempt' => 'Exonéré',
         'categories_title' => 'Catégories de taxe',
         'category_columns' => [

@@ -2,6 +2,7 @@
 
 namespace App\Core\Platform\Reports;
 
+use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Models\OperatorAccount;
 use App\Core\Billing\Models\OperatorAccountEvent;
 use App\Core\Billing\Models\OperatorInvoice;
@@ -16,7 +17,9 @@ use Illuminate\Support\Facades\DB;
  * ADM-06: revenue and usage reports for platform staff, from the operator
  * tenant's own data, read in its context: the accounts (MRR now), the
  * account events (trials started and converted, churn) and the paid
- * operator invoices (revenue, net of tax). Usage totals come from a
+ * operator invoices (revenue). Every amount is net of tax: MRR and the
+ * MRR lost to churn are the accounts' tax-inclusive monthly amounts less
+ * the tax at their latest period invoice's rate (Invoicing::inclusiveTax). Usage totals come from a
  * narrow security-definer aggregate (`app_platform_usage_totals`, totals
  * only, ADR 002). No customer tenant's tables are read.
  *
@@ -45,9 +48,10 @@ class PlatformReports
     }
 
     /**
-     * MRR now: paying accounts' monthly amounts, per currency, by country,
-     * plan and module. A module's share is its part of the account's latest
-     * period invoice (net of tax), spread over the invoice's months.
+     * MRR now: paying accounts' monthly amounts net of tax, per currency,
+     * by country, plan and module. A module's share is its part of the
+     * account's latest period invoice (net of tax), spread over the
+     * invoice's months.
      *
      * @return array{accounts: int, by_currency: list<array<string, mixed>>, by_country: list<array<string, mixed>>, by_plan: list<array<string, mixed>>, by_module: list<array<string, mixed>>}
      */
@@ -59,19 +63,20 @@ class PlatformReports
     private function mrrRows(): array
     {
         $accounts = OperatorAccount::query()->whereIn('status', Accounts::PAYING)->get();
+        $invoices = $accounts->mapWithKeys(fn (OperatorAccount $a) => [$a->customer_tenant_id => $this->periodInvoice($a->customer_tenant_id)]);
+        $net = fn (OperatorAccount $a) => self::netOfTax((int) $a->mrr_minor, $invoices[$a->customer_tenant_id]);
         $sum = fn (Collection $rows, callable $key) => $rows->groupBy(fn (OperatorAccount $a) => $key($a).'|'.$a->currency)
-            ->map(fn (Collection $group, string $k) => [...self::split($k), 'accounts' => $group->count(), 'amount_minor' => (int) $group->sum('mrr_minor')])
+            ->map(fn (Collection $group, string $k) => [...self::split($k), 'accounts' => $group->count(), 'amount_minor' => (int) $group->sum($net)])
             ->sortKeys()->values()->all();
 
         $byModule = [];
 
         foreach ($accounts as $account) {
-            $invoice = OperatorInvoice::query()->where('customer_tenant_id', $account->customer_tenant_id)->whereIn('kind', ['first', 'renewal'])
-                ->where('status', '<>', 'void')->orderByDesc('period_start')->first();
+            $invoice = $invoices[$account->customer_tenant_id];
 
             // Review L5: the account's MRR shared out by its plan lines (overage left out), so
             // MRR by module adds up to MRR: the annual discount and coupons fall proportionally.
-            foreach (self::shareOut((int) $account->mrr_minor, $invoice === null ? [] : self::netLines($invoice, withOverage: false), $account->bundle ?? 'custom') as $key => $amount) {
+            foreach (self::shareOut($net($account), $invoice === null ? [] : self::netLines($invoice, withOverage: false), $account->bundle ?? 'custom') as $key => $amount) {
                 $k = "{$key}|{$account->currency}";
                 $byModule[$k] = ($byModule[$k] ?? 0) + $amount;
             }
@@ -112,7 +117,7 @@ class PlatformReports
 
     /**
      * Churn: paying accounts that became cancelled or suspended in the
-     * range, with the MRR they paid; the rate is over the accounts paying
+     * range, with the MRR they paid (net of tax); the rate is over the accounts paying
      * at the start (paying now, less those that started paying in the
      * range, plus those that left).
      *
@@ -129,7 +134,8 @@ class PlatformReports
             return [
                 'churned' => $churned->count(),
                 'rate_percent' => self::percent($churned->count(), $atStart),
-                'mrr_lost' => $churned->groupBy('currency')->map(fn (Collection $g, string $currency) => ['currency' => $currency, 'accounts' => $g->count(), 'amount_minor' => (int) $g->sum('mrr_minor')])->sortKeys()->values()->all(),
+                'mrr_lost' => $churned->groupBy('currency')->map(fn (Collection $g, string $currency) => ['currency' => $currency, 'accounts' => $g->count(),
+                    'amount_minor' => (int) $g->sum(fn (OperatorAccountEvent $e) => self::netOfTax((int) $e->mrr_minor, $this->periodInvoice($e->customer_tenant_id, $e->occurred_at)))])->sortKeys()->values()->all(),
             ];
         }, ['churned' => 0, 'rate_percent' => null, 'mrr_lost' => []]);
     }
@@ -186,6 +192,26 @@ class PlatformReports
         $rows = DB::connection(TenantContext::CONNECTION)->select('select unit, tenants, total from public.app_platform_usage_totals(?::date)', [$on->toDateString()]);
 
         return array_map(fn ($r) => ['unit' => (string) $r->unit, 'tenants' => (int) $r->tenants, 'total' => (int) $r->total], $rows);
+    }
+
+    /** The account's latest period invoice (first or renewal, not void), issued by $before when given. */
+    private function periodInvoice(string $customerTenantId, ?\DateTimeInterface $before = null): ?OperatorInvoice
+    {
+        return OperatorInvoice::query()->where('customer_tenant_id', $customerTenantId)->whereIn('kind', ['first', 'renewal'])
+            ->where('status', '<>', 'void')->when($before !== null, fn ($q) => $q->where('issued_at', '<=', $before))
+            ->orderByDesc('period_start')->first();
+    }
+
+    /**
+     * A tax-inclusive monthly amount less its tax at $invoice's rate, split
+     * as invoices split it (Invoicing::inclusiveTax, half up); unchanged
+     * without an invoice or with no rate yet (CP-02: never guessed).
+     */
+    public static function netOfTax(int $gross, ?OperatorInvoice $invoice): int
+    {
+        $rate = $invoice?->tax_rate;
+
+        return $rate === null ? $gross : $gross - Invoicing::inclusiveTax($gross, (string) $rate);
     }
 
     /** @return Collection<int, OperatorAccountEvent> */
