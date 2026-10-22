@@ -72,7 +72,8 @@ export function ReturnDialog({ order, onClose }) {
   const quoteReady = body.lines.length > 0 && !invalid && reason.trim() !== ''
   // The quote is keyed on what changes the amounts; the reason only has to be there.
   const quote = useQuery({
-    queryKey: [...ecomKey, 'return-quote', order.id, settled],
+    // Outside ecomKey: saving the return invalidates the module's queries, and a stale quote must not be asked again.
+    queryKey: ['ecommerce-return-quote', order.id, settled],
     queryFn: () => api.post(`ecommerce/orders/${order.id}/returns/quote`, { reason: reason.trim(), ...JSON.parse(settled) }),
     enabled: quoteReady && settled === current,
     retry: false,
