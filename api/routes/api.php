@@ -212,8 +212,8 @@ Route::prefix('auth')->group(function () {
     // AUTH-11, ADR 023: single sign-on. Start by email or host; the IdP
     // returns to a callback (a redirect to the web app with a ticket in the
     // fragment); the web app completes with the ticket and its binding.
-    Route::middleware('throttle:'.SsoServiceProvider::LIMITER)->group(function () {
-        Route::post('sso/start', [SsoAuthController::class, 'start']);
+    Route::post('sso/start', [SsoAuthController::class, 'start'])->middleware('throttle:'.SsoServiceProvider::START_LIMITER);
+    Route::middleware('throttle:'.SsoServiceProvider::CALLBACK_LIMITER)->group(function () {
         Route::get('sso/oidc/callback', [SsoAuthController::class, 'oidcCallback']);
         Route::post('sso/saml/{connection}/acs', [SsoAuthController::class, 'samlAcs'])->whereUuid('connection');
         Route::post('sso/complete', [SsoAuthController::class, 'complete']);
