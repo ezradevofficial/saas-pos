@@ -3,10 +3,14 @@
 namespace Tests\Feature\Core\Platform;
 
 use App\Core\Billing\Subscriptions\Subscriptions;
+use App\Core\MasterData\Taxes\TaxCode;
+use App\Core\MasterData\Taxes\TaxRates;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Platform\Reports\Http\PlatformReportsController;
 use App\Core\Platform\Reports\PlatformReports;
+use App\Core\Tenancy\Models\Company;
+use Carbon\CarbonImmutable;
 use Tests\Concerns\BuildsBilling;
 use Tests\Concerns\CreatesPlatformStaff;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -26,6 +30,13 @@ class PlatformReportsTest extends TestCase
     {
         parent::setUp();
         $this->setUpBilling();
+
+        // A test figure, never a real rate: the operator's KE billing tax code at 12.5% from
+        // today, so the revenue figures do not move with the country pack's researched VAT (CP-01).
+        $this->inOperator(function () {
+            $code = TaxCode::query()->where('company_id', Company::query()->where('country', 'KE')->value('id'))->where('code', 'VAT_STD')->sole();
+            app(TaxRates::class)->add($code, '12.5', CarbonImmutable::parse('2026-11-01'));
+        });
     }
 
     /** A KE tenant on Starter that subscribes and pays its first invoice. */
@@ -69,12 +80,12 @@ class PlatformReportsTest extends TestCase
         $this->assertSame(1, $data['churn']['churned']);
         $this->assertSame([['currency' => 'KES', 'accounts' => 1, 'amount_minor' => 390000]], $data['churn']['mrr_lost']);
 
-        // Revenue: two first invoices paid in November, no tax rate confirmed (none added).
+        // Revenue: two first invoices paid in November, net of tax: KES 3,900.00 less 433.33 at 12.5%, twice.
         $this->assertSame(2, $data['revenue']['invoices']);
-        $this->assertSame([['key' => 'all', 'currency' => 'KES', 'amount_minor' => 780000]], $data['revenue']['by_currency']);
-        $this->assertSame([['key' => 'KE', 'currency' => 'KES', 'amount_minor' => 780000]], $data['revenue']['by_country']);
-        $this->assertSame([['key' => 'starter', 'currency' => 'KES', 'amount_minor' => 780000]], $data['revenue']['by_plan']);
-        $this->assertSame([['key' => 'starter', 'currency' => 'KES', 'amount_minor' => 780000]], $data['revenue']['by_module']);
+        $this->assertSame([['key' => 'all', 'currency' => 'KES', 'amount_minor' => 693334]], $data['revenue']['by_currency']);
+        $this->assertSame([['key' => 'KE', 'currency' => 'KES', 'amount_minor' => 693334]], $data['revenue']['by_country']);
+        $this->assertSame([['key' => 'starter', 'currency' => 'KES', 'amount_minor' => 693334]], $data['revenue']['by_plan']);
+        $this->assertSame([['key' => 'starter', 'currency' => 'KES', 'amount_minor' => 693334]], $data['revenue']['by_module']);
 
         // Usage: every metered tenant, totals only.
         $users = collect($data['usage'])->firstWhere('unit', 'user');
@@ -95,7 +106,7 @@ class PlatformReportsTest extends TestCase
         $this->assertStringContainsString('text/csv', $csv->headers->get('Content-Type'));
         $lines = array_values(array_filter(explode("\n", $csv->streamedContent())));
         $this->assertSame('section,key,currency,amount', $lines[0]);
-        $this->assertContains('currency,all,KES,3900.00', $lines);
+        $this->assertContains('currency,all,KES,3466.67', $lines);
 
         foreach (['mrr', 'trials', 'churn', 'usage'] as $report) {
             $this->get("/api/v1/platform/reports/{$report}.csv", $sales)->assertOk();
