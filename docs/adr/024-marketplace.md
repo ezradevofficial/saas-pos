@@ -64,7 +64,7 @@ Approving creates, in one transaction (serialised per tenant and app):
 
 The resource guard (`OAuthAuthenticator`, inside the Sanctum guard next to API keys) turns a valid JWT into the install's principal with its key as the request's key. From there everything is ADR 020's: deny by default outside `public-api` routes (403 `api_key_route_refused`), scopes per route and per permission, rate limits, usage, idempotency, and audit metadata naming the key, the install and the app.
 
-**Permissions** (core, tenant scope; Owner and Admin templates): `core.marketplace.view` (the listing, an app's page, the consent screen, installed apps), `core.marketplace.install` (install, consent again, uninstall), `core.developer.manage` (the developer portal). Installing a paid app also needs `core.subscription.manage` (403 `app_payment_not_allowed`). Support sessions never hold `install` or `developer.manage` (RBAC-13d: they make credentials).
+**Permissions** (core, tenant scope; Owner and Admin templates): `core.marketplace.view` (the listing, an app's page, the consent screen, installed apps), `core.marketplace.install` (install, consent again, uninstall), `core.developer.manage` (the developer portal). Installing a paid app also needs `core.subscription.manage` (403 `app_payment_not_allowed`). Support sessions never hold `install`, `developer.manage` or `core.api_key.manage` (RBAC-13d: they make credentials; the last also resets a sandbox).
 
 ### Scope changes and consent
 
@@ -92,7 +92,7 @@ Staff permissions: `platform.marketplace.view` (owner, support, finance, complia
 - **The developers' ledger** (`marketplace_payables`, an operator tenant table, `GlobalTables::OPERATOR`). When an operator invoice is paid (`OperatorInvoicePaid`, raised in the operator's context inside the paying transaction), each `app` line earns the app's developer 80 % (`marketplace.developer_share_percent`) of the line's amount net of discount and tax, half up, once per line (unique index). Append-only (no update or delete grant).
 - **Payouts are manual** until a provider is chosen: staff see balances per developer and currency, a developer's ledger, and record a payout with its reference, never more than the balance (serialised per developer and currency). Audited in the operator's chain and the platform chain.
 - **Sandboxes** install paid apps free (API-05: never billed).
-- **Suspended tenants** follow the existing rules: billing keeps working; app tokens stop because the tenant is not active, like every other non-exempt access.
+- **Suspended tenants** follow the existing rules: billing keeps working; app tokens stop because the tenant is not active, like every other non-exempt access. Webhooks to installed apps stop too (Phase 8 review M2, ADR 021): nothing is fanned out while the tenant is suspended, and deliveries already made wait, then resume when it is active again.
 
 ### First-party connectors (MKT-04)
 

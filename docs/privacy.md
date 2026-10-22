@@ -8,7 +8,7 @@ A request is about one person in the tenant: a **customer** (a party), an **empl
 
 | Kind | What carrying it out does |
 | --- | --- |
-| Access | Makes the access report available: the person's rows in the tables their modules **declared** as being about them (a customer's sales, loyalty, invoices, CRM opportunities and storefront orders; an employee's leave, attendance, documents and payslips; a user's sign-ins, role assignments and own employee record), at most 500 per table with full counts. Nothing is found by following foreign keys, so rows someone merely touched for others (sales rung up as cashier, leads they own, appraisals they reviewed, approvals, custody) never appear. The tenant export's column rules apply (no password or PIN material, secrets, tokens, or encrypted ID, account and medical values), and HR's sensitive groups the downloader may not see are masked (below). The report is built when downloaded (JSON), never stored, and each download is audited. |
+| Access | Makes the access report available: the person's rows in the tables their modules **declared** as being about them (a customer's sales, loyalty, invoices, CRM opportunities and storefront orders; an employee's leave, attendance, documents and payslips; a user's sign-ins, role assignments, single sign-on links and own employee record), at most 500 per table with full counts. Nothing is found by following foreign keys, so rows someone merely touched for others (sales rung up as cashier, leads they own, appraisals they reviewed, approvals, custody) never appear. The tenant export's column rules apply (no password or PIN material, secrets, tokens, or encrypted ID, account and medical values), HR's sensitive groups the downloader may not see are masked (below), and so is every field the downloader's field rules hide (RBAC-05) on parties, credit limit changes, CRM leads and opportunities: it reads `[hidden]`. A support session never downloads a report. The report is built when downloaded (JSON), never stored, and each download is audited. |
 | Correction | Applies the approved new values of correctable fields (names, tax ID, contact details; lists such as phones are edited on the record). Audited with the values before and after, like any edit. |
 | Deletion | Anonymises the person (below), because business records are never hard-deleted (TEN-06). |
 
@@ -29,13 +29,15 @@ The person downloading an employee's report sees each sensitive group (identity,
 
 Asking for and carrying out a user's deletion each need `UserPolicy::deactivate` over that user (an Admin cannot delete an Owner), and the deactivation is audited as `core.user.deactivate`, as from the users screen.
 
+API-key and marketplace app principals (status `service`) and support principals are `users` rows but not people: they are never found as subjects, so no request is logged, searched or corrected for them (Phase 8 review L2).
+
 ### What anonymisation changes and keeps
 
 | Subject | Replaced | Kept, and why |
 | --- | --- | --- |
 | Customer (party) | name → "Anonymised XXXXXXXX"; legal name, tax ID cleared; phones, emails, addresses, custom fields emptied; the party archived. CRM leads linked to it: name, email, phone, organisation, title, notes, custom fields. Storefront account: name, email, phone; archived | sales, invoices, payments, journals, loyalty ledgers, fiscal submissions: kept and still linked to the (now anonymous) party, for tax and accounting law. **Once the customer has fiscal documents, the party keeps its tax ID and legal name, and its name becomes the legal name** (the POS reads the live party when it sends later refunds and voids to KRA eTIMS or the DGI); this is recorded in the request and the access report as "retained for legal obligation" (`fiscal_records`). While any of their fiscal documents is queued, sending, retrying or needs attention, the deletion waits (`fiscal_pending`). Storefront addresses (line, area, notes) and sign-in codes are cleared too |
 | Employee | work and personal email and phone, address, emergency contacts, medical notes, biometric reference, custom fields | name, number, identifiers (KRA PIN, NSSF, SHIF...), dates and pay history: statutory employment and tax records. Payslips and statutory returns are kept as issued |
-| User | name → anonymised label; email → a unique address under the reserved `.invalid` domain; phone and two-step secret cleared; sign-in history keeps no IP address or browser; one-time code destinations cleared; deactivated, password replaced, every session revoked | the user's id on records they created or approved (audit). The last active Owner can never be anonymised (RBAC-10) |
+| User | name → anonymised label; email → a unique address under the reserved `.invalid` domain; phone and two-step secret cleared; sign-in history keeps no IP address or browser; one-time code destinations cleared; single sign-on links archived, their asserted email and subject replaced, so the identity provider can no longer sign the account in; deactivated, password replaced, every session revoked | the user's id on records they created or approved (audit). The last active Owner can never be anonymised (RBAC-10) |
 
 The anonymisation's audit entry names the tables and columns changed, never the old values (an audited model edit would have copied them into the log).
 
@@ -78,6 +80,8 @@ Today no module sends marketing yet (CRM campaigns and marketing lists are defer
 - **An unticked box records nothing.** The alternative is to record a refusal, which would also withdraw a consent given at the till; we chose not to.
 - **No marketing sends exist yet.** The gate is in the Notifier for event types marked `marketing`; campaigns (CRM, deferred) must use it. Confirm that every future campaign goes through the Notifier rather than its own sender.
 - **An unsubscribe link in each marketing message**, and STOP replies by SMS and WhatsApp, are not built: withdrawal is from the storefront account or the back office today. Kenya's direct-marketing rules expect a simple opt-out in each message; to build with campaigns.
+
+- **Privacy duties while the tenant is read-only or suspended (Phase 8 review L8).** Logging, approving, rejecting and carrying out data subject requests, and recording a withdrawal of marketing consent, are allowed while the tenant is read-only for an unpaid invoice or suspended by platform staff (`EnforceSubscription`, class `privacy`). These are the tenant's legal obligations under the Kenya Data Protection Act 2019 and its deadlines keep running whatever the tenant owes. A new consent grant is still refused. Owner to confirm, with counsel, that the platform should keep these open in both states.
 
 ## To confirm (owner and counsel)
 

@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Platform;
 
 use App\Core\Audit\AuditContext;
 use App\Core\Audit\AuditEntry;
+use App\Core\Audit\Auditor;
 use App\Core\Automation\Models\AutomationRule;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\CustomFields\Entities\UserLookup;
@@ -13,6 +14,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Platform\Models\PlatformUser;
 use App\Core\Platform\PlatformAuditor;
 use App\Core\Platform\PlatformDatabase;
+use App\Core\Platform\SupportAccess\Http\EnforceSupportSession;
 use App\Core\Platform\SupportAccess\Models\SupportAccessGrant;
 use App\Core\Platform\SupportAccess\SupportAccess;
 use App\Core\Platform\SupportAccess\SupportNotices;
@@ -20,8 +22,13 @@ use App\Core\Rbac\FieldRules;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\Scope;
+use App\Core\Sso\Models\SsoConnection;
+use App\Core\Sso\Models\SsoDomain;
+use App\Core\Sso\Models\SsoIdentity;
 use App\Core\Tenancy\Models\Device;
+use App\Core\Tenancy\Models\Tenant;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery;
@@ -462,5 +469,143 @@ class SupportAccessTest extends TestCase
         ];
         sort($statuses);
         $this->assertSame([SupportAccessGrant::APPROVED, SupportAccessGrant::EXPIRED], $statuses);
+    }
+
+    /**
+     * Phase 8 review H1 (AUTH-11, RBAC-13d): a write session never configures SSO, and
+     * whatever SSO it made or changed is archived when it ends: its connections (with
+     * their links), its domains, and enforcement left without a connection, audited in
+     * the tenant's chain and the platform chain.
+     */
+    public function test_a_write_session_never_configures_sso_and_its_sso_is_archived_when_it_ends(): void
+    {
+        $grant = $this->ask('write', 2);
+        $this->approve($grant, sensitive: true);
+        [$session] = $this->enter($grant);
+
+        $this->assertNotContains('core.sso.manage', array_column($this->getJson('/api/v1/me/permissions', $session)->assertOk()->json('permissions'), 'name'));
+        $this->getJson('/api/v1/sso', $session)->assertForbidden();
+        $this->postJson('/api/v1/sso/connections', ['provider' => 'saml', 'name' => 'Backdoor', 'idp_entity_id' => 'https://idp.example.com', 'idp_sso_url' => 'https://idp.example.com/sso'], $session)->assertForbidden();
+        $this->postJson('/api/v1/sso/domains', ['domain' => 'acme.co.ke'], $session)->assertForbidden();
+        $this->putJson('/api/v1/sso/settings', ['enforce' => true], $session)->assertForbidden();
+
+        // The backstop: SSO the principal made (as if a permission had slipped through),
+        // and the Owner's own connection it changed; one it never touched stays.
+        $principal = $this->inTenant(fn () => User::query()->where('support_grant_id', $grant)->sole());
+        [$made, $changed, $domain, $kept] = $this->inTenant(function () use ($principal) {
+            $changed = SsoConnection::query()->create(['provider' => 'saml', 'name' => 'Owner IdP', 'settings' => ['idp_entity_id' => 'https://owner.example.com'], 'enabled' => true, 'created_by' => $this->owner->id]);
+            $kept = SsoConnection::query()->create(['provider' => 'saml', 'name' => 'Untouched', 'settings' => ['idp_entity_id' => 'https://kept.example.com'], 'enabled' => false, 'created_by' => $this->owner->id]);
+
+            return app(AuditContext::class)->actingAs($principal->id, [], function () use ($principal, $changed, $kept) {
+                $made = SsoConnection::query()->create(['provider' => 'saml', 'name' => 'Backdoor', 'settings' => ['idp_entity_id' => 'https://evil.example.com'], 'enabled' => true, 'created_by' => $principal->id]);
+                app(Auditor::class)->record('core.sso.connection_update', $changed, ['name' => 'Owner IdP'], ['name' => 'Owner IdP', 'secret_changed' => true]);
+                $domain = SsoDomain::query()->create(['domain' => 'acme.co.ke', 'status' => SsoDomain::VERIFIED, 'verification_token' => Str::random(32), 'verified_at' => now(), 'created_by' => $principal->id]);
+                SsoIdentity::query()->create(['user_id' => $this->owner->id, 'connection_id' => $made->id, 'subject' => 'owner-at-evil', 'email' => $this->owner->email]);
+                $tenant = Tenant::query()->findOrFail($this->owner->tenant_id);
+                $tenant->settings = [...($tenant->settings ?? []), 'sso' => ['enforce' => true]];
+                $tenant->save();
+
+                return [$made, $changed, $domain, $kept];
+            });
+        });
+
+        $this->postJson("/api/v1/support-access/{$grant}/revoke", [], $this->headersFor())->assertOk();
+
+        $this->inTenant(function () use ($made, $changed, $domain, $kept, $grant) {
+            foreach ([$made, $changed] as $connection) {
+                $connection = $connection->fresh();
+                $this->assertNotNull($connection->archived_at, $connection->name);
+                $this->assertFalse($connection->enabled, $connection->name);
+            }
+            $this->assertNull($kept->fresh()->archived_at);
+            $this->assertNotNull($domain->fresh()->archived_at);
+            $this->assertSame(0, SsoIdentity::query()->whereNull('archived_at')->count());
+            $this->assertFalse((bool) (Tenant::query()->findOrFail($this->owner->tenant_id)->settings['sso']['enforce'] ?? false));
+
+            $archived = AuditEntry::query()->where('action', 'core.sso.connection_archive')->get();
+            $this->assertEqualsCanonicalizing([$made->id, $changed->id], $archived->pluck('auditable_id')->all());
+            $this->assertSame(['support_session_ended'], $archived->map(fn ($e) => $e->after['reason'])->unique()->values()->all());
+            $this->assertSame($grant, $archived->first()->after['support_grant_id']);
+            $this->assertTrue(AuditEntry::query()->where('action', 'core.sso.domain_archive')->where('auditable_id', $domain->id)->exists());
+            $this->assertTrue(AuditEntry::query()->where('action', 'core.sso.settings_update')->exists());
+        });
+
+        $platform = PlatformDatabase::connection()->table('platform_audit_logs')->where('action', 'platform.support.disarmed')->sole();
+        $after = json_decode($platform->after, true);
+        $this->assertSame($grant, $after['grant_id']);
+        $this->assertEqualsCanonicalizing([$made->id, $changed->id], $after['sso_connections']);
+        $this->assertSame([$domain->id], $after['sso_domains']);
+        $this->assertTrue($after['sso_enforcement_off']);
+        $this->assertNull(app(PlatformAuditor::class)->verify());
+    }
+
+    /**
+     * Phase 8 review M3 (NFR-08, API-02, API-05, RBAC-13d): a write session with sensitive
+     * data never handles privacy requests, consent records or API keys, and never downloads
+     * an access report.
+     */
+    public function test_a_write_session_never_handles_privacy_requests_consent_or_api_keys(): void
+    {
+        $party = $this->postJson('/api/v1/parties', ['kind' => 'person', 'roles' => ['customer'], 'name' => 'Jane Wanjiru'], $this->headersFor())->assertCreated()->json('data.id');
+        $request = $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'customer', 'subject_id' => $party, 'kind' => 'access'], $this->headersFor())->assertCreated()->json('data.id');
+
+        $grant = $this->ask('write', 2);
+        $this->approve($grant, sensitive: true);
+        [$session] = $this->enter($grant);
+
+        $permissions = array_column($this->getJson('/api/v1/me/permissions', $session)->assertOk()->json('permissions'), 'name');
+        foreach (['core.privacy_request.view', 'core.privacy_request.manage', 'core.privacy_request.approve', 'core.consent.manage', 'core.api_key.manage', 'core.sso.manage'] as $never) {
+            $this->assertNotContains($never, $permissions, $never);
+        }
+        $this->assertContains('core.consent.view', $permissions);
+
+        $this->getJson("/api/v1/privacy/requests/{$request}/report", $session)->assertForbidden()->assertJsonPath('code', 'support_route_refused');
+        $this->getJson('/api/v1/privacy/requests', $session)->assertForbidden();
+        $this->postJson('/api/v1/privacy/requests', ['subject_type' => 'customer', 'subject_id' => $party, 'kind' => 'deletion'], $session)->assertForbidden();
+        $this->postJson("/api/v1/privacy/requests/{$request}/approve", [], $session)->assertForbidden();
+        $this->postJson("/api/v1/privacy/requests/{$request}/execute", [], $session)->assertForbidden();
+        $this->postJson('/api/v1/privacy/consents', ['subject_type' => 'customer', 'subject_id' => $party, 'purpose' => 'marketing', 'channel' => 'sms', 'granted' => true], $session)->assertForbidden();
+        $this->getJson('/api/v1/api-keys', $session)->assertForbidden();
+        $this->postJson('/api/v1/api-keys', ['name' => 'Exfiltrate', 'role_id' => $this->roles->get('admin')->id, 'scopes' => ['parties:read']], $session)->assertForbidden();
+    }
+
+    /** Phase 8 review M4 (RBAC-13, EXP-01): a list export asked for in the body is refused too, and by ListExport itself. */
+    public function test_a_session_never_exports_a_list_asked_for_in_the_body(): void
+    {
+        $grant = $this->ask('write', 2);
+        $this->approve($grant, sensitive: true);
+        [$session] = $this->enter($grant);
+
+        $this->json('GET', '/api/v1/parties', ['format' => 'csv'], $session)->assertForbidden()->assertJsonPath('code', 'support_route_refused');
+        $this->getJson('/api/v1/parties', $session)->assertOk();
+
+        // Without the middleware's check, ListExport still refuses a support principal.
+        $this->app->bind(EnforceSupportSession::class, fn () => new class(app(SupportAccess::class)) extends EnforceSupportSession
+        {
+            public static function asksForExport(Request $request): bool
+            {
+                return false;
+            }
+        });
+        $this->json('GET', '/api/v1/parties', ['format' => 'csv'], $session)->assertForbidden()->assertJsonPath('code', 'support_route_refused');
+        $this->getJson('/api/v1/parties?format=csv', $session)->assertForbidden()->assertJsonPath('code', 'support_route_refused');
+        $this->assertSame(200, $this->getJson('/api/v1/parties?format=csv', $this->headersFor())->getStatusCode());
+    }
+
+    /** Phase 8 review L4 (RBAC-13a): three requests an hour per staff member and tenant; cancelling and asking again counts. */
+    public function test_support_requests_are_limited_per_hour(): void
+    {
+        for ($i = 0; $i < SupportAccess::REQUESTS_PER_HOUR; $i++) {
+            $grant = $this->ask();
+            $this->postJson("/api/v1/platform/support/requests/{$grant}/cancel", [], $this->agentBearer)->assertOk();
+        }
+
+        $this->postJson("/api/v1/platform/tenants/{$this->owner->tenant_id}/support-requests", ['reason' => 'Customer reports the stock count import fails', 'mode' => 'read', 'hours' => 4], $this->agentBearer)
+            ->assertStatus(429)->assertJsonPath('code', 'support_request_limit');
+        // Another staff member is not held back.
+        $this->ask(bearer: $this->staffBearer($this->staff(PlatformUser::ROLE_SUPPORT)));
+
+        $this->travelTo(CarbonImmutable::now()->addMinutes(61));
+        $this->ask();
     }
 }

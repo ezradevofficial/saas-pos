@@ -5,6 +5,7 @@ namespace App\Core\Privacy;
 use App\Core\DataExport\TenantTables;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\FieldRules;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Connection;
@@ -21,8 +22,9 @@ use Illuminate\Support\Facades\Schema;
  *
  * - report(): the access report: the subject's rows in each declared
  *   table, with the tenant export's column rules (TenantTables::exported:
- *   no secrets, password or PIN material, tokens) and each table's mask for
- *   the downloader (HR's sensitive groups, review H2). Nothing is found by
+ *   no secrets, password or PIN material, tokens), each table's mask for
+ *   the downloader (HR's sensitive groups, review H2) and the downloader's
+ *   field rules on the table's resource (Phase 8 review M7). Nothing is found by
  *   following foreign keys, so other people's rows never appear (review H1).
  * - correct(): the approved new values of correctable fields.
  * - anonymise(): personal columns replaced in every declared table, except
@@ -33,9 +35,13 @@ use Illuminate\Support\Facades\Schema;
  */
 class SubjectData
 {
+    /** A value the downloader may not see, in an access report. */
+    public const HIDDEN = '[hidden]';
+
     public function __construct(
         private readonly PrivacySubjects $subjects,
         private readonly TenantTables $tables,
+        private readonly FieldRules $fieldRules,
     ) {}
 
     private function db(): Connection
@@ -105,7 +111,7 @@ class SubjectData
     public function search(string $type, string $term, int $limit = 20): array
     {
         $primary = $this->subjects->primary($type);
-        $query = $this->db()->table($primary->table)->select(array_values(array_unique(['id', ...$primary->display])))->limit($limit)->orderBy('id');
+        $query = $primary->subjectsOnly($this->db()->table($primary->table)->select(array_values(array_unique(['id', ...$primary->display])))->limit($limit)->orderBy('id'));
 
         if (trim($term) !== '') {
             $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], trim($term)).'%';
@@ -139,7 +145,7 @@ class SubjectData
                 continue;
             }
 
-            $rows = $this->subjects->masked($source->table, $this->rows($source, $id, $limit), $downloader);
+            $rows = $this->withFieldRules($source, $this->subjects->masked($source->table, $this->rows($source, $id, $limit), $downloader), $downloader);
             if ($source->related) {
                 $related[$source->table] = ['count' => $count, 'rows' => $rows];
             } else {
@@ -285,6 +291,53 @@ class SubjectData
         }
 
         return $out;
+    }
+
+    /**
+     * RBAC-05 (Phase 8 review M7): $rows of $source without what the
+     * downloader's field rules hide on the source's resource (a support
+     * principal gets the most restrictive rules, FieldRules). Hidden values
+     * become HIDDEN, so the reader still sees the record exists.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function withFieldRules(SubjectSource $source, array $rows, User $downloader): array
+    {
+        if ($source->fieldRules === null || $rows === []) {
+            return $rows;
+        }
+
+        $hidden = $this->fieldRules->for($downloader, $source->fieldRules)['hidden'];
+        if ($hidden === []) {
+            return $rows;
+        }
+
+        $columns = [];
+        $custom = [];
+        foreach ($hidden as $field) {
+            if (str_starts_with($field, 'custom.')) {
+                $custom[] = substr($field, 7);
+            }
+            array_push($columns, ...($source->fieldColumns[$field] ?? [$field]));
+        }
+
+        return array_map(function (array $row) use ($columns, $custom) {
+            foreach ($columns as $column) {
+                if (array_key_exists($column, $row) && $row[$column] !== null) {
+                    $row[$column] = self::HIDDEN;
+                }
+            }
+            if ($custom !== [] && is_array($row['custom'] ?? null)) {
+                foreach ($custom as $key) {
+                    if (array_key_exists($key, $row['custom'])) {
+                        $row['custom'][$key] = self::HIDDEN;
+                    }
+                }
+            }
+
+            return $row;
+        }, $rows);
     }
 
     /** @return list<array<string, mixed>> */

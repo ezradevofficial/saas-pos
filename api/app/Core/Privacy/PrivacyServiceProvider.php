@@ -4,7 +4,10 @@ namespace App\Core\Privacy;
 
 use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\CreditLimits\CreditLimitChangeAccess;
+use App\Core\MasterData\Parties\Http\Resources\PartyResource;
 use App\Core\Rbac\OwnerGuard;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -50,9 +53,12 @@ class PrivacyServiceProvider extends ServiceProvider
                     'emails.*.label' => ['sometimes', 'nullable', 'string', 'max:40'],
                 ],
                 display: ['name'],
+                fieldRules: PartyResource::FIELD_RULES,
             ));
-            // WF-01: credit limit changes asked for this customer.
-            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'credit_limit_changes', match: 'party_id', related: true));
+            // WF-01: credit limit changes asked for this customer (the party's limit field rules hide their amounts).
+            $limits = array_merge(...array_map(fn (string $side) => ["{$side}_limit_minor", "{$side}_limit_currency"], ['current', 'requested']));
+            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'credit_limit_changes', match: 'party_id', related: true,
+                fieldRules: CreditLimitChangeAccess::FIELD_RULES, fieldColumns: array_fill_keys(CreditLimitChangeAccess::LIMIT_FIELDS, $limits)));
 
             // AUTH-13, RBAC-10: a user is anonymised and deactivated, every
             // session ended, audited as a deactivation; never the last active
@@ -68,6 +74,8 @@ class PrivacyServiceProvider extends ServiceProvider
                 ],
                 display: ['name', 'email'],
                 companyColumn: null,
+                // Review L2: API-key, app and support principals are not people.
+                subjects: fn (Builder $query) => $query->where('users.status', '<>', User::STATUS_SERVICE)->whereNull('users.support_grant_id'),
                 after: function (string $userId): array {
                     $user = User::query()->findOrFail($userId);
                     app(OwnerGuard::class)->assertNotLastOwner($user);

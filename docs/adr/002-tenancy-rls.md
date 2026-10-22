@@ -93,8 +93,8 @@ Some lookups have to find a tenant before it is known: signing in by email or ph
 | `oauth_token_tenant(p_kind text, p_id_hash text)` | `oauth_auth_codes`, `oauth_access_tokens` or `oauth_refresh_tokens` by the sha256 of a marketplace app's code or token identifier (ADR 024) |
 | `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | the active tenant whose slug or verified custom domain the storefront's host names and that has a live, not archived store with that handle (ECOM-06) |
 | `ecom_whatsapp_tenant(p_token_hash text)` | `ecom_stores` by WhatsApp webhook token hash, archived stores included (the controller refuses them; ECOM-24) |
-| `sso_tenant_for_email_domain(p_domain text)` | `sso_domains`: the active tenant with that verified, not archived email domain (AUTH-11 email discovery and sign-up's enforced-domain check; ADR 023) |
-| `sso_tenant_for_host(p_slug text, p_host text)` | the active tenant whose subdomain slug or verified custom domain the sign-in page's host names (AUTH-11 on the tenant's host; ADR 023) |
+| `sso_tenant_for_email_domain(p_domain text)` | `sso_domains`: the active or suspended tenant with that verified, not archived email domain (AUTH-11 email discovery and sign-up's enforced-domain check; ADR 023; suspended tenants since the Phase 8 review, M1) |
+| `sso_tenant_for_host(p_slug text, p_host text)` | the active or suspended tenant whose subdomain slug or verified custom domain the sign-in page's host names (AUTH-11 on the tenant's host; ADR 023; suspended tenants since the Phase 8 review, M1) |
 
 Each function is `language sql stable security definer`:
 

@@ -28,6 +28,15 @@ use Illuminate\Database\Query\Builder;
  * - `display`: columns that name the subject in lists and pickers.
  * - `after`: run after anonymising (revoke a user's sessions); returns notes.
  * - `report`: false for tables that hold only credentials or codes.
+ * - `fieldRules`: the RBAC-05 resource whose field rules apply to this
+ *   table's rows in an access report (Phase 8 review M7), with
+ *   `fieldColumns` naming the columns a rule's field stands for where they
+ *   differ (a party's `credit_limit_minor` hides a change's limits); a
+ *   field naming a column hides that column, `custom.<key>` that key of
+ *   the `custom` column.
+ * - `subjects`: on the primary source, which rows are data subjects at all
+ *   (Phase 8 review L2: API-key, app and support principals are users rows
+ *   but not people); others are never found, searched or changed.
  */
 final class SubjectSource
 {
@@ -38,6 +47,8 @@ final class SubjectSource
      * @param  (Closure(string $subjectId): list<string>)|null  $after
      * @param  array{0: string, 1: string, 2?: string}|null  $through
      * @param  (Closure(Builder $query, string $subjectId): void)|null  $matcher
+     * @param  array<string, list<string>>  $fieldColumns
+     * @param  (Closure(Builder $query): void)|null  $subjects
      */
     public function __construct(
         public readonly string $subjectType,
@@ -53,11 +64,16 @@ final class SubjectSource
         public readonly ?array $through = null,
         public readonly ?Closure $matcher = null,
         public readonly bool $report = true,
+        public readonly ?string $fieldRules = null,
+        public readonly array $fieldColumns = [],
+        public readonly ?Closure $subjects = null,
     ) {}
 
     /** Limit $query (on this source's table) to the rows about $subjectId. */
     public function scope(Builder $query, string $subjectId): Builder
     {
+        $this->subjectsOnly($query);
+
         if ($this->matcher !== null) {
             ($this->matcher)($query, $subjectId);
 
@@ -72,6 +88,16 @@ final class SubjectSource
         }
 
         return $query->where($this->match, $subjectId);
+    }
+
+    /** Limit $query (on this source's table) to rows that are data subjects (`subjects`). */
+    public function subjectsOnly(Builder $query): Builder
+    {
+        if ($this->subjects !== null) {
+            ($this->subjects)($query);
+        }
+
+        return $query;
     }
 
     /** @return list<string> the top-level fields a correction may change */

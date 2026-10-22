@@ -38,7 +38,9 @@ class EnforceSupportSession
     public const ALWAYS = ['POST support-session/end', 'POST auth/sign-out'];
 
     /** Routes a support principal never reaches (uri patterns, without the api/v1 prefix). */
-    public const REFUSED = ['auth/sessions', 'auth/sessions/*', 'tenant-exports', 'tenant-exports/*', 'support-access', 'support-access/*', 'users/*/sign-out-everywhere'];
+    public const REFUSED = ['auth/sessions', 'auth/sessions/*', 'tenant-exports', 'tenant-exports/*', 'support-access', 'support-access/*', 'users/*/sign-out-everywhere',
+        // Phase 8 review M3 (NFR-08): a data subject's access report never leaves with support staff.
+        'privacy/requests/*/report'];
 
     /**
      * Writes that make a credential, an outbound link or a scheduled action
@@ -89,7 +91,7 @@ class EnforceSupportSession
 
             $refused = Str::is(self::REFUSED, $uri)
                 || (! $request->isMethodSafe() && (Str::is(self::OWN_ACCOUNT, $uri) || Str::is(self::REFUSED_WRITES, $uri)))
-                || in_array(strtolower((string) $request->query('format')), self::EXPORT_FORMATS, true);
+                || static::asksForExport($request);
 
             if (! in_array($key, self::ALWAYS, true) && $refused) {
                 throw new ApiException(403, 'support_route_refused', __('platform.support.route_refused'));
@@ -130,6 +132,22 @@ class EnforceSupportSession
                 }
             }
         }
+    }
+
+    /**
+     * Phase 8 review M4: a list export, asked for in the query string or in
+     * the body (Form Requests validate both). ListExport refuses support
+     * principals itself too; this answers before the list is even queried.
+     */
+    public static function asksForExport(Request $request): bool
+    {
+        foreach ([$request->query('format'), $request->input('format')] as $format) {
+            if (is_string($format) && in_array(strtolower($format), self::EXPORT_FORMATS, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** The HTTP status an exception becomes (review M8: validation 422, authorisation 403). */
