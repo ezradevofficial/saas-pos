@@ -317,7 +317,7 @@ step_redis() {
   require_plain_secret REDIS_PASSWORD
   log "Redis: localhost only, password, maxmemory $REDIS_MAXMEMORY, no eviction"
   local conf
-  conf="$(render_template "$TEMPLATES/redis.conf.tmpl" REDIS_PASSWORD="$REDIS_PASSWORD" REDIS_MAXMEMORY="$REDIS_MAXMEMORY")"
+  conf="$(render_template "$TEMPLATES/redis.conf.tmpl" REDIS_REQUIREPASS="$REDIS_PASSWORD" REDIS_MAXMEMORY="$REDIS_MAXMEMORY")"
   printf '%s\n' "$conf" | write_file /etc/redis/app.conf 0640 redis:redis
   local changed="$FILE_CHANGED"
   # Last in redis.conf, so these settings win.
