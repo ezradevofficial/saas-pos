@@ -57,6 +57,9 @@ class NotificationDelivery extends Model
 
     public const REASON_CHANNEL_UNAVAILABLE = 'channel_unavailable';
 
+    /** NOT-01, AUTH-01..05: email-only mode, no SMS provider configured (SmsAvailability). */
+    public const REASON_SMS_UNAVAILABLE = 'sms_unavailable';
+
     public const REASON_USER_DEACTIVATED = 'user_deactivated';
 
     /** The message holds a secret placeholder (an invitation link) the job no longer carries (ADR 009). */

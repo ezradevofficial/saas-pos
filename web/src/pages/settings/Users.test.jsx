@@ -307,6 +307,16 @@ describe('InviteUser', () => {
     expect(within(row).getByLabelText(/Applies to/)).toHaveValue('location')
   })
 
+  it('asks for an email address when text messages aren’t available (AUTH-05)', async () => {
+    users({ extra: { 'public/branding': { data: null, meta: { sms_available: false } } } })
+    renderApp('/settings/users/invite')
+
+    const field = await screen.findByLabelText(/Email address/)
+    expect(field).toHaveAttribute('type', 'email')
+    expect(screen.queryByLabelText(/Email or phone number/)).not.toBeInTheDocument()
+    expect(screen.getByText('The invitation link is sent here. Text messages aren’t available yet, so use an email address.')).toBeInTheDocument()
+  })
+
   it('offers the whole organisation only to a tenant-wide assigner, and sends a phone number', async () => {
     users()
     api.post.mockResolvedValue({ data: { id: 'i-9' } })

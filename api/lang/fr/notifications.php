@@ -43,6 +43,7 @@ return [
         'no_email' => 'L’utilisateur n’a pas d’adresse e-mail vérifiée.',
         'no_phone' => 'L’utilisateur n’a pas de numéro de téléphone vérifié.',
         'channel_unavailable' => 'Ce canal n’est pas encore configuré.',
+        'sms_unavailable' => 'Les SMS ne sont pas encore disponibles : ce message est parti par e-mail ou WhatsApp quand c’était possible.',
         'user_deactivated' => 'L’utilisateur n’est plus actif.',
         'secret_missing' => 'Le lien de ce message ne peut plus être envoyé. Envoyez-en un nouveau.',
         'no_consent' => 'Le client n’a pas accepté les messages marketing sur ce canal.',

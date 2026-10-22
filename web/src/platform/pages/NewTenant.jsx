@@ -6,6 +6,7 @@ import { formErrors } from '@/api/formErrors'
 import { Alert, Button, Card, MultiSelect, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { contactPayload } from '@/lib/contact'
+import { useSmsAvailable } from '@/lib/useSmsAvailable'
 import { platformApi } from '../platformClient'
 
 const BUSINESS_TYPES = ['retail', 'supermarket', 'restaurant', 'bar', 'hotel', 'pharmacy', 'wholesale', 'van_sales', 'salon', 'fuel_station', 'non_pos']
@@ -31,6 +32,8 @@ const EMPTY = {
 export default function NewTenant() {
   const { t } = useTranslation()
   const [values, setValues] = useState(EMPTY)
+  // AUTH-05: in email-only mode the Owner's invitation goes to an email address.
+  const sms = useSmsAvailable(platformApi)
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
   const catalogue = useQuery({ queryKey: ['catalogue', values.country], queryFn: () => platformApi.get(`catalogue?country=${values.country}`) })
   const modules = (catalogue.data?.data?.modules ?? []).filter((module) => module.kind === 'module')
@@ -120,8 +123,9 @@ export default function NewTenant() {
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField label={t('platform.tenants.contactName')} value={values.contact_name} onChange={set('contact_name')} error={errors.fields.contact_name} required />
             <TextField
-              label={t('platform.tenants.contact')}
-              help={t('auth.signUp.contactHelp')}
+              label={sms ? t('platform.tenants.contact') : t('platform.tenants.email')}
+              help={sms ? t('auth.signUp.contactHelp') : t('auth.emailOnly')}
+              type={sms ? 'text' : 'email'}
               value={values.contact}
               onChange={set('contact')}
               error={errors.fields.contact}

@@ -16,9 +16,10 @@ vi.mock('./platformClient', async (importOriginal) => ({
 
 const staff = (role, abilities) => ({ id: 's-1', name: 'Wanjiru Kamau', email: 'wanjiru@example.com', role, status: 'active', two_factor_enabled: true, abilities })
 
-function mockConsole(user) {
+function mockConsole(user, { sms = true } = {}) {
   platformApi.get.mockImplementation(async (path) => {
     if (path === 'platform/me') return { data: user }
+    if (path === 'public/branding') return { data: null, meta: { sms_available: sms } }
     if (path.startsWith('catalogue?country=')) {
       return { data: { country: 'CD', currency: 'USD', modules: [{ key: 'pos', kind: 'module', name: 'Point of sale' }, { key: 'inventory', kind: 'module', name: 'Inventory' }], bundles: [] } }
     }
@@ -36,6 +37,17 @@ describe('Platform: new tenant (ONB-08)', () => {
     setPlatformToken('plat_x|y')
   })
   afterEach(() => setPlatformToken(null))
+
+  it('asks for the contact’s email address when text messages aren’t available (AUTH-05)', async () => {
+    mockConsole(staff('support', ['platform.catalogue.view', 'platform.tenants.create']), { sms: false })
+    renderApp('/platform/tenants/new')
+
+    const field = await screen.findByLabelText('Contact email address', { exact: false })
+    expect(field).toHaveAttribute('type', 'email')
+    expect(screen.queryByLabelText('Contact email or phone number', { exact: false })).not.toBeInTheDocument()
+    // Asked with the console's own client: no tenant token goes out (ADR 013).
+    expect(api.get).not.toHaveBeenCalledWith('public/branding')
+  })
 
   it('creates a tenant for a customer and says where the invitation went', async () => {
     mockConsole(staff('support', ['platform.catalogue.view', 'platform.tenants.create']))

@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { formErrors } from '@/api/formErrors'
 import { Alert, Button, TextField } from '@/components/ds'
+import { useSmsAvailable } from '@/lib/useSmsAvailable'
 import { AuthForm, AuthPage, TextLink } from './AuthPage'
 import { CodeField } from './CodeField'
 
@@ -14,6 +15,7 @@ export default function ResetPassword() {
   const navigate = useNavigate()
   const location = useLocation()
   const [values, setValues] = useState({ login: location.state?.login ?? '', code: '', password: '' })
+  const sms = useSmsAvailable()
   const set = (field) => (value) => setValues((current) => ({ ...current, [field]: value }))
 
   const mutation = useMutation({
@@ -37,7 +39,7 @@ export default function ResetPassword() {
       <AuthForm onSubmit={() => mutation.mutate()} error={errors.form} failure={mutation.error}>
         {location.state?.sent ? <Alert tone="info" title={t('auth.reset.sentTitle')}>{t('auth.reset.sentText')}</Alert> : null}
         <TextField
-          label={t('auth.fields.login')}
+          label={sms ? t('auth.fields.login') : t('auth.fields.email')}
           autoComplete="username"
           value={values.login}
           onChange={(event) => set('login')(event.target.value)}

@@ -277,6 +277,21 @@ class InvitationTest extends TestCase
             ->assertJsonPath('data.phone_verified_at', fn ($at) => $at !== null);
     }
 
+    /** AUTH-05: in email-only mode (no SMS provider) a phone invitation is refused and nothing is stored or sent. */
+    public function test_a_phone_invitation_is_refused_in_email_only_mode(): void
+    {
+        config(['services.sms.driver' => 'none']);
+
+        $this->invite(['email' => null, 'phone' => '0712 345 678'])
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'sms_unavailable')
+            ->assertJsonValidationErrors(['phone' => __('auth.sms_unavailable.use_email')]);
+
+        $this->inTenant(fn () => $this->assertSame(0, Invitation::count()));
+        $this->assertCount(0, SentInvitations::all());
+        $this->invite()->assertCreated();
+    }
+
     public function test_a_revoked_invitation_cannot_be_accepted(): void
     {
         $id = $this->invite()->assertCreated()->json('data.id');

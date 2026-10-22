@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { formErrors } from '@/api/formErrors'
 import { Button, TextField } from '@/components/ds'
+import { useSmsAvailable } from '@/lib/useSmsAvailable'
 import { AuthForm, AuthPage, TextLink } from './AuthPage'
 
 /**
@@ -16,6 +17,8 @@ export default function ForgotPassword() {
   const navigate = useNavigate()
   const location = useLocation()
   const [login, setLogin] = useState(location.state?.login ?? '')
+  // AUTH-04: in email-only mode a code can only go to an email address.
+  const sms = useSmsAvailable()
 
   const mutation = useMutation({
     mutationFn: () => api.post('auth/password/forgot', { login: login.trim() }),
@@ -26,7 +29,7 @@ export default function ForgotPassword() {
   return (
     <AuthPage
       title={t('auth.forgot.title')}
-      intro={t('auth.forgot.intro')}
+      intro={sms ? t('auth.forgot.intro') : t('auth.forgot.introEmail')}
       footer={
         <p>
           <TextLink to="/sign-in">{t('auth.backToSignIn')}</TextLink>
@@ -35,7 +38,9 @@ export default function ForgotPassword() {
     >
       <AuthForm onSubmit={() => mutation.mutate()} error={errors.form} failure={mutation.error}>
         <TextField
-          label={t('auth.fields.login')}
+          label={sms ? t('auth.fields.login') : t('auth.fields.email')}
+          help={sms ? undefined : t('auth.emailOnly')}
+          type={sms ? 'text' : 'email'}
           autoComplete="username"
           value={login}
           onChange={(event) => setLogin(event.target.value)}

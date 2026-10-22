@@ -4,6 +4,7 @@ namespace App\Core\Notifications\Drivers;
 
 use App\Core\Notifications\Channels;
 use App\Core\Notifications\EventType;
+use App\Core\Notifications\Sms\SmsAvailability;
 use App\Core\Notifications\Sms\SmsSender;
 use Illuminate\Contracts\Foundation\Application;
 use InvalidArgumentException;
@@ -15,7 +16,9 @@ use InvalidArgumentException;
  * the reason `channel_unavailable`. In local and testing an unset driver
  * means `fake`; `none` switches a channel off anywhere. System event
  * types (ADR 009) send SMS through the platform SMS sender when the
- * channel has no driver.
+ * channel has no driver. In email-only mode (SmsAvailability) SMS is
+ * unavailable whatever its driver; the Notifier skips it with the reason
+ * `sms_unavailable`.
  */
 class ChannelDrivers
 {
@@ -26,6 +29,10 @@ class ChannelDrivers
 
     public function available(string $channel, ?EventType $type = null): bool
     {
+        if ($channel === Channels::SMS && ! $this->sms()->available()) {
+            return false;
+        }
+
         return $this->driverName($channel) !== null || $this->platformSms($channel, $type);
     }
 
@@ -36,6 +43,10 @@ class ChannelDrivers
      */
     public function for(string $channel, ?EventType $type = null): ?ChannelDriver
     {
+        if ($channel === Channels::SMS && ! $this->sms()->available()) {
+            return null;
+        }
+
         $name = $this->driverName($channel);
 
         if ($name === null) {
@@ -52,6 +63,12 @@ class ChannelDrivers
     public function extend(string $channel, ChannelDriver $driver): void
     {
         $this->resolved["{$channel}|".$this->driverName($channel)] = $driver;
+    }
+
+    /** NOT-01: in email-only mode (SmsAvailability) the SMS channel is unavailable whatever its driver. */
+    private function sms(): SmsAvailability
+    {
+        return $this->app->make(SmsAvailability::class);
     }
 
     private function platformSms(string $channel, ?EventType $type): bool
