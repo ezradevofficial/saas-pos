@@ -446,7 +446,6 @@ function Connections({ connections }) {
 function Rules({ settings }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const options = useGrantOptions({ invite: true })
   const [enforce, setEnforce] = useState(settings.enforce)
   const [jit, setJit] = useState(settings.jit_provisioning)
   const [row, setRow] = useState(() => ({
@@ -454,6 +453,7 @@ function Rules({ settings }) {
     scope_type: settings.jit_scope_type ?? 'tenant',
     scope_id: settings.jit_scope_id ?? '',
   }))
+  const options = useGrantOptions({ invite: true, rows: [row] })
   const shown = offeredRow(row, options)
   // Owner roles are never a default for new accounts.
   const jitOptions = { ...options, rolesFor: (value) => options.rolesFor(value).filter((role) => !role.is_owner) }

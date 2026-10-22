@@ -36,6 +36,20 @@ final class GlobalTables
     ];
 
     /**
+     * Marketplace tables (ADR 024): global and developer-owned, with no
+     * tenant_id. Row-level security keys on `developer_tenant_id` instead: a
+     * tenant reads and writes its own developer rows and reads what is
+     * listed; the platform role reads all and changes only review fields
+     * (column grants). Neither role deletes. RlsCoverageTest checks it.
+     */
+    public const MARKETPLACE = [
+        'marketplace_developers' => 'developer accounts (MKT-01), each owned by a developer tenant or the platform',
+        'marketplace_apps' => 'apps listed to every tenant once approved (MKT-01, ADM-05)',
+        'marketplace_app_versions' => 'what a tenant consents to; approved versions are public (MKT-01, MKT-02)',
+        'oauth_clients' => 'Passport clients, one per app, read before a tenant is known (API-02); secrets hashed',
+    ];
+
+    /**
      * Tenant tables whose rows live only in the operator tenant (ADR 016):
      * under row-level security like every tenant table, but a customer
      * tenant never has rows in them. The isolation suite checks that
@@ -46,5 +60,6 @@ final class GlobalTables
         'operator_invoices' => 'the platform invoices the operator issues to its customers (SUB-03)',
         'operator_accounts' => 'the operator\'s record of each customer for the platform console',
         'operator_account_events' => 'status changes of each customer\'s account, for the revenue reports (ADM-06)',
+        'marketplace_payables' => 'the developers\' share of paid app lines and their payouts (MKT-03, ADR 024)',
     ];
 }

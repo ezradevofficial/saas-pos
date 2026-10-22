@@ -1,0 +1,48 @@
+<?php
+
+// MKT-01..MKT-04, ADM-05 (docs/adr/024-marketplace.md).
+return [
+    'scopes' => [
+        'read' => 'See :resource',
+        'write' => 'See and change :resource',
+    ],
+    'errors' => [
+        'not_your_app' => 'This app is not yours.',
+        'version_changed' => 'This version changed since you opened it. Review it again.',
+        'not_installed' => 'This app is not installed here. Install it from the marketplace first.',
+        'oauth_not_configured' => 'App sign-in is not set up on this server yet. Ask the platform team to add its signing keys.',
+        'price_unavailable' => 'This app has no price in your billing currency, so it cannot be installed. Contact the developer.',
+        'cannot_install' => 'You cannot install apps. Ask an Owner or Admin.',
+        'cannot_pay' => 'This app adds to your subscription. Ask someone who manages the subscription to install it.',
+        'unavailable' => 'This app cannot be installed now. It may have been withdrawn or not be set up yet.',
+        'too_many_apps' => 'You have :count apps already. Archive one before you add another.',
+        'slug_taken' => 'Another app already uses this address name. Choose another.',
+        'app_suspended' => 'The platform suspended this app. Contact the platform team.',
+        'app_not_suspended' => 'This app is not suspended.',
+        'version_incomplete' => 'This version is not ready for review. Fix the fields listed and submit it again.',
+        'version_not_submitted' => 'This version is not waiting for review.',
+        'version_open' => 'A version is already being edited or reviewed. Finish it first.',
+        'version_not_draft' => 'Only a draft version can be changed. Make a new version to change it.',
+        'developer_suspended' => 'Your developer account is suspended. Contact the platform team.',
+        'developer_not_registered' => 'Register as a developer before you add an app.',
+        'payout_over_balance' => 'The amount is more than this developer is owed in that currency.',
+        'courier_not_configured' => 'No courier is set up yet. The platform team must add a courier and its credentials.',
+        'shipment_not_found' => 'The courier has no delivery with that reference.',
+        'invalid_client' => 'This app is not known or not listed. Check the link you followed.',
+        'invalid_request' => 'The app sent an incomplete or wrong request. Go back to the app and try again.',
+    ],
+    'validation' => [
+        'pricing_model' => 'Choose free or paid.',
+        'pricing_monthly' => 'A paid app needs a monthly price in at least one currency.',
+        'pricing_amount' => 'Enter a whole amount in minor units, more than zero.',
+        'pricing_currency' => 'Prices are in KES, USD or CDF.',
+        'pricing_yearly_currency' => 'Give a yearly price only in a currency that has a monthly price.',
+        'logo_type' => 'The logo must be a PNG, JPEG or WebP image.',
+        'description_short' => 'Describe what the app does in at least 40 characters.',
+        'scopes_required' => 'Choose at least one permission the app needs.',
+        'redirect_required' => 'Add at least one redirect URI.',
+        'webhook_url_required' => 'Add the URL that receives the webhook events, or remove the events.',
+        'support_email_required' => 'Add a support email address.',
+        'redirect_uri' => 'Use an HTTPS address, or HTTP to localhost, with no # part.',
+    ],
+];

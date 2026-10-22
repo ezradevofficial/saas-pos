@@ -63,11 +63,11 @@ function SecretDialog({ secret, onClose }) {
 function CreateKeyDialog({ open, onClose, onCreated }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const grants = useGrantOptions()
-  const options = { ...grants, rolesFor: (row) => grants.rolesFor(row).filter((role) => !role.is_owner) }
   const scopesQuery = useQuery({ queryKey: [...KEYS, 'scopes'], queryFn: () => api.get('api-keys/scopes'), enabled: open })
   const [name, setName] = useState('')
   const [row, setRow] = useState(() => emptyAssignment())
+  const grants = useGrantOptions({ rows: [row] })
+  const options = { ...grants, rolesFor: (value) => grants.rolesFor(value).filter((role) => !role.is_owner) }
   const [scopes, setScopes] = useState([])
   const [expires, setExpires] = useState('')
   const shownRow = offeredRow(row, options)

@@ -140,7 +140,22 @@ Recommendation: option 2 before production launch. Whatever is chosen: rotate `H
 **Steps.**
 
 1. Make the new key on a workstation: `php artisan key:generate --show`. Store it in the vault with the date.
-2. On **every** server (API, queue workers, scheduler), set `APP_KEY` to the new key and `APP_PREVIOUS_KEYS` to the old one (comma-separated, newest first, keeping any older key still listed). Deploy as usual (`config:cache`, reload PHP-FPM, `php artisan horizon:terminate`). New values now use the new key; old ones still open.
+2. On **every** API and queue host (and the scheduler), set the same values: `APP_KEY` to the new key and the old one at the front of `APP_PREVIOUS_KEYS` (comma-separated, newest first, keeping any older key still listed). New values now use the new key; old ones still open. Rehearsed on 2026-10-22:
+
+   ```sh
+   cd <path>/api
+   OLD="$(grep '^APP_KEY=' .env | cut -d= -f2-)"
+   NEW="base64:$(openssl rand -base64 32)"   # or the key made in step 1
+   # Keep any earlier keys: APP_PREVIOUS_KEYS is comma-separated, newest first.
+   sed -i "s|^APP_KEY=.*|APP_KEY=$NEW|" .env
+   grep -q '^APP_PREVIOUS_KEYS=' .env && sed -i "s|^APP_PREVIOUS_KEYS=|APP_PREVIOUS_KEYS=$OLD,|" .env || echo "APP_PREVIOUS_KEYS=$OLD" >> .env
+   php artisan config:cache
+   sudo systemctl reload php8.3-fpm
+   php artisan horizon:terminate        # systemd starts Horizon on the new key
+   php artisan app:preflight
+   ```
+
+   What the rehearsal showed: with the old key in `APP_PREVIOUS_KEYS`, a device secret encrypted before the rotation still verified and sign-in worked. Without it, the same request answered 500 (`DecryptException: The MAC is invalid`): every encrypted column (device secrets, 2FA secrets, payment and SSO credentials, HR identifiers) is unreadable until `app:reencrypt` has run. Sign-in tokens are hashes and `HR_DIGEST_KEY` is separate, so neither changes.
 3. `php artisan app:reencrypt --dry-run`: how many values each column will re-encrypt. A failure here means a value no listed key opens: stop and investigate before going on.
 4. `php artisan app:reencrypt`. On a large database it can be staged in quiet hours with `--stop-after=50000`; run it again until it no longer says it stopped.
 5. Run it once more: it must report `Re-encrypted: 0` and `failed: 0`.

@@ -5,6 +5,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, DataTable, KpiTile, Money, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { platformApi } from '../platformClient'
+import { useCatalogueKeyNames } from '../useCatalogueName'
 
 const REPORTS = ['mrr', 'revenue', 'trials', 'churn', 'usage']
 
@@ -24,18 +25,23 @@ export default function ReportsConsole() {
   const summary = useQuery({ queryKey: ['platform', 'reports', query], queryFn: () => platformApi.get(`platform/reports/summary?${query}`) })
   const download = useMutation({ mutationFn: (report) => platformApi.download(`platform/reports/${report}.csv?${query}`, `${report}-${applied.from}-${applied.to}.csv`) })
   const data = summary.data?.data
-  const moneyColumns = (label) => [
-    { key: 'key', label, render: (row) => row.key },
+  const names = useCatalogueKeyNames()
+  // Modules and plans by their catalogue names, never raw keys; `custom` is a
+  // deal without a bundle and `outlet` the extra outlets line (ADM-06).
+  const SPECIAL = { custom: t('admin.reports.customPlan'), outlet: t('admin.reports.extraOutlets') }
+  const keyName = (key) => SPECIAL[key] ?? (names ? names.one(key) : '')
+  const moneyColumns = (label, named = false) => [
+    { key: 'key', label, render: (row) => (named ? keyName(row.key) : row.key) },
     { key: 'amount', label: t('admin.reports.amount'), render: (row) => <Money amount={row.amount_minor} currency={row.currency} /> },
   ]
   const tables = data
     ? [
-        ['mrrByPlan', moneyColumns(t('admin.reports.plan')), data.mrr.by_plan],
+        ['mrrByPlan', moneyColumns(t('admin.reports.plan'), true), data.mrr.by_plan],
         ['mrrByCountry', moneyColumns(t('admin.reports.country')), data.mrr.by_country],
-        ['mrrByModule', moneyColumns(t('admin.reports.module')), data.mrr.by_module],
+        ['mrrByModule', moneyColumns(t('admin.reports.module'), true), data.mrr.by_module],
         ['revenueByCountry', moneyColumns(t('admin.reports.country')), data.revenue.by_country],
-        ['revenueByModule', moneyColumns(t('admin.reports.module')), data.revenue.by_module],
-        ['revenueByPlan', moneyColumns(t('admin.reports.plan')), data.revenue.by_plan],
+        ['revenueByModule', moneyColumns(t('admin.reports.module'), true), data.revenue.by_module],
+        ['revenueByPlan', moneyColumns(t('admin.reports.plan'), true), data.revenue.by_plan],
       ]
     : []
   return (

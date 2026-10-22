@@ -85,7 +85,9 @@ class SetupController
             'researched' => $notices['researched'] !== [],
             'missing' => $missing === [] ? null : MissingValues::describe($missing),
             'ready' => $missing === [],
-            'todo' => $pack['todo'] ?? [],
+            // CP-01: how many components in force are not confirmed yet. The pack's own to-do
+            // notes are for the platform team (console, ADM-04) and never sent to tenants.
+            'to_confirm' => count(array_filter($inForce, fn (array $c) => ($c['values'] === null ? ResearchStatus::NEEDS_CONFIRMATION : ResearchStatus::of($c['values'])) !== ResearchStatus::CONFIRMED)),
             'returns' => array_map(fn (array $r) => ['key' => $r['key'], 'name' => PayrollPack::label('returns', $r['key']), 'needs_confirmation' => (bool) ($r['needs_confirmation'] ?? true) || ($r['layout'] ?? null) === null], $pack['returns'] ?? []),
         ]]);
     }

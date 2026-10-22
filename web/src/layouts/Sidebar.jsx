@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { useSupportSession } from '@/auth/useSupportSession'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
@@ -108,11 +109,14 @@ const menuItem = 'gap-2 rounded-md px-2 py-2 text-body'
 function AccountMenu() {
   const { t } = useTranslation()
   const { user, signOut } = useAuth()
+  const { readOnly } = useSupportSession()
   const locale = useLocale()
   const queryClient = useQueryClient()
 
   const changeLanguage = async (next) => {
     setLocale(next)
+    // RBAC-13: a read-only support session changes the language on this screen only.
+    if (readOnly) return
     try {
       const response = await api.patch('me', { locale: next })
       queryClient.setQueryData(['me'], response.data)

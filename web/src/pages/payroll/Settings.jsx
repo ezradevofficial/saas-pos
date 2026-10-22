@@ -438,12 +438,12 @@ function StatutoryPack({ query, company }) {
               },
               { key: 'kind', label: t('payroll.columns.kind'), render: (row) => t(`payroll.statutory.kinds.${row.kind}`, { defaultValue: row.kind }) },
               { key: 'method', label: t('payroll.columns.method'), render: (row) => <span className="font-mono text-caption">{row.method}</span> },
-              { key: 'required', label: t('payroll.columns.applies'), render: (row) => (row.required ? t('payroll.statutory.always') : t('payroll.statutory.when', { condition: t(`payroll.statutory.conditions.${row.when}`, { defaultValue: row.when ?? '' }) })) },
+              { key: 'required', label: t('payroll.columns.applies'), wrap: true, render: (row) => (row.required ? t('payroll.statutory.always') : t('payroll.statutory.when', { condition: t(`payroll.statutory.conditions.${row.when}`, { defaultValue: row.when ?? '' }) })) },
               { key: 'effective_from', label: t('payroll.columns.inForceFrom'), render: (row) => (row.in_force ? <CalendarDate value={row.effective_from} /> : <span className="text-ink-muted">{t('payroll.statutory.noPeriod')}</span>) },
               {
                 key: 'status',
                 label: t('payroll.columns.valueStatus'),
-                wrap: true,
+                wide: true,
                 render: (row) => <ResearchStatus status={row.status} confidence={row.confidence} researchedOn={row.researched_on} source={row.source ?? []} assumed={(row.assumed ?? []).map((field) => field.name)} />,
               },
               {
@@ -496,14 +496,12 @@ function StatutoryPack({ query, company }) {
         onConfirm={(reason) => mark.mutate({ component: marking.code, reason })}
         onClose={() => setMarking(null)}
       />
-      {pack.todo?.length ? (
-        <Card title={t('payroll.statutory.todo')} subtitle={t('payroll.statutory.todoHelp')}>
-          <ul className="flex list-disc flex-col gap-1 pl-5 text-body">
-            {pack.todo.map((entry) => (
-              <li key={entry}>{entry}</li>
-            ))}
-          </ul>
-        </Card>
+      {/* CP-01: plain wording for what the pack has not confirmed yet; the pack's own
+          to-do notes are for the platform team and stay in the console (ADM-04). */}
+      {pack.to_confirm ? (
+        <Alert tone="info" title={t('payroll.statutory.todo')}>
+          {t('payroll.statutory.todoHelp', { count: pack.to_confirm })}
+        </Alert>
       ) : null}
       {pack.returns?.length ? (
         <Card title={t('payroll.statutory.returns')}>

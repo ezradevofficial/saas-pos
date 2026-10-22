@@ -56,4 +56,9 @@ final class UserPrincipal implements WebhookPrincipal
     {
         return $this->isActive() ? $this->user->id : null;
     }
+
+    public function envelope(): array
+    {
+        return [];
+    }
 }

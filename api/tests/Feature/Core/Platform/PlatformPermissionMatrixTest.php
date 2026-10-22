@@ -80,6 +80,16 @@ class PlatformPermissionMatrixTest extends TestCase
         'POST tenants/{tenant}/support-requests' => 'platform.support.request',
         'POST tenants/{tenant}/suspend' => 'platform.tenants.manage',
         'POST tenants/{tenant}/trial' => 'platform.tenants.manage',
+        // ADM-05, MKT-03 (ADR 024): marketplace review and payouts.
+        'GET marketplace/apps' => 'platform.marketplace.view',
+        'GET marketplace/apps/{app}' => 'platform.marketplace.view',
+        'POST marketplace/versions/{version}/approve' => 'platform.marketplace.review',
+        'POST marketplace/versions/{version}/reject' => 'platform.marketplace.review',
+        'POST marketplace/apps/{app}/suspend' => 'platform.marketplace.review',
+        'POST marketplace/apps/{app}/reinstate' => 'platform.marketplace.review',
+        'GET marketplace/payouts' => 'platform.marketplace.payouts',
+        'GET marketplace/developers/{developer}/ledger' => 'platform.marketplace.payouts',
+        'POST marketplace/developers/{developer}/payouts' => 'platform.marketplace.payouts',
     ];
 
     /** Any staff member's own account and sign-in, outside the role permissions. */

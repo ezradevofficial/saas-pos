@@ -20,6 +20,7 @@ return [
     ],
 
     'errors' => [
+        'app_owned' => 'This subscription belongs to an installed app. You can switch it off; uninstall the app to remove it.',
         'too_many' => 'You can have up to :count webhooks. Archive one you no longer use, then try again.',
         'event_not_visible' => 'You can’t see these records, so you can’t subscribe to this event. Ask an Owner to subscribe instead.',
         'principal_inactive' => 'The user this webhook sends as is no longer active. Create the webhook again as an active user.',

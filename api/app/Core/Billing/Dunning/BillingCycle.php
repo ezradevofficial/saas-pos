@@ -2,6 +2,7 @@
 
 namespace App\Core\Billing\Dunning;
 
+use App\Core\Billing\Contracts\AddOnCharges;
 use App\Core\Billing\Invoicing\Invoicing;
 use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\Subscription;
@@ -48,6 +49,7 @@ class BillingCycle
         private readonly PlatformSettings $settings,
         private readonly OveragePricing $overage,
         private readonly Accounts $accounts,
+        private readonly AddOnCharges $addOns,
     ) {}
 
     public function run(CarbonImmutable $at): void
@@ -170,8 +172,10 @@ class BillingCycle
         try {
             $coupon = $subscription->coupon_until === null ? $this->subscriptions->coupon($subscription, nextPeriod: true) : null;
 
-            // Review L6: priced on the due date (prices and deals in force then).
-            return (int) $this->subscriptions->price($subscription->country, $plan, [], $coupon, $due)['total'];
+            // Review L6: priced on the due date (prices and deals in force then); MKT-03: with the paid apps.
+            $addOns = array_sum(array_map(fn (array $line) => (int) $line['amount'], $this->addOns->periodLines($subscription, $plan['cycle'], $due)));
+
+            return (int) $this->subscriptions->price($subscription->country, $plan, [], $coupon, $due)['total'] + $addOns;
         } catch (ApiException) {
             return $subscription->period_amount_minor;
         }
@@ -247,7 +251,10 @@ class BillingCycle
             ]);
             $this->subscriptions->applyPlan($subscription, $plan, $quote);
 
-            return $this->invoicing->issue($subscription, $kind, $this->invoicing->linesFromQuote($quote, $overage), $start, $end, $due);
+            // MKT-03: paid marketplace apps are lines of the same invoice.
+            $lines = [...$this->invoicing->linesFromQuote($quote, $overage), ...$this->addOns->periodLines($subscription, $plan['cycle'], $start)];
+
+            return $this->invoicing->issue($subscription, $kind, $lines, $start, $end, $due);
         });
     }
 

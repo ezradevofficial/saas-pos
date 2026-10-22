@@ -63,6 +63,14 @@ The specification's published example checks an implementation:
 
 **Rotating the secret.** For 24 hours after a rotation, requests carry two signatures, one per secret. Accept either until your endpoint uses the new secret.
 
+**Marketplace apps: one key per install.** An app's deliveries are not signed with the app's webhook secret itself. Each install signs with its own key, derived from it (MKT-02, ADR 024):
+
+1. Base64-decode the app's webhook secret without its `whsec_` prefix.
+2. Compute HMAC-SHA256 with it over the bytes of `install:<installation_id>`, where `installation_id` is the one in the request's signed body (the `installation=` query parameter names the same install, but only the body is signed).
+3. That result is the install's key: check the signature with it as above (in `whsec_` form, `whsec_` + its base64).
+
+An app's body also carries `installation_id` and `tenant_id` next to `id`, `type` and `occurred_at`. When you rotate the app's secret, every install's key changes with it; the previous keys keep signing for 24 hours, or stop at once if you chose to end the old secret immediately.
+
 ## Retries and failures
 
 - Any answer other than `2xx`, or no answer within 10 seconds, is retried after 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours and 24 hours.

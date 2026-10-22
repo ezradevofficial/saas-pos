@@ -203,6 +203,8 @@ describe('Payroll screens', () => {
       ],
       missing: 'PAYE (KE): bands, rounding rule; Insurance relief (KE): period in force',
       ready: false,
+      to_confirm: 2,
+      // An older API also sent the pack's internal to-do notes; they are never shown.
       todo: ['paye: the monthly PAYE bands.'],
       returns: [{ key: 'p10', name: 'PAYE return', needs_confirmation: true }],
     }
@@ -223,6 +225,12 @@ describe('Payroll screens', () => {
     expect(screen.getByText('PAYE (KE): bands, rounding rule; Insurance relief (KE): period in force')).toBeInTheDocument()
     expect(screen.getByText(/Runs for this company are refused until the platform team confirms/)).toBeInTheDocument()
     expect(screen.getByText('Layout to be confirmed')).toBeInTheDocument()
+    // Phase 8 walkthrough: plain wording instead of the pack's notes for the platform team,
+    // and a status column that long columns can't squeeze.
+    expect(screen.getByText('Still to confirm')).toBeInTheDocument()
+    expect(screen.getByText(/^2 statutory values here aren’t confirmed by an accountant yet/)).toBeInTheDocument()
+    expect(screen.queryByText('paye: the monthly PAYE bands.')).not.toBeInTheDocument()
+    expect(within(table).getByRole('columnheader', { name: 'Value status' })).toHaveClass('min-w-56')
   })
 
   it('says a run used researched values and links to the statutory rates (CP-01)', async () => {
@@ -262,7 +270,7 @@ describe('Payroll screens', () => {
       ],
       missing: 'INPP: needs confirmation',
       ready: false,
-      todo: [],
+      to_confirm: 2,
       returns: [],
     }
     setup([['payroll/statutory/c-1', { data: pack }], ['payroll/settings/c-1', { data: { company_id: 'c-1', premiums_taxable: true, premiums_contributory: true, not_applicable: {} } }]], [PERM.settingsView, PERM.statutoryExempt])

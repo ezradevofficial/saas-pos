@@ -103,6 +103,8 @@ class ApiKeyAuthenticator
 
         $valid = $key !== null
             && $key->mode === $token->mode
+            // ADR 024: an install's key has no secret anyone holds; it authenticates only through the app's OAuth token.
+            && $key->kind === ApiKey::KIND_KEY
             && $key->matchesSecret($token->secret, $now)
             && $key->isUsable($now)
             && $principal?->isServicePrincipal() === true

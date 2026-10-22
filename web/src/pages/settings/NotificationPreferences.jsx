@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSupportSession } from '@/auth/useSupportSession'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -93,6 +94,7 @@ function EventTypeRow({ row, choice, available, onChange }) {
  */
 export default function NotificationPreferences() {
   const { t } = useTranslation()
+  const { readOnly } = useSupportSession()
   const queryClient = useQueryClient()
   const preferences = useQuery({ queryKey: PREFERENCES_KEY, queryFn: () => api.get('me/notification-preferences') })
   const eventTypes = useQuery({ queryKey: ['notification-event-types'], queryFn: () => api.get('notification-event-types') })
@@ -143,7 +145,8 @@ export default function NotificationPreferences() {
           </ul>
         </Card>
       )}
-      {rows.length > 0 ? (
+      {/* RBAC-13: a read-only support session sees the preferences but saves nothing. */}
+      {rows.length > 0 && !readOnly ? (
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="ghost" disabled={!dirty || save.isPending} onClick={() => setDraft(null)}>
             {t('notificationPreferences.discard')}

@@ -123,6 +123,20 @@ describe('Super-admin console', () => {
     expect(within(dialog).queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
   })
 
+  it('says a release can be approved only while it is a draft (Phase 8 walkthrough, ADM-04)', async () => {
+    const release = {
+      id: 'p-1', country: 'KE', kind: 'payroll', version: 1, status: 'approved', effective_from: '2026-12-01', validation: { errors: [], warnings: [] },
+      diff: { base: { source: 'shipped', version: null }, added: [], changed: [], removed: [] }, loaded_by: { id: 's-2', name: 'Otieno' }, approved_by: { id: 's-3', name: 'Akinyi' }, published_by: null,
+    }
+    mockConsole({ 'platform/packs': { data: [release] }, 'platform/packs/current': { data: [] }, 'platform/packs/p-1': { data: release } })
+    renderApp('/platform/packs')
+
+    fireEvent.click(await screen.findByText('Kenya · Payroll'))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText('No errors.')).toBeInTheDocument()
+    expect(within(dialog).queryByText('No errors. It can be approved.')).not.toBeInTheDocument()
+  })
+
   it('shows reports per currency and downloads a CSV', async () => {
     const summary = {
       from: '2026-11-01', to: '2026-11-30',
@@ -139,6 +153,27 @@ describe('Super-admin console', () => {
     expect(screen.getByText('2 · 66.7 %')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Revenue' }))
     await waitFor(() => expect(platformApi.download).toHaveBeenCalledWith(expect.stringMatching(/^platform\/reports\/revenue\.csv\?from=/), expect.stringMatching(/^revenue-.*\.csv$/)))
+  })
+
+  it('names modules and plans in the report tables, never their keys (Phase 8 walkthrough, ADM-06)', async () => {
+    const row = (key, amount) => ({ key, currency: 'KES', amount_minor: amount })
+    const summary = {
+      from: '2026-10-01', to: '2026-10-22',
+      mrr: { accounts: 1, by_currency: [], by_country: [], by_plan: [row('custom', 100)], by_module: [row('pos', 200)] },
+      trials: { started: 0, converted: 0, conversion_percent: '0.0', by_country: [] },
+      churn: { churned: 0, rate_percent: '0.0', mrr_lost: [] },
+      revenue: { invoices: 1, by_currency: [], by_country: [], by_module: [row('outlet', 300)], by_plan: [row('starter', 400)] },
+      usage: [],
+    }
+    platformApi.get.mockImplementation(async (path) => (path === 'platform/me' ? { data: OWNER } : path.startsWith('platform/reports/summary') ? { data: summary } : CATALOGUE[path] ?? { data: [] }))
+    renderApp('/platform/reports')
+
+    expect(await screen.findByText('Point of sale')).toBeInTheDocument()
+    expect(screen.getByText('Starter')).toBeInTheDocument()
+    expect(screen.getByText('No bundle (modules only)')).toBeInTheDocument()
+    expect(screen.getByText('Extra outlets')).toBeInTheDocument()
+    expect(screen.queryByText('pos')).not.toBeInTheDocument()
+    expect(screen.queryByText('starter')).not.toBeInTheDocument()
   })
 
   it('shows only the areas a role allows', async () => {
