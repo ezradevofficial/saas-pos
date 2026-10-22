@@ -211,8 +211,9 @@ class ShopController
             'history' => OrderEvent::query()->where('order_id', $order->id)->orderBy('at')->orderBy('id')->get()->map(fn (OrderEvent $e) => ['status' => $e->to, 'payment_status' => $e->payment_status, 'at' => $e->at->toIso8601String()])->values(),
             'rider' => $rider === null ? null : ['first_name' => trim(explode(' ', $rider->name)[0] ?? '')],
             'last_location_at' => $delivery?->located_at?->toIso8601String(),
-            // ECOM-40: where the rider is, while the order is on its way only (never the trail).
-            'rider_location' => $order->status === Order::OUT_FOR_DELIVERY && $delivery?->status === Delivery::PICKED_UP && $delivery->located_at !== null && $delivery->last_latitude !== null
+            // ECOM-40, review M2: where the rider is, only while this order is the rider's one stop on the way
+            // (no other delivery of theirs picked up), so a customer never sees the rider at another's door.
+            'rider_location' => $this->riderOnlyHere($order, $delivery)
                 ? ['latitude' => (string) $delivery->last_latitude, 'longitude' => (string) $delivery->last_longitude, 'at' => $delivery->located_at->toIso8601String()] : null,
             // ECOM-41: the photo is fetched from …/proof-photo with the same token.
             'proof_photo' => $delivery?->status === Delivery::DELIVERED && $delivery->proof_photo_path !== null,
@@ -221,6 +222,13 @@ class ShopController
             'placed_at' => $order->placed_at->toIso8601String(),
             'reserved_until' => $order->reserved_until?->toIso8601String(),
         ];
+    }
+
+    private function riderOnlyHere(Order $order, ?Delivery $delivery): bool
+    {
+        return $order->status === Order::OUT_FOR_DELIVERY && $delivery?->status === Delivery::PICKED_UP && $delivery->rider_id !== null
+            && $delivery->located_at !== null && $delivery->last_latitude !== null
+            && Delivery::query()->where('rider_id', $delivery->rider_id)->where('status', Delivery::PICKED_UP)->whereKeyNot($delivery->id)->doesntExist();
     }
 
     public static function store(Request $request): Store

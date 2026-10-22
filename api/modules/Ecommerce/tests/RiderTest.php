@@ -56,7 +56,8 @@ class RiderTest extends TestCase
         // Queued while offline, sent twice (the first answer was lost): stored once.
         $this->updates([$picked, $where])->assertOk();
         $this->updates([$picked, $where])->assertOk()->assertJsonPath('results.0.status', 'stored')->assertJsonPath('results.1.status', 'stored');
-        $this->assertSame(2, $this->inTenant(fn () => DeliveryUpdate::query()->count()));
+        // The location point leaves no row (review M5): its id is remembered in the cache.
+        $this->assertSame(1, $this->inTenant(fn () => DeliveryUpdate::query()->count()));
         $order = $this->inTenant(fn () => Order::query()->findOrFail($delivery->order_id));
         $this->assertSame(Order::OUT_FOR_DELIVERY, $order->status);
 
@@ -76,7 +77,8 @@ class RiderTest extends TestCase
         $this->assertSame([Delivery::DELIVERED, 'code', 130000], [$delivery->status, $delivery->proof_kind, $delivery->cod_collected_minor]);
         $this->assertSame(['cod_short'], array_column($delivery->flags, 'code'));
         $this->assertSame([Order::DELIVERED, 'cod_collected'], [$order->status, $order->payment_status]);
-        $this->assertSame('-1.263300', (string) $delivery->last_latitude);
+        // Review M3: delivered, the position is cleared; when the rider last reported stays.
+        $this->assertSame([null, '2026-11-30T08:45:00+00:00'], [$delivery->last_latitude, $delivery->located_at?->toIso8601String()]);
 
         // The tracking page shows the rider's first name and when they last reported.
         $this->assertSame('Juma', $this->shopCall('GET', "duka/orders/{$order->number}?t={$order->tracking_token_secret}")->json('data.rider.first_name'));

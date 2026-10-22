@@ -119,6 +119,9 @@ class EcommerceServiceProvider extends ServiceProvider
             $subjects->register(new SubjectSource(subjectType: 'user', table: 'ecom_deliveries', match: 'rider_id', through: ['ecom_riders', 'user_id'],
                 personal: ['last_latitude' => 'null', 'last_longitude' => 'null']));
             $subjects->register(new SubjectSource(subjectType: 'user', table: 'ecom_riders', match: 'user_id', personal: ['phone' => 'null', 'vehicle' => 'null']));
+            // Review M3: a position on the way to a customer's door is theirs too (through the order's party).
+            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'ecom_deliveries', match: 'order_id', through: ['ecom_orders', 'party_id'],
+                personal: ['last_latitude' => 'null', 'last_longitude' => 'null']));
         });
         $this->app->singleton(WhatsAppProviders::class);
     }

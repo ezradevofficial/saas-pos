@@ -49,7 +49,10 @@ class Delivery extends EcomModel
                 static::query()->whereKey($delivery->id)->update(['last_latitude' => null, 'last_longitude' => null, 'located_at' => null]);
                 $delivery->forceFill(['last_latitude' => null, 'last_longitude' => null, 'located_at' => null])->syncOriginal();
             } elseif ($delivery->wasChanged('status') && ! in_array($delivery->status, self::ACTIVE, true)) {
+                // Review M3: the trail and the last position go when it ends; only the time stays (ECOM-21).
                 RiderLocations::clear($delivery);
+                static::query()->whereKey($delivery->id)->update(['last_latitude' => null, 'last_longitude' => null]);
+                $delivery->forceFill(['last_latitude' => null, 'last_longitude' => null])->syncOriginal();
             }
         });
     }

@@ -14,6 +14,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Ecommerce\Delivery\ProofPhotos;
+use Modules\Ecommerce\Delivery\RiderUpdates;
 use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\DeliveryLocation;
 use Modules\Ecommerce\Models\DeliveryUpdate;
@@ -73,10 +74,12 @@ class DeliveryTrackingTest extends TestCase
         $this->assertSame(['-1.265000', '36.810000'], [$tracked['rider_location']['latitude'], $tracked['rider_location']['longitude']]);
         $this->assertArrayNotHasKey('trail', $tracked);
 
-        // Delivered: the trail is cleared, the last point stays; later points are refused.
+        // Delivered: the trail and the last point are cleared (review M3), the time stays; later points are refused.
         $this->updates([$this->update($delivery, 'status', ['status' => 'delivered', 'code' => $this->sentDeliveryCode()])])->assertOk();
         $this->assertSame(0, $this->inTenant(fn () => DeliveryLocation::query()->count()));
-        $this->assertSame('-1.265000', (string) $delivery->refresh()->last_latitude);
+        $delivery->refresh();
+        $this->assertSame([null, null], [$delivery->last_latitude, $delivery->last_longitude]);
+        $this->assertNotNull($delivery->located_at);
         $this->assertSame([], $this->api('GET', "ecommerce/deliveries/{$delivery->id}/track", [], $this->manager)->json('data.trail'));
         $this->assertNull($this->shopCall('GET', "duka/orders/{$order->number}?t={$order->tracking_token_secret}")->json('data.rider_location'));
         $this->updates([$this->update($delivery, 'location', ['latitude' => '-1.3', 'longitude' => '36.9'])])->assertStatus(422)
@@ -96,13 +99,88 @@ class DeliveryTrackingTest extends TestCase
         $this->assertSame([0, null], [$this->inTenant(fn () => DeliveryLocation::query()->count()), $delivery->last_latitude]);
     }
 
-    public function test_rider_positions_are_declared_personal_data_of_the_rider(): void
+    public function test_rider_positions_are_declared_personal_data_of_the_rider_and_the_customer(): void
     {
         $tables = collect(app(PrivacySubjects::class)->sources('user'))->pluck('table')->all();
 
         foreach (['ecom_delivery_locations', 'ecom_deliveries', 'ecom_riders'] as $table) {
             $this->assertContains($table, $tables);
         }
+
+        // Review M3: the position on the way to the customer's door is the customer's too.
+        $this->assertContains('ecom_deliveries', collect(app(PrivacySubjects::class)->sources('customer'))->pluck('table')->all());
+    }
+
+    public function test_a_customer_sees_the_rider_only_while_their_order_is_the_riders_one_stop(): void
+    {
+        // Review M2: two orders picked up together: neither customer sees where the rider is.
+        $first = $this->assigned();
+        $second = $this->assigned();
+        $this->updates([$this->update($first, 'status', ['status' => 'picked_up']), $this->update($second, 'status', ['status' => 'picked_up'])])->assertOk();
+        $this->updates([$this->update($first, 'location', ['latitude' => '-1.2633', 'longitude' => '36.8040']), $this->update($second, 'location', ['latitude' => '-1.2633', 'longitude' => '36.8040'])])->assertOk();
+        $track = function (Delivery $delivery) {
+            $order = $this->inTenant(fn () => Order::query()->findOrFail($delivery->order_id));
+
+            return $this->shopCall('GET', "duka/orders/{$order->number}?t={$order->tracking_token_secret}")->assertOk()->json('data');
+        };
+        $this->assertNull($track($first)['rider_location']);
+        $this->assertNull($track($second)['rider_location']);
+        $this->assertSame('out_for_delivery', $track($first)['status'], 'still shown as on its way');
+
+        // The first is delivered: the second is now the rider's one stop.
+        $this->api('POST', "ecommerce/orders/{$first->order_id}/deliver", [], $this->manager)->assertOk();
+        $this->updates([$this->update($second, 'location', ['latitude' => '-1.2700', 'longitude' => '36.8100', 'occurred_at' => CarbonImmutable::now()->addMinute()->toIso8601String()])])->assertOk();
+        $this->assertSame('-1.270000', $track($second)['rider_location']['latitude']);
+    }
+
+    public function test_update_fingerprints_are_keyed_locations_leave_no_row_and_times_are_held_in_range(): void
+    {
+        $delivery = $this->assigned();
+        $picked = $this->update($delivery, 'status', ['status' => 'picked_up', 'occurred_at' => CarbonImmutable::now()->addYear()->toIso8601String()]);
+        $this->updates([$picked])->assertOk();
+
+        // Review M1: an HMAC with its own key, never the plain sha256 of the fields.
+        $row = $this->inTenant(fn () => DeliveryUpdate::query()->findOrFail($picked['id']));
+        // The fields in the order the request validates them (what the old fingerprint hashed).
+        $fields = [];
+        foreach (['id', 'delivery_id', 'kind', 'status', 'latitude', 'longitude', 'occurred_at', 'code', 'collected_minor', 'note'] as $key) {
+            if (array_key_exists($key, $picked)) {
+                $fields[$key] = $picked[$key];
+            }
+        }
+        $this->assertNotSame(hash('sha256', (string) json_encode($fields)), $row->payload_hash);
+        $this->assertSame(RiderUpdates::keyed(hash('sha256', (string) json_encode($fields))), $row->payload_hash);
+
+        // Review M5: a phone's clock a year ahead dates nothing beyond five minutes from now.
+        $this->assertTrue($delivery->refresh()->picked_up_at->lessThanOrEqualTo(CarbonImmutable::now()->addMinutes(5)));
+
+        // A location point: no row; a resend is answered the same, a changed resend refused.
+        $point = $this->update($delivery, 'location', ['latitude' => '-1.2633', 'longitude' => '36.8040']);
+        $this->updates([$point])->assertOk();
+        $this->updates([$point])->assertOk()->assertJsonPath('results.0.status', 'stored');
+        $this->updates([[...$point, 'latitude' => '-1.3']])->assertStatus(422)->assertJsonPath('results.0.error.code', 'payload_mismatch');
+        $this->assertNull($this->inTenant(fn () => DeliveryUpdate::query()->find($point['id'])));
+        $this->assertSame(1, $this->inTenant(fn () => DeliveryLocation::query()->count()), 'the resend added no second point');
+    }
+
+    public function test_the_backfill_clears_old_positions_and_re_keys_old_fingerprints(): void
+    {
+        $delivery = $this->assigned();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
+        $old = hash('sha256', 'old fields');
+        $this->inTenant(function () use ($delivery, $old) {
+            DeliveryUpdate::query()->update(['payload_hash' => $old, 'latitude' => '-1.2633', 'longitude' => '36.8040']);
+            DeliveryUpdate::query()->insert(['id' => (string) Str::uuid7(), 'tenant_id' => $delivery->tenant_id, 'delivery_id' => $delivery->id, 'rider_id' => $delivery->rider_id,
+                'user_id' => $this->riderUser->id, 'kind' => 'location', 'latitude' => '-1.2', 'longitude' => '36.8', 'payload_hash' => $old, 'occurred_at' => now(), 'received_at' => now(),
+                'outcome' => 'applied', 'created_at' => now(), 'updated_at' => now()]);
+
+            (require base_path('modules/Ecommerce/database/migrations/2026_12_22_000100_clear_rider_update_positions.php'))->up();
+        });
+
+        $rows = $this->inTenant(fn () => DeliveryUpdate::query()->get());
+        $this->assertSame(['status'], $rows->pluck('kind')->all(), 'location rows removed');
+        $this->assertNull($rows[0]->latitude);
+        $this->assertSame(RiderUpdates::keyed($old), $rows[0]->payload_hash);
     }
 
     public function test_the_trail_is_under_row_level_security(): void
