@@ -145,6 +145,9 @@ final class TwoTenants
     /** AUTH-06: the owner's POS PIN in both tenants (6 digits: owners approve overrides, AUTH-08). */
     public const PIN = '482619';
 
+    /** The current build's host clock, to name a suspension in setup failures. */
+    private static ?HostClock $clock = null;
+
     private function __construct(
         public readonly TenantFixture $a,
         public readonly TenantFixture $b,
@@ -152,6 +155,7 @@ final class TwoTenants
 
     public static function build(TestCase $test): self
     {
+        self::$clock = HostClock::start();
         Notification::fake();
         Mail::fake();
         Storage::fake('media');
@@ -1758,7 +1762,9 @@ final class TwoTenants
 
     private static function ok(TestResponse $response, int $status = 200): TestResponse
     {
-        Assert::assertSame($status, $response->status(), 'TwoTenants setup failed: '.$response->getContent());
+        // A host suspended mid-setup idles the fixture's sessions out (AUTH-09): say so.
+        $note = $response->status() === $status ? '' : (string) self::$clock?->note();
+        Assert::assertSame($status, $response->status(), 'TwoTenants setup failed: '.$response->getContent().$note);
 
         return $response;
     }

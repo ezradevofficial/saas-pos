@@ -6,9 +6,11 @@ use App\Core\Api\Auth\ApiKeyAwareGuard;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Services\SessionTimeout;
 use App\Core\Tenancy\Models\Tenant;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesIdentities;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -205,6 +207,36 @@ class SessionTest extends TestCase
         $this->getJson('/api/v1/me', $this->bearer($token))->assertOk(); // not recorded
         $this->travel(59 * 60 + 30)->seconds();
 
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertUnauthorized();
+    }
+
+    /** @return array<string, array{string}> 21:00 UTC is midnight in Africa/Nairobi; 00:00 UTC is the UTC day change. */
+    public static function midnights(): array
+    {
+        return [
+            'Nairobi midnight' => ['2026-10-22T20:59:30Z'],
+            'UTC midnight' => ['2026-10-22T23:59:30Z'],
+        ];
+    }
+
+    #[DataProvider('midnights')]
+    public function test_the_idle_timeout_counts_elapsed_time_across_midnight(string $beforeMidnight): void
+    {
+        // AUTH-09: idleness is the time since the last recorded use, never the calendar date.
+        $this->travelTo(CarbonImmutable::parse($beforeMidnight));
+        $token = $this->tokenFor($this->createUser());
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
+
+        // 61 seconds later, on the next day: alive, and the use is recorded (NFR-02 interval passed).
+        $this->travel(61)->seconds();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
+
+        // 59 minutes after that use, well past midnight: still alive.
+        $this->travel(59)->minutes();
+        $this->getJson('/api/v1/me', $this->bearer($token))->assertOk();
+
+        // 61 idle minutes: refused, as at any other hour.
+        $this->travel(61)->minutes();
         $this->getJson('/api/v1/me', $this->bearer($token))->assertUnauthorized();
     }
 
