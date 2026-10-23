@@ -242,6 +242,29 @@ describe('offline proof: duplicate uploads', () => {
     expect(failed).toMatchObject({ recordId: 'sale-1', lastError: { code: 'payload_mismatch', retryable: false } });
     expect(server.state.records.get('sale-1').payload).toEqual(sale);
   });
+
+  it('uploads a sale with its buyer snapshot as sold, resends it idempotently and refuses another buyer under its id (POS-10)', async () => {
+    const { server, engine, store, now } = setup();
+    await engine.enqueue('pos.shifts', 'shift-1', shiftBody({ id: 'shift-1', openedAt: now() }));
+    // Sold offline to a customer with a KRA PIN: the till keeps the PIN it printed.
+    const sale = { ...saleBody({ id: 'sale-1', shiftId: 'shift-1', seq: 1, soldAt: now(), lineId: 'l1', paymentId: 'p1' }), customer_id: '01a11ea7-0000-7000-8000-0000000000e1', buyer_tax_id: 'P051234567X', buyer_name: 'Duka Bora' };
+    await engine.enqueue('pos.sales', 'sale-1', sale);
+    server.once('pos/sales', () => 'lost');
+    expect((await engine.sync()).error.name).toBe('NetworkError');
+    expect(server.state.firstStores.get('sale-1')).toBe(1);
+
+    // The answer was lost after the server stored it: the resend is answered as stored, stored once.
+    expect(await engine.push()).toMatchObject({ acknowledged: 1, failed: 0 });
+    expect(server.state.records.get('sale-1').payload).toMatchObject({ buyer_tax_id: 'P051234567X', buyer_name: 'Duka Bora' });
+    expect(server.state.firstStores.get('sale-1')).toBe(1);
+
+    // The same id with the buyer changed (the customer edited later) is not the sale that was sold.
+    await engine.enqueue('pos.sales', 'sale-1', { ...sale, buyer_tax_id: 'P000000000Z' });
+    expect(await engine.push()).toMatchObject({ acknowledged: 0, failed: 1 });
+    const [failed] = await store.entries(OUTBOX.FAILED);
+    expect(failed).toMatchObject({ recordId: 'sale-1', lastError: { code: 'payload_mismatch' } });
+    expect(server.state.records.get('sale-1').payload.buyer_tax_id).toBe('P051234567X');
+  });
 });
 
 describe('offline proof: pull cursors', () => {

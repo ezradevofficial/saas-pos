@@ -151,7 +151,7 @@ class MarketingConsentTest extends TestCase
         $this->shopCall('PUT', 'duka/account/marketing-consent', ['granted' => false])->assertUnauthorized();
     }
 
-    public function test_a_stop_reply_to_the_store_whatsapp_withdraws_whatsapp_marketing(): void
+    public function test_a_stop_reply_to_the_store_whatsapp_withdraws_marketing_on_every_channel(): void
     {
         $this->signUp('0712345678', ['marketing_consent' => true, 'wording_version' => '2026_10']);
         $token = $this->api('POST', "ecommerce/stores/{$this->shop->id}/whatsapp-token")->assertCreated()->json('data.token');
@@ -169,10 +169,14 @@ class MarketingConsentTest extends TestCase
         $this->inTenant(function () {
             $party = Customer::query()->sole()->party_id;
             $record = ConsentRecord::query()->where('granted', false)->sole();
-            $this->assertSame(['whatsapp', 'opt_out_reply'], [$record->channel, $record->source]);
+            // Owner decision 2026-10-22: a STOP withdraws every channel, not only the one it arrived on.
+            $this->assertSame(['any', 'opt_out_reply'], [$record->channel, $record->source]);
+            $this->assertStringContainsString('whatsapp', (string) $record->evidence);
+            $this->assertStringContainsString('store_whatsapp', (string) $record->evidence);
             $this->assertStringNotContainsString('STOP', (string) $record->evidence);
-            $this->assertFalse(app(Consents::class)->allows('customer', $party, 'marketing', 'whatsapp'));
-            $this->assertTrue(app(Consents::class)->allows('customer', $party, 'marketing', 'sms'));
+            foreach (['whatsapp', 'sms', 'email'] as $channel) {
+                $this->assertFalse(app(Consents::class)->allows('customer', $party, 'marketing', $channel), $channel);
+            }
         });
 
         // The same message delivered again is not processed twice.

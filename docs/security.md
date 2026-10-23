@@ -166,7 +166,7 @@ Recommendation: option 2 before production launch. Whatever is chosen: rotate `H
 
 **Backups.** A restore from before the rotation holds values under the old key. Keep the old key in the vault (never in an `.env`) for as long as such backups are kept (docs/backups.md); after that kind of restore, put it in `APP_PREVIOUS_KEYS` and run steps 3 to 7.
 
-### Decisions to confirm
+### Decisions (accepted by the owner 2026-10-22)
 
 - **Rotation schedule**: once a year and after any suspected exposure or the departure of someone who held the key. The owner may choose another interval.
 - **How long to keep an old key** in the vault: as long as the backups made before the rotation (the backup retention period), so a restore stays readable.

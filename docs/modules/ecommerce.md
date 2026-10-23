@@ -99,6 +99,8 @@ Five parts:
 
 ## Decisions
 
+All accepted by the owner on 2026-10-22 (Phase 8 report, Decisions), with the marketing consent changes in 14 and 15.
+
 1. **The storefront is a route group of the web app**, not a second
    build: `/shop/{store}/…` under its own layout (no sidebar, the host's
    brand, strict CSP and no Referer, as the supplier portal), with its own
@@ -169,6 +171,16 @@ Five parts:
     `ecommerce.shop.challenge_after` codes from one address in an hour the
     next one first needs a proof of work (sha256 of `nonce:solution`
     starting with N zeros), checked on the server with no third party.
+14. **One marketing consent box** (owner decision 2026-10-22). Sign-in
+    shows one unticked box for offers by SMS, WhatsApp and email
+    together (wording version `2026_10`), recorded through core's
+    `Consents` for channel `any`; no box per channel. An unticked box
+    records nothing (docs/privacy.md).
+15. **A STOP to the store's WhatsApp withdraws every channel** (owner
+    decision 2026-10-22). An opt-out reply in a store's WhatsApp inbox
+    withdraws marketing by WhatsApp, SMS and email for the tenant's
+    customers with that number, not only WhatsApp (`OptOuts`,
+    `MarketingConsentTest`).
 
 ## Data model
 

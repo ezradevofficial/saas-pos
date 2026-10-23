@@ -139,5 +139,18 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      // POS-08, POS-10: the buyer snapshot on local sales (older sales keep null: they upload as they were).
+      toVersion: 10,
+      steps: [
+        addColumns({
+          table: 'pos_sales',
+          columns: [
+            { name: 'buyer_tax_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'buyer_name', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

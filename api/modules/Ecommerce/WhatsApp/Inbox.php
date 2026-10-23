@@ -28,7 +28,8 @@ use Modules\Ecommerce\Support\Tx;
  * conversation per store and phone (an older conversation that was closed
  * or converted opens again). Replies go out through the provider and are
  * kept with who sent them. A reply that is an opt-out keyword (STOP)
- * also withdraws the customer's marketing consent by WhatsApp (NFR-08).
+ * also withdraws the customer's marketing consent on every channel (NFR-08;
+ * owner decision 2026-10-22).
  */
 final class Inbox
 {
@@ -103,7 +104,7 @@ final class Inbox
             });
             $stored += $new;
 
-            // NFR-08: a STOP reply opts the customer out of marketing by WhatsApp (core consent).
+            // NFR-08: a STOP reply opts the customer out of marketing on every channel (core consent).
             if ($new === 1 && $this->optOuts->isOptOut($message['text'])) {
                 $this->optOuts->optOut('whatsapp', $phone, 'store_whatsapp');
             }

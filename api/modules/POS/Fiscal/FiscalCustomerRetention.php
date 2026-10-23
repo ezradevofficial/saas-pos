@@ -8,21 +8,17 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * NFR-08, POS-10 (review M3): a customer's tax identity on the POS's fiscal
- * documents. PosFiscalSource reads the live party (tax_id and name) when it
- * builds a sale, refund or void for KRA eTIMS or the DGI, so anonymising a
- * customer who bought on fiscal documents would change the buyer of later
- * refunds and voids, or of documents still being sent.
+ * NFR-08, POS-10 (owner decision 2026-10-22): anonymising a customer who
+ * bought on fiscal documents. Each sale keeps its buyer snapshot
+ * (`pos_sales.buyer_tax_id`, `buyer_name`), and PosFiscalSource builds a
+ * sale, its refunds and its void from it, never from the party. So:
  *
  * - While any of the customer's fiscal documents is queued, sending,
- *   retrying or needs attention, anonymisation waits (`fiscal_pending`).
- * - Once the customer has fiscal sales, the party keeps its tax_id and
- *   legal name ("retained for legal obligation"), and its display name
- *   becomes the legal name when there is one (else it is kept as printed);
- *   everything else is anonymised.
- *
- * Storing a buyer snapshot on each sale would remove this need; it changes
- * the POS schema and waits for the owner (docs/privacy.md, decisions).
+ *   retrying or needs attention, anonymisation waits (`fiscal_pending`):
+ *   the authority has not yet accepted what names them.
+ * - Otherwise the party is fully anonymised. The sales' buyer snapshots
+ *   stay as printed on the fiscal documents, reported as retained for a
+ *   legal obligation (`fiscal_records`).
  */
 class FiscalCustomerRetention
 {
@@ -32,21 +28,19 @@ class FiscalCustomerRetention
     {
         $db = DB::connection(TenantContext::CONNECTION);
         $sales = fn (Builder $q) => $q->from('pos_sales')->where('customer_id', $partyId)->select('id');
-        $documents = $db->table('fiscal_submissions')->where(function (Builder $q) use ($sales) {
+        $pending = $db->table('fiscal_submissions')->whereIn('status', self::PENDING)->where(function (Builder $q) use ($sales) {
             $q->whereIn('document_id', $sales)
                 ->orWhereIn('document_id', fn (Builder $r) => $r->from('pos_refunds')->whereIn('sale_id', $sales)->select('id'))
                 ->orWhereIn('document_id', fn (Builder $v) => $v->from('pos_sale_voids')->whereIn('sale_id', $sales)->select('id'));
-        });
+        })->exists();
+        $snapshots = $db->table('pos_sales')->where('customer_id', $partyId)->whereNotNull('buyer_tax_id')->exists();
 
-        if (! (clone $documents)->exists()) {
+        if (! $pending && ! $snapshots) {
             return null;
         }
 
-        $legalName = $db->table('parties')->where('id', $partyId)->value('legal_name');
-        $pending = (clone $documents)->whereIn('status', self::PENDING)->exists();
-
         return new Retention(
-            keep: ['parties' => ['tax_id' => 'keep', 'legal_name' => 'keep', 'name' => $legalName !== null ? 'copy:legal_name' : 'keep']],
+            keep: $snapshots ? ['pos_sales' => ['buyer_tax_id' => 'keep', 'buyer_name' => 'keep']] : [],
             reason: 'fiscal_records',
             blockedBy: $pending ? 'fiscal_pending' : null,
         );

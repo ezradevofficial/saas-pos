@@ -1,6 +1,6 @@
 # ADR 022: Country pack publishing
 
-Status: Accepted (Phase 8, stage 8A: ADM-04, CP-01, CP-02, CP-03)
+Status: Accepted (Phase 8, stage 8A: ADM-04, CP-01, CP-02, CP-03). The decisions it lists for the owner were accepted by the owner 2026-10-22 (Phase 8 report, Decisions).
 
 ## Context
 

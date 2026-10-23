@@ -220,6 +220,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
           cashierId: user.id,
           actorProof,
           customerId: cart.customer?.id,
+          buyer: buyerOf(cart.customer),
           number,
           soldAt,
           offline: offline(),
@@ -334,6 +335,12 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
 }
 
 /** The sale's base currency and the rate the till used to it (null rate: the sale is in the base currency). */
+/** POS-08, POS-10: the customer's tax identity at the sale, kept on it and uploaded with it; null without a tax id. */
+export function buyerOf(customer) {
+  const taxId = typeof customer?.tax_id === 'string' ? customer.tax_id.trim() : '';
+  return taxId ? { taxId, name: customer.name ?? '' } : null;
+}
+
 function baseOf(catalogue, currency, at) {
   const base = catalogue.baseCurrency ?? currency;
   if (base === currency) return { currency: base, rate: null };
