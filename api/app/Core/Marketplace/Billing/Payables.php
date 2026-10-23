@@ -22,8 +22,10 @@ use Illuminate\Support\Facades\DB;
  *
  * - When a platform invoice is paid, each of its `app` lines earns the
  *   app's developer `marketplace.developer_share_percent` (80) of the
- *   line's amount net of discount and tax, rounded half up to a minor
- *   unit; the platform keeps the rest. Recorded once per line (unique
+ *   line's amount net of tax, rounded half up to a minor unit; the
+ *   platform keeps the rest. App lines take no share of the plan's
+ *   discounts (Invoicing::withTax, ADR 024 decision 9), so this is the
+ *   app's full price net of tax. Recorded once per line (unique
  *   index), in the transaction that paid the invoice.
  * - Payouts are manual until a provider is chosen: staff with
  *   `platform.marketplace.payouts` record what they paid, with its bank

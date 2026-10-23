@@ -1,6 +1,6 @@
 # ADR 020: The public API (keys, scopes, limits, documentation, sandbox)
 
-Status: Accepted (Phase 8, stage 8A: API-01, API-02 keys, API-03, API-04, API-05)
+Status: Accepted (Phase 8, stage 8A: API-01, API-02 keys, API-03, API-04, API-05). The decisions it lists for the owner were accepted by the owner 2026-10-22 (Phase 8 report, Decisions).
 
 ## Context
 

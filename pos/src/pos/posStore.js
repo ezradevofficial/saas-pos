@@ -53,6 +53,8 @@ export function createPosStore(database) {
         shift_id: sale.shift_id,
         status: sale.local?.status ?? 'completed',
         sold_at: Date.parse(sale.sold_at) || Date.now(),
+        buyer_tax_id: sale.buyer_tax_id ?? null,
+        buyer_name: sale.buyer_name ?? null,
         data: JSON.stringify(sale),
       });
     },

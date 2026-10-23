@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core\Privacy;
 
+use App\Core\Audit\AuditEntry;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Notifications\Channels;
 use App\Core\Notifications\EventType;
@@ -26,7 +27,7 @@ use Tests\TestCase;
  * signed, single-purpose unsubscribe link and List-Unsubscribe headers;
  * using the link withdraws consent on that channel once, without signing
  * in. SMS and WhatsApp: "Reply STOP to opt out", and a STOP reply
- * withdraws consent on that channel. Tampered, foreign and expired links
+ * withdraws consent on every channel (owner decision 2026-10-22). Tampered, foreign and expired links
  * do nothing; a later marketing send to the customer is skipped.
  */
 class MarketingOptOutTest extends TestCase
@@ -192,7 +193,7 @@ class MarketingOptOutTest extends TestCase
         $this->assertStringNotContainsString('STOP', $this->offer(Channels::EMAIL, 'amina@example.com')->sole()->body);
     }
 
-    public function test_a_stop_reply_withdraws_that_channel_only(): void
+    public function test_a_stop_reply_withdraws_every_channel(): void
     {
         $optOuts = app(OptOuts::class);
         foreach (['STOP', ' stop. ', 'Arrêt', 'unsubscribe!', 'STOP ALL'] as $word) {
@@ -202,15 +203,35 @@ class MarketingOptOutTest extends TestCase
             $this->assertFalse($optOuts->isOptOut($text), $text);
         }
 
-        $this->assertSame(1, $this->inTenant(fn () => $optOuts->optOut('sms', '+254712000111', 'test_provider')));
+        // A second customer with the number who consents by email only: a STOP by SMS withdraws that too.
+        $baraka = $this->inTenant(fn () => Party::query()->create([
+            'company_id' => $this->acme->id, 'kind' => 'person', 'name' => 'Baraka Otieno', 'roles' => ['customer'],
+            'phones' => [['number' => '+254712000111', 'label' => null]],
+        ]));
+        $this->inTenant(fn () => app(Consents::class)->record($this->owner, 'customer', $baraka->id, 'marketing', 'email', true, 'back_office', 'Asked at the till'));
+
+        $this->assertSame(2, $this->inTenant(fn () => $optOuts->optOut('sms', '+254712000111', 'test_provider')));
         // A repeat finds nobody still consenting.
         $this->assertSame(0, $this->inTenant(fn () => $optOuts->optOut('sms', '+254712000111', 'test_provider')));
 
-        $record = $this->inTenant(fn () => ConsentRecord::query()->where('granted', false)->sole());
-        $this->assertSame(['sms', 'opt_out_reply'], [$record->channel, $record->source]);
-        $this->assertStringContainsString('test_provider', (string) $record->evidence);
+        // One withdrawal per customer, through Consents (audited), for every channel, with the evidence.
+        $records = $this->inTenant(fn () => ConsentRecord::query()->where('granted', false)->orderBy('subject_id')->get());
+        $this->assertCount(2, $records);
+        $this->assertEqualsCanonicalizing([$this->amina->id, $baraka->id], $records->pluck('subject_id')->all());
+        foreach ($records as $record) {
+            $this->assertSame(['any', 'opt_out_reply'], [$record->channel, $record->source]);
+            $this->assertStringContainsString('sms', (string) $record->evidence);
+            $this->assertStringContainsString('test_provider', (string) $record->evidence);
+        }
+        $this->assertSame(2, $this->inTenant(fn () => AuditEntry::query()->where('action', 'core.consent.withdraw')->count()));
+
+        foreach ([$this->amina, $baraka] as $party) {
+            foreach (EventType::MARKETING_CHANNELS as $channel) {
+                $this->assertFalse($this->inTenant(fn () => app(Consents::class)->allows('customer', $party->id, 'marketing', $channel)), "{$party->name} {$channel}");
+            }
+        }
         $this->assertSame(NotificationDelivery::REASON_NO_CONSENT, $this->offer(Channels::SMS, '+254712000111')->sole()->reason);
-        $this->assertTrue($this->inTenant(fn () => app(Consents::class)->allows('customer', $this->amina->id, 'marketing', 'whatsapp')));
+        $this->assertSame(NotificationDelivery::REASON_NO_CONSENT, $this->offer(Channels::EMAIL, 'amina@example.com')->sole()->reason);
 
         // Another tenant's customer with the same number is untouched: replies act in the tenant they reached.
         $this->assertSame(0, $this->inTenant(fn () => $optOuts->optOut('sms', '+254799999999', 'test_provider')));

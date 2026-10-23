@@ -33,7 +33,7 @@ One Linode shared plan: 2 GB RAM, 1 vCPU, 50 GB disk, Ubuntu 24.04 LTS. The owne
 | Horizon | systemd unit, `HORIZON_PROFILE=single-host`: payments, fiscal, notifications, default and automation share one supervisor in that priority order. Exports, imports and webhooks keep one process each. That makes five worker processes, not eight or more. `MemoryMax=1G`, `Nice=5`, so web requests come first. |
 | Scheduler | A systemd timer runs `schedule:run` every minute. Every scheduled command is `onOneServer()`. |
 | Host | ufw allows only 22, 80 and 443. fail2ban guards sshd. unattended-upgrades applies security updates without automatic reboots. A 2 GB swap file with `vm.swappiness = 10`. |
-| Proxies | No load balancer and no VPC: `TRUSTED_PROXIES=none`. Cloudflare DNS records stay **DNS only**. A proxied record would make every client address a Cloudflare address, which the rate limits and the M-Pesa callback allow-list would then see. |
+| Proxies | No load balancer and no VPC: `TRUSTED_PROXIES=none`. DNS is on Namecheap (owner, 2026-10-22), whose records never proxy. If DNS ever moves to a proxying provider such as Cloudflare, the records stay **DNS only**: a proxied record would make every client address the proxy's address, which the rate limits and the M-Pesa callback allow-list would then see. |
 
 ### Files in Object Storage from the start
 

@@ -33,8 +33,10 @@ class PrivacyServiceProvider extends ServiceProvider
             $subjects = new PrivacySubjects;
 
             // MD-03: a customer is a party. Fiscal documents keep their own
-            // copies; while the POS still needs the party's tax identity it
-            // keeps it (review M3, a retention rule in the POS module).
+            // copies, and POS sales their buyer snapshot (owner decision
+            // 2026-10-22), so the party is fully anonymised; the POS's
+            // retention rule only makes it wait while fiscal documents are
+            // being sent.
             $subjects->register(new SubjectSource(
                 subjectType: 'customer',
                 table: 'parties',

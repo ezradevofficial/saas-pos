@@ -47,6 +47,8 @@ class SaleResource extends JsonResource
             'shift_id' => $this->shift_id,
             'cashier' => $named($this->cashier),
             'customer' => $named($this->customer),
+            // POS-10: the buyer as its fiscal documents name them (null without a customer tax id).
+            'buyer' => $this->buyer_tax_id === null ? null : ['tax_id' => $this->buyer_tax_id, 'name' => $this->buyer_name],
             'currency' => $this->currency,
             'subtotal' => $money($this->subtotal_minor),
             'discount' => $money($this->discount_minor),

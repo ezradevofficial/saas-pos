@@ -19,8 +19,9 @@ use InvalidArgumentException;
  * - a **mask** for a table's rows in an access report, given who downloads
  *   it (HR hides the sensitive groups the downloader may not see, review H2);
  * - a **retention** rule per subject type: columns anonymisation must keep
- *   for a legal obligation, or a reason to refuse it for now (the POS keeps
- *   a customer's tax identity while fiscal documents need it, review M3);
+ *   for a legal obligation, or a reason to refuse it for now (the POS
+ *   reports its sales' buyer snapshots as kept, and waits while fiscal
+ *   documents are being sent);
  * - a **guard** per subject type: whether a user may ask for or carry out a
  *   deletion (users: UserPolicy::deactivate, review M4).
  */

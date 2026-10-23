@@ -68,6 +68,9 @@ use Modules\POS\Models\Shift;
  *   stated rate does not give, change above the overpayment, and an item
  *   whose tax rate is "Rate needed" or that has no tax code (rates are
  *   never invented).
+ * - **Buyer snapshot** (POS-08, POS-10): `buyer_tax_id` and `buyer_name`
+ *   as the till sent them, else the customer's tax id and name at upload
+ *   when it has one. Fiscal documents read the snapshot, never the party.
  * - **Base amounts** (CUR-04): the company's base is locked by the first
  *   sale; each line converts at the server's rate in force at the sale's
  *   time, else at the till's rate for that pair, else the sale waits
@@ -110,6 +113,13 @@ class SaleUploads
     /** @return array<string, mixed> */
     private function one(DevicePlace $place, array $data): array
     {
+        // Explicit null buyer fields (an older record resent) are the keys left out: the same sale, the same hash.
+        foreach (['buyer_tax_id', 'buyer_name'] as $key) {
+            if (array_key_exists($key, $data) && $data[$key] === null) {
+                unset($data[$key]);
+            }
+        }
+
         $existing = $this->stored($place, $data['id'], Records::hash($data));
 
         if ($existing !== null) {
@@ -173,7 +183,8 @@ class SaleUploads
             $flags->add($code);
         }
 
-        $this->customer($place, $data['customer_id'] ?? null);
+        $customer = $this->customer($place, $data['customer_id'] ?? null);
+        [$buyerTaxId, $buyerName] = $this->buyer($data, $customer);
 
         if (! TenantCurrency::query()->where('code', $currency)->exists()) {
             throw new Rejection('currency_unknown', 'currency');
@@ -216,6 +227,8 @@ class SaleUploads
             'shift_id' => $shift->id,
             'cashier_id' => $cashier->id,
             'customer_id' => $data['customer_id'] ?? null,
+            'buyer_tax_id' => $buyerTaxId,
+            'buyer_name' => $buyerName,
             'number_range_id' => $range->id,
             'receipt_seq' => (int) $data['receipt_seq'],
             'receipt_number' => $data['receipt_number'],
@@ -320,10 +333,10 @@ class SaleUploads
     }
 
     /** POS-08: a customer of the sale's company (shared or its own). */
-    private function customer(DevicePlace $place, ?string $id): void
+    private function customer(DevicePlace $place, ?string $id): ?Party
     {
         if ($id === null) {
-            return;
+            return null;
         }
 
         $party = Party::query()->find($id);
@@ -332,6 +345,27 @@ class SaleUploads
             || ($party->company_id !== null && $party->company_id !== $place->company->id)) {
             throw new Rejection('customer_unknown', 'customer_id');
         }
+
+        return $party;
+    }
+
+    /**
+     * POS-08, POS-10, NFR-08 (owner decision 2026-10-22): the buyer snapshot.
+     * The till's, as it printed it (device wins for completed sales); from a
+     * till that sends none, the customer's tax id and name at upload; none
+     * when the customer has no tax id.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function buyer(array $data, ?Party $customer): array
+    {
+        if (isset($data['buyer_tax_id'])) {
+            return [$data['buyer_tax_id'], $data['buyer_name']];
+        }
+
+        $taxId = $customer === null ? null : trim((string) $customer->tax_id);
+
+        return $taxId === null || $taxId === '' ? [null, null] : [$taxId, $customer->name];
     }
 
     private function priceList(DevicePlace $place, ?string $id, string $currency, string $field): ?PriceList
