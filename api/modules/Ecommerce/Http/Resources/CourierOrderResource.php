@@ -3,14 +3,12 @@
 namespace Modules\Ecommerce\Http\Resources;
 
 use App\Core\MasterData\Items\Http\Resources\HidesFields;
-use App\Core\Tenancy\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Ecommerce\Courier\CourierDeliveries;
 use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\OrderLine;
-use Modules\Ecommerce\Models\Zone;
 
 /**
  * MKT-04, ECOM-27 (ADR 024): an online order to deliver, as a courier sees
@@ -25,6 +23,9 @@ use Modules\Ecommerce\Models\Zone;
  */
 class CourierOrderResource extends JsonResource
 {
+    /** The relations every answer reads (review L9: no query per row). */
+    public const WITH = ['order.lines', 'order.location', 'order.zone'];
+
     /** Fields shown only to the courier the delivery is handed to. */
     public const HANDED_ONLY = ['contact_name', 'contact_phone', 'address', 'notes'];
 
@@ -36,6 +37,7 @@ class CourierOrderResource extends JsonResource
         $delivery = $this->resource;
         /** @var Order $order */
         $order = $delivery->order;
+        // Review L9: the order, its location, zone and lines come eager-loaded; the caller's riders once per request.
         $handed = $request->user() !== null && CourierDeliveries::handedTo($delivery, $request->user());
         $at = fn ($value) => $value === null ? null : ($value instanceof \DateTimeInterface ? $value : new \DateTimeImmutable((string) $value))->format(DATE_ATOM);
 
@@ -44,16 +46,15 @@ class CourierOrderResource extends JsonResource
             'number' => $order->number,
             'status' => $order->status,
             'company_id' => $order->company_id,
-            'location' => ['id' => $order->location_id, 'name' => (string) Location::query()->whereKey($order->location_id)->value('name')],
-            'zone' => $order->zone_id === null ? null : ['id' => $order->zone_id, 'name' => (string) Zone::query()->whereKey($order->zone_id)->value('name')],
+            'location' => ['id' => $order->location_id, 'name' => (string) $order->location?->name],
+            'zone' => $order->zone_id === null ? null : ['id' => $order->zone_id, 'name' => (string) $order->zone?->name],
             'currency' => $order->currency,
             'total_minor' => (string) $order->total_minor,
             'collect_minor' => (string) $delivery->cod_due_minor,
             'payment_status' => $order->payment_status,
             'placed_at' => $at($order->placed_at),
             'ready_at' => $at($order->ready_at),
-            'lines' => OrderLine::query()->where('order_id', $order->id)->orderBy('line_no')->get()
-                ->map(fn (OrderLine $line) => ['name' => $line->name, 'qty' => (string) $line->qty])->values()->all(),
+            'lines' => $order->lines->map(fn (OrderLine $line) => ['name' => $line->name, 'qty' => (string) $line->qty])->values()->all(),
             'handed_to_you' => $handed,
             'contact_name' => $handed ? $order->contact_name : null,
             'contact_phone' => $handed ? $order->contact_phone : null,

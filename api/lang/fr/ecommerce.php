@@ -66,6 +66,7 @@ return [
         'delivery_not_assignable' => 'Cette livraison ne peut pas être affectée maintenant : elle est en route, terminée, ou sa commande n’est pas prête.',
         'rider_unavailable' => 'Choisissez un livreur actif de cette société.',
         'delivery_unknown' => 'Cette livraison ne vous est pas affectée. Actualisez votre liste.',
+        'rider_stopped' => 'Votre compte de livreur pour cette société est désactivé. Demandez au magasin de le réactiver.',
         'delivery_status_invalid' => 'Cette livraison a changé de statut. Actualisez votre liste.',
         'code_locked' => 'Trop de codes de livraison erronés. Demandez au magasin de confirmer cette livraison.',
         'code_invalid' => 'Le code n’est pas correct. Vérifiez-le et réessayez.',

@@ -10,6 +10,8 @@ use App\Core\Rbac\Models\Role;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Modules\Ecommerce\Courier\CourierDeliveries;
 use Modules\Ecommerce\Events\OrderEvent;
@@ -167,7 +169,7 @@ class CourierApiTest extends TestCase
         $this->report($delivery, $headers, ['reference' => 'f-1', 'status' => 'failed'])->assertUnprocessable()->assertJsonValidationErrors('reason');
         $this->report($delivery, $headers, ['reference' => 'f-1', 'status' => 'failed', 'reason' => 'No driver free'])->assertOk()
             ->assertJsonPath('data.handed_to_you', false)->assertJsonPath('data.contact_phone', null);
-        $this->inTenant(fn () => $this->assertSame([Delivery::UNASSIGNED, null, 'No driver free'], [$delivery->refresh()->status, $delivery->rider_id, $delivery->reason]));
+        $this->inTenant(fn () => $this->assertSame([Delivery::UNASSIGNED, null, 'No driver free', null, null, null], [$delivery->refresh()->status, $delivery->rider_id, $delivery->reason, $delivery->tracking_reference, $delivery->tracking_url, $delivery->courier_reference]));
         // Sent again: the same answer, nothing more happens.
         $this->report($delivery, $headers, ['reference' => 'f-1', 'status' => 'failed', 'reason' => 'No driver free'])->assertOk();
         // No longer the courier's: a new update is refused.
@@ -179,7 +181,11 @@ class CourierApiTest extends TestCase
         $delivery = $this->waiting();
         $this->api('POST', "ecommerce/deliveries/{$delivery->id}/assign", ['rider_id' => $this->rider->id], $this->manager)->assertOk();
 
-        $this->book($delivery, $this->key())->assertStatus(409)->assertJsonPath('code', 'delivery_not_assignable');
+        $headers = $this->key();
+        $this->book($delivery, $headers)->assertStatus(409)->assertJsonPath('code', 'delivery_not_assignable');
+        // Review L5: neither waiting nor handed to the key: not found, as in the list.
+        $this->getJson("/api/v1/ecommerce/courier/orders/{$delivery->order_id}", $headers)->assertNotFound();
+        $this->assertSame([], $this->getJson('/api/v1/ecommerce/courier/orders?status=all', $headers)->assertOk()->json('data'));
         $this->inTenant(fn () => $this->assertSame($this->rider->id, $delivery->refresh()->rider_id));
     }
 
@@ -251,16 +257,152 @@ class CourierApiTest extends TestCase
         $this->book($delivery, $headers)->assertStatus(429);
     }
 
-    public function test_people_use_the_same_routes_within_their_role(): void
+    /** Security review M3: people read within their role, but only service principals book and report. */
+    public function test_people_read_but_never_book_or_report_as_a_courier(): void
     {
         $delivery = $this->waiting();
 
         // The branch manager reads (no contact: not handed to them); the rider template has no order view.
         $this->getJson('/api/v1/ecommerce/courier/orders', $this->headersFor($this->manager))->assertOk()->assertJsonPath('data.0.contact_phone', null);
         $this->getJson('/api/v1/ecommerce/courier/orders', $this->headersFor($this->riderUser))->assertForbidden();
-        // A manager may book (assign), but not report as a courier (no deliver).
-        $this->book($delivery, $this->headersFor($this->manager))->assertCreated()->assertJsonPath('data.handed_to_you', true);
-        $this->report($delivery, $this->headersFor($this->manager), ['reference' => 'm-1', 'status' => 'picked_up'])->assertForbidden();
+
+        // Not even the Owner, who holds every permission, makes themselves a rider through booking.
+        foreach ([$this->manager, $this->owner] as $person) {
+            $this->book($delivery, $this->headersFor($person))->assertForbidden()->assertJsonPath('code', 'courier_keys_only');
+            $this->report($delivery, $this->headersFor($person), ['reference' => 'm-1', 'status' => 'picked_up'])->assertForbidden()->assertJsonPath('code', 'courier_keys_only');
+        }
+        $this->inTenant(function () use ($delivery) {
+            $this->assertSame([Delivery::UNASSIGNED, null], [$delivery->refresh()->status, $delivery->rider_id]);
+            $this->assertSame(1, Rider::query()->count());
+        });
+    }
+
+    /**
+     * Security review H1: archiving a courier's rider stops it everywhere at that company: the
+     * deliveries it holds that are not picked up go back to waiting with their tracking cleared
+     * (audited); the picked-up one stays for staff, but the courier reads and reports nothing.
+     */
+    public function test_an_archived_courier_is_stopped_and_gives_back_what_it_holds(): void
+    {
+        $headers = $this->key();
+        [$held, $picked, $other] = [$this->waiting(), $this->waiting(), $this->waiting()];
+        $this->book($held, $headers)->assertCreated();
+        $this->book($picked, $headers, ['reference' => 'bk-p'])->assertCreated();
+        $this->report($picked, $headers, ['reference' => 'p-1', 'status' => 'picked_up'])->assertOk();
+        $rider = $this->inTenant(fn () => Rider::query()->whereHas('user', fn ($q) => $q->where('status', User::STATUS_SERVICE))->sole());
+
+        $this->postJson("/api/v1/ecommerce/riders/{$rider->id}/archive", [], $this->headersFor())->assertOk();
+
+        $this->inTenant(function () use ($held, $picked, $rider) {
+            $held->refresh();
+            $this->assertSame([Delivery::UNASSIGNED, null, null, null, null], [$held->status, $held->rider_id, $held->tracking_reference, $held->tracking_url, $held->courier_reference]);
+            $this->assertSame([Delivery::PICKED_UP, $rider->id], [$picked->refresh()->status, $picked->rider_id]);
+            $entry = AuditEntry::query()->where('action', 'ecommerce.rider.courier_stopped')->sole();
+            $this->assertSame([[$held->id], [$picked->id]], [$entry->after['released_delivery_ids'], $entry->after['picked_up_delivery_ids']]);
+            $this->assertTrue(AuditEntry::query()->where('auditable_id', $held->id)->where('action', 'ecommerce.delivery.updated')->exists()
+                || AuditEntry::query()->where('auditable_id', $held->id)->where('action', 'like', 'ecommerce.delivery.%')->count() > 1);
+        });
+
+        // Every courier route refuses it at that company.
+        $this->getJson('/api/v1/ecommerce/courier/orders?status=handed', $headers)->assertForbidden()->assertJsonPath('code', 'courier_stopped');
+        $this->getJson("/api/v1/ecommerce/courier/orders/{$picked->order_id}", $headers)->assertForbidden()->assertJsonPath('code', 'courier_stopped');
+        $this->getJson("/api/v1/ecommerce/courier/orders/{$other->order_id}", $headers)->assertForbidden()->assertJsonPath('code', 'courier_stopped');
+        foreach (['picked_up', 'delivered', 'failed'] as $i => $status) {
+            $this->report($picked, $headers, ['reference' => "s-{$i}", 'status' => $status, 'reason' => 'x', 'code' => '123456'])->assertForbidden()->assertJsonPath('code', 'courier_stopped');
+        }
+        $this->book($picked, $headers, ['reference' => 'bk-p2', 'tracking_reference' => 'TRK-9'])->assertForbidden()->assertJsonPath('code', 'courier_stopped');
+        $this->book($held, $headers, ['reference' => 'bk-again'])->assertForbidden()->assertJsonPath('code', 'courier_stopped');
+        $this->inTenant(fn () => $this->assertSame(['TRK-001', Order::OUT_FOR_DELIVERY], [$picked->refresh()->tracking_reference, Order::query()->findOrFail($picked->order_id)->status]));
+
+        // Nothing is handed to it any more: even with the stop lifted at the route, no contact is given.
+        $this->assertFalse($this->inTenant(fn () => CourierDeliveries::handedTo($picked->refresh(), User::query()->findOrFail($rider->user_id))));
+    }
+
+    /** Security review H1: switching a courier's rider off stops it as archiving does. */
+    public function test_a_courier_switched_off_is_stopped(): void
+    {
+        $headers = $this->key();
+        $delivery = $this->waiting();
+        $this->book($delivery, $headers)->assertCreated();
+        $rider = $this->inTenant(fn () => Rider::query()->whereHas('user', fn ($q) => $q->where('status', User::STATUS_SERVICE))->sole());
+
+        $this->patchJson("/api/v1/ecommerce/riders/{$rider->id}", ['active' => false], $this->headersFor())->assertOk();
+
+        $this->inTenant(fn () => $this->assertSame([Delivery::UNASSIGNED, null], [$delivery->refresh()->status, $delivery->tracking_reference]));
+        $this->getJson('/api/v1/ecommerce/courier/orders', $headers)->assertForbidden()->assertJsonPath('code', 'courier_stopped');
+    }
+
+    /** Security review H1: an archived human rider's updates are refused too (and not stored, so a resend answers again once restored). */
+    public function test_an_archived_rider_updates_nothing(): void
+    {
+        $delivery = $this->waiting();
+        $this->api('POST', "ecommerce/deliveries/{$delivery->id}/assign", ['rider_id' => $this->rider->id], $this->manager)->assertOk();
+        $this->inTenant(fn () => $this->rider->refresh()->archive());
+
+        $update = ['id' => (string) Str::uuid7(), 'delivery_id' => $delivery->id, 'kind' => 'status', 'status' => 'picked_up', 'occurred_at' => CarbonImmutable::now()->toIso8601String()];
+        $this->api('POST', 'ecommerce/rider/updates', ['updates' => [$update]], $this->riderUser)->assertStatus(422)->assertJsonPath('results.0.error.code', 'rider_stopped');
+        $this->inTenant(function () use ($delivery) {
+            $this->assertSame(Delivery::ASSIGNED, $delivery->refresh()->status);
+            $this->assertSame(0, DeliveryUpdate::query()->count());
+        });
+    }
+
+    /** Security review L7: a courier's tracking is cleared when staff hand the delivery to another rider. */
+    public function test_tracking_is_cleared_when_the_rider_changes(): void
+    {
+        $delivery = $this->waiting();
+        $this->book($delivery, $this->key())->assertCreated();
+
+        $this->api('POST', "ecommerce/deliveries/{$delivery->id}/assign", ['rider_id' => $this->rider->id], $this->manager)->assertOk();
+
+        $this->inTenant(fn () => $this->assertSame([$this->rider->id, null, null, null, null], [$delivery->refresh()->rider_id, $delivery->courier_reference, $delivery->tracking_reference, $delivery->tracking_url, $delivery->booked_at]));
+    }
+
+    /** Security review L6: two first bookings at once make one rider; the loser reads it, no 500. */
+    public function test_a_first_booking_that_loses_the_race_to_make_the_rider_reads_it(): void
+    {
+        $delivery = $this->waiting();
+        $headers = $this->key();
+        $raced = false;
+        $courier = $this->inTenant(fn () => User::query()->where('status', User::STATUS_SERVICE)->sole());
+        // Another booking makes the rider right after our read found none, before our insert.
+        DB::listen(function ($query) use (&$raced, $courier) {
+            if (! $raced && str_contains($query->sql, 'from "ecom_riders" where "company_id" = ?') && in_array($courier->id, $query->bindings, true)) {
+                $raced = true;
+                Rider::query()->insert(['id' => (string) Str::uuid7(), 'tenant_id' => $courier->tenant_id, 'company_id' => $this->acme->id,
+                    'user_id' => $courier->id, 'name' => 'Other booking', 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
+            }
+        });
+
+        $this->book($delivery, $headers)->assertCreated();
+        $this->assertTrue($raced);
+        $this->inTenant(fn () => $this->assertSame([1, 'Other booking'], [Rider::query()->where('user_id', '!=', $this->riderUser->id)->count(), Rider::query()->findOrFail($delivery->refresh()->rider_id)->name]));
+    }
+
+    /** Security review L9: the list reads the same number of queries for one order as for five. */
+    public function test_the_list_reads_a_fixed_number_of_queries(): void
+    {
+        $headers = $this->key();
+        $count = function () use ($headers) {
+            $queries = 0;
+            DB::listen(function () use (&$queries) {
+                $queries++;
+            });
+            $before = $queries;
+            $this->getJson('/api/v1/ecommerce/courier/orders?status=all', $headers)->assertOk();
+
+            return $queries - $before;
+        };
+
+        $this->book($this->waiting(), $headers)->assertCreated();
+        $one = $count();
+        foreach (range(1, 4) as $n) {
+            $this->book($this->waiting(), $headers, ['reference' => "bk-{$n}"])->assertCreated();
+        }
+        $five = $count();
+
+        $this->assertSame(5, count($this->getJson('/api/v1/ecommerce/courier/orders?status=all', $headers)->json('data')));
+        $this->assertSame($one, $five, "the list read {$one} queries for one order and {$five} for five");
     }
 
     public function test_the_ready_for_delivery_event_is_sent_only_for_a_delivery_waiting_for_a_courier(): void

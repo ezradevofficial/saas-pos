@@ -5,6 +5,7 @@ return [
     'errors' => [
         'delivery_not_assignable' => 'This delivery can’t be booked now: another rider or courier has it, it has finished, or its order is not ready. Refresh your list of orders.',
         'reference_reused' => 'This reference was already used with other details. Send a new reference for a new booking or update.',
+        'courier_keys_only' => 'Only an API key or an app books and reports deliveries as a courier. Staff assign riders and confirm deliveries in E-commerce, Deliveries.',
         'courier_stopped' => 'This organisation has stopped bookings by this courier at this company. Ask them to restore it.',
         'delivery_unknown' => 'This delivery isn’t handed to you. Refresh your list of orders.',
         'delivery_status_invalid' => 'This delivery has moved on and can’t take this update. Get the order again to see its state.',

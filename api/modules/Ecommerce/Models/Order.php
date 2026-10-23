@@ -3,6 +3,7 @@
 namespace Modules\Ecommerce\Models;
 
 use App\Core\Currency\FxSnapshot;
+use App\Core\Tenancy\Models\Location;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -67,6 +68,11 @@ class Order extends EcomModel
     public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
+    }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
     }
 
     public function zone(): BelongsTo

@@ -2,10 +2,14 @@
 
 namespace Modules\Ecommerce\Courier;
 
+use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
 use Modules\Ecommerce\Delivery\RiderUpdates;
 use Modules\Ecommerce\Models\Delivery;
@@ -16,10 +20,18 @@ use Modules\Ecommerce\Support\Tx;
 /**
  * MKT-04, ECOM-27, ECOM-28 (ADR 024): a courier working through the public
  * API, as the courier connector's install (an app principal) or an API key.
+ * Only service principals book and report; people who manage deliveries
+ * use the staff and rider routes (security review M3).
  *
  * - A courier is a rider of the company whose user is its principal, made
  *   the first time it books there (named after the app or key; audited as
- *   any rider). Staff stop a courier at a company by archiving that rider.
+ *   any rider). Two first bookings at once make one rider (review L6).
+ * - Staff stop a courier at a company by archiving that rider, or switching
+ *   it off (review H1): every courier route refuses it there with 403
+ *   `courier_stopped`, nothing is handed to it any more (no customer
+ *   contact), and the deliveries it holds that are not picked up yet go
+ *   back to waiting for a courier, their tracking cleared, audited. A
+ *   delivery it already picked up stays for staff to confirm or return.
  * - Booking hands an unassigned delivery of an order that is accepted,
  *   being picked or ready to the courier, as assigning a rider does
  *   (Deliveries::assign, whose rider rule wants a person), and keeps the
@@ -44,26 +56,82 @@ final class CourierDeliveries
     /** Delivery statuses while a courier holds it (its tracking may still change). */
     public const HELD = [Delivery::ASSIGNED, Delivery::PICKED_UP];
 
-    /** RiderUpdates codes and the HTTP status a courier gets for them. */
+    /** RiderUpdates codes and what a courier gets for them. */
     private const STATUSES = [
         'delivery_unknown' => 404,
         'delivery_status_invalid' => 409,
         'code_locked' => 409,
         'status_invalid' => 409,
+        'courier_stopped' => 403,
     ];
 
     public function __construct(private readonly RiderUpdates $updates) {}
 
-    /** @return Collection<int, string> the ids of the riders that are $courier */
-    public static function riderIds(User $courier): Collection
+    /**
+     * The riders that are $user, read once per request: ids of those that
+     * may work (active, not archived) and the companies where it is stopped.
+     *
+     * @return array{active: list<string>, stopped_companies: list<string>, any: bool}
+     */
+    public static function ridersOf(User $user): array
     {
-        return Rider::query()->where('user_id', $courier->id)->pluck('id');
+        $request = request();
+        $key = 'ecommerce.courier.riders.'.$user->id;
+
+        if ($request->attributes->has($key)) {
+            return $request->attributes->get($key);
+        }
+
+        $riders = Rider::query()->where('user_id', $user->id)->get(['id', 'company_id', 'active', 'archived_at']);
+        $working = fn (Rider $r) => $r->active && $r->archived_at === null;
+        $value = [
+            'active' => $riders->filter($working)->pluck('id')->values()->all(),
+            'stopped_companies' => $riders->reject($working)->pluck('company_id')->unique()->values()->all(),
+            'any' => $riders->isNotEmpty(),
+        ];
+        $request->attributes->set($key, $value);
+
+        return $value;
     }
 
-    /** Whether $delivery is handed to $courier (its rider is the courier at that company). */
+    /** Forget what ridersOf() read in this request (a rider was made or changed). */
+    public static function forget(User $user): void
+    {
+        request()->attributes->remove('ecommerce.courier.riders.'.$user->id);
+    }
+
+    /** @return Collection<int, string> the ids of the riders that are $courier and may work */
+    public static function riderIds(User $courier): Collection
+    {
+        return collect(self::ridersOf($courier)['active']);
+    }
+
+    /** Whether $delivery is handed to $courier: its rider is the courier, active and not archived. */
     public static function handedTo(Delivery $delivery, User $courier): bool
     {
-        return $delivery->rider_id !== null && Rider::query()->whereKey($delivery->rider_id)->where('user_id', $courier->id)->exists();
+        return $delivery->rider_id !== null && in_array($delivery->rider_id, self::ridersOf($courier)['active'], true);
+    }
+
+    /** Whether $delivery waits for a courier (no rider, its order bookable); needs its order loaded or readable. */
+    public static function waiting(Delivery $delivery): bool
+    {
+        return $delivery->status === Delivery::UNASSIGNED && in_array($delivery->order?->status, self::BOOKABLE_ORDER_STATUSES, true);
+    }
+
+    /** Review H1: a courier stopped at the company gets nothing there. */
+    public static function assertNotStopped(User $courier, string $companyId): void
+    {
+        if (in_array($companyId, self::ridersOf($courier)['stopped_companies'], true)) {
+            throw self::error('courier_stopped', 403);
+        }
+    }
+
+    /** Review M3: only an API key's or an app's principal books and reports as a courier. */
+    public static function assertService(User $user): void
+    {
+        if (! $user->isServicePrincipal()) {
+            throw self::error('courier_keys_only', 403);
+        }
     }
 
     /**
@@ -72,7 +140,7 @@ final class CourierDeliveries
      */
     public function book(Delivery $delivery, User $courier, array $data): array
     {
-        return Tx::run(function () use ($delivery, $courier, $data) {
+        $result = Tx::run(function () use ($delivery, $courier, $data) {
             $delivery = Delivery::query()->whereKey($delivery->id)->lockForUpdate()->firstOrFail();
             $tracking = ['tracking_reference' => $data['tracking_reference'], 'tracking_url' => $data['tracking_url'] ?? null];
 
@@ -112,6 +180,10 @@ final class CourierDeliveries
 
             return ['delivery' => $delivery, 'created' => true];
         });
+
+        self::forget($courier);
+
+        return $result;
     }
 
     /**
@@ -133,9 +205,38 @@ final class CourierDeliveries
 
         if ($result['status'] !== 'stored') {
             $code = (string) ($result['error']['code'] ?? 'delivery_status_invalid');
+            $code = $code === RiderUpdates::RIDER_STOPPED ? 'courier_stopped' : $code;
 
             throw self::error($code, self::STATUSES[$code] ?? 422);
         }
+    }
+
+    /**
+     * Review H1: a courier's rider was archived or switched off. The
+     * deliveries it holds that are not picked up go back to waiting for a
+     * courier (no rider, tracking cleared; each change audited on the
+     * delivery), and one entry on the rider names them and the picked-up
+     * ones staff still have to confirm or return.
+     */
+    public function release(Rider $rider): void
+    {
+        Tx::run(function () use ($rider) {
+            $held = Delivery::query()->where('rider_id', $rider->id)->whereIn('status', self::HELD)->lockForUpdate()->get();
+            $released = [];
+
+            foreach ($held->where('status', Delivery::ASSIGNED) as $delivery) {
+                $delivery->forceFill([
+                    'status' => Delivery::UNASSIGNED, 'rider_id' => null, 'assigned_at' => null,
+                    'courier_reference' => null, 'tracking_reference' => null, 'tracking_url' => null, 'booked_at' => null,
+                ])->save();
+                $released[] = $delivery->id;
+            }
+
+            app(Auditor::class)->record('ecommerce.rider.courier_stopped', $rider, null, [
+                'released_delivery_ids' => $released,
+                'picked_up_delivery_ids' => $held->where('status', Delivery::PICKED_UP)->pluck('id')->values()->all(),
+            ]);
+        });
     }
 
     /** A stable UUID (version 8) for the courier's reference, so a resend is the same rider update. */
@@ -148,13 +249,24 @@ final class CourierDeliveries
         return substr($hex, 0, 8).'-'.substr($hex, 8, 4).'-'.substr($hex, 12, 4).'-'.substr($hex, 16, 4).'-'.substr($hex, 20, 12);
     }
 
-    /** The courier's rider at the company, made on its first booking there; an archived or inactive one is refused. */
-    private function riderFor(User $courier, string $companyId): Rider
+    /**
+     * The courier's rider at the company, made on its first booking there;
+     * an archived or inactive one is refused. Review L6: made in a savepoint,
+     * so a booking that loses the race to make it reads the winner's row.
+     */
+    public function riderFor(User $courier, string $companyId): Rider
     {
-        $rider = Rider::query()->where('company_id', $companyId)->where('user_id', $courier->id)->first();
+        $find = fn () => Rider::query()->where('company_id', $companyId)->where('user_id', $courier->id)->first();
+        $rider = $find();
 
         if ($rider === null) {
-            return Rider::create(['company_id' => $companyId, 'user_id' => $courier->id, 'name' => mb_substr((string) $courier->name, 0, 160), 'active' => true]);
+            try {
+                $rider = DB::connection(TenantContext::CONNECTION)->transaction(fn () => Rider::create([
+                    'company_id' => $companyId, 'user_id' => $courier->id, 'name' => mb_substr((string) $courier->name, 0, 160), 'active' => true,
+                ]));
+            } catch (UniqueConstraintViolationException) {
+                $rider = $find() ?? throw self::error('delivery_not_assignable', 409);
+            }
         }
 
         if (! $rider->active || $rider->archived_at !== null) {
