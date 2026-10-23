@@ -14,10 +14,12 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Modules\Procurement\Models\Bid;
 use Modules\Procurement\Models\Bidder;
+use Modules\Procurement\Models\BidFile;
 use Modules\Procurement\Models\PortalSession;
 use Modules\Procurement\Tenders\Bidders;
 use Modules\Procurement\Tests\Concerns\BuildsProcurement;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\TestCase;
 
 // PRC-07, PRC-08, PRC-23: the supplier portal's identity and isolation:
@@ -26,7 +28,7 @@ use Tests\TestCase;
 // the tender or the deadline; every route is rate-limited and audited.
 class PortalTest extends TestCase
 {
-    use BuildsProcurement, RefreshTenantDatabase;
+    use BuildsProcurement, RefreshTenantDatabase, UsesObjectStorage;
 
     private array $tender;
 
@@ -109,6 +111,18 @@ class PortalTest extends TestCase
         $this->putJson('/api/v1/supplier-portal/bid', [
             'currency' => 'KES', 'lines' => [['tender_line_id' => $other['lines'][0]['id'], 'unit_price_minor' => '1']],
         ], $baraka)->assertUnprocessable()->assertJsonPath('code', 'line_unknown');
+    }
+
+    /** NFR-07: a bid file goes to the object store under the tenant, sealed (never the plain bytes). */
+    public function test_bid_files_on_the_object_store_are_sealed_under_the_tenant(): void
+    {
+        $this->useObjectStorage();
+        $upesi = $this->portal($this->linkFor($this->bidderIds['Upesi Supplies']));
+        $id = $this->postJson('/api/v1/supplier-portal/bid/files', ['file' => UploadedFile::fake()->createWithContent('quote.pdf', '%PDF-1.4 upesi')], $upesi)->assertCreated()->json('data.id');
+
+        $row = $this->inTenant(fn () => BidFile::query()->findOrFail($id));
+        $this->assertOnObjectStorage($row->disk, $row->path, $this->owner->tenant_id, "procurement/bids/{$this->tender['id']}/");
+        $this->assertStringNotContainsString('upesi', (string) Storage::disk('s3')->get($row->path));
     }
 
     public function test_user_tokens_are_refused_on_the_portal_and_portal_tokens_in_the_back_office(): void

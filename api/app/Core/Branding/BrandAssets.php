@@ -4,6 +4,7 @@ namespace App\Core\Branding;
 
 use App\Core\Audit\Auditor;
 use App\Core\Branding\Models\BrandAsset;
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
@@ -16,21 +17,21 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * BR-02, BR-04: logos, favicons and sign-in backgrounds on the `media`
- * disk at `tenants/{tenant}/branding/{uuid}.{ext}` (JPEG, PNG or WebP, as
- * item images). Uploading is audited as `core.branding.asset_add`.
+ * BR-02, BR-04: logos, favicons and sign-in backgrounds on the tenant
+ * files disk (TenantFiles: local in development, Linode Object Storage in
+ * production) at `tenants/{tenant}/branding/{uuid}.{ext}` (JPEG, PNG or
+ * WebP, as item images). Uploading is audited as `core.branding.asset_add`.
  *
  * Branding is public (the sign-in page shows it before anyone signs in),
- * but files are still never served from a public path: url() signs a
- * route (`GET branding/assets/{path}`, BrandAssetFileController) on the
- * local driver, or asks the object store for a temporary URL. The expiry
- * is rounded to the day, so the URL of a file stays the same for a day
- * and browsers can cache it.
+ * but the bucket never is (NFR-07): url() signs a route
+ * (`GET branding/assets/{path}`, BrandAssetFileController) that streams
+ * the file from whichever disk holds it, with cache headers. The expiry is
+ * rounded to the day, so the URL of a file stays the same for a day and
+ * browsers and proxies can cache it (a presigned object-store URL changes
+ * every second and would not cache).
  */
 class BrandAssets
 {
-    public const DISK = 'media';
-
     public const EXTENSIONS = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
 
     public function __construct(
@@ -42,18 +43,19 @@ class BrandAssets
     {
         $mime = (string) $file->getMimeType();
         [$width, $height] = getimagesize($file->getRealPath()) ?: [0, 0];
-        $path = sprintf('tenants/%s/branding/%s.%s', $this->tenants->require(), Str::uuid7(), self::EXTENSIONS[$mime]);
-        $disk = Storage::disk(self::DISK);
+        $path = TenantFiles::key($this->tenants->require(), 'branding', Str::uuid7().'.'.self::EXTENSIONS[$mime]);
+        $diskName = TenantFiles::disk();
+        $disk = Storage::disk($diskName);
 
         if (! $disk->putFileAs(dirname($path), $file, basename($path))) {
             throw new ApiException(500, 'asset_not_stored', __('branding.errors.asset_not_stored'));
         }
 
         try {
-            return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($kind, $path, $mime, $file, $width, $height, $by) {
+            return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($kind, $diskName, $path, $mime, $file, $width, $height, $by) {
                 $asset = BrandAsset::create([
                     'kind' => $kind,
-                    'disk' => self::DISK,
+                    'disk' => $diskName,
                     'path' => $path,
                     'mime' => $mime,
                     'size' => (int) $file->getSize(),
@@ -79,10 +81,6 @@ class BrandAssets
     {
         $expires = CarbonImmutable::now()->startOfDay()->addDays(2);
 
-        if (config("filesystems.disks.{$asset->disk}.driver") === 's3') {
-            return Storage::disk($asset->disk)->temporaryUrl($asset->path, $expires);
-        }
-
         return SignedUrls::temporary('branding.asset', $expires, ['path' => $asset->path]);
     }
 
@@ -93,9 +91,7 @@ class BrandAssets
             return null;
         }
 
-        $asset = new BrandAsset(['disk' => self::DISK, 'path' => $path]);
-
-        return $this->url($asset);
+        return $this->url(new BrandAsset(['path' => $path]));
     }
 
     /**

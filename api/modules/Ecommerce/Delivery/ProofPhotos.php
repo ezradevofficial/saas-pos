@@ -2,6 +2,7 @@
 
 namespace Modules\Ecommerce\Delivery;
 
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
@@ -20,13 +21,13 @@ use Throwable;
 
 /**
  * ECOM-41: a photo as proof of delivery, through the core media pipeline:
- * the private `media` disk (object storage in production) at
+ * the tenant files disk (TenantFiles: Linode Object Storage in production) at
  * `tenants/{tenant}/ecommerce/proofs/{delivery}/{uuid}.{ext}`, a JPEG, PNG
  * or WebP whose content really is an image (ProofPhotoRequest: size and
- * dimensions capped), never served from a public path: staff get a
- * temporary URL (the object store's own, or the signed route bound to the
- * user, which checks the tenant and the permission again,
- * ProofPhotoController), the customer gets it through the tracking token
+ * dimensions capped), never served from a public path: staff get the
+ * API's signed route bound to the user, which checks the tenant and the
+ * permission again and streams the file (ProofPhotoController), never a
+ * presigned object-store URL (NFR-07); the customer gets it through the tracking token
  * (ShopController::proofPhoto).
  *
  * KE DPA (minimum data): the photo is re-encoded before it is stored, so
@@ -48,8 +49,6 @@ use Throwable;
  */
 final class ProofPhotos
 {
-    public const DISK = 'media';
-
     public const URL_MINUTES = 15;
 
     public const EXTENSIONS = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
@@ -70,8 +69,8 @@ final class ProofPhotos
         }
 
         [$bytes, $mime] = self::withoutMetadata((string) file_get_contents($file->getRealPath()), (string) $file->getMimeType());
-        $path = sprintf('tenants/%s/ecommerce/proofs/%s/%s.%s', $this->tenants->require(), $delivery->id, Str::uuid7(), self::EXTENSIONS[$mime]);
-        $disk = Storage::disk(self::DISK);
+        $path = TenantFiles::key($this->tenants->require(), 'ecommerce', 'proofs', $delivery->id, Str::uuid7().'.'.self::EXTENSIONS[$mime]);
+        $disk = Storage::disk(TenantFiles::disk());
 
         if (! $disk->put($path, $bytes)) {
             throw EcomError::make('photo_not_stored', status: 500);
@@ -95,7 +94,7 @@ final class ProofPhotos
                 ])->save();
 
                 if ($previous !== null && $previous !== $path) {
-                    DB::connection(TenantContext::CONNECTION)->afterCommit(fn () => rescue(fn () => Storage::disk(self::DISK)->delete($previous), report: true));
+                    DB::connection(TenantContext::CONNECTION)->afterCommit(fn () => rescue(fn () => Storage::disk(TenantFiles::disk())->delete($previous), report: true));
                 }
 
                 return $delivery;
@@ -114,10 +113,9 @@ final class ProofPhotos
             return null;
         }
 
-        $expires = now()->addMinutes(self::URL_MINUTES);
-        $url = config('filesystems.disks.'.self::DISK.'.driver') === 's3'
-            ? Storage::disk(self::DISK)->temporaryUrl($delivery->proof_photo_path, $expires)
-            : SignedUrls::temporary('ecommerce.proof_photo', $expires, ['path' => $delivery->proof_photo_path, 'user' => $user->id]);
+        // NFR-07, review L3: always the API's own signed link, bound to $user and checked again when fetched;
+        // never a presigned object-store URL, which skips that check and cannot be revoked.
+        $url = SignedUrls::temporary('ecommerce.proof_photo', now()->addMinutes(self::URL_MINUTES), ['path' => $delivery->proof_photo_path, 'user' => $user->id]);
 
         return ['url' => $url, 'mime' => $delivery->proof_photo_mime, 'at' => $delivery->proof_photo_at?->toIso8601String()];
     }
@@ -125,7 +123,7 @@ final class ProofPhotos
     /** The file itself (private, not cached by shared caches, never sniffed). */
     public function response(Delivery $delivery): Response
     {
-        $disk = Storage::disk(self::DISK);
+        $disk = Storage::disk(TenantFiles::disk());
         abort_unless($delivery->proof_photo_path !== null && $disk->exists($delivery->proof_photo_path), 404);
 
         return $disk->response($delivery->proof_photo_path, null, [

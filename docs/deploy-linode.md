@@ -261,6 +261,79 @@ When one host is no longer enough (the host watch's connection or disk alerts, s
 2. Move the data with the logical copy in docs/backups.md, point `DB_HOST` at the new address, then `php artisan config:cache` and `app:preflight`.
 3. Later: workers on their own host (unset `HORIZON_PROFILE`), then the concept note's layout with a NodeBalancer (`TRUSTED_PROXIES=192.168.255.0/24`, health check `GET /health/ready`). Managed PostgreSQL is also possible if Linode confirms its admin has `BYPASSRLS` (ADR 002, ADR 025).
 
+## Object Storage
+
+Decision 2026-10-22 (owner): every app file lives in Linode Object Storage from the start, never on a web host's disk, so web hosts stay stateless (NFR-01, docs/scaling.md) and a lost host loses no file (NFR-07). The adapter is `league/flysystem-aws-s3-v3` (approved by the owner).
+
+### What is stored, and where
+
+One private bucket per environment. Every key starts with its tenant, `tenants/{tenant uuid}/` (TEN-01), built only by `App\Core\Files\TenantFiles` (`TenantKeysTest` fails on a key built anywhere else):
+
+| Files | Key under `tenants/{tenant}/` | Served by |
+| --- | --- | --- |
+| Logos, favicons, sign-in backgrounds (BR-02) | `branding/{uuid}.{ext}` | `GET /api/v1/branding/assets/{path}`: signed, stable for a day, `Cache-Control: public, max-age=86400` |
+| Item images (MD-02), also on the storefront and the POS | `items/{item}/{uuid}.{ext}` | signed route bound to the user (`/media/...`), 15 minutes; storefront and POS sync stream them through their own routes |
+| Custom field files (CF-01) and custom form attachments (CF-04) | `custom-fields/...`, `custom-forms/...` | signed route bound to the user, 15 minutes |
+| Approval attachments (APR-03) | `approvals/{request}/...` | signed route bound to the user, 15 minutes |
+| Imports: source, error and result files (IMP-01) | `imports/{import}/...` | signed route bound to the user, 15 minutes |
+| Tenant exports (EXP-02) | `exports/{export}.zip` | signed route bound to the Owner, 5 minutes; a closing export's emailed link until it expires |
+| HR documents (HR-27) | `hr/documents/...` | signed route bound to the user, 5 minutes, each download audited (HR-11) |
+| Fixed asset documents (FA-29) | `fixed-assets/{asset}/...` | the authenticated API |
+| Procurement bid files (PRC-08), sealed | `procurement/bids/{tender}/...` | the authenticated API, after opening |
+| Delivery proof photos (ECOM-41) | `ecommerce/proofs/...` | not shown yet; the ECOM-41 follow-up streams them through a signed route bound to the user |
+| Marketplace app logos (MKT-01) | `marketplace/apps/{app}/...` (the developer's tenant) | the API, cached a day once approved |
+
+The platform's own probes (`app:preflight`, `/health/ready`) write, read and delete `platform/...` objects. Document PDFs are rendered on request and never stored.
+
+### Private and public files
+
+The bucket is private: no public ACL, no public-read prefix, no bucket policy, no CORS. **No code hands out a presigned bucket URL.** Every file goes through the API, which streams it from the bucket after its own checks:
+
+- **Private files** use the existing short-lived signed routes, bound to the user they were signed for. The API checks again, when the file is fetched, that this user is active and may still see the record (field rules, scope, a support session's grant, RBAC-13), and audits the download where the module does (HR-11). A presigned URL would skip all of that for its lifetime and could not be revoked.
+- **Public files** (the tenant's logo on the sign-in page, storefront images, approved marketplace logos) are streamed by the API too, with cache headers, rather than from a public-read bucket or prefix. This was chosen as the safer option: one private bucket with nothing world-readable, so a wrong key or a mistaken upload can never be exposed, and every response carries `nosniff` and a restrictive CSP. The brand asset URL changes once a day, so browsers and any CDN in front of the API cache it. Revisit if storefront traffic makes the API the bottleneck: a CDN in front of `GET /api/v1/branding/assets/*` and the shop image route comes before any public bucket.
+- The web CSP no longer needs `https://*.linodeobjects.com` in `img-src` (docs/security.md); it does no harm while kept.
+
+### Configuration (`<path>/api/.env`)
+
+| Variable | Value |
+| --- | --- |
+| `AWS_BUCKET` | the bucket name. **Setting it switches tenant files to the bucket**; no other variable is needed |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | an Object Storage access key with read/write on this environment's bucket only (Linode: Object Storage → Access Keys → Limited access). Never committed; the scrubber redacts them from logs and error reports |
+| `AWS_DEFAULT_REGION` | the cluster's id, e.g. `de-fra-1` (Frankfurt) |
+| `AWS_ENDPOINT` | the cluster endpoint, e.g. `https://de-fra-1.linodeobjects.com` |
+| `AWS_USE_PATH_STYLE_ENDPOINT` | `false` (virtual-hosted style, Linode's default). `true` only for a bucket name containing dots |
+| `MEDIA_DISK` | leave unset. `media` forces the local disk `api/storage/app/media` (development; `app:preflight` fails on it in production and warns on staging), `s3` forces the bucket |
+
+On the object store, the disk name `media` that rows written earlier carry also points at the bucket (`config/filesystems.php`), so those rows read the files the migration below copied there under the same keys. `media_local` always names `api/storage/app/media`, the migration's source.
+
+### Preflight
+
+`php artisan app:preflight` (run by every deploy before migrating) has an **Object storage** check: it requires the bucket in production and every `AWS_*` value above, then writes a probe object under `platform/preflight/`, reads it back and deletes it. An unreachable bucket, a wrong key, a refused write or a probe that cannot be deleted fails the deploy. `/health/ready` runs the same write, read and delete on every check (`HEALTH_STORAGE_DISK`, default the tenant files disk).
+
+### Moving existing local files
+
+**Staging: run this once right after the first deploy with this change**, since it kept files on its disk until then. Hosts that kept files on disk before this change (`api/storage/app/media`, and proof photos or marketplace logos under `api/storage/app/private`) copy them once, from the host that has them, after setting the variables above:
+
+```sh
+php artisan storage:migrate-to-object-storage --dry-run      # lists what would be copied; writes nothing
+php artisan storage:migrate-to-object-storage                # copies and verifies; keeps every local file
+php artisan storage:migrate-to-object-storage --delete-local # again: deletes each local file whose copy is verified
+```
+
+Each copy keeps its key and is verified by size and SHA-256 read back from the bucket. A key already in the bucket with the same content counts as done, so the command can be stopped and run again (it resumes). A key already there with other content is a conflict: never overwritten, reported, and the command exits 1. A copy that does not verify is removed from the bucket and its local file kept. Work files, probes, unfinished `.part` uploads and keys without a tenant are left alone. Marketplace logos stored before this change keep their old key (`marketplace/apps/...`, no tenant), because approved versions cannot be edited; new uploads use the developer's tenant.
+
+### Expiry and clean-up
+
+`exports:expire` (hourly) deletes expired export zips and any unfinished `.part` upload from the disk each export row names, so from the bucket. Item images deleted in the app are deleted from the bucket after the commit. Nothing else deletes files (TEN-06: business records are archived, their files kept).
+
+Bucket settings: versioning on in production (docs/backups.md), no lifecycle rule that deletes current objects. A lifecycle rule may expire **noncurrent** versions after the backup window.
+
+### Owner inputs
+
+- **Buckets**: one per environment, e.g. `<name>-dev`, `<name>-staging`, `<name>-production` (bucket names are global per cluster; no product name until it is chosen), plus the replica bucket in a second region for production (docs/backups.md).
+- **Region**: the Object Storage cluster, in the same region as the hosts (see Layout), e.g. `de-fra-1` (Frankfurt).
+- **Access keys**: one per environment, with "Limited access" to that environment's bucket only (read/write), none with access to all buckets. Put them in that environment's `.env` and the vault, never in GitHub.
+
 ## GitHub settings
 
 | Kind | Name | Value |

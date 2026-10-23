@@ -67,6 +67,35 @@ class ItemImageApiTest extends TestCase
         $this->get($image['url'])->assertForbidden();
     }
 
+    /** NFR-07: on the object store, the image goes to the configured disk and is still only served by the signed API route. */
+    public function test_on_the_object_store_the_image_goes_to_the_bucket_and_is_streamed_by_the_signed_route(): void
+    {
+        config(['filesystems.tenant_files' => 's3']);
+        Storage::fake('s3');
+        $clerk = $this->userWith('cashier', Scope::location($this->locationA->id));
+
+        $image = $this->upload(UploadedFile::fake()->image('lamp.jpg', 64, 48))->assertCreated()->json('data.images.0');
+
+        $row = $this->inTenant(fn () => ItemImage::findOrFail($image['id']));
+        $this->assertSame('s3', $row->disk);
+        $this->assertStringStartsWith("tenants/{$this->owner->tenant_id}/items/{$this->item}/", $row->path);
+        Storage::disk('s3')->assertExists($row->path);
+        $this->assertSame([], Storage::disk('media')->allFiles());
+
+        // Never a presigned object-store link: the API's signed route, bound to the user.
+        $this->assertStringNotContainsString('X-Amz-', $image['url']);
+        $this->assertStringContainsString('/api/v1/media/', $image['url']);
+        $this->get($image['url'])->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+
+        $clerkUrl = $this->getJson("/api/v1/items/{$this->item}", $this->headersFor($clerk))->assertOk()->json('data.images.0.url');
+        $this->get($clerkUrl)->assertOk();
+        $this->inTenant(fn () => $clerk->update(['status' => 'deactivated']));
+        $this->get($clerkUrl)->assertNotFound();
+
+        $this->travel(16)->minutes();
+        $this->get($image['url'])->assertForbidden();
+    }
+
     public function test_the_signed_url_checks_the_viewer_and_the_tenant_again(): void
     {
         $clerk = $this->userWith('cashier', Scope::location($this->locationA->id));

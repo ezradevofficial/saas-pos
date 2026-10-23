@@ -5,6 +5,7 @@ namespace App\Core\Approvals;
 use App\Core\Approvals\Models\ApprovalAssignment;
 use App\Core\Approvals\Models\ApprovalAttachment;
 use App\Core\Approvals\Models\ApprovalRequest;
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Models\RoleAssignment;
@@ -43,8 +44,6 @@ use Throwable;
 class ApprovalActions
 {
     public const MAX_ATTACHMENTS = 20;
-
-    public const DISK = 'media';
 
     public const MIMES = [
         'application/pdf' => 'pdf',
@@ -205,22 +204,23 @@ class ApprovalActions
         $extension = self::MIMES[$mime] ?? throw new ApiException(422, 'file_type', __('approvals.errors.file_type'), ['file' => [__('approvals.errors.file_type')]]);
         $this->assertMayAttach($request, $by);
 
-        $path = sprintf('tenants/%s/approvals/%s/%s.%s', $this->tenants->require(), $request->id, Str::uuid7(), $extension);
-        $disk = Storage::disk(self::DISK);
+        $path = TenantFiles::key($this->tenants->require(), 'approvals', $request->id, Str::uuid7().'.'.$extension);
+        $diskName = TenantFiles::disk();
+        $disk = Storage::disk($diskName);
 
         if (! $disk->putFileAs(dirname($path), $file, basename($path))) {
             throw new ApiException(500, 'file_not_stored', __('approvals.errors.file_not_stored'));
         }
 
         try {
-            return $this->decisions->transaction(function () use ($request, $by, $file, $path, $mime) {
+            return $this->decisions->transaction(function () use ($request, $by, $file, $diskName, $path, $mime) {
                 $request = $this->decisions->lockOrFail($request);
                 $this->assertMayAttach($request, $by);
 
                 $attachment = ApprovalAttachment::create([
                     'request_id' => $request->id,
                     'uploaded_by' => $by->id,
-                    'disk' => self::DISK,
+                    'disk' => $diskName,
                     'path' => $path,
                     'name' => mb_substr($file->getClientOriginalName() ?: basename($path), 0, 255),
                     'mime' => $mime,

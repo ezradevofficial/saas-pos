@@ -3,9 +3,13 @@
 namespace Tests\Feature\Core\Support;
 
 use App\Core\Support\SmtpProbe;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
+use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 // NFR-06: `app:preflight` prints every check and exits 1 when one fails.
@@ -27,7 +31,15 @@ class PreflightTest extends TestCase
             'fiscal.allow_fake' => false,
             // HR's identifier digest key (HR-10), separate from APP_KEY.
             'hr.digest_key' => 'base64:'.base64_encode(str_repeat('k', 32)),
+            // NFR-07: tenant files on Linode Object Storage.
+            'filesystems.tenant_files' => 's3',
+            'filesystems.disks.s3.key' => 'test-access-key',
+            'filesystems.disks.s3.secret' => 'test-secret',
+            'filesystems.disks.s3.region' => 'eu-central-1',
+            'filesystems.disks.s3.bucket' => 'app-production',
+            'filesystems.disks.s3.endpoint' => 'https://eu-central-1.linodeobjects.com',
         ], $config));
+        Storage::fake('s3');
         // ADR 025: the SMTP sign-in is proven against a fake server in SmtpProbeTest.
         $this->smtp(null);
     }
@@ -68,12 +80,85 @@ class PreflightTest extends TestCase
         [$code, $output] = $this->preflight();
 
         $this->assertSame(0, $code, $output);
-        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Redis', 'Mail server', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role', 'Platform database role', 'Error tracking', 'Backups', 'Metrics access'] as $label) {
+        foreach (['Mail transport', 'SMS driver', 'Cache store', 'Queue connection', 'Redis', 'Mail server', 'Application key', 'Debug mode', 'Runtime database role', 'Owner database role', 'Platform database role', 'Object storage', 'Error tracking', 'Backups', 'Metrics access'] as $label) {
             $this->assertStringContainsString($label, $output);
         }
         // AUTH-01..05: no SMS provider yet is email-only mode, a warning, not a failure.
         $this->assertMatchesRegularExpression('/SMS driver.*SMS unavailable: email-only mode \\(SMS_DRIVER not set.*WARN/', $output);
         $this->assertStringContainsString('Ready.', $output);
+    }
+
+    /** NFR-07: the probe object is written, read back and deleted again. */
+    public function test_production_probes_the_bucket_and_leaves_nothing_behind(): void
+    {
+        $this->production();
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(0, $code, $output);
+        $this->assertMatchesRegularExpression('/Object storage.*app-production.*OK/s', $output);
+        $this->assertSame([], Storage::disk('s3')->allFiles());
+    }
+
+    /** NFR-07: production never keeps tenant files on the server's disk. */
+    public function test_production_fails_when_tenant_files_are_not_on_the_object_store(): void
+    {
+        $this->production(['filesystems.tenant_files' => 'media']);
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(1, $code, $output);
+        $this->assertMatchesRegularExpression('/Object storage.*AWS_BUCKET switches it on.*FAIL/s', $output);
+    }
+
+    public function test_staging_on_the_local_disk_warns(): void
+    {
+        $this->production(['filesystems.tenant_files' => 'media']);
+        $this->app['env'] = 'staging';
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(0, $code, $output);
+        $this->assertMatchesRegularExpression('/Object storage.*AWS_BUCKET switches the object store on.*WARN/s', $output);
+    }
+
+    public function test_a_missing_bucket_setting_fails(): void
+    {
+        $this->production(['filesystems.disks.s3.bucket' => null]);
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(1, $code, $output);
+        $this->assertMatchesRegularExpression('/Object storage.*AWS_BUCKET is not set.*FAIL/s', $output);
+    }
+
+    public function test_an_unreachable_bucket_fails_and_is_reported_not_thrown(): void
+    {
+        $this->production();
+        $disk = Mockery::mock(FilesystemAdapter::class);
+        $disk->shouldReceive('put')->andThrow(new RuntimeException('Unable to write file at location: platform/preflight/x.txt.'));
+        $disk->shouldReceive('delete')->andReturn(false);
+        Storage::set('s3', $disk);
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(1, $code, $output);
+        $this->assertMatchesRegularExpression('/Object storage.*Unable to write.*FAIL/s', $output);
+    }
+
+    public function test_a_bucket_that_reads_back_something_else_fails(): void
+    {
+        $this->production();
+        $disk = Mockery::mock(FilesystemAdapter::class);
+        $disk->shouldReceive('put')->andReturn(true);
+        $disk->shouldReceive('get')->andReturn('other');
+        $disk->shouldReceive('delete')->andReturn(true);
+        Storage::set('s3', $disk);
+
+        [$code, $output] = $this->preflight();
+
+        $this->assertSame(1, $code, $output);
+        $this->assertMatchesRegularExpression('/Object storage.*read back something else.*FAIL/s', $output);
     }
 
     /** Review M1: in production, /metrics behind an address allow-list alone is not enough. */

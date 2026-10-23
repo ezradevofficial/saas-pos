@@ -22,6 +22,7 @@ use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\Store;
 use Modules\Ecommerce\Tests\Concerns\BuildsEcommerce;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\TestCase;
 
 // ECOM-40 (rider location: trail while active, cleared when it ends, seen
@@ -31,7 +32,7 @@ use Tests\TestCase;
 // configured).
 class DeliveryTrackingTest extends TestCase
 {
-    use BuildsEcommerce, RefreshTenantDatabase;
+    use BuildsEcommerce, RefreshTenantDatabase, UsesObjectStorage;
 
     protected function setUp(): void
     {
@@ -346,6 +347,31 @@ class DeliveryTrackingTest extends TestCase
         $this->shopCall('GET', "duka/orders/{$order->number}/proof-photo?t={$other->tracking_token_secret}")->assertNotFound();
         $this->shopCall('GET', "second/orders/{$order->number}/proof-photo?t={$order->tracking_token_secret}")->assertNotFound();
         $this->shopCall('GET', "duka/orders/{$order->number}/proof-photo?t={$order->tracking_token_secret}")->assertOk();
+    }
+
+    public function test_on_the_object_store_a_proof_photo_is_served_only_through_the_signed_api_link(): void
+    {
+        // NFR-07, review L3: on the bucket the staff link is still the API's signed route bound to the user,
+        // checked again on fetch, never a presigned object-store URL.
+        $this->useObjectStorage();
+        $delivery = $this->assigned();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
+        $this->json('POST', "/api/v1/ecommerce/rider/deliveries/{$delivery->id}/photo", ['photo' => UploadedFile::fake()->image('door.jpg')], $this->headersFor($this->riderUser))->assertCreated();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'delivered'])])->assertOk();
+        $this->assertOnObjectStorage('s3', $delivery->refresh()->proof_photo_path, $delivery->tenant_id, "ecommerce/proofs/{$delivery->id}/");
+
+        $url = $this->api('GET', "ecommerce/orders/{$delivery->order_id}", [], $this->manager)->assertOk()->json('data.delivery.proof_photo.url');
+        $this->assertSignedApiUrl($url);
+        $this->assertStringContainsString('user='.$this->manager->id, $url);
+        $this->get($url)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        $this->get(str_replace('user=', 'user=0', $url))->assertForbidden();
+
+        // The user the link names loses access: the same link stops working.
+        $this->inTenant(fn () => $this->manager->forceFill(['status' => 'deactivated'])->save());
+        $this->get($url)->assertNotFound();
+
+        $order = $this->inTenant(fn () => Order::query()->findOrFail($delivery->order_id));
+        $this->shopCall('GET', "duka/orders/{$order->number}/proof-photo?t={$order->tracking_token_secret}")->assertOk()->assertHeader('Content-Type', 'image/jpeg');
     }
 
     /** A PNG that is only a header: it claims $width × $height pixels and holds none. */

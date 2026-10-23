@@ -62,7 +62,7 @@ class RiderAppController
         return response()->json(['results' => $results], $stored ? 200 : 422);
     }
 
-    /** ECOM-41: the proof photo, through the media pipeline (ProofPhotos); the rider's own delivery only (ProofPhotoRequest). */
+    /** ECOM-41, NFR-07: the proof photo, through the media pipeline (ProofPhotos: TenantFiles key and disk); the rider's own delivery only (ProofPhotoRequest). */
     public function photo(ProofPhotoRequest $request, Delivery $ecomDelivery): JsonResponse
     {
         $delivery = $this->photos->store($ecomDelivery, $request->file('photo'));

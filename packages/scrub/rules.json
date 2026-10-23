@@ -320,6 +320,14 @@
       "^",
       "rider",
       "location"
+    ],
+    [
+      "^",
+      "key"
+    ],
+    [
+      "amz",
+      "credential"
     ]
   ],
   "values": [
@@ -368,6 +376,24 @@
     {
       "name": "query_secret",
       "pattern": "((?:[?&#\\s]|^)(?:\\w*_)?(?:token|access_token|signature|key|api_key|code|password|secret|pin|otp|verifier|ticket|state|samlresponse|samlrequest|relaystate)=)[^&#\\s\"']+",
+      "flags": "i",
+      "replace": "$1[redacted]"
+    },
+    {
+      "name": "object_storage_access_key",
+      "pattern": "\\b(?:AKIA|ASIA)[0-9A-Z]{16}\\b",
+      "flags": "",
+      "replace": "[token]"
+    },
+    {
+      "name": "object_storage_signed_request",
+      "pattern": "((?:[?&#\\s,]|^)(?:X-Amz-(?:Credential|Signature|Security-Token)|Credential)=)[^&#\\s\"',]+",
+      "flags": "i",
+      "replace": "$1[redacted]"
+    },
+    {
+      "name": "object_storage_key_assignment",
+      "pattern": "(\\b\\w*(?:ACCESS_KEY_ID|SECRET_ACCESS_KEY)\\s*[=:]\\s*[\"']?)[^\\s\"'&#,]+",
       "flags": "i",
       "replace": "$1[redacted]"
     },

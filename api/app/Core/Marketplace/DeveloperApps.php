@@ -4,6 +4,7 @@ namespace App\Core\Marketplace;
 
 use App\Core\Api\Sandbox\Sandbox;
 use App\Core\Audit\Auditor;
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Marketplace\Jobs\RollAppWebhookSecret;
@@ -132,7 +133,8 @@ class DeveloperApps
             default => throw new ApiException(422, 'logo_type', __('marketplace.validation.logo_type'), ['logo' => [__('marketplace.validation.logo_type')]]),
         };
 
-        $path = "marketplace/apps/{$version->app_id}/".Str::uuid7().".{$extension}";
+        // TEN-01: under the developer's tenant, like every tenant file (a draft always has one).
+        $path = TenantFiles::key((string) $version->developer_tenant_id, 'marketplace', 'apps', $version->app_id, Str::uuid7().".{$extension}");
         Storage::disk(self::disk())->put($path, (string) file_get_contents($file->getRealPath()));
         $previous = $version->logo_path;
         $version->forceFill(['logo_path' => $path])->save();
@@ -291,7 +293,7 @@ class DeveloperApps
 
     public static function disk(): string
     {
-        return (string) config('marketplace.apps.logo_disk', 'local');
+        return (string) (config('marketplace.apps.logo_disk') ?: TenantFiles::disk());
     }
 
     /**

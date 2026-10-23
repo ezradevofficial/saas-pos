@@ -227,7 +227,9 @@ All accepted by the owner on 2026-10-22 (Phase 8 report, Decisions), with the ma
     while the delivery is picked up, so the delivered proof never changes.
     Uploads are limited per rider (20 photos, 30 update batches a minute).
     The staff link is a signed URL naming its user, checked again against
-    that user's access, and not tied to a session (review L3).
+    that user's access, and not tied to a session (review L3). On Object
+    Storage (NFR-07) the photo is still streamed by that API route, under
+    its tenant's key (TenantFiles), never by a presigned bucket URL.
 19. **Exchanges keep the order's rate** (CUR-04): base amounts of a return
     and its exchange use the order's own fx snapshot.
 20. **Refund limits count the whole order (review H1, RBAC-06).** A return's
