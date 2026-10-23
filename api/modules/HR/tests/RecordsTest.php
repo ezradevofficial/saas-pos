@@ -9,9 +9,11 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Modules\HR\Models\Document;
 use Modules\HR\Models\Employee;
 use Modules\HR\Tests\Concerns\BuildsHr;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\TestCase;
 
 // HR-27 to HR-30, HR-09, HR-11: documents by category with audited signed
@@ -20,7 +22,7 @@ use Tests\TestCase;
 // manager and acknowledged by the employee.
 class RecordsTest extends TestCase
 {
-    use BuildsHr, RefreshTenantDatabase;
+    use BuildsHr, RefreshTenantDatabase, UsesObjectStorage;
 
     private Employee $amina;
 
@@ -35,6 +37,34 @@ class RecordsTest extends TestCase
         Storage::fake('media');
         $this->setUpHr();
         $this->amina = $this->employee();
+    }
+
+    /**
+     * NFR-07: on the object store a document goes to the bucket under the
+     * tenant, and the link stays the API's signed route: the download is
+     * audited when it happens and the reader's access is checked again
+     * then (a presigned bucket link could do neither).
+     */
+    public function test_documents_on_the_object_store_are_checked_and_audited_at_download(): void
+    {
+        $this->useObjectStorage();
+        $contract = $this->post("/api/v1/hr/employees/{$this->amina->id}/documents", [
+            'category' => 'contract', 'title' => 'Contract', 'file' => UploadedFile::fake()->create('contract.pdf', 20, 'application/pdf'),
+        ], $this->headersFor($this->hrOfficer))->assertCreated()->json('data.id');
+        $row = $this->inTenant(fn () => Document::query()->findOrFail($contract));
+        $this->assertOnObjectStorage($row->disk, $row->path, $this->amina->tenant_id, 'hr/documents/');
+
+        $url = $this->getJson("/api/v1/hr/documents/{$contract}/link", $this->headersFor($this->hrOfficer))->assertOk()->json('data.url');
+        $this->assertSignedApiUrl($url);
+        $this->assertFalse($this->inTenant(fn () => AuditEntry::query()->where('action', 'hr.document.download')->exists()), 'A link is not a download.');
+        $this->get($url)->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'hr.document.download')->where('auditable_id', $contract)->exists()));
+
+        $this->inTenant(fn () => FieldRule::create(['role_id' => $this->roles->get('hr_officer')->id, 'resource' => 'hr_employee', 'field' => 'pay', 'mode' => 'hidden']));
+        $this->get($url)->assertNotFound();
+
+        $this->travel(6)->minutes();
+        $this->get($url)->assertForbidden();
     }
 
     public function test_documents_are_seen_by_category_and_every_download_link_is_audited(): void

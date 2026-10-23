@@ -29,7 +29,8 @@ return [
         'max_scopes' => 60,
         // App logos: PNG, JPEG or WebP, square, up to this size.
         'logo_max_kb' => 512,
-        'logo_disk' => env('MARKETPLACE_LOGO_DISK', env('FILESYSTEM_DISK', 'local')),
+        // Empty: the tenant files disk (MEDIA_DISK; Linode Object Storage in production).
+        'logo_disk' => env('MARKETPLACE_LOGO_DISK'),
         // Hours the previous webhook signing secret keeps signing after a rotation.
         'webhook_rotation_overlap_hours' => 24,
     ],

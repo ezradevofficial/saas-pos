@@ -146,7 +146,7 @@ class ImportRunner
         }
 
         $this->restoreVerifier($verifier);
-        $path = $report->rows() > 0 ? $this->files->storeLocal($report->finish(), $import->id, $write ? 'result.xlsx' : 'errors.xlsx') : null;
+        $path = $report->rows() > 0 ? $this->files->storeLocal($import->file_disk, $report->finish(), $import->id, $write ? 'result.xlsx' : 'errors.xlsx') : null;
 
         if ($path === null) {
             $report->discard();
@@ -435,7 +435,7 @@ class ImportRunner
     /** @param callable(ImportFile): void $read */
     private function withFile(Import $import, callable $read): void
     {
-        [$path, $cleanup] = $this->files->local($import->file_path);
+        [$path, $cleanup] = $this->files->local($import->file_disk, $import->file_path);
 
         try {
             $read(new ImportFile($path, $import->file_format));

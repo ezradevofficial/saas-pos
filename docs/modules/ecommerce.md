@@ -96,8 +96,15 @@ Five parts:
 | ECOM-37 | **Events.** `OrderPlaced`, `OrderPaid`, `OrderStatusChanged`, `OrderFulfilled`, `OrderReturned`, `OrderCompleted` (delivered), `CodCashedUp`, `EcommercePosting`, dispatched after commit, ids and amounts only. | Must |
 | ECOM-38 | **Isolation and audit.** Every table has `tenant_id` and forced row-level security and rows in both tenants of the isolation suite; every create, change, status change, cancellation, refund, assignment and cash-up is audited (AUD-01). | Must |
 | ECOM-39 | **Languages.** Every string in English and French (L10N-02), in the API, the web app and the mobile app. | Must |
+| ECOM-40 | **Rider location (follow-up, owner-approved).** While a rider has an active delivery (assigned or picked up), the mobile app sends their position every 60 seconds, foreground only, after an in-app explanation and the phone's permission prompt (en/fr; refusing leaves the rider working). Each report adds a point to the delivery's trail (`ecom_delivery_locations`, at most `ecommerce.rider.max_trail_points`) and moves its latest point; a report for a delivery that is not active is refused (`delivery_not_active`). The trail is cleared when the delivery ends or changes rider; the latest point stays on the delivery (cleared too when the rider changes). Positions are never written to the update rows or the audit log. Staff read them with `ecommerce.delivery.track` at the delivery's location (`GET ecommerce/deliveries/{id}/track`, the board's `last_location`); the customer sees the latest point while the order is out for delivery, never the trail. The trail, the last points and the rider record are the rider's personal data (NFR-08). | Must |
+| ECOM-41 | **Photo proof of delivery (follow-up).** The rider takes the photo in the app (expo-camera); it is uploaded (queued offline like status updates, before the `delivered` update that needs it) to the private `media` disk at `tenants/{tenant}/ecommerce/proofs/{delivery}/{uuid}.jpg`: a JPEG, PNG or WebP of at most `ecommerce.rider.max_photo_kb` (4 MB) and `max_photo_pixels` (6,000) a side, re-encoded as a JPEG so no metadata (EXIF, GPS) is kept. Staff who see the delivery get a temporary signed URL (15 minutes, bound to the user, checked again); the customer of the order gets it with the tracking token (`GET shop/{store}/orders/{number}/proof-photo`) once delivered. | Must |
+| ECOM-42 | **Partial returns (follow-up).** A delivered order takes back any quantity of its lines not returned yet (whole units for `count` units, else up to 3 decimals), by `ecommerce.order.manage` at its location (`POST ecommerce/orders/{id}/returns`, `…/returns/quote` stores nothing). The money is the line's own share: r units of Q returned in all are worth round_half_up(X × r / Q) of each amount X, so all units, in any number of returns, give back the line exactly; the delivery fee is not part of a partial return. A return is numbered `{order}-R{n}`, recorded in the order's history and audited. Its refund (`POST ecommerce/returns/{id}/refund`, `ecommerce.order.refund`, within `max_refund_amount`, RBAC-06) goes back to the order's tenders in order (M-Pesa and card through the core payout, reference type `ecommerce.return_refund`; cash by hand with a reference). `OrderLinesReturned` brings the stock back from the line's own movements at their cost (Inventory, `ecommerce.return`, only while active); the return posts `ecommerce.return` and is a fiscal credit note of its own. After a partial return, the whole-order return is refused (`partial_returns_exist`). | Must |
+| ECOM-43 | **Exchanges (follow-up).** A return may take other products of the store instead, priced by the server as the storefront prices them today (price list, tax, Loyalty's promotions for everyone; no coupon, points or gift card), checked for stock under the placement locks. The difference is refunded (refund due) or collected (`POST ecommerce/returns/{id}/collect`, an active payment method of the order's company in its currency, `ecommerce.order.manage`). Once nothing is left to collect, `ExchangeIssued` moves the item out (Inventory, `ecommerce.order` with the exchange's sale id), the exchange posts `ecommerce.order` (its tenders: the returned value it used and the money collected) and is a fiscal invoice of its own. | Must |
+| ECOM-44 | **WhatsApp order messages (follow-up).** When the core notifier's WhatsApp driver is configured (`notifications.drivers.whatsapp`, provider credentials are owner input), checkout offers "Send order updates on WhatsApp" (`whatsapp_opt_in`, unticked); an order that opted in also gets each ECOM-20 message on WhatsApp to its phone, with the event's short text (the `sms` template, or the tenant's override, NOT-03). Not configured: store settings say so, checkout does not offer it, nothing is queued. | Must |
 
 ## Decisions
+
+All accepted by the owner on 2026-10-22 (Phase 8 report, Decisions), with the marketing consent changes in 14 and 15.
 
 1. **The storefront is a route group of the web app**, not a second
    build: `/shop/{store}/…` under its own layout (no sidebar, the host's
@@ -131,7 +138,7 @@ Five parts:
 7. **Riders are users.** The rider screen signs in with the rider's own
    user account (a user token), so every update names a person; the
    rider template (`ecommerce.delivery.deliver`, own deliveries only) is a
-   new system template (RBAC-03 does not name it: flagged for the spec).
+   system template, now in RBAC-03's list (marked as added).
 8. **Server-side money only.** The client sends products, quantities and
    choices; prices, promotions, tax, fees and totals are computed again at
    placement inside the transaction, and a different total is refused
@@ -140,8 +147,9 @@ Five parts:
    code or its hash, so a lost phone cannot replay them; an offline rider
    queues the code and learns the result on upload.
 10. **One return per order.** A return takes the whole order back (lines,
-    tax, promotion; the delivery fee only when the user says so); partial
-    returns are deferred.
+    tax, promotion; the delivery fee only when the user says so); part of
+    an order comes back through partial returns and exchanges (ECOM-42,
+    ECOM-43), and then the whole-order return is closed.
 11. **A contact joins a customer only through its code.** A guest order
     (and a phone or WhatsApp order placed by staff) names no customer and
     no party, and never adds a phone or an email to a customer: otherwise
@@ -169,6 +177,111 @@ Five parts:
     `ecommerce.shop.challenge_after` codes from one address in an hour the
     next one first needs a proof of work (sha256 of `nonce:solution`
     starting with N zeros), checked on the server with no third party.
+14. **One marketing consent box** (owner decision 2026-10-22). Sign-in
+    shows one unticked box for offers by SMS, WhatsApp and email
+    together (wording version `2026_10`), recorded through core's
+    `Consents` for channel `any`; no box per channel. An unticked box
+    records nothing (docs/privacy.md).
+15. **A STOP to the store's WhatsApp withdraws every channel** (owner
+    decision 2026-10-22). An opt-out reply in a store's WhatsApp inbox
+    withdraws marketing by WhatsApp, SMS and email for the tenant's
+    customers with that number, not only WhatsApp (`OptOuts`,
+    `MarketingConsentTest`).
+
+14. **Rider location is kept only while it is needed** (ECOM-40, security
+    review M3: decision to confirm 1 settled as "clear"). The trail exists
+    only while a delivery is active and is deleted (personal data, not a
+    business record) when it ends or changes rider; the last position is
+    cleared then too, only its time stays (ECOM-21). Positions stay out of
+    the audit log and of the update rows (location points leave no row:
+    their ids are remembered in the cache for 9 days, review M5); update
+    fingerprints are HMACs with their own key (review M1). Reading
+    positions is its own permission, `ecommerce.delivery.track`, held by
+    the Owner and the Branch Manager templates only. The trail and last
+    positions are the rider's personal data, and the customer's too
+    (through the order's party).
+15. **A partial return never refunds the delivery fee**; the whole-order
+    return (with its fee choice) stays for an order with no partial
+    return, and a partial return closes it (checked under the order's
+    lock, review H2).
+16. **Loyalty on partial returns (review M6).** Each partial return takes
+    back its share of the points the order earned, pro rata to the money
+    returned so far (LOY-04, Loyalty's `reverseEarnShare`, once per
+    return, only while Loyalty is active). A refund goes back to money
+    tenders only (M-Pesa, card, cash, counting only payments that hold
+    money, review L4); a part paid by points or a gift card is flagged
+    `loyalty_share` on the return for staff.
+17. **WhatsApp adds to SMS and email**, it does not replace them, so the
+    delivery code always reaches the customer by SMS. A guest's number
+    (not proven by a sign-in code) gets WhatsApp only once the order is
+    paid or accepted, and a phone gets at most 20 order messages a day
+    (`ecommerce.notifications.per_phone_per_day`, review L6). In email-only
+    mode (NOT-01) the notifier sends an SMS by WhatsApp instead; the same
+    rule holds there: an unproven guest number gets nothing by phone until
+    the order is paid or accepted, and an opted-in order gets WhatsApp once,
+    not again as the SMS fallback.
+18. **Proof photos keep the picture only** (review H3, L1, L2): the size is
+    read from the header first (at most 4,096 pixels a side and 12
+    megapixels), the picture scaled to 1,600 pixels and re-encoded as JPEG
+    (no metadata); without GD nothing is stored. A photo is taken only
+    while the delivery is picked up, so the delivered proof never changes.
+    Uploads are limited per rider (20 photos, 30 update batches a minute).
+    The staff link is a signed URL naming its user, checked again against
+    that user's access, and not tied to a session (review L3). On Object
+    Storage (NFR-07) the photo is still streamed by that API route, under
+    its tenant's key (TenantFiles), never by a presigned bucket URL.
+19. **Exchanges keep the order's rate** (CUR-04): base amounts of a return
+    and its exchange use the order's own fx snapshot.
+20. **Refund limits count the whole order (review H1, RBAC-06).** A return's
+    refund is added to the order's other refunds (refunded or due, not
+    rejected) and compared with the user's `max_refund_amount`, at creation
+    and again when paying back, so splitting a return gets round nothing.
+    Above the limit the return goes for approval through the approvals
+    engine (`ecommerce.return`, a Branch Manager of the order's branch,
+    never the requester, APR-07), as CRM does for discounts above the limit:
+    until approved nothing of it moves (stock, posting, fiscal note,
+    money), and a rejection gives its quantities back. An approved return's
+    refund is then paid back without a second check.
+21. **The customer sees the rider only at their own stop (review M2).** The
+    safer rule was chosen: the position is shown only while this order is
+    the rider's one picked-up delivery; with several picked up together,
+    every customer sees "on its way" without a position (no rider choice
+    and no guess about the current stop).
+22. **Exchange cash is on record (review L5).** Collecting a difference
+    needs a reference; cash a rider collects waits in COD clearing and
+    joins their next cash-up.
+
+## Decisions to confirm
+
+The owner approved the follow-ups (ECOM-40 to ECOM-44) without settling
+these details; the safer option was taken in each case:
+
+1. ~~Last known position after delivery~~: settled by the security review
+   (M3): cleared when the delivery ends (decision 14).
+2. **Who tracks riders.** `ecommerce.delivery.track` is in the Owner and
+   Branch Manager templates only (not Admin, Read-only Auditor or
+   Cashier). Tenants can grant it on copied roles.
+3. **Interval and accuracy.** 60 seconds, balanced accuracy, foreground
+   only, at most 500 points per delivery. Option: a longer interval to
+   save data and battery.
+4. **Loyalty on partial returns** (decision 16): earned points are now
+   reversed pro rata (review M6); the loyalty-paid share is still not paid
+   back automatically (flagged `loyalty_share`).
+9. **Who approves refunds above a limit** (decision 20): one Branch Manager
+   of the order's branch; tenants may change the flow (WF-02).
+10. **Message cap** (decision 17): 20 order messages a phone a day.
+5. **Exchange collection** is recorded by hand (cash, or a till M-Pesa
+   reference); an STK push for the difference is not offered.
+6. **Exchange items** are priced with today's promotions for everyone;
+   option: no promotions on exchanges. Replacement items cannot be
+   returned through this order (they are not its lines).
+7. **WhatsApp alongside SMS** (decision 17): option to send WhatsApp
+   instead of SMS for customers who opted in (cheaper, less certain).
+8. **Core change for WhatsApp contacts**: the core notifier's contact
+   addresses (ADR 009) accept WhatsApp for any contact, not only a
+   customer named for a marketing consent check, so a guest's
+   transactional order messages can use it (order notices are not
+   marketing types). Flagged for the core spec.
 
 ## Data model
 
@@ -185,14 +298,17 @@ Every table has `tenant_id` (RLS), UUID v7 keys, `created_at` and
 | `ecom_customer_codes` | customer (nullable until first order), contact, channel, code hash, attempts, expires at, consumed at |
 | `ecom_customer_sessions` | customer, token hash (unique), last used at, expires at, revoked at |
 | `ecom_addresses` | customer, label, zone, area, address line, notes, archived |
-| `ecom_orders` | store, company, branch, location, number, channel (`web`, `phone`, `whatsapp`), customer, party, contact name, phone and email, fulfilment (`delivery`, `pickup`), zone, address, status, payment status, payment kind, currency, subtotal, discount, tax, delivery fee, delivery tax, total, paid by loyalty, due minor, base currency, `fx`, base total, coupon, promotions, idempotency key and body hash (unique per store), tracking token hash, delivery code hash, reserved until, placed, paid, accepted, picking, ready, dispatched, delivered, cancelled (at, by, reason), returned (at, by, reason), refund reference, conversation, created by, notes, flags |
+| `ecom_orders` | WhatsApp opt-in (ECOM-44), store, company, branch, location, number, channel (`web`, `phone`, `whatsapp`), customer, party, contact name, phone and email, fulfilment (`delivery`, `pickup`), zone, address, status, payment status, payment kind, currency, subtotal, discount, tax, delivery fee, delivery tax, total, paid by loyalty, due minor, base currency, `fx`, base total, coupon, promotions, idempotency key and body hash (unique per store), tracking token hash, delivery code hash, reserved until, placed, paid, accepted, picking, ready, dispatched, delivered, cancelled (at, by, reason), returned (at, by, reason), refund reference, conversation, created by, notes, flags |
 | `ecom_order_lines` | order, line no, product, item, uom, name, qty, qty base, unit price, gross, discount, net, tax, total minor, tax code, tax rate, tax inclusive, promotion |
 | `ecom_reservations` | order, item, location, qty base, expires at, released at, consumed at |
 | `ecom_payments` | order, kind, payment method, payment intent, currency, amount, status, provider reference, collected by, cash-up |
 | `ecom_order_events` | order, from, to, payment status, note, by user, at |
 | `ecom_riders` | company, user (unique per company), employee, name, phone, vehicle, active, archived |
-| `ecom_deliveries` | order (unique), rider, status, assigned at, picked up at, delivered at, failed at, reason, proof kind, proof photo path, last latitude, longitude, located at, COD due, COD collected, collected at, cash-up, flags |
-| `ecom_delivery_updates` | id from the phone (unique), delivery, rider, kind (`status`, `location`), status, latitude, longitude, occurred at, received at, outcome, error |
+| `ecom_deliveries` | order (unique), rider, status, assigned at, picked up at, delivered at, failed at, reason, proof kind, proof photo path, mime, size and time (ECOM-41), last latitude, longitude, located at, COD due, COD collected, collected at, cash-up, flags |
+| `ecom_delivery_updates` | id from the phone (unique), delivery, rider, kind (`status`, `location`), status, latitude and longitude (always empty since ECOM-40), occurred at, received at, outcome, error |
+| `ecom_delivery_locations` | company, delivery, rider, user, latitude, longitude (nullable: anonymised), recorded at (ECOM-40; deleted when the delivery ends) |
+| `ecom_returns` | order, company, location, seq, number, kind (`return`, `exchange`), reason, currency, returned net, tax and total, exchange net, tax and total, refund, collect, base currency, `fx`, base amounts, refund status (`none`, `due`, `refunded`), refund reference and detail, refunded at and by, collect status (`none`, `due`, `collected`), collect payment method, reference, at and by, exchange sale id, exchange posted at, created by, at, flags |
+| `ecom_return_lines` | return, order, line no, direction (`in`, `out`), order line (for `in`), product, item, uom, name, qty, qty base, unit price, gross, discount, net, tax, total, tax code, tax rate, tax inclusive, promotion |
 | `ecom_cashups` | company, rider, currency, expected, counted, variance minor, deliveries count, note, closed by, closed at |
 | `ecom_conversations` | store, phone, name, status, order, last message at |
 | `ecom_messages` | conversation, direction, body, provider message id (unique per store), sent by, at, status |
@@ -207,6 +323,8 @@ Every table has `tenant_id` (RLS), UUID v7 keys, `created_at` and
 | `OrderFulfilled` | after commit | tenant, order, number, company, branch, location, at, user, lines `[{line_id, item_id, uom_id, qty, qty_base}]` |
 | `OrderReturned` | after commit | tenant, order, number, company, location, at, user, delivered (bool) |
 | `OrderCompleted` | after commit | tenant, order, company (Loyalty earn, fiscal) |
+| `OrderLinesReturned` | after commit | tenant, return, order, number, company, branch, location, at, user, lines `[{line_id, order_line_id, item_id, uom_id, qty, qty_base}]` (ECOM-42) |
+| `ExchangeIssued` | after commit | tenant, sale (the exchange's sale id), return, order, number, company, branch, location, at, user, lines `[{line_id, item_id, uom_id, qty, qty_base}]` (ECOM-43) |
 | `CodCashedUp` | after commit | tenant, cash-up, company, rider, currency, expected, counted |
 | `EcommercePosting` | after commit | tenant, company, source type, posting id, date, currency, amounts, fx, dimensions, reference, link |
 
@@ -227,7 +345,7 @@ Consumed: `PaymentIntentSettled` (reference type `ecommerce.order`).
 | --- | --- |
 | `ecommerce.store.view`, `.manage` | Read stores, products, zones; set them up |
 | `ecommerce.order.view`, `.create`, `.manage`, `.cancel`, `.refund` | Read orders; create phone and WhatsApp orders; accept, pick, ready, hand over, mark returned; cancel; refund within `max_refund_amount` |
-| `ecommerce.delivery.view`, `.assign`, `.deliver` | The delivery board; assign riders; act as a rider (own deliveries only) |
+| `ecommerce.delivery.view`, `.assign`, `.deliver`, `.track` | The delivery board; assign riders; act as a rider (own deliveries only); riders' positions and trails (ECOM-40) |
 | `ecommerce.rider.manage` | Riders |
 | `ecommerce.cashup.view`, `.manage` | Rider cash-ups |
 | `ecommerce.whatsapp.view`, `.reply` | The WhatsApp inbox; reply |
@@ -236,11 +354,14 @@ Consumed: `PaymentIntentSettled` (reference type `ecommerce.order`).
 
 Role templates (RBAC-03): **Owner** everything; **Admin**
 `ecommerce.*.view`, `ecommerce.store.manage`, `ecommerce.rider.manage`;
-**Branch Manager** `ecommerce.*` except `ecommerce.delivery.deliver`;
+**Branch Manager** `ecommerce.*` except `ecommerce.delivery.deliver` (so
+`ecommerce.delivery.track` included);
 **Cashier** `ecommerce.order.view`, `ecommerce.order.manage`,
 `ecommerce.order.create`, `ecommerce.whatsapp.*` (packing and answering at
 the outlet); **Accountant** `ecommerce.order.view`, `ecommerce.cashup.*`,
-`ecommerce.report.view`; **Rider** (new) `ecommerce.delivery.deliver`;
+`ecommerce.report.view`; **Rider** `ecommerce.delivery.deliver` only (now in
+RBAC-03's list, marked as added; status, location and proof photo of their
+own deliveries);
 **Read-only Auditor** `ecommerce.*.view`.
 
 ## API
@@ -262,14 +383,18 @@ minor units.
 | `GET ecommerce/conversations`, `GET …/{id}`, `POST …/{id}/reply\|close\|order` | `whatsapp.*`, `order.create` | ECOM-25 |
 | `GET ecommerce/customers` | `customer.view` | ECOM-08 |
 | `GET ecommerce/reports/summary` | `report.view` | ECOM-36 |
-| `GET ecommerce/rider/deliveries`, `POST ecommerce/rider/updates`, `POST ecommerce/rider/deliveries/{id}/photo` | `delivery.deliver` | ECOM-28 |
+| `GET ecommerce/rider/deliveries`, `POST ecommerce/rider/updates`, `POST ecommerce/rider/deliveries/{id}/photo` | `delivery.deliver` | ECOM-28, ECOM-40, ECOM-41 |
+| `GET ecommerce/deliveries/{id}/track` | `delivery.track` | ECOM-40 |
+| `GET ecommerce/proof-photos/{path}` (signed, no token) | the signed-for user sees the delivery | ECOM-41 |
+| `POST ecommerce/orders/{id}/returns`, `…/returns/quote` | `order.manage` | ECOM-42, ECOM-43 |
+| `POST ecommerce/returns/{id}/refund`, `…/collect` | `order.refund`, `order.manage` | ECOM-42, ECOM-43 |
 
 Public storefront routes (no tenant token; `X-Shop-Host`; rate-limited):
 `GET shop/{store}` (store, theme, categories, zones, payment kinds),
 `GET shop/{store}/products`, `GET shop/{store}/products/{slug}`,
 `GET shop/{store}/images/{product}/{n}`, `POST shop/{store}/quote`,
 `POST shop/{store}/orders` (Idempotency-Key), `GET shop/{store}/orders/{number}?t=`,
-`POST shop/{store}/orders/{number}/pay`, `POST shop/{store}/auth/code`,
+`POST shop/{store}/orders/{number}/pay`, `GET shop/{store}/orders/{number}/proof-photo`, `POST shop/{store}/auth/code`,
 `POST shop/{store}/auth/verify`, `POST shop/{store}/auth/sign-out`,
 `GET shop/{store}/account`, and the WhatsApp webhook `POST shop/whatsapp/{token}`.
 
@@ -334,12 +459,14 @@ report; offline queue). NativeWind tokens; en and fr; 48px targets.
    its credentials; only the fake driver ships.
 2. The card aggregator per country (the core hosted checkout adapter is
    used; its credentials are configuration).
-3. Whether order notifications should also go by WhatsApp once the core
-   notifier supports WhatsApp contact addresses (decision 4).
-4. Partial returns and exchanges (decision 10).
+3. ~~Whether order notifications should also go by WhatsApp~~: done
+   (ECOM-44) for customers who opt in; the WhatsApp provider for the core
+   notifier's driver and its approved message templates are owner input
+   (until then: not configured).
+4. ~~Partial returns and exchanges (decision 10)~~: done (ECOM-42,
+   ECOM-43); see Decisions to confirm.
 5. A maps provider for live tracking (ECOM-29 leaves a hook).
-6. The rider screen in the mobile app proves delivery by the customer's
-   code only. Photo proof and location reports need a camera and a
-   location library in the app (new dependencies, to be approved). The API
-   already takes both: `POST ecommerce/rider/deliveries/{id}/photo` and
-   `kind: location` updates.
+6. ~~Photo proof and location reports in the mobile app~~: done
+   (ECOM-40, ECOM-41; expo-location approved, expo-camera already
+   present). A new development build of the app is needed for the
+   location module.

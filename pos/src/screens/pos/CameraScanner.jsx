@@ -18,7 +18,8 @@ const BARCODES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'];
 const REPEAT_MS = 1500;
 
 let camera = null;
-function loadCamera() {
+/** expo-camera with NativeWind classes on CameraView (also used by the rider's delivery photo, ECOM-28). */
+export function loadCamera() {
   // Loaded on first use only: the native module is not needed until someone scans.
   if (!camera) {
     const module = require('expo-camera');

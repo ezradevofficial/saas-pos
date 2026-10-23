@@ -112,6 +112,33 @@ class ThemeApiTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('file');
     }
 
+    /** NFR-07: public branding on the object store is still streamed by the API (private bucket), cacheable, never a presigned link. */
+    public function test_on_the_object_store_brand_assets_go_to_the_bucket_and_are_streamed_with_cache_headers(): void
+    {
+        config(['filesystems.tenant_files' => 's3']);
+        Storage::fake('s3');
+
+        $logo = $this->postJson('/api/v1/branding/assets', ['kind' => 'logo', 'file' => UploadedFile::fake()->image('logo.png', 400, 120)], $this->headersFor())
+            ->assertCreated()->json('data');
+
+        $row = $this->inTenant(fn () => BrandAsset::findOrFail($logo['id']));
+        $this->assertSame('s3', $row->disk);
+        $this->assertStringStartsWith("tenants/{$this->owner->tenant_id}/branding/", $row->path);
+        Storage::disk('s3')->assertExists($row->path);
+        $this->assertSame([], Storage::disk('media')->allFiles());
+
+        $this->assertStringNotContainsString('X-Amz-', $logo['url']);
+        $this->assertStringContainsString('/api/v1/branding/assets/tenants/', $logo['url']);
+        $response = $this->get($logo['url'])->assertOk()->assertHeader('Content-Type', 'image/png');
+        $this->assertStringContainsString('public', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('max-age=86400', (string) $response->headers->get('Cache-Control'));
+
+        // The link is stable for the day (cacheable) and ends within two days.
+        $this->assertSame($logo['url'], $this->getJson('/api/v1/branding/assets', $this->headersFor())->assertOk()->json('data.0.url'));
+        $this->travel(3)->days();
+        $this->get($logo['url'])->assertForbidden();
+    }
+
     public function test_the_most_specific_published_theme_applies_branch_over_company_over_tenant(): void
     {
         $publish = function (array $scope, string $primary) {

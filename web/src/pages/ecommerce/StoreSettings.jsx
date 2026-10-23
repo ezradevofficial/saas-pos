@@ -224,7 +224,22 @@ function Sharing({ store, manage }) {
         ) : null}
         {manage ? <Button className="mt-4" onClick={() => rotate.mutate()} loading={rotate.isPending}>{t(store.whatsapp_connected ? 'ecommerce.stores.rotateWebhook' : 'ecommerce.stores.connectWebhook')}</Button> : null}
       </Card>
+      {store.whatsapp_notifications ? <WhatsappNotifications state={store.whatsapp_notifications} /> : null}
     </div>
+  )
+}
+
+/** ECOM-20: whether order updates can go out on WhatsApp (the platform owner sets up the provider). */
+function WhatsappNotifications({ state }) {
+  const { t } = useTranslation()
+  const available = state === 'available'
+  return (
+    <Card title={t('ecommerce.stores.whatsappOrders')}>
+      <div className="flex flex-col gap-1">
+        <StatusBadge tone={available ? 'success' : 'neutral'}>{t(available ? 'ecommerce.stores.whatsappAvailable' : 'ecommerce.stores.whatsappNotConfigured')}</StatusBadge>
+        <p className="text-caption text-ink-muted">{t(available ? 'ecommerce.stores.whatsappAvailableHelp' : 'ecommerce.stores.whatsappNotConfiguredHelp')}</p>
+      </div>
+    </Card>
   )
 }
 

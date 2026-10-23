@@ -1,6 +1,6 @@
 # ADR 021: Webhooks
 
-Status: Accepted (Phase 8, Stage 8A: HOOK-01, with TEN-01, RBAC-04, RBAC-05, RBAC-08, AUD-01, NOT-01, EXP-02)
+Status: Accepted (Phase 8, Stage 8A: HOOK-01, with TEN-01, RBAC-04, RBAC-05, RBAC-08, AUD-01, NOT-01, EXP-02). The decisions it lists for the owner were accepted by the owner 2026-10-22 (Phase 8 report, Decisions).
 
 ## Context
 

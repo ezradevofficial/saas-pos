@@ -198,6 +198,7 @@ final class Placement
                 'conversation_id' => $conversation?->id,
                 'created_by' => $by?->id,
                 'notes' => mb_substr(trim((string) ($input['notes'] ?? '')), 0, 1000) ?: null,
+                'whatsapp_opt_in' => (bool) ($input['whatsapp_opt_in'] ?? false),
             ]);
 
             foreach ($quote['lines'] as $line) {

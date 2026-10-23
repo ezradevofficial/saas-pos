@@ -1,4 +1,15 @@
-import { formatCalendarDate, formatDate, formatDatesIn, formatDateTime, formatLongDate, formatTime, localDateTimeIn, partOfDay, todayIn, zonedToUtc } from './dates'
+import { formatCalendarDate, formatDate, formatDatesIn, formatDateTime, formatLongDate, formatRelative, formatTime, localDateTimeIn, partOfDay, todayIn, zonedToUtc } from './dates'
+
+describe('relative times', () => {
+  const now = Date.parse('2026-10-22T10:00:00Z')
+
+  it('says how long ago an instant was, in the UI language', () => {
+    expect(formatRelative('2026-10-22T09:55:00Z', 'en', now)).toBe('5 minutes ago')
+    expect(formatRelative('2026-10-22T08:00:00Z', 'fr', now)).toBe('il y a 2 heures')
+    expect(formatRelative('2026-10-22T09:59:40Z', 'en', now)).toBe('now')
+    expect(formatRelative(null, 'en', now)).toBeNull()
+  })
+})
 
 describe('dates', () => {
   it('writes day, short month and year with 24-hour times', () => {

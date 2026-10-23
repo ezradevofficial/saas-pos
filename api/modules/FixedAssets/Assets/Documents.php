@@ -3,6 +3,7 @@
 namespace Modules\FixedAssets\Assets;
 
 use App\Core\Audit\Auditor;
+use App\Core\Files\TenantFiles;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -24,8 +25,6 @@ use Throwable;
  */
 class Documents
 {
-    public const DISK = 'media';
-
     public const MAX_KB = 10240;
 
     public const MIMES = [
@@ -48,8 +47,9 @@ class Documents
     {
         $mime = (string) $file->getMimeType();
         $extension = self::MIMES[$mime] ?? throw FaError::make('document_type', field: 'file');
-        $path = sprintf('tenants/%s/fixed-assets/%s/%s.%s', $this->tenants->require(), $asset->id, Str::uuid7(), $extension);
-        $disk = Storage::disk(self::DISK);
+        $path = TenantFiles::key($this->tenants->require(), 'fixed-assets', $asset->id, Str::uuid7().'.'.$extension);
+        $diskName = TenantFiles::disk();
+        $disk = Storage::disk($diskName);
 
         if (! $disk->putFileAs(dirname($path), $file, basename($path))) {
             throw FaError::make('document_not_stored', status: 500);
@@ -61,7 +61,7 @@ class Documents
                 'name' => mb_substr($file->getClientOriginalName() ?: basename($path), 0, 255),
                 'mime' => $mime,
                 'size' => (int) $file->getSize(),
-                'disk' => self::DISK,
+                'disk' => $diskName,
                 'path' => $path,
                 'uploaded_by' => $by->id,
             ]);

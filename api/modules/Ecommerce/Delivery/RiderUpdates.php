@@ -4,7 +4,9 @@ namespace Modules\Ecommerce\Delivery;
 
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
+use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\DeliveryUpdate;
 use Modules\Ecommerce\Models\Order;
@@ -19,7 +21,9 @@ use Modules\Ecommerce\Support\Tx;
  * the phone made: an update the server already has answers what it
  * answered then (a resend with other content is `payload_mismatch`).
  *
- * - `location`: the delivery's last reported position, when newer.
+ * - `location`: a point of the delivery's trail and its latest position
+ *   when newer (RiderLocations), only while the delivery is active
+ *   (`delivery_not_active` otherwise); the update row keeps no position.
  * - `picked_up` (assigned): the order goes out for delivery (hand-over,
  *   OrderFlow::dispatch), the customer gets the delivery code.
  * - `delivered` (picked up): proof by the customer's delivery code
@@ -34,12 +38,23 @@ use Modules\Ecommerce\Support\Tx;
  * Only the rider's own deliveries are reached (another's is
  * `delivery_unknown`). A refused update is kept with its reason, so a
  * resend learns the same answer.
+ *
+ * Review M1: an update's fingerprint is an HMAC with a key of its own
+ * (`ecommerce.rider.update_hash_key`, else derived from the app key), so a
+ * stored row never lets anyone search back for a position or a delivery
+ * code. Review M5: a location point leaves no row at all: its id and
+ * answer stay in the cache for 9 days (longer than a phone keeps a queue,
+ * NFR-04), which answers a resend the same way; a lost cache only lets a
+ * resent point into the trail twice. `occurred_at` is held between 8 days
+ * ago and 5 minutes ahead (a phone's wrong clock never dates a status).
  */
 final class RiderUpdates
 {
     public const MAX_CODE_ATTEMPTS = 5;
 
-    public function __construct(private readonly OrderFlow $flow) {}
+    public const LOCATION_IDS_DAYS = 9;
+
+    public function __construct(private readonly OrderFlow $flow, private readonly RiderLocations $locations) {}
 
     /**
      * @param  list<array<string, mixed>>  $updates  validated
@@ -60,7 +75,18 @@ final class RiderUpdates
     private function one(User $user, array $update): array
     {
         $id = (string) $update['id'];
-        $hash = hash('sha256', json_encode(array_intersect_key($update, array_flip(['id', 'delivery_id', 'kind', 'status', 'latitude', 'longitude', 'occurred_at', 'code', 'collected_minor', 'note']))));
+        $hash = self::payloadHash($update);
+        $cacheKey = 'ecom-rider-location:'.app(TenantContext::class)->require().':'.$id;
+        $cached = Cache::get($cacheKey);
+
+        if (is_array($cached)) {
+            if (! hash_equals((string) ($cached['hash'] ?? ''), $hash)) {
+                return self::rejected($id, 'payload_mismatch');
+            }
+
+            return ($cached['error'] ?? null) === null ? ['id' => $id, 'status' => 'stored'] : self::rejected($id, (string) $cached['error']);
+        }
+
         $known = DeliveryUpdate::query()->find($id);
 
         if ($known !== null) {
@@ -78,7 +104,9 @@ final class RiderUpdates
             return self::rejected($id, 'delivery_unknown');
         }
 
+        $now = CarbonImmutable::now();
         $at = CarbonImmutable::parse((string) $update['occurred_at'])->utc();
+        $at = $at->max($now->subDays(8))->min($now->addMinutes(5));
         $error = null;
 
         try {
@@ -87,9 +115,7 @@ final class RiderUpdates
                 $delivery = Delivery::query()->whereKey($delivery->id)->lockForUpdate()->firstOrFail();
 
                 if ($update['kind'] === 'location') {
-                    if ($delivery->located_at === null || $at->greaterThan($delivery->located_at)) {
-                        $delivery->forceFill(['last_latitude' => $update['latitude'], 'last_longitude' => $update['longitude'], 'located_at' => $at])->save();
-                    }
+                    $this->locations->record($delivery, $user, (string) $update['latitude'], (string) $update['longitude'], $at);
 
                     return null;
                 }
@@ -100,6 +126,12 @@ final class RiderUpdates
             $error = $e->errorCode;
         }
 
+        if ($update['kind'] === 'location') {
+            Cache::put($cacheKey, ['hash' => $hash, 'error' => $error], $now->addDays(self::LOCATION_IDS_DAYS));
+
+            return $error === null ? ['id' => $id, 'status' => 'stored'] : self::rejected($id, $error);
+        }
+
         DeliveryUpdate::query()->insertOrIgnore([
             'id' => $id,
             'tenant_id' => $delivery->tenant_id,
@@ -108,8 +140,9 @@ final class RiderUpdates
             'user_id' => $user->id,
             'kind' => $update['kind'],
             'status' => $update['status'] ?? null,
-            'latitude' => $update['latitude'] ?? null,
-            'longitude' => $update['longitude'] ?? null,
+            // ECOM-40: the position lives only in the delivery's trail (cleared when it ends), never here.
+            'latitude' => null,
+            'longitude' => null,
             'collected_minor' => $update['collected_minor'] ?? null,
             'note' => isset($update['note']) ? mb_substr((string) $update['note'], 0, 500) : null,
             'payload_hash' => $hash,
@@ -199,6 +232,21 @@ final class RiderUpdates
         }
 
         return null;
+    }
+
+    /** Review M1: HMAC of the update's own fields (the inner sha256 is what older rows kept, re-keyed by a migration). */
+    public static function payloadHash(array $update): string
+    {
+        $fields = array_intersect_key($update, array_flip(['id', 'delivery_id', 'kind', 'status', 'latitude', 'longitude', 'occurred_at', 'code', 'collected_minor', 'note']));
+
+        return self::keyed(hash('sha256', (string) json_encode($fields)));
+    }
+
+    public static function keyed(string $inner): string
+    {
+        $key = (string) config('ecommerce.rider.update_hash_key');
+
+        return hash_hmac('sha256', $inner, $key !== '' ? $key : hash_hmac('sha256', 'ecommerce.rider-updates', (string) config('app.key')));
     }
 
     private static function rejected(string $id, string $code): array

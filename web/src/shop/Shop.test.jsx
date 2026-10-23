@@ -32,12 +32,12 @@ function json(body, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }))
 }
 
-function mockShop(extra = {}) {
+function mockShop(extra = {}, store = STORE) {
   calls = []
   vi.stubGlobal('fetch', vi.fn((url, init = {}) => {
     const path = String(url).replace(/^.*\/api\/v1\/shop\/duka/, '')
     calls.push({ path, init })
-    if (path === '' && (init.method ?? 'GET') === 'GET') return json({ data: STORE })
+    if (path === '' && (init.method ?? 'GET') === 'GET') return json({ data: store })
     if (path.startsWith('/products?')) return json({ data: [WIDGET], meta: { total: 1, current_page: 1, last_page: 1 } })
     if (path === '/products/widget') return json({ data: WIDGET })
     if (path === '/quote') return json({ data: QUOTE })
@@ -92,6 +92,7 @@ describe('Storefront (ECOM-05 to ECOM-13)', () => {
     fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Wanjiku Kamau' } })
     fireEvent.change(screen.getByLabelText(/^Phone/), { target: { value: '0712345678' } })
     fireEvent.click(screen.getByLabelText(/Cash on delivery/))
+    expect(screen.queryByLabelText(/Send order updates on WhatsApp/)).not.toBeInTheDocument()
     const place = await screen.findByRole('button', { name: 'Place order and pay KES 1,360.00' })
     await waitFor(() => expect(place).toBeEnabled())
     fireEvent.click(place)
@@ -102,8 +103,64 @@ describe('Storefront (ECOM-05 to ECOM-13)', () => {
     expect(body.expected_total_minor).toBe('136000')
     expect(body.lines).toEqual([{ product_id: 'p-1', qty: '1' }])
     expect(body.unit_price_minor).toBeUndefined()
+    expect(body).not.toHaveProperty('whatsapp_opt_in')
     expect(await screen.findByRole('heading', { name: 'Order WEB-A-2026-00001' })).toBeInTheDocument()
     expect(window.localStorage.getItem('app.shop.cart.duka')).toBe('[]')
+  })
+
+  it('asks for WhatsApp order updates where the store can send them, and sends the answer (ECOM-20)', async () => {
+    let placed = null
+    mockShop({
+      '/orders': (init) => {
+        placed = init
+        return json({ data: { number: 'WEB-A-2026-00002', status: 'placed', payment_status: 'cod', tracking_token: null, payment: null } }, 201)
+      },
+    }, { ...STORE, whatsapp_notifications: true })
+    window.localStorage.setItem('app.shop.cart.duka', JSON.stringify([{ product_id: 'p-1', qty: '1' }]))
+    renderApp('/shop/duka/checkout')
+    fireEvent.change(await screen.findByLabelText(/^Address/), { target: { value: 'Mpaka Road 12' } })
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Wanjiku Kamau' } })
+    fireEvent.change(screen.getByLabelText(/^Phone/), { target: { value: '0712345678' } })
+    fireEvent.click(screen.getByLabelText(/Cash on delivery/))
+    const optIn = screen.getByLabelText(/Send order updates on WhatsApp/)
+    expect(optIn).not.toBeChecked()
+    fireEvent.click(optIn)
+    const place = await screen.findByRole('button', { name: 'Place order and pay KES 1,360.00' })
+    await waitFor(() => expect(place).toBeEnabled())
+    fireEvent.click(place)
+    await waitFor(() => expect(placed).not.toBeNull())
+    expect(JSON.parse(placed.body).whatsapp_opt_in).toBe(true)
+  })
+
+  it('shows the rider position, the proof of delivery and the returns on the tracking page (ECOM-19, ECOM-28, ECOM-29)', async () => {
+    const token = 'b'.repeat(40)
+    const created = vi.fn(() => 'blob:proof-1')
+    const revoked = vi.fn()
+    // jsdom has no object URLs: these stand in for the test only.
+    const originals = { createObjectURL: URL.createObjectURL, revokeObjectURL: URL.revokeObjectURL }
+    Object.assign(URL, { createObjectURL: created, revokeObjectURL: revoked })
+    onTestFinished(() => Object.assign(URL, originals))
+    mockShop({
+      [`/orders/WEB-A-2026-00003?t=${token}`]: () => json({ data: {
+        number: 'WEB-A-2026-00003', status: 'out_for_delivery', payment_status: 'cod', payment_kind: 'cod', fulfilment: 'delivery', currency: 'KES',
+        totals: { total_minor: '136000', delivery_minor: '20000' }, lines: [{ name: 'Widget', qty: '2.000000', total_minor: '232000' }],
+        history: [{ status: 'placed', at: '2026-11-30T09:00:00Z' }, { status: 'out_for_delivery', at: '2026-11-30T10:00:00Z' }],
+        rider: { first_name: 'Juma' }, rider_location: { latitude: '-1.2700000', longitude: '36.8100000', at: new Date(Date.now() - 5 * 60_000).toISOString() }, proof_photo: true,
+        returns: [{ number: 'WEB-A-2026-00003-R1', kind: 'return', lines: [{ name: 'Widget', qty: '1.000000', direction: 'in' }], refund_minor: '45000', collect_minor: '0', refund_status: 'due' }],
+      } }),
+      [`/orders/WEB-A-2026-00003/proof-photo?t=${token}`]: () => Promise.resolve(new Response(new Blob(['jpeg'], { type: 'image/jpeg' }), { status: 200, headers: { 'Content-Type': 'image/jpeg' } })),
+    })
+    const { unmount } = renderApp(`/shop/duka/orders/WEB-A-2026-00003?t=${token}`)
+    expect(await screen.findByText('-1.2700000, 36.8100000')).toBeInTheDocument()
+    expect(screen.getByText('Updated 5 minutes ago')).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: 'Photo taken when order WEB-A-2026-00003 was delivered' })).toHaveAttribute('src', 'blob:proof-1')
+    const photoCall = calls.find((call) => call.path.startsWith('/orders/WEB-A-2026-00003/proof-photo'))
+    expect(photoCall.init.headers['X-Shop-Host']).toBe(window.location.host)
+    expect(photoCall.init.credentials).toBe('omit')
+    expect(screen.getByText('WEB-A-2026-00003-R1')).toBeInTheDocument()
+    expect(screen.getByText('Refund due').closest('[data-tone]')).toHaveAttribute('data-tone', 'warning')
+    unmount()
+    expect(revoked).toHaveBeenCalledWith('blob:proof-1')
   })
 
   it('says when the store is not open', async () => {

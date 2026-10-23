@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * MD-02: serves an item image on the local media disk through a temporary
+ * MD-02: serves an item image (from its disk: local, or the object store) through a temporary
  * signed URL (ItemImages::url; the `signed` middleware checks the
  * signature and expiry). The path names the tenant: the controller enters
  * it, finds the image row there (row-level security) and checks the user

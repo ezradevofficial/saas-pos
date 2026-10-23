@@ -180,17 +180,24 @@ final class OrderFlow
      * ECOM-18, ECOM-19: an order that left comes back: a failed delivery
      * (nothing was sold) or a return of a delivered order (refund due on
      * what was paid, the `ecommerce.return` posting, the fiscal credit
-     * note, Loyalty reversed). One return per order (decision 10).
+     * note, Loyalty reversed). The whole order at once (decision 10); part
+     * of it through Returns (ECOM-42), and then only that way.
      */
     public function return(Order $order, ?User $by, string $reason, bool $fee = false): Order
     {
-        $delivered = $order->status === Order::DELIVERED;
+        return $this->step($order, [Order::OUT_FOR_DELIVERY, Order::DELIVERED], Order::RETURNED, $by, $reason, function (Order $order) use ($by, $reason, $fee) {
+            // Review H2: read under the order's lock (a partial return takes the same lock), the limit first.
+            $delivered = $order->getOriginal('status') === Order::DELIVERED; // step() has already set the new status
 
-        if ($delivered && $by !== null) {
-            $this->assertRefundLimit($order, $by, $order->total_minor - ($fee ? 0 : $order->delivery_fee_minor + $order->delivery_tax_minor));
-        }
+            if ($delivered && $by !== null) {
+                $this->assertRefundLimit($order, $by, $order->total_minor - ($fee ? 0 : $order->delivery_fee_minor + $order->delivery_tax_minor));
+            }
 
-        return $this->step($order, [Order::OUT_FOR_DELIVERY, Order::DELIVERED], Order::RETURNED, $by, $reason, function (Order $order) use ($by, $reason, $fee, $delivered) {
+            // ECOM-42: after a partial return, the rest comes back through partial returns too (never twice).
+            if ($delivered && Returns::hasReturns($order)) {
+                throw EcomError::make('partial_returns_exist', status: 409);
+            }
+
             $order->forceFill(['returned_at' => CarbonImmutable::now(), 'returned_by' => $by?->id, 'return_reason' => mb_substr($reason, 0, 500), 'return_fee' => $delivered && $fee]);
             $this->giveBackLoyalty($order);
             $paid = Payment::query()->where('order_id', $order->id)->whereIn('kind', ['mpesa', 'card', 'cod'])->whereIn('status', ['succeeded', 'collected'])->exists();
@@ -262,21 +269,26 @@ final class OrderFlow
      */
     public function assertRefundLimit(Order $order, User $by, int $amount): void
     {
+        if (! $this->withinRefundLimit($order, $by, $amount)) {
+            throw EcomError::make('refund_above_limit', status: 403);
+        }
+    }
+
+    /** RBAC-06: whether $amount (minor units of the order's currency) is within $by's `max_refund_amount` there. */
+    public function withinRefundLimit(Order $order, User $by, int $amount): bool
+    {
         $scope = Scope::location($order->location_id);
         $roles = $this->resolver->roleIds($by, $scope);
 
         if ($roles !== [] && Role::query()->whereKey($roles)->where('is_owner', true)->exists()) {
-            return;
+            return true;
         }
 
         $max = $this->limits->max($by, 'max_refund_amount', $scope);
-        $total = $amount;
-        $base = $order->total_minor === 0 ? BigDecimal::zero() : BigDecimal::of($order->base_total_minor)->multipliedBy($total)->dividedBy($order->total_minor, 0, RoundingMode::HalfUp);
+        $base = $order->total_minor === 0 ? BigDecimal::zero() : BigDecimal::of($order->base_total_minor)->multipliedBy($amount)->dividedBy($order->total_minor, 0, RoundingMode::HalfUp);
         $decimals = app(CurrencyDecimals::class)->for($order->base_currency);
 
-        if ($max === null || $base->withPointMovedLeft($decimals)->isGreaterThan($max)) {
-            throw EcomError::make('refund_above_limit', status: 403);
-        }
+        return $max !== null && ! $base->withPointMovedLeft($decimals)->isGreaterThan($max);
     }
 
     private function handOver(Order $order, ?User $by): void

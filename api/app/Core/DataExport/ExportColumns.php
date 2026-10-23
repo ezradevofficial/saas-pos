@@ -110,7 +110,10 @@ final class ExportColumns
             SQL,
     ];
 
-    /** `table.column` => why it is not a secret although its name looks like one. */
+    /**
+     * `table.column` => why it is not a secret although its name looks like
+     * one, or why a sensitive column that is not a secret is exported.
+     */
     public const ALLOWED = [
         'webhook_subscriptions.secret_rotated_at' => 'when a webhook\'s signing secret was last rotated, not the secret (HOOK-01)',
         'webhook_subscriptions.previous_secret_expires_at' => 'until when a webhook\'s previous signing secret still signs, not the secret (HOOK-01)',
@@ -131,6 +134,9 @@ final class ExportColumns
         'pos_refunds.payload_hash' => 'idempotency fingerprint of an uploaded record (NFR-04)',
         'pos_sale_voids.payload_hash' => 'idempotency fingerprint of an uploaded record (NFR-04)',
         'pos_sales.payload_hash' => 'idempotency fingerprint of an uploaded record (NFR-04)',
+        // POS-08, POS-10, NFR-08: personal data, not a secret; reviewed and exported (the tenant's own fiscal records).
+        'pos_sales.buyer_tax_id' => 'the buyer\'s tax id (KRA PIN, NIF) as printed on the sale\'s fiscal documents, kept for the legal obligation after the customer is anonymised',
+        'pos_sales.buyer_name' => 'the buyer\'s name as printed on the sale\'s fiscal documents, kept with its tax id',
         'roles.requires_two_factor' => 'a role\'s policy flag',
         'tenant_domains.verification_token' => 'the public value of a DNS TXT record (BR-05)',
         'sso_domains.verification_token' => 'the public value of a DNS TXT record (AUTH-11)',

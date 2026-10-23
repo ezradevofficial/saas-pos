@@ -116,7 +116,7 @@ export function receiptData({ sale, kind = 'sale', catalogue, customer = null, f
     },
     customer:
       customer || sale.local?.customer_name
-        ? { name: customer?.name ?? sale.local?.customer_name ?? '', tax_id: customer?.tax_id ?? null, phone: null, email: null, address: null, tags: customer?.tags ?? [], custom: customer?.custom_text ?? {} }
+        ? { name: sale.buyer_name ?? customer?.name ?? sale.local?.customer_name ?? '', tax_id: sale.buyer_tax_id ?? null, phone: null, email: null, address: null, tags: customer?.tags ?? [], custom: customer?.custom_text ?? {} }
         : null,
     lines: (sale.lines ?? []).map((line) => ({
       item_name: line.item_name,

@@ -6,6 +6,7 @@ use App\Core\Audit\AuditContext;
 use App\Core\Audit\Auditor;
 use App\Core\Audit\Console\VerifyAuditChain;
 use App\Core\Exports\ListExport;
+use App\Core\Files\Console\MigrateToObjectStorage;
 use App\Core\Support\Console\Preflight;
 use App\Core\Support\EnvironmentGuard;
 use App\Core\Support\TrustedProxies;
@@ -51,7 +52,7 @@ class CoreServiceProvider extends ServiceProvider
         // `package:discover` and `config:clear` work with a stale config cache.
         if ($this->app->runningInConsole()) {
             EnvironmentGuard::listen($this->app, $this->app->make('events'));
-            $this->commands([VerifyAuditChain::class, Preflight::class]);
+            $this->commands([VerifyAuditChain::class, Preflight::class, MigrateToObjectStorage::class]);
         }
 
         // TEN-05: public device pairing, 10 attempts a minute per IP and 300

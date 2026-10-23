@@ -220,6 +220,7 @@ return [
         'actions' => [
             'install' => 'Install',
             'deliver' => 'Deliver',
+            'track' => "Track riders' location",
             'reply' => 'Reply',
             'convert' => 'Convert',
             'discount' => 'Give discounts',

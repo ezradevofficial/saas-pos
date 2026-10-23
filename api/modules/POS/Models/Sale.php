@@ -21,7 +21,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 /**
  * POS-01: a completed sale, as the till made it (ADR 004: the device wins
  * for completed sales; `flags` lists what the server noticed). Never
- * edited after upload except its status when voided (POS-05).
+ * edited after upload except its status when voided (POS-05). A sale to
+ * a customer with a tax id keeps the buyer snapshot (`buyer_tax_id`,
+ * `buyer_name`) its fiscal documents name (POS-10).
  */
 class Sale extends Model implements HasScope
 {

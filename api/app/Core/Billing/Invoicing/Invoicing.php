@@ -37,8 +37,9 @@ use Illuminate\Support\Str;
  * Lines: one per quote line (amounts over the months of the cycle), the
  * annual discount and the coupon as negative lines, overage lines (LIM-05)
  * and, for an upgrade, one pro-rated line. Discounts are spread over the
- * positive lines in proportion (largest remainder) to give each line its
- * net amount and tax, as the tax authority needs.
+ * positive lines other than marketplace app lines in proportion (largest
+ * remainder) to give each line its net amount and tax, as the tax
+ * authority needs; app lines keep their full price (ADR 024 decision 9).
  */
 class Invoicing
 {
@@ -241,6 +242,13 @@ class Invoicing
      * no rate, the tax is left out (null): the fiscal queue holds the
      * invoice until the rate is entered.
      *
+     * The discounts are the plan's (the coupon, the annual discount), so
+     * marketplace `app` lines never take a share: an app is billed at the
+     * developer's full price and the developer's 80 % is computed on it
+     * (MKT-03, ADR 024 decision 9, owner decision 2026-10-22). Only an
+     * invoice with no other positive line spreads over its app lines (a
+     * rounding line), so the lines still add up to the total.
+     *
      * @param  list<array<string, mixed>>  $lines
      * @return list<array<string, mixed>>
      */
@@ -248,14 +256,15 @@ class Invoicing
     {
         $discount = -array_sum(array_map(fn (array $line) => min(0, (int) $line['amount']), $lines));
         $positive = array_keys(array_filter($lines, fn (array $line) => (int) $line['amount'] > 0));
-        $base = array_sum(array_map(fn (int $i) => (int) $lines[$i]['amount'], $positive));
+        $spread = array_values(array_filter($positive, fn (int $i) => ($lines[$i]['type'] ?? null) !== 'app')) ?: $positive;
+        $base = array_sum(array_map(fn (int $i) => (int) $lines[$i]['amount'], $spread));
         $shares = array_fill_keys($positive, 0);
 
         if ($discount > 0 && $base > 0) {
             $discount = min($discount, $base);
             $remainders = [];
 
-            foreach ($positive as $i) {
+            foreach ($spread as $i) {
                 $shares[$i] = intdiv($discount * (int) $lines[$i]['amount'], $base);
                 $remainders[$i] = ($discount * (int) $lines[$i]['amount']) % $base;
             }

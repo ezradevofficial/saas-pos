@@ -3,11 +3,14 @@
 namespace Modules\Ecommerce\Notifications;
 
 use App\Core\Notifications\Channels;
+use App\Core\Notifications\Drivers\ChannelDrivers;
 use App\Core\Notifications\EventType;
 use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\NotificationAddress;
 use App\Core\Notifications\NotificationEvent;
 use App\Core\Notifications\Notifier;
+use App\Core\Notifications\Sms\SmsAvailability;
+use Illuminate\Support\Facades\RateLimiter;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\Store;
 use Modules\Ecommerce\Support\Amounts;
@@ -20,6 +23,25 @@ use Modules\Ecommerce\Support\Amounts;
  * goes by WhatsApp where configured; the email goes as usual. The tracking link and the delivery code are secrets: they
  * reach the message at hand-over only and are never stored (the order
  * keeps their hashes). A transport failure never fails the order.
+ *
+ * ECOM-44: a customer who ticked it at checkout also gets each message on
+ * WhatsApp, through the core notifier's WhatsApp driver, with the event's
+ * short text (its `sms` template, the tenant's override when set, NOT-03).
+ * Until the platform owner configures the driver
+ * (`notifications.drivers.whatsapp`), the channel is not configured:
+ * checkout does not offer it and nothing is queued. SMS and email go out as
+ * before (decision 17).
+ *
+ * Review L6: a guest's number (no signed-in customer proved it) gets
+ * WhatsApp only once the order is paid or accepted, so a stranger's
+ * number typed at checkout is not messaged on WhatsApp by an unpaid
+ * order; and a phone gets at most `ecommerce.notifications.per_phone_per_day`
+ * order messages a day (SMS and WhatsApp), however many orders name it.
+ *
+ * In email-only mode (NOT-01) the same rule holds for the notifier's
+ * WhatsApp fallback: an unproven guest's number gets no SMS delivery (so no
+ * fallback either), and an order already going by WhatsApp (opted in) gets
+ * no SMS delivery, so the number is never messaged twice.
  */
 final class OrderNotices
 {
@@ -42,7 +64,13 @@ final class OrderNotices
         self::DISPATCHED => 'dispatched', self::DELIVERED => 'delivered', self::CANCELLED => 'cancelled',
     ];
 
-    public function __construct(private readonly Notifier $notifier) {}
+    public function __construct(private readonly Notifier $notifier, private readonly ChannelDrivers $drivers, private readonly SmsAvailability $sms) {}
+
+    /** ECOM-44: whether order messages can go out on WhatsApp (a provider driver is configured). */
+    public function whatsappAvailable(): bool
+    {
+        return $this->drivers->available(Channels::WHATSAPP);
+    }
 
     public static function register(EventTypes $types): void
     {
@@ -54,7 +82,7 @@ final class OrderNotices
                     'tracking_url' => 'https://shop.example.com/shop/duka/orders/WEB-NBO-2026-00012?t=…', 'delivery_code' => '482913',
                 ],
                 defaultChannels: [Channels::SMS, Channels::EMAIL],
-                // NOT-01: WhatsApp only as the fallback for SMS in email-only mode (Notifier).
+                // ECOM-44: WhatsApp for customers who opted in; NOT-01: the fallback for SMS in email-only mode (Notifier).
                 channels: [Channels::SMS, Channels::EMAIL, Channels::WHATSAPP],
                 langKey: "ecommerce.notifications.{$name}",
                 system: true,
@@ -70,8 +98,27 @@ final class OrderNotices
         $addresses = [];
         $locale = in_array($order->locale, Channels::LOCALES, true) ? $order->locale : 'en';
 
-        if ($order->contact_phone !== '') {
+        $proven = $order->customer_id !== null || in_array($order->payment_status, ['paid', 'cod_collected'], true) || $order->status !== Order::PLACED;
+        $whatsapp = $order->whatsapp_opt_in && $order->contact_phone !== '' && $proven && $this->whatsappAvailable();
+
+        // NOT-01, review L6: in email-only mode an SMS delivery turns into WhatsApp (Notifier), so it is
+        // made only for a proven number that is not already getting the message by WhatsApp.
+        if ($order->contact_phone !== '' && ($this->sms->available() || ($proven && ! $whatsapp))) {
             $addresses[] = new NotificationAddress(Channels::SMS, $order->contact_phone, $order->contact_name, $locale);
+        }
+
+        if ($whatsapp) {
+            $addresses[] = new NotificationAddress(Channels::WHATSAPP, $order->contact_phone, $order->contact_name, $locale);
+        }
+
+        if ($order->contact_phone !== '' && $addresses !== []) {
+            $key = 'ecom-notices|'.$order->tenant_id.'|'.hash('sha256', $order->contact_phone);
+
+            if (RateLimiter::tooManyAttempts($key, max(1, (int) config('ecommerce.notifications.per_phone_per_day', 20)))) {
+                $addresses = array_values(array_filter($addresses, fn (NotificationAddress $a) => $a->channel === Channels::EMAIL));
+            } else {
+                RateLimiter::hit($key, 86400);
+            }
         }
 
         if ($order->contact_email !== null && $order->contact_email !== '') {

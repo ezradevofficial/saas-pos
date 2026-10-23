@@ -5,6 +5,7 @@ namespace App\Core\DataExport;
 use App\Core\Audit\Auditor;
 use App\Core\DataExport\Jobs\BuildTenantExport;
 use App\Core\DataExport\Models\TenantExport;
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
@@ -122,16 +123,17 @@ class TenantExports
             return;
         }
 
-        $path = sprintf('tenants/%s/exports/%s.zip', $this->tenants->require(), $export->id);
+        $path = TenantFiles::key($this->tenants->require(), 'exports', $export->id.'.zip');
+        $diskName = TenantFiles::disk();
         // The path is known before anything is written: clean-up finds it.
         $export->forceFill([
             'status' => TenantExport::RUNNING,
             'started_at' => CarbonImmutable::now(),
-            'disk' => TenantExportBuilder::MEDIA_DISK,
+            'disk' => $diskName,
             'path' => $path,
         ])->save();
         $built = null;
-        $disk = Storage::disk(TenantExportBuilder::MEDIA_DISK);
+        $disk = Storage::disk($diskName);
 
         try {
             $built = $this->builder->build($export->id);

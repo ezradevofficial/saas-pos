@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "L’appareil photo scanne les codes-barres des articles en caisse et prend des photos comme preuve de livraison.",
+    "NSLocationWhenInUseUsageDescription": "Pendant une livraison, votre position est partagée avec le personnel de la boutique et le client de cette commande, puis effacée à la fin de la livraison."
+  }
+}

@@ -21,6 +21,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.31",
         "laravel/tinker": "^3.0",
+        "league/flysystem-aws-s3-v3": "^3.35",
         "onelogin/php-saml": "^4.3",
         "openspout/openspout": "^5.3",
         "picqer/php-barcode-generator": "^3.3",

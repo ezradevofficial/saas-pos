@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsImports;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\TestCase;
 
 // IMP-01..IMP-03: items through the import wizard, with the item API's own
@@ -25,7 +26,7 @@ use Tests\TestCase;
 // and tenant isolation (TEN-01).
 class ItemImportTest extends TestCase
 {
-    use BuildsImports, BuildsOrganisation, RefreshTenantDatabase;
+    use BuildsImports, BuildsOrganisation, RefreshTenantDatabase, UsesObjectStorage;
 
     private const HEADERS = ['Code', 'Name', 'Type', 'Base unit', 'Category', 'Tax category', 'Barcodes', 'Other units'];
 
@@ -116,6 +117,31 @@ class ItemImportTest extends TestCase
             $this->assertStringEndsWith('/errors.xlsx', $path);
             $this->assertStringContainsString("tenants/{$this->owner->tenant_id}/imports/", $path);
         });
+    }
+
+    /** NFR-07: the source and error files of an import go to the object store under the tenant; it is read back from there. */
+    public function test_an_import_on_the_object_store(): void
+    {
+        $this->useObjectStorage();
+        $rows = $this->rows(2);
+        $rows[1][3] = 'NOPE';
+        $id = $this->upload('items', $this->csvFile([self::HEADERS, ...$rows]))->assertCreated()->json('data.id');
+
+        $import = $this->inTenant(fn () => Import::query()->findOrFail($id));
+        $this->assertOnObjectStorage($import->file_disk, $import->file_path, $this->owner->tenant_id, "imports/{$id}/");
+
+        // The dry run reads the source from the bucket and writes the error file there.
+        $this->postJson("/api/v1/imports/{$id}/dry-run", [], $this->headersFor())->assertStatus(202);
+        $checked = $this->getJson("/api/v1/imports/{$id}", $this->headersFor())->assertOk()
+            ->assertJsonPath('data.status', 'checked')->assertJsonPath('data.failed_rows', 1)->json('data');
+        $errors = $this->inTenant(fn () => Import::query()->findOrFail($id)->error_file_path);
+        Storage::disk('s3')->assertExists($errors);
+        $this->assertStringStartsWith("tenants/{$this->owner->tenant_id}/imports/{$id}/", $errors);
+
+        $this->assertSignedApiUrl($checked['error_file_url']);
+        $this->get($checked['error_file_url'])->assertOk();
+        $this->travel(16)->minutes();
+        $this->get($checked['error_file_url'])->assertForbidden();
     }
 
     public function test_french_headers_map_themselves_and_update_mode_matches_by_code(): void

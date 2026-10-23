@@ -10,6 +10,11 @@ The owner asked for these values to be researched and used ("put what is current
 
 Values go into the packs with their source and an effective date. When the owner confirms or corrects a value, it is published through the country pack release flow (ADM-04, ADR 022).
 
+**Owner decisions, 2026-10-22.** The decisions below were accepted (Phase 8 report, Decisions), with two changes:
+
+- **Low-confidence values are applied too, with a notice**, instead of staying "needs confirmation" and blocking (section "Applied 2026-10-22 by owner decision" below).
+- **DRC INPP by date**: 3/2/1 % by headcount until 2025-12-31, then 3.5/3/2 % from 2026-01-01. **CD annual leave**: 12 days for adults, 18 under 18. **IRPP** from 2026-01-01.
+
 ## Kenya
 
 ### PAYE, monthly (Income Tax Act; unchanged by the Finance Act 2026 per the guides). High.

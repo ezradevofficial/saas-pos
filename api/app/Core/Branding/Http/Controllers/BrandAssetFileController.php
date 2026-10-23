@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * BR-02, BR-04: serves a brand asset on the local media disk through a
+ * BR-02, BR-04: serves a brand asset (from its disk: local, or the object store) through a
  * signed URL (BrandAssets::url; the `signed` middleware checks the
  * signature and expiry). Branding is public, so no user is needed, but the
  * file is still only served when the path names a tenant that has this

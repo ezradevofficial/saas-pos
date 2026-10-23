@@ -1,5 +1,28 @@
 <?php
 
+// NFR-07: tenant files go to the object store whenever a bucket is
+// configured (AWS_BUCKET), with no other switch; MEDIA_DISK overrides it
+// (`media`: the local disk, `s3`: the bucket).
+$tenantFiles = (string) env('MEDIA_DISK', '') !== ''
+    ? (string) env('MEDIA_DISK')
+    : ((string) env('AWS_BUCKET', '') !== '' ? 's3' : 'media');
+
+$objectStorage = [
+    'driver' => 's3',
+    'key' => env('AWS_ACCESS_KEY_ID'),
+    'secret' => env('AWS_SECRET_ACCESS_KEY'),
+    'region' => env('AWS_DEFAULT_REGION'),
+    'bucket' => env('AWS_BUCKET'),
+    // The cluster endpoint, e.g. https://eu-central-1.linodeobjects.com.
+    'endpoint' => env('AWS_ENDPOINT'),
+    // Linode serves both styles; virtual-hosted (false) is its default.
+    // Path style (true) only for a bucket name with dots.
+    'use_path_style_endpoint' => filter_var(env('AWS_USE_PATH_STYLE_ENDPOINT', false), FILTER_VALIDATE_BOOL),
+    'visibility' => 'private',
+    'throw' => true,
+    'report' => false,
+];
+
 return [
 
     /*
@@ -14,6 +37,16 @@ return [
     */
 
     'default' => env('FILESYSTEM_DISK', 'local'),
+
+    /*
+    | NFR-07, TEN-01: the disk new tenant files are written to
+    | (App\Core\Files\TenantFiles::disk()): `s3` (Linode Object Storage)
+    | as soon as AWS_BUCKET is set (staging and production), else `media`
+    | (local, development and tests). MEDIA_DISK overrides either way.
+    | app:preflight fails in production on anything but an object store it
+    | can write, read and delete a probe object on.
+    */
+    'tenant_files' => $tenantFiles,
 
     /*
     |--------------------------------------------------------------------------
@@ -47,36 +80,30 @@ return [
             'report' => false,
         ],
 
-        's3' => [
-            'driver' => 's3',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'region' => env('AWS_DEFAULT_REGION'),
-            'bucket' => env('AWS_BUCKET'),
-            'url' => env('AWS_URL'),
-            'endpoint' => env('AWS_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-            'throw' => false,
+        // NFR-07, TEN-01: Linode Object Storage (S3-compatible), one private
+        // bucket per environment. Never public: no ACLs, no public URL, no
+        // presigned links (App\Core\Files\TenantFiles); the API streams
+        // every file after its own checks. `throw` so a failed write is an
+        // error, never a silent success.
+        's3' => $objectStorage,
+
+        // MD-02 and every other tenant file, from before the object store:
+        // the disk name older rows carry. Local (storage/app/media) in
+        // development and tests; on the object store it is the same bucket as
+        // `s3`, so those rows read the files that
+        // `storage:migrate-to-object-storage` copied there under the same keys.
+        'media' => $tenantFiles === 's3' ? $objectStorage : [
+            'driver' => 'local',
+            'root' => storage_path('app/media'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
             'report' => false,
         ],
 
-        // MD-02: item images and other tenant files, never served from a
-        // public path (temporary signed URLs only, ItemImages). Local in
-        // development and tests; an S3-compatible object store (Linode
-        // Object Storage) in production with MEDIA_DISK_DRIVER=s3 (needs
-        // league/flysystem-aws-s3-v3).
-        'media' => env('MEDIA_DISK_DRIVER', 'local') === 's3' ? [
-            'driver' => 's3',
-            'key' => env('MEDIA_ACCESS_KEY_ID'),
-            'secret' => env('MEDIA_SECRET_ACCESS_KEY'),
-            'region' => env('MEDIA_REGION'),
-            'bucket' => env('MEDIA_BUCKET'),
-            'endpoint' => env('MEDIA_ENDPOINT'),
-            'use_path_style_endpoint' => (bool) env('MEDIA_USE_PATH_STYLE_ENDPOINT', false),
-            'visibility' => 'private',
-            'throw' => true,
-            'report' => false,
-        ] : [
+        // The local media directory, always: the source of
+        // `storage:migrate-to-object-storage`. Nothing else writes here.
+        'media_local' => [
             'driver' => 'local',
             'root' => storage_path('app/media'),
             'visibility' => 'private',

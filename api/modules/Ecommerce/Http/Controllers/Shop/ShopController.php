@@ -9,6 +9,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Ecommerce\Catalogue\ShopCatalogue;
+use Modules\Ecommerce\Delivery\ProofPhotos;
 use Modules\Ecommerce\Http\Middleware\ResolveShop;
 use Modules\Ecommerce\Http\Requests\PlaceOrderRequest;
 use Modules\Ecommerce\Http\Requests\QuoteRequest;
@@ -22,12 +23,15 @@ use Modules\Ecommerce\Models\OrderLine;
 use Modules\Ecommerce\Models\Rider;
 use Modules\Ecommerce\Models\Store;
 use Modules\Ecommerce\Models\Zone;
+use Modules\Ecommerce\Notifications\OrderNotices;
 use Modules\Ecommerce\Orders\OrderPayments;
 use Modules\Ecommerce\Orders\Placement;
 use Modules\Ecommerce\Orders\Pricing;
 use Modules\Ecommerce\Orders\QuoteView;
+use Modules\Ecommerce\Orders\Returns;
 use Modules\Ecommerce\Shop\ShopUrls;
 use Modules\Ecommerce\Support\EcomError;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * ECOM-05 to ECOM-21: the public storefront API, in the store's tenant
@@ -70,6 +74,8 @@ class ShopController
                     'free_over_minor' => $z->free_over_minor === null ? null : (string) $z->free_over_minor, 'eta' => $z->eta])->values(),
             'payment_kinds' => $kinds,
             'categories' => $this->catalogue->categories($store),
+            // ECOM-44: checkout offers order messages on WhatsApp only when the channel is configured.
+            'whatsapp_notifications' => app(OrderNotices::class)->whatsappAvailable(),
             'signed_in' => self::session($request) !== null,
         ]]);
     }
@@ -154,6 +160,19 @@ class ShopController
         return response()->json(['data' => $this->tracked($order->refresh())]);
     }
 
+    /**
+     * ECOM-41: the photo that proved the delivery, for the customer of the
+     * order only (its tracking token or their session), once delivered.
+     */
+    public function proofPhoto(TrackRequest $request, ProofPhotos $photos, string $store, string $number): Response
+    {
+        $order = $this->order($request, $number);
+        $delivery = Delivery::query()->where('order_id', $order->id)->first();
+        abort_unless($delivery !== null && $delivery->status === Delivery::DELIVERED && $delivery->proof_photo_path !== null, 404);
+
+        return $photos->response($delivery);
+    }
+
     private function order(Request $request, string $number): Order
     {
         $store = self::store($request);
@@ -192,9 +211,24 @@ class ShopController
             'history' => OrderEvent::query()->where('order_id', $order->id)->orderBy('at')->orderBy('id')->get()->map(fn (OrderEvent $e) => ['status' => $e->to, 'payment_status' => $e->payment_status, 'at' => $e->at->toIso8601String()])->values(),
             'rider' => $rider === null ? null : ['first_name' => trim(explode(' ', $rider->name)[0] ?? '')],
             'last_location_at' => $delivery?->located_at?->toIso8601String(),
+            // ECOM-40, review M2: where the rider is, only while this order is the rider's one stop on the way
+            // (no other delivery of theirs picked up), so a customer never sees the rider at another's door.
+            'rider_location' => $this->riderOnlyHere($order, $delivery)
+                ? ['latitude' => (string) $delivery->last_latitude, 'longitude' => (string) $delivery->last_longitude, 'at' => $delivery->located_at->toIso8601String()] : null,
+            // ECOM-41: the photo is fetched from …/proof-photo with the same token.
+            'proof_photo' => $delivery?->status === Delivery::DELIVERED && $delivery->proof_photo_path !== null,
+            'returns' => Returns::forCustomer($order),
+            'whatsapp_opt_in' => (bool) $order->whatsapp_opt_in,
             'placed_at' => $order->placed_at->toIso8601String(),
             'reserved_until' => $order->reserved_until?->toIso8601String(),
         ];
+    }
+
+    private function riderOnlyHere(Order $order, ?Delivery $delivery): bool
+    {
+        return $order->status === Order::OUT_FOR_DELIVERY && $delivery?->status === Delivery::PICKED_UP && $delivery->rider_id !== null
+            && $delivery->located_at !== null && $delivery->last_latitude !== null
+            && Delivery::query()->where('rider_id', $delivery->rider_id)->where('status', Delivery::PICKED_UP)->whereKeyNot($delivery->id)->doesntExist();
     }
 
     public static function store(Request $request): Store

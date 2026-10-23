@@ -37,9 +37,9 @@ export function setShopSession(store, token) {
  * /api/v1/shop/{store}/; `body` is sent as JSON; the customer's session is
  * sent when there is one.
  */
-export async function shop(store, method, path, { body, headers: extra = {} } = {}) {
+async function send(store, method, path, { body, headers: extra = {}, accept = 'application/json' } = {}) {
   const headers = {
-    Accept: 'application/json',
+    Accept: accept,
     'Accept-Language': i18n.resolvedLanguage ?? i18n.language ?? 'en',
     'X-Shop-Host': window.location.host,
     ...extra,
@@ -54,17 +54,40 @@ export async function shop(store, method, path, { body, headers: extra = {} } = 
   } catch {
     throw new ApiError({ status: 0, code: 'network_error', message: i18n.t('errors.network') })
   }
+  return { response, token }
+}
+
+async function failure(store, response, token) {
   let data = null
   try {
     data = await response.json()
   } catch {
     data = null
   }
-  if (response.ok) return data
   const { message, code, errors, ...rest } = data ?? {}
   // A session that ended (signed out, expired) is forgotten.
   if (response.status === 401 && token) setShopSession(store, null)
-  throw new ApiError({ status: response.status, code: code ?? 'http_error', message: message || i18n.t('errors.generic'), errors, data: rest })
+  return new ApiError({ status: response.status, code: code ?? 'http_error', message: message || i18n.t('errors.generic'), errors, data: rest })
+}
+
+export async function shop(store, method, path, options = {}) {
+  const { response, token } = await send(store, method, path, options)
+  if (!response.ok) throw await failure(store, response, token)
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
+/**
+ * ECOM-28: a file the shop API serves (the proof-of-delivery photo) as a
+ * Blob, with the same host, language and session as `shop()`.
+ */
+export async function shopBlob(store, path) {
+  const { response, token } = await send(store, 'GET', path, { accept: 'image/*' })
+  if (!response.ok) throw await failure(store, response, token)
+  return response.blob()
 }
 
 /**

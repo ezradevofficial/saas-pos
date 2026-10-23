@@ -11,6 +11,7 @@ use Modules\Accounting\Models\Journal;
 use Modules\Ecommerce\Contracts\CustomerOrders;
 use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Models\OrderLine;
 use Modules\Ecommerce\Tests\Concerns\BuildsEcommerce;
 use Modules\Inventory\Contracts\StockLevels;
 use Modules\Inventory\Models\Movement;
@@ -200,6 +201,35 @@ class IntegrationsTest extends TestCase
         $this->api('POST', "ecommerce/orders/{$id}/dispatch", [], $this->manager)->assertOk();
 
         return $id;
+    }
+
+    public function test_partial_returns_take_back_their_share_of_the_points(): void
+    {
+        // Review M6 (LOY-04): pro rata on every partial return, while Loyalty is active.
+        $this->withLoyalty();
+        $member = $this->shopSignIn('0712345678');
+        $id = $this->dispatched('4', $member);
+        $this->api('POST', "ecommerce/orders/{$id}/deliver", [], $this->manager)->assertOk();
+        $party = $this->inTenant(fn () => Order::query()->findOrFail($id)->party_id);
+        $balance = fn () => $this->inTenant(fn () => (string) Account::query()->where('party_id', $party)->where('kind', 'points')->value('balance'));
+        // 4 × KES 1,160.00 + KES 200.00 delivery = KES 4,840.00: 48 points.
+        $this->assertSame('48', $balance());
+        $line = $this->inTenant(fn () => OrderLine::query()->where('order_id', $id)->sole());
+
+        // One widget back (KES 1,160.00): floor(48 × 116,000 ÷ 484,000) = 11 points off.
+        $this->api('POST', "ecommerce/orders/{$id}/returns", ['reason' => 'One', 'lines' => [['line_id' => $line->id, 'qty' => '1']]])->assertCreated();
+        $this->assertSame('37', $balance());
+        // The other three (KES 4,640.00 in all): 46 off in all, 35 more; the delivery fee's 2 points stay.
+        $this->api('POST', "ecommerce/orders/{$id}/returns", ['reason' => 'Rest', 'lines' => [['line_id' => $line->id, 'qty' => '3']]])->assertCreated();
+        $this->assertSame('2', $balance());
+
+        // Without Loyalty active, nothing is taken.
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('loyalty'));
+        $other = $this->dispatched('1', $member);
+        $this->api('POST', "ecommerce/orders/{$other}/deliver", [], $this->manager)->assertOk();
+        $otherLine = $this->inTenant(fn () => OrderLine::query()->where('order_id', $other)->sole());
+        $this->api('POST', "ecommerce/orders/{$other}/returns", ['reason' => 'x', 'lines' => [['line_id' => $otherLine->id, 'qty' => '1']]])->assertCreated();
+        $this->assertSame('2', $balance());
     }
 
     private function withLoyalty(): PaymentMethod

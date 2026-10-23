@@ -78,6 +78,8 @@
         <env name="DB_PLATFORM_PASSWORD" value="app_platform"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
+        <!-- NFR-07: tests never reach a real bucket, even with AWS_BUCKET in .env; they fake s3 where they need it. -->
+        <env name="MEDIA_DISK" value="media" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <!-- ECOM-24: the fake WhatsApp driver signs with this in tests only (no default anywhere). -->
         <env name="ECOMMERCE_WHATSAPP_FAKE_SECRET" value="test-only-whatsapp-secret"/>
