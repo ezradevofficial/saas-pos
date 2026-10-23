@@ -96,6 +96,19 @@ class ConnectorsTest extends TestCase
         $this->assertSame([], FirstParty::unavailableAppIds());
     }
 
+    /** Security review M4: the listed courier connector never asks for every customer's contacts (core.party.read). */
+    public function test_the_listed_courier_connector_does_not_read_customers(): void
+    {
+        $owner = DB::connection(SyncPermissions::OWNER_CONNECTION);
+        $courier = FirstParty::CONNECTORS['courier'];
+        $listed = $owner->table('marketplace_app_versions')->where('id', $owner->table('marketplace_apps')->where('id', $courier['app'])->value('listed_version_id'))->first();
+
+        $this->assertNotContains('core.party.read', $courier['scopes']);
+        $this->assertSame($courier['version'], $listed->id);
+        $this->assertSame($courier['scopes'], json_decode((string) $listed->scopes, true));
+        $this->assertSame('approved', $listed->status);
+    }
+
     /**
      * Phase 8 review L6: an available connector can do what it asks for. Each of its scopes is
      * served by a public API route (a write route for a write scope), or, for a read scope, is

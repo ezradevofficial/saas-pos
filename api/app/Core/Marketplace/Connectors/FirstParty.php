@@ -26,14 +26,16 @@ final class FirstParty
     public const CONNECTORS = [
         'courier' => [
             'app' => '019a0000-0000-7000-8000-00000000a001',
-            'version' => '019a0000-0000-7000-8000-00000000b001',
+            // Review M4: version 2 drops core.party.read (every customer's contacts); version 1
+            // (…b001), seeded before, stays as reviewed (migration 2026_12_26_000200).
+            'version' => '019a0000-0000-7000-8000-00000000b011',
             'client' => '019a0000-0000-7000-8000-00000000c001',
             'slug' => 'courier-connector',
             'name' => 'Courier connector',
             'tagline' => 'Book deliveries for online orders with a courier.',
             'description' => 'Books a courier pickup when an online order is paid, and writes the courier\'s tracking back to the delivery. Works with any courier the platform adds through its courier interface.',
             'category' => 'delivery',
-            'scopes' => ['core.location.read', 'core.party.read', 'ecommerce.delivery.write', 'ecommerce.order.read'],
+            'scopes' => ['core.location.read', 'ecommerce.delivery.write', 'ecommerce.order.read'],
             'events' => ['order.paid.v1', 'order.status_changed.v1'],
             'available' => true,
         ],
