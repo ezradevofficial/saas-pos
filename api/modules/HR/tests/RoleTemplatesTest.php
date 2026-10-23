@@ -37,9 +37,10 @@ class RoleTemplatesTest extends TestCase
             ->values()->all());
     }
 
-    public function test_the_catalogue_has_thirty_six_permissions(): void
+    public function test_the_catalogue_has_thirty_seven_permissions(): void
     {
-        $this->assertCount(36, self::all());
+        // hr.device.view (MKT-04): the biometric connector reads the devices.
+        $this->assertCount(37, self::all());
     }
 
     public function test_roles_by_job_once_the_module_is_active(): void

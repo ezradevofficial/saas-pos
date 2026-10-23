@@ -115,7 +115,7 @@ class RoleTemplatesTest extends TestCase
         // Loyalty (docs/modules/loyalty.md): 19 loyalty.* permissions.
         // Procurement (docs/modules/procurement.md): 32 procurement.* permissions (procurement.value.view, decision 27).
         // Stores (docs/modules/stores.md): 14 stores.* permissions (stores.stock.approve, decision 12).
-        // HR (docs/modules/hr.md): 36 hr.* permissions.
+        // HR (docs/modules/hr.md): 37 hr.* permissions (hr.device.view, MKT-04).
         // Manufacturing (docs/modules/manufacturing.md): 14 manufacturing.* permissions.
         // CRM (docs/modules/crm.md): 27 crm.* permissions (crm.scope.team|branch among them, CRM-08; crm.opportunity.assign, CRM-10).
         // Payroll (docs/modules/payroll.md): 16 payroll.* permissions (payroll.pay.view, decision 36; payroll.statutory.exempt, CP-01).
@@ -123,7 +123,7 @@ class RoleTemplatesTest extends TestCase
         // E-commerce (docs/modules/ecommerce.md): 17 ecommerce.* permissions.
         // API-02: core.api_key.manage. HOOK-01: core.webhook.manage. RBAC-13: core.support_access.view|manage. AUTH-11: core.sso.manage. NFR-08: core.privacy_request.* and core.consent.*.
         // MKT-01, MKT-02: core.marketplace.view|install, core.developer.manage (126 core permissions).
-        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27 + 16 + 17 + 14 + 17, count($names));
+        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 37 + 27 + 16 + 17 + 14 + 17, count($names));
     }
 
     public function test_sign_up_provisions_fifteen_system_roles_and_an_owner_assignment(): void
@@ -150,14 +150,14 @@ class RoleTemplatesTest extends TestCase
         // Loyalty: the programme (2) and promotions (4), LOY-01, LOY-08.
         // Procurement: the company's tolerances and the 9 views, procurement.value.view among them (PRC-01, decision 27).
         // Stores: the views, reports and values (stores.*.view, 6), STR-10, STR-12.
-        // HR: hr.*.view without the five sensitive groups (9), HR-09.
+        // HR: hr.*.view without the five sensitive groups (10, hr.device.view among them), HR-09, MKT-04.
         // Manufacturing: the views (4), BOMs and the company's rates (2), MFG-02, MFG-29.
         // CRM: the five views, the settings and the branch scope (7), CRM-08.
         // Fixed assets: the 6 views, settings, categories and labels (9).
         // E-commerce: the 7 views, store and rider set-up (9).
         // AUTH-11: nor single sign-on (core.sso.manage), the Owner's alone.
         // Payroll: exempting the company from a pack component (payroll.statutory.exempt, CP-01).
-        $this->assertSame(Permission::where('module', 'core')->count() - 3 + 4 + 10 + 6 + 10 + 6 + 9 + 7 + 9 + 6 + 9 + 1, $admin->permissions()->count());
+        $this->assertSame(Permission::where('module', 'core')->count() - 3 + 4 + 10 + 6 + 10 + 6 + 10 + 7 + 9 + 6 + 9 + 1, $admin->permissions()->count());
         $this->assertTrue($admin->hasPermissionTo('payroll.statutory.exempt'));
         $this->assertFalse(Role::where('template_key', 'payroll_officer')->sole()->hasPermissionTo('payroll.statutory.exempt'));
         $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));
