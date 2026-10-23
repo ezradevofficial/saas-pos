@@ -27,11 +27,13 @@ use Modules\HR\Support\Errors;
  *   match people; no sensitive group (HR-09) is ever part of it, and the
  *   `hr_employee` field rules (RBAC-05) still hide what they name;
  * - the attendance devices (`hr.device.view` at each device's location);
- * - a device's punches (`hr.attendance.manage` at its location), through
- *   PunchUploads::fromDevice, the device's own path: matched by the
- *   device's event id (a resend answers what it answered first), within
- *   the offline window, by enrolment reference to an active employee of
- *   the device's company. Only an active device takes punches.
+ * - a device's punches (`hr.attendance.manage` at its location), sent by
+ *   API keys and apps only (people punch through HR's manual path),
+ *   through PunchUploads::fromDevice: matched by the device's event id (a
+ *   resend answers what it answered first), within the offline window, by
+ *   enrolment reference to an active employee at the device's place that
+ *   day; recorded by the principal and audited once per upload (security
+ *   review H2). Only an active device takes punches.
  */
 class AttendanceConnectorController
 {
@@ -65,12 +67,17 @@ class AttendanceConnectorController
         $user = $request->user();
         $at = Scope::location($hrAttendanceDevice->location_id);
         abort_unless($this->resolver->can($user, 'hr.device.view', $at) || $this->resolver->can($user, 'hr.attendance.manage', $at), 404);
+        // Review H2: only API keys and apps send a device's punches; people punch through HR's manual path.
+        if (! $user->isServicePrincipal()) {
+            throw Errors::make(403, 'device_punches_keys_only');
+        }
+
         abort_unless($this->resolver->can($user, 'hr.attendance.manage', $at), 403);
 
         if (! $hrAttendanceDevice->acceptsTokens()) {
             throw Errors::make(409, 'device_not_active');
         }
 
-        return new JsonResponse(['data' => $uploads->fromDevice($hrAttendanceDevice, $request->validated('punches'))]);
+        return new JsonResponse(['data' => $uploads->fromDevice($hrAttendanceDevice, $request->validated('punches'), $user)]);
     }
 }

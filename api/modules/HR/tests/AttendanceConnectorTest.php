@@ -2,6 +2,8 @@
 
 namespace Modules\HR\Tests;
 
+use App\Core\Audit\AuditEntry;
+use App\Core\Identity\Models\User;
 use App\Core\Identity\Services\Authenticate;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Models\Role;
@@ -195,12 +197,54 @@ class AttendanceConnectorTest extends TestCase
         $this->punches($headers, $punch)->assertStatus(429);
     }
 
-    public function test_people_use_the_same_routes_within_their_role(): void
+    /** Security review H2: people read within their role, but only keys and apps send a device's punches. */
+    public function test_people_read_but_never_send_device_punches(): void
     {
         $this->getJson('/api/v1/hr/connector/employees', $this->headersFor($this->hrOfficer))->assertOk()->assertJsonPath('data.0.biometric_ref', '1001');
-        $this->punches($this->headersFor($this->hrOfficer), [['external_id' => 'ev-1', 'ref' => '1001', 'kind' => 'in', 'occurred_at' => $this->at('08:00')]])->assertOk()->assertJsonPath('data.0.status', 'stored');
-        // A branch manager of B does not reach the device at A.
+        $punch = [['external_id' => 'ev-1', 'ref' => '1001', 'kind' => 'in', 'occurred_at' => $this->at('08:00')]];
+
+        foreach ([$this->hrOfficer, $this->owner] as $person) {
+            $this->punches($this->headersFor($person), $punch)->assertForbidden()->assertJsonPath('code', 'device_punches_keys_only');
+        }
+        // A branch manager of B does not reach the device at A at all.
         $managerB = $this->userWith('branch_manager', Scope::branch($this->branchB->id));
-        $this->punches($this->headersFor($managerB), [['external_id' => 'ev-2', 'ref' => '1001', 'kind' => 'out', 'occurred_at' => $this->at('17:00')]])->assertNotFound();
+        $this->punches($this->headersFor($managerB), $punch)->assertNotFound();
+        $this->assertSame(0, $this->inTenant(fn () => Punch::query()->count()));
+    }
+
+    /**
+     * Security review H2: a reference matches only someone at the device's place (its location, or
+     * its branch for someone placed at the branch); anyone else in the company is answered exactly
+     * as an unknown reference, so the route finds no one. Punches record the principal, and each
+     * upload is audited once with the device, the counts and the time range.
+     */
+    public function test_punches_match_only_people_at_the_devices_place_recorded_and_audited(): void
+    {
+        $this->employee(['first_name' => 'Bahati', 'location_id' => $this->locationB->id, 'branch_id' => $this->branchB->id, 'biometric_ref' => '2002']);
+        $atBranch = $this->employee(['first_name' => 'Chausiku', 'biometric_ref' => '3003']);
+        $headers = $this->key();
+        $body = [
+            ['external_id' => 'ev-1', 'ref' => '1001', 'kind' => 'in', 'occurred_at' => $this->at('08:00')],
+            ['external_id' => 'ev-2', 'ref' => '2002', 'kind' => 'in', 'occurred_at' => $this->at('08:05')],
+            ['external_id' => 'ev-3', 'ref' => '9999', 'kind' => 'in', 'occurred_at' => $this->at('08:10')],
+            ['external_id' => 'ev-4', 'ref' => '3003', 'kind' => 'in', 'occurred_at' => $this->at('08:15')],
+        ];
+
+        $results = $this->punches($headers, $body)->assertOk()->json('data');
+        $this->assertSame(['stored', 'rejected', 'rejected', 'stored'], array_column($results, 'status'));
+        // Someone elsewhere in the company and no one at all answer the same.
+        $this->assertSame(array_diff_key($results[1], ['external_id' => 1]), array_diff_key($results[2], ['external_id' => 1]));
+        $this->assertSame('unknown_ref', $results[1]['code']);
+
+        $principal = $this->inTenant(fn () => User::query()->where('status', 'service')->sole());
+        $this->inTenant(function () use ($principal, $atBranch) {
+            $this->assertSame([$this->amina->id, $atBranch->id], Punch::query()->orderBy('occurred_at')->pluck('employee_id')->all());
+            $this->assertSame([$principal->id], Punch::query()->distinct()->pluck('recorded_by')->all());
+            $entry = AuditEntry::query()->where('action', 'hr.punch.device_upload')->sole();
+            $this->assertSame([$principal->id, $this->deviceId], [$entry->user_id, $entry->auditable_id]);
+            $this->assertSame([4, 2, 2, $this->deviceId, $principal->id], [$entry->after['count'], $entry->after['stored'], $entry->after['rejected'], $entry->after['attendance_device_id'], $entry->after['recorded_by']]);
+            $this->assertSame([CarbonImmutable::parse($this->at('08:00'))->utc()->toIso8601String(), CarbonImmutable::parse($this->at('08:15'))->utc()->toIso8601String()], [$entry->after['from'], $entry->after['to']]);
+            $this->assertNotNull($entry->after['metadata']['api_key_id'] ?? null);
+        });
     }
 }

@@ -244,7 +244,7 @@ marked. Lists follow ADR 008 (`?search`, `?sort`, `?per_page`, `?page`,
 | `POST hr/device/punches` (attendance device token) | the device |
 | `GET hr/connector/employees` (public API, `hr.employee.read`): the active roster, id, display name and enrolment reference only (`hr_employee` field rules; no sensitive group) | `employee.view` |
 | `GET hr/connector/devices` (public API, `hr.device.read`): devices, never their tokens | `device.view` |
-| `POST hr/connector/devices/{hr_attendance_device}/punches` (public API, `hr.attendance.write`): the biometric connector's punches of one active device, through the device's own upload (idempotent by event id, 7-day window) | `attendance.manage` at the device's location |
+| `POST hr/connector/devices/{hr_attendance_device}/punches` (public API, `hr.attendance.write`): the biometric connector's punches of one active device, through the device's own upload (idempotent by event id, 7-day window), matched only to employees at the device's place that day, recorded by the principal and audited once per upload; API keys and apps only | `attendance.manage` at the device's location |
 | `GET/POST hr/checklist-templates`, `PATCH hr/checklist-templates/{hr_checklist_template}`, `POST …/archive` | `checklist.view` / `manage` |
 | `GET hr/checklists`, `POST hr/employees/{hr_employee}/checklists`, `POST hr/checklist-items/{hr_checklist_item}/complete`, `/reopen` | `checklist.view` / `manage` |
 | `GET/POST hr/disciplinary-cases`, `GET/PATCH hr/disciplinary-cases/{hr_disciplinary_case}`, `POST …/close` | `disciplinary.view` / `manage` |

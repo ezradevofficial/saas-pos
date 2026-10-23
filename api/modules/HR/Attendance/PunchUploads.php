@@ -2,9 +2,12 @@
 
 namespace Modules\HR\Attendance;
 
+use App\Core\Audit\Auditor;
 use App\Core\Http\ApiException;
+use App\Core\Identity\Models\User;
 use App\Core\Sync\DeviceScope;
 use App\Core\Tenancy\Models\Device;
+use App\Core\Tenancy\Models\Location;
 use Carbon\CarbonImmutable;
 use Modules\HR\Models\AttendanceDevice;
 use Modules\HR\Models\Employee;
@@ -28,6 +31,7 @@ class PunchUploads
     public function __construct(
         private readonly Punches $punches,
         private readonly Schedules $schedules,
+        private readonly Auditor $auditor,
     ) {}
 
     /**
@@ -86,21 +90,50 @@ class PunchUploads
     }
 
     /**
+     * $by: an API key's or app's principal sending the device's punches
+     * through the public API (HR-24, MKT-04, security review H2). Then a
+     * reference matches only an active employee at the device's place on
+     * the punch's date (the device's location, or its branch for an
+     * employee placed at the branch, as tills, wasHere): one elsewhere in
+     * the company is answered `unknown_ref`, as an unknown reference is, so
+     * the route finds no one. Each punch records the principal
+     * (`recorded_by`), and the upload is audited once (`hr.punch.device_upload`:
+     * the device, the counts and the time range), with the key in the
+     * entry's metadata.
+     *
      * @param  list<array{external_id: string, ref: string, kind: string, occurred_at: string}>  $uploads
      * @return list<array<string, mixed>>
      */
-    public function fromDevice(AttendanceDevice $device, array $uploads): array
+    public function fromDevice(AttendanceDevice $device, array $uploads, ?User $by = null): array
     {
-        return $this->punches->batch(fn () => $this->devicePunches($device, $uploads));
+        $results = $this->punches->batch(fn () => $this->devicePunches($device, $uploads, $by));
+
+        if ($by !== null) {
+            $stored = array_values(array_filter($results, fn (array $r) => $r['status'] === 'stored'));
+            $times = array_map(fn (array $u) => CarbonImmutable::parse($u['occurred_at'])->utc()->toIso8601String(), $uploads);
+            sort($times);
+            $this->auditor->record('hr.punch.device_upload', $device, null, [
+                'attendance_device_id' => $device->id,
+                'recorded_by' => $by->id,
+                'count' => count($uploads),
+                'stored' => count($stored),
+                'rejected' => count($uploads) - count($stored),
+                'from' => $times[0] ?? null,
+                'to' => $times[count($times) - 1] ?? null,
+            ]);
+        }
+
+        return $results;
     }
 
     /**
      * @param  list<array{external_id: string, ref: string, kind: string, occurred_at: string}>  $uploads
      * @return list<array<string, mixed>>
      */
-    private function devicePunches(AttendanceDevice $device, array $uploads): array
+    private function devicePunches(AttendanceDevice $device, array $uploads, ?User $by): array
     {
         $results = [];
+        $branchId = $by === null ? null : Location::query()->whereKey($device->location_id)->value('branch_id');
 
         foreach ($uploads as $upload) {
             $existing = Punch::query()->where('attendance_device_id', $device->id)->where('external_id', $upload['external_id'])->first();
@@ -122,6 +155,11 @@ class PunchUploads
             // Only active employees are matched by their enrolment reference.
             $employee = Employee::query()->where('company_id', $device->company_id)->where('status', Employee::ACTIVE)->where('biometric_ref', $upload['ref'])->first();
 
+            // Review H2: through the public API, only someone at the device's place that day.
+            if ($employee !== null && $by !== null && ! $this->atPlace($employee, $device->location_id, (string) $branchId, $at)) {
+                $employee = null;
+            }
+
             if ($employee === null) {
                 $results[] = [...self::rejected(null, 'unknown_ref'), 'external_id' => $upload['external_id']];
 
@@ -132,7 +170,7 @@ class PunchUploads
 
             $results[] = [...$this->store($employee, [
                 'kind' => $kind, 'occurred_at' => $at, 'source' => 'device', 'attendance_device_id' => $device->id,
-                'external_id' => $upload['external_id'], 'location_id' => $device->location_id,
+                'external_id' => $upload['external_id'], 'location_id' => $device->location_id, 'recorded_by' => $by?->id,
             ], null), 'external_id' => $upload['external_id']];
         }
 
@@ -151,6 +189,17 @@ class PunchUploads
         } catch (ApiException $e) {
             return self::rejected($id, $e->errorCode);
         }
+    }
+
+    /** Review H2: the employee was placed at $locationId, or at $branchId with no location, on the punch's date. */
+    private function atPlace(Employee $employee, string $locationId, string $branchId, CarbonImmutable $at): bool
+    {
+        $date = $at->setTimezone($this->schedules->timezoneOf($employee))->toDateString();
+
+        return EmployeePlace::query()->where('employee_id', $employee->id)
+            ->where('effective_from', '<=', $date)->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $date))
+            ->where(fn ($q) => $q->where('location_id', $locationId)->orWhere(fn ($w) => $w->whereNull('location_id')->where('branch_id', $branchId)))
+            ->exists();
     }
 
     /**
