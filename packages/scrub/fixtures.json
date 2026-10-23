@@ -383,7 +383,10 @@
     "secret_access_key",
     "X-Amz-Security-Token",
     "X-Amz-Credential",
-    "X-Amz-Signature"
+    "X-Amz-Signature",
+    "biometric_ref",
+    "biometricRef",
+    "ref"
   ],
   "plainKeys": [
     "name",
@@ -412,6 +415,10 @@
     "region",
     "endpoint",
     "idempotency_status",
-    "key_count"
+    "key_count",
+    "reference",
+    "tracking_reference",
+    "courier_reference",
+    "referrer"
   ]
 }
