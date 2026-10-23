@@ -4,7 +4,7 @@ Kenya's Data Protection Act 2019 and the DRC's rules give people the right to se
 
 ## Data subject requests (Settings → Privacy)
 
-A request is about one person in the tenant: a **customer** (a party), an **employee** (HR) or a **user**. Each module registers where its personal data lives (`PrivacySubjects`): core registers parties and users, HR its employees, Payroll its copy of an employee, CRM the leads converted to a customer, E-commerce the storefront accounts.
+A request is about one person in the tenant: a **customer** (a party), an **employee** (HR) or a **user**. Each module registers where its personal data lives (`PrivacySubjects`): core registers parties and users, HR its employees, Payroll its copy of an employee, CRM the leads converted to a customer, E-commerce the storefront accounts and, for a rider (a user), their delivery trail, the last positions on their deliveries and their rider record (ECOM-40).
 
 | Kind | What carrying it out does |
 | --- | --- |

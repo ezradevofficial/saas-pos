@@ -36,9 +36,23 @@ return [
         'per_ip_per_minute' => (int) env('ECOMMERCE_WHATSAPP_PER_IP_PER_MINUTE', 300),
     ],
 
+    // Review L6: order messages (SMS and WhatsApp) a phone gets in a day.
+    'notifications' => [
+        'per_phone_per_day' => 20,
+    ],
+
     'rider' => [
         // ECOM-28: status updates in one upload, and the largest proof photo (kilobytes).
         'max_updates' => 100,
         'max_photo_kb' => 4096,
+        // ECOM-41, review H3: the largest side of a proof photo (pixels); larger photos are refused.
+        'max_photo_pixels' => 4096,
+        // Review H3, M5: uploads a minute per rider (photos; status and location batches).
+        'photos_per_minute' => 20,
+        'updates_per_minute' => 30,
+        // Review M1: the key of the uploaded updates' fingerprints (empty: derived from APP_KEY).
+        'update_hash_key' => env('ECOMMERCE_RIDER_UPDATE_HASH_KEY'),
+        // ECOM-40: trail points kept per active delivery (the oldest are dropped); cleared when it ends.
+        'max_trail_points' => 500,
     ],
 ];

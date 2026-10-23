@@ -766,7 +766,23 @@
       "collected": "Cash collected",
       "collectedHelp": "Change it only if the customer paid a different amount.",
       "collectedInvalid": "Enter the amount as a number.",
-      "confirm": "Confirm delivery"
+      "confirm": "Confirm delivery",
+      "proof": {
+        "label": "Proof of delivery",
+        "code": "Customer’s code",
+        "photo": "Photo of the parcel"
+      },
+      "photo": {
+        "help": "Take a photo of the parcel handed over at the address.",
+        "take": "Take photo",
+        "retake": "Retake",
+        "use": "Use photo",
+        "permission": "The camera takes the delivery photo. It is sent only to the shop with this delivery.",
+        "allow": "Allow camera",
+        "ready": "Photo ready. It is sent with the delivery.",
+        "failed": "The photo was not taken. Try again.",
+        "preview": "Delivery photo"
+      }
     },
     "failed": {
       "title": "Could not deliver order {{number}}",
@@ -784,7 +800,8 @@
       "proof_required": "Enter the customer’s delivery code to confirm the delivery.",
       "delivery_unknown": "This delivery is no longer yours. Refresh your deliveries.",
       "delivery_status_invalid": "This delivery has changed. Refresh your deliveries.",
-      "payload_mismatch": "This update was already sent with other details. Refresh your deliveries."
+      "payload_mismatch": "This update was already sent with other details. Refresh your deliveries.",
+      "photo_invalid": "The photo could not be used. Take a new photo, then confirm the delivery again."
     },
     "errors": {
       "offline": "The server cannot be reached. Check the connection, then try again.",
@@ -795,6 +812,16 @@
       "failed": "That did not work. Try again.",
       "unverified": "Verify your account first, then sign in.",
       "deactivated": "Your account is switched off. Ask an admin."
+    },
+    "location": {
+      "title": "Share your location during deliveries",
+      "body": "While you have a delivery in progress, this phone sends your position about once a minute. Only the shop’s staff and the customer of that order see it, and it is cleared when the delivery ends. Nothing is sent when you have no delivery or the app is not open.",
+      "allow": "Share my location",
+      "notNow": "Not now",
+      "off": "Location sharing is off. You can still deliver; the shop and the customer do not see where you are.",
+      "blocked": "Location is turned off for this app in the phone’s settings. You can still deliver.",
+      "openSettings": "Open settings",
+      "on": "Your location is shared while a delivery is in progress."
     }
   }
 }

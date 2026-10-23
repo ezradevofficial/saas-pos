@@ -67,6 +67,7 @@ use Modules\Ecommerce\Customers\CustomerCodeNotification;
 use Modules\Ecommerce\Models\Conversation;
 use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Models\OrderLine;
 use Modules\Ecommerce\WhatsApp\FakeWhatsAppProvider;
 use Modules\HR\Events\AttendancePeriodClosed;
 use Modules\HR\Events\LeaveApproved;
@@ -1631,7 +1632,15 @@ final class TwoTenants
         self::ok($test->postJson('/api/v1/ecommerce/cashups', ['rider_id' => $rider, 'currency' => 'KES', 'counted_minor' => $total], $owner), 201);
         [$second, $secondDelivery] = $order(2);
         $deliver($second, $secondDelivery);
+        // ECOM-42: part of the second order comes back (a return with its line), refunded by hand.
+        $secondLine = app(TenantContext::class)->run($tenantId, fn () => OrderLine::query()->where('order_id', $second)->value('id'));
+        $return = self::ok($test->postJson("/api/v1/ecommerce/orders/{$second}/returns", ['reason' => "Damaged {$upper}", 'lines' => [['line_id' => $secondLine, 'qty' => '1']]], $owner), 201)
+            ->json('data.returns.0.id');
         [$open, $openDelivery] = $order(3);
+        $openLine = app(TenantContext::class)->run($tenantId, fn () => OrderLine::query()->where('order_id', $open)->value('id'));
+        // ECOM-40: the open delivery's rider reports where they are (a point of its trail).
+        self::ok($test->postJson('/api/v1/ecommerce/rider/updates', ['updates' => [['id' => (string) Str::uuid7(), 'delivery_id' => $openDelivery, 'kind' => 'location',
+            'latitude' => '-1.2633', 'longitude' => '36.8040', 'occurred_at' => now()->toIso8601String()]]], $owner));
         config(['branding.base_domain' => $baseDomain]);
 
         return [
@@ -1643,6 +1652,8 @@ final class TwoTenants
                 'ecom_delivery' => $openDelivery,
                 'ecom_rider' => $rider,
                 'ecom_conversation' => $conversation,
+                'ecom_return' => $return,
+                'ecom_order_line' => $openLine,
             ],
             'contacts' => [$webhook, $session, "+{$chatPhone}", '+254'.substr($shopperPhone, 1), "shopper-{$key}@example.com"],
         ];

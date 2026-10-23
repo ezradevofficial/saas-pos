@@ -766,7 +766,23 @@
       "collected": "Espèces encaissées",
       "collectedHelp": "Modifiez-le seulement si le client a payé un autre montant.",
       "collectedInvalid": "Saisissez le montant en chiffres.",
-      "confirm": "Confirmer la livraison"
+      "confirm": "Confirmer la livraison",
+      "proof": {
+        "label": "Preuve de livraison",
+        "code": "Code du client",
+        "photo": "Photo du colis"
+      },
+      "photo": {
+        "help": "Prenez une photo du colis remis à l’adresse.",
+        "take": "Prendre la photo",
+        "retake": "Reprendre",
+        "use": "Utiliser la photo",
+        "permission": "La caméra prend la photo de livraison. Elle est envoyée uniquement au magasin avec cette livraison.",
+        "allow": "Autoriser la caméra",
+        "ready": "Photo prête. Elle est envoyée avec la livraison.",
+        "failed": "La photo n’a pas été prise. Réessayez.",
+        "preview": "Photo de livraison"
+      }
     },
     "failed": {
       "title": "Impossible de livrer la commande {{number}}",
@@ -784,7 +800,8 @@
       "proof_required": "Saisissez le code de livraison du client pour confirmer la livraison.",
       "delivery_unknown": "Cette livraison ne vous est plus attribuée. Actualisez vos livraisons.",
       "delivery_status_invalid": "Cette livraison a changé. Actualisez vos livraisons.",
-      "payload_mismatch": "Cette mise à jour a déjà été envoyée avec d’autres détails. Actualisez vos livraisons."
+      "payload_mismatch": "Cette mise à jour a déjà été envoyée avec d’autres détails. Actualisez vos livraisons.",
+      "photo_invalid": "La photo n’a pas pu être utilisée. Prenez une nouvelle photo, puis confirmez à nouveau la livraison."
     },
     "errors": {
       "offline": "Le serveur est injoignable. Vérifiez la connexion, puis réessayez.",
@@ -795,6 +812,16 @@
       "failed": "Cela n’a pas fonctionné. Réessayez.",
       "unverified": "Vérifiez d’abord votre compte, puis connectez-vous.",
       "deactivated": "Votre compte est désactivé. Contactez un administrateur."
+    },
+    "location": {
+      "title": "Partager votre position pendant les livraisons",
+      "body": "Pendant qu’une livraison est en cours, ce téléphone envoie votre position environ une fois par minute. Seuls le personnel du magasin et le client de cette commande la voient, et elle est effacée à la fin de la livraison. Rien n’est envoyé quand vous n’avez pas de livraison ou que l’application n’est pas ouverte.",
+      "allow": "Partager ma position",
+      "notNow": "Pas maintenant",
+      "off": "Le partage de position est désactivé. Vous pouvez toujours livrer ; le magasin et le client ne voient pas où vous êtes.",
+      "blocked": "La position est désactivée pour cette application dans les réglages du téléphone. Vous pouvez toujours livrer.",
+      "openSettings": "Ouvrir les réglages",
+      "on": "Votre position est partagée pendant qu’une livraison est en cours."
     }
   }
 }

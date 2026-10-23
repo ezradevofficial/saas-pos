@@ -290,6 +290,38 @@
       "code"
     ],
     [
+      "latitude"
+    ],
+    [
+      "longitude"
+    ],
+    [
+      "^",
+      "lat"
+    ],
+    [
+      "^",
+      "lng"
+    ],
+    [
+      "^",
+      "trail"
+    ],
+    [
+      "^",
+      "location"
+    ],
+    [
+      "^",
+      "last",
+      "location"
+    ],
+    [
+      "^",
+      "rider",
+      "location"
+    ],
+    [
       "^",
       "key"
     ],

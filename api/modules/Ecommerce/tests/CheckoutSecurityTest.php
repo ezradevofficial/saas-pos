@@ -125,17 +125,27 @@ class CheckoutSecurityTest extends TestCase
         $this->shopCall('POST', 'duka/auth/code', ['contact' => 'wanjiru@example.com'])->assertCreated();
     }
 
-    /** NOT-01, ECOM-20: in email-only mode an order update's SMS is skipped and goes by WhatsApp where configured. */
+    /** NOT-01, ECOM-20, ECOM-44 (review L6): in email-only mode an order update's SMS is skipped and goes by WhatsApp where configured, never to an unproven guest number, never twice. */
     public function test_in_email_only_mode_order_updates_skip_sms_and_go_by_whatsapp(): void
     {
         config(['services.sms.driver' => 'none']);
+        $notices = fn (string $type) => $this->inTenant(fn () => NotificationDelivery::query()->where('event_type', $type)->get());
 
-        $this->placeOrder($this->cart([[$this->widgetProduct, '1']]))->assertCreated();
+        // A guest's number typed at checkout: nothing by phone until the order is accepted (the email still goes).
+        $id = $this->orderId($this->placeOrder($this->cart([[$this->widgetProduct, '1']]))->assertCreated()->json('data.number'));
+        $this->assertSame(['email'], $notices(OrderNotices::PLACED)->pluck('channel')->all());
 
-        $placed = $this->inTenant(fn () => NotificationDelivery::query()->where('event_type', OrderNotices::PLACED)->get()->keyBy('channel'));
-        $this->assertSame(['skipped', 'sms_unavailable'], [$placed['sms']->status, $placed['sms']->reason]);
-        $this->assertSame($placed['sms']->recipient, $placed['whatsapp']->recipient);
-        $this->assertNotSame(NotificationDelivery::SKIPPED, $placed['whatsapp']->status);
+        $this->api('POST', "ecommerce/orders/{$id}/accept", [], $this->manager)->assertOk();
+        $accepted = $notices(OrderNotices::ACCEPTED)->keyBy('channel');
+        $this->assertSame(['skipped', 'sms_unavailable'], [$accepted['sms']->status, $accepted['sms']->reason]);
+        $this->assertSame($accepted['sms']->recipient, $accepted['whatsapp']->recipient);
+        $this->assertNotSame(NotificationDelivery::SKIPPED, $accepted['whatsapp']->status);
+
+        // Opted in to WhatsApp: one WhatsApp message, no second one from the SMS fallback.
+        $other = $this->orderId($this->placeOrder($this->cart([[$this->widgetProduct, '1']]), key: 'email-only-optin-0001', extra: ['whatsapp_opt_in' => true])->assertCreated()->json('data.number'));
+        $this->api('POST', "ecommerce/orders/{$other}/accept", [], $this->manager)->assertOk();
+        $this->assertSame(2, $notices(OrderNotices::ACCEPTED)->where('channel', 'whatsapp')->count(), 'one for each order');
+        $this->assertSame(1, $notices(OrderNotices::ACCEPTED)->where('channel', 'sms')->count(), 'no SMS row for the opted-in order');
     }
 
     public function test_after_a_few_codes_from_one_address_a_challenge_is_needed(): void

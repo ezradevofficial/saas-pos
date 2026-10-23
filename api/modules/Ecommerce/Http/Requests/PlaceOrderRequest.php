@@ -15,6 +15,7 @@ class PlaceOrderRequest extends FormRequest
 
     public function rules(): array
     {
-        return [...CartRules::cart(), ...CartRules::checkout(['mpesa', 'card', 'cod'])];
+        // ECOM-44: order messages on WhatsApp, only when the customer ticks it.
+        return [...CartRules::cart(), ...CartRules::checkout(['mpesa', 'card', 'cod']), 'whatsapp_opt_in' => ['sometimes', 'boolean']];
     }
 }

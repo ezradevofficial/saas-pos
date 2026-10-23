@@ -11,6 +11,7 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { useCompanies } from '@/layouts/companySelection'
 import { When } from '@/pages/crm/CrmParts'
 import { CASHUP_MANAGE, DELIVERY_ASSIGN, DELIVERY_COLUMNS, ecomKey, namedOptions, RIDER_MANAGE, TONES, useEcomAction, useRiders } from './ecommerceData'
+import { ProofPhoto, TrackDialog } from './Tracking'
 
 /** ECOM-27, ECOM-29: open deliveries by status, with their rider, last report and a rider picker. */
 export function Deliveries() {
@@ -20,6 +21,7 @@ export function Deliveries() {
   const riders = useRiders(can(DELIVERY_ASSIGN))
   const action = useEcomAction()
   const [picked, setPicked] = useState({})
+  const [tracking, setTracking] = useState(null)
   const rows = query.data?.data ?? []
   return (
     <>
@@ -43,6 +45,10 @@ export function Deliveries() {
                     {row.rider ? <dd>{row.rider.name}</dd> : null}
                     {row.last_location ? <dd className="text-caption text-ink-muted">{t('ecommerce.deliveries.lastSeen')} <When value={row.last_location.at} /></dd> : null}
                   </dl>
+                  {row.proof_photo ? <div className="mt-3"><ProofPhoto photo={row.proof_photo} number={row.order?.number} /></div> : null}
+                  {row.can_track ? (
+                    <Button className="mt-3" aria-label={t('ecommerce.tracking.trackNamed', { number: row.order?.number })} onClick={() => setTracking(row)}>{t('ecommerce.tracking.track')}</Button>
+                  ) : null}
                   {can(DELIVERY_ASSIGN) && status !== 'picked_up' ? (
                     <div className="mt-3 flex items-end gap-2">
                       <Select label={t('ecommerce.deliveries.rider')} placeholder={t('ecommerce.deliveries.chooseRider')} options={namedOptions(riders)} value={picked[row.id] ?? row.rider?.id ?? ''} onChange={(event) => setPicked({ ...picked, [row.id]: event.target.value })} />
@@ -55,6 +61,7 @@ export function Deliveries() {
           )
         })}
       </div>
+      {tracking ? <TrackDialog delivery={tracking} title={t('ecommerce.tracking.titleNamed', { number: tracking.order?.number })} onClose={() => setTracking(null)} /> : null}
     </>
   )
 }

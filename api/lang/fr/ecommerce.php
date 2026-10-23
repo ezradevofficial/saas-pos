@@ -3,6 +3,22 @@
 // Module e-commerce et livraison (docs/modules/ecommerce.md).
 return [
     'errors' => [
+        'return_awaiting_approval' => 'Ce retour attend l’approbation de son remboursement. Réessayez une fois approuvé.',
+        'collect_reference_required' => 'Saisissez la référence du paiement encaissé (un reçu ou un numéro de transaction).',
+        'photo_unavailable' => 'Les photos ne peuvent pas servir de preuve pour le moment. Utilisez le code de livraison du client, ou demandez à la boutique de confirmer la livraison.',
+        'photo_pixels_too_large' => 'La photo est trop grande (plus de :max pixels de côté ou 12 mégapixels). Reprenez-la en plus petite taille.',
+        'delivery_not_active' => 'Cette livraison n’est plus en cours : sa position n’est pas conservée.',
+        'photo_not_stored' => 'La photo n’a pas pu être enregistrée. Réessayez.',
+        'photo_invalid' => 'Ce fichier n’est pas une photo lisible. Reprenez la photo.',
+        'photo_too_large' => 'La photo dépasse :max. Reprenez-la en plus petite taille.',
+        'photo_type' => 'Envoyez la photo au format JPEG, PNG ou WebP.',
+        'return_not_allowed' => 'Seule une commande livrée peut faire l’objet d’un retour ou d’un échange. Cette commande est :status.',
+        'return_line_invalid' => 'Choisissez des lignes de cette commande, chacune une seule fois.',
+        'return_qty_invalid' => 'Saisissez une quantité de :product jusqu’à :qty (ce qui n’est pas encore revenu), en unités entières pour les articles vendus à la pièce.',
+        'return_lines_required' => 'Choisissez au moins une ligne qui revient.',
+        'partial_returns_exist' => 'Une partie de cette commande est déjà revenue. Retournez le reste par un retour, pas la commande entière.',
+        'collect_not_due' => 'Rien n’est à encaisser sur cet échange.',
+        'collect_method_invalid' => 'Choisissez un moyen de paiement actif de cette société dans la devise de la commande.',
         'forbidden' => 'Vous ne pouvez pas faire cela ici. Demandez l’accès à un administrateur.',
         'product_unavailable' => 'Ce produit n’est plus vendu en ligne. Retirez-le du panier.',
         'qty_invalid' => 'Saisissez une quantité valide pour :product.',
@@ -77,6 +93,34 @@ return [
         'conversation_converted' => 'Cette discussion est déjà devenue une commande.',
         'refund_not_due' => 'Aucun remboursement n’est en attente sur cette commande.',
         'loyalty_inactive' => 'La fidélité n’est pas active.',
+    ],
+
+    'attributes' => [
+        'photo' => 'photo',
+    ],
+
+    'returns' => [
+        'awaiting_approval' => 'Le retour :number attend l’approbation de son remboursement : :reason',
+        'rejected' => 'Le retour :number n’a pas été approuvé',
+        'history' => 'Retour :number : :reason',
+        'refunded' => 'Retour :number remboursé',
+    ],
+
+    'workflow' => [
+        'return' => [
+            'type' => 'Retour de commande en ligne',
+            'start' => 'Retour enregistré',
+            'approve' => 'Approuver le remboursement',
+            'approved' => 'Remboursement approuvé',
+            'rejected' => 'Remboursement refusé',
+        ],
+        'fields' => [
+            'refund' => 'Remboursement',
+            'order_refunds' => 'Remboursements de la commande',
+            'company' => 'Société',
+            'branch' => 'Succursale',
+            'currency' => 'Devise',
+        ],
     ],
 
     'statuses' => [

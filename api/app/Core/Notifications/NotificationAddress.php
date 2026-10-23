@@ -23,10 +23,11 @@ final class NotificationAddress
         public readonly string $locale,
         public readonly ?string $customerId = null,
     ) {
-        $channels = $customerId === null ? [Channels::EMAIL, Channels::SMS] : [Channels::EMAIL, Channels::SMS, Channels::WHATSAPP];
-
-        if (! in_array($channel, $channels, true)) {
-            throw new InvalidArgumentException("A notification address is an email address or a phone number, not [{$channel}].");
+        // ECOM-44: a phone number may be reached on WhatsApp (through the channel's driver), also for a
+        // contact that is not a customer (a guest's transactional order messages); marketing types
+        // still need the customer for their consent check (Notifier).
+        if (! in_array($channel, [Channels::EMAIL, Channels::SMS, Channels::WHATSAPP], true)) {
+            throw new InvalidArgumentException("A notification address is an email address or a phone number (SMS or WhatsApp), not [{$channel}].");
         }
     }
 }

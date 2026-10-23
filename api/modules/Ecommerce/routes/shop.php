@@ -31,6 +31,8 @@ Route::middleware([ShopSecurityHeaders::class, 'throttle:'.EcommerceServiceProvi
         Route::get('orders/{number}', [ShopController::class, 'track'])->where('number', '[A-Za-z0-9-]{1,80}');
         Route::post('orders/{number}/pay', [ShopController::class, 'pay'])->where('number', '[A-Za-z0-9-]{1,80}')->middleware('throttle:'.EcommerceServiceProvider::CHECKOUT_LIMITER);
         Route::post('orders/{number}/check', [ShopController::class, 'check'])->where('number', '[A-Za-z0-9-]{1,80}');
+        // ECOM-41: the proof of delivery photo, with the tracking token.
+        Route::get('orders/{number}/proof-photo', [ShopController::class, 'proofPhoto'])->where('number', '[A-Za-z0-9-]{1,80}');
         Route::post('auth/code', [ShopAuthController::class, 'code'])->middleware('throttle:'.EcommerceServiceProvider::CODES_LIMITER);
         Route::post('auth/verify', [ShopAuthController::class, 'verify'])->middleware('throttle:'.EcommerceServiceProvider::VERIFY_LIMITER);
         Route::post('auth/sign-out', [ShopAuthController::class, 'signOut']);

@@ -4,7 +4,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption } from '@/test/combobox'
 import { COMPANY, named, page } from '@/test/crm'
-import { mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
+import { apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -172,5 +172,189 @@ describe('WhatsApp inbox (ECOM-25)', () => {
     fireEvent.change(await screen.findByLabelText('Reply'), { target: { value: 'Sure.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('ecommerce/conversations/cv-1/reply', { text: 'Sure.' }))
+  })
+})
+
+const BOARD_ROW = {
+  id: 'd-1', order_id: 'o-1', order: { number: 'WEB-A-2026-00001', contact_name: 'Wanjiku Kamau', address: { line: 'Mpaka Road 12' }, zone: named('z-1', 'Westlands') },
+  status: 'picked_up', rider: named('r-1', 'Juma Rider'), currency: 'KES', cod_due_minor: '0', last_location: null, can_track: false, proof_photo: null,
+}
+
+describe('Delivery tracking and proof photos (ECOM-27 to ECOM-29)', () => {
+  beforeEach(() => {
+    resetSession()
+    vi.clearAllMocks()
+    signedIn()
+  })
+
+  it('hides the Track action without the tracking permission at the delivery', async () => {
+    mockEcommerce([[/^ecommerce\/deliveries/, page([BOARD_ROW])]])
+    renderApp('/ecommerce/deliveries')
+    await screen.findByText('WEB-A-2026-00001')
+    expect(screen.queryByRole('button', { name: /^Track/ })).not.toBeInTheDocument()
+  })
+
+  it('shows the last position, the trail and that it is cleared when the delivery ends', async () => {
+    const last = { latitude: '-1.2700000', longitude: '36.8100000', at: '2026-11-30T09:20:00Z' }
+    const track = { id: 'd-1', status: 'picked_up', active: true, last_location: last, trail: [{ latitude: '-1.2600000', longitude: '36.8000000', at: '2026-11-30T09:10:00Z' }, last] }
+    mockEcommerce([
+      ['ecommerce/deliveries/d-1/track', { data: track }],
+      [/^ecommerce\/deliveries/, page([{ ...BOARD_ROW, can_track: true, last_location: last }])],
+    ])
+    renderApp('/ecommerce/deliveries')
+    fireEvent.click(await screen.findByRole('button', { name: 'Track WEB-A-2026-00001' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Track WEB-A-2026-00001' })
+    expect(await within(dialog).findByText('Under way')).toBeInTheDocument()
+    expect(within(dialog).getAllByText('-1.2700000, 36.8100000')).not.toHaveLength(0)
+    expect(within(dialog).getByRole('img', { name: 'Route of the last 2 reports' })).toBeInTheDocument()
+    expect(within(dialog).getByText(/cleared when the delivery ends/)).toBeInTheDocument()
+    expect(api.get).toHaveBeenCalledWith('ecommerce/deliveries/d-1/track')
+  })
+
+  it('opens the proof photo of a delivered order', async () => {
+    const delivered = { ...ORDER, status: 'delivered', delivery: { id: 'd-1', status: 'delivered', rider: named('r-1', 'Juma Rider'), last_location: null, can_track: false, proof_photo: { url: 'https://files.example/proof.jpg?sig=1', mime: 'image/jpeg', at: '2026-11-30T10:00:00Z' } } }
+    mockEcommerce([['ecommerce/orders/o-1', { data: delivered }]])
+    renderApp('/ecommerce/orders/o-1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Open the proof photo' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Proof photo' })
+    expect(within(dialog).getByRole('img', { name: 'Photo taken at the delivery of order WEB-A-2026-00001' })).toHaveAttribute('src', 'https://files.example/proof.jpg?sig=1')
+  })
+})
+
+const DELIVERED = {
+  ...ORDER, status: 'delivered', payment_status: 'cod_collected',
+  lines: [{ ...ORDER.lines[0], qty: '2.000000', returned_qty: '0.000000', returnable_qty: '2.000000' }],
+  returns: [],
+}
+const RETURN = {
+  id: 'rt-1', number: 'WEB-A-2026-00001-R1', kind: 'return', reason: 'Too small', currency: 'KES',
+  lines: [{ id: 'rl-1', direction: 'in', order_line_id: 'ln-1', product_id: 'p-1', name: 'Widget', qty: '1.000000', unit_price_minor: '38793', tax_minor: '6207', total_minor: '45000' }],
+  returned_total_minor: '45000', exchange_total_minor: '0', refund_minor: '45000', collect_minor: '0', refund_status: 'due', collect_status: 'none',
+  refund_reference: null, collect_reference: null, created_by: named('u-1', 'Amina Otieno'), created_at: '2026-12-01T09:00:00Z', refunded_at: null, collected_at: null,
+}
+
+describe('Partial returns and exchanges (ECOM-19)', () => {
+  beforeEach(() => {
+    resetSession()
+    vi.clearAllMocks()
+    signedIn()
+  })
+
+  it('returns part of a delivered order and labels the confirm button from the server quote', async () => {
+    let saved = DELIVERED
+    mockEcommerce([['ecommerce/orders/o-1', () => ({ data: saved })]])
+    api.post.mockImplementation(async (path) => {
+      if (path === 'ecommerce/orders/o-1/returns/quote') return { data: { currency: 'KES', lines: [], returned_total_minor: '45000', exchange_total_minor: '0', refund_minor: '45000', collect_minor: '0' } }
+      if (path === 'ecommerce/orders/o-1/returns') {
+        saved = { ...DELIVERED, returns: [RETURN] }
+        return { data: saved }
+      }
+      throw new Error(`unexpected ${path}`)
+    })
+    renderApp('/ecommerce/orders/o-1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Return or exchange' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText(/^Widget/), { target: { value: '1' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Reason/), { target: { value: 'Too small' } })
+    const confirm = await within(dialog).findByRole('button', { name: 'Refund KES 450.00' }, { timeout: 3000 })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    const body = { reason: 'Too small', lines: [{ line_id: 'ln-1', qty: '1' }] }
+    expect(api.post).toHaveBeenCalledWith('ecommerce/orders/o-1/returns/quote', body)
+    fireEvent.click(confirm)
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('ecommerce/orders/o-1/returns', body))
+    expect(await screen.findByText('WEB-A-2026-00001-R1')).toBeInTheDocument()
+  })
+
+  it('exchanges for another product and asks to collect the difference', async () => {
+    mockEcommerce([
+      ['ecommerce/orders/o-1', { data: DELIVERED }],
+      [/^ecommerce\/stores\/s-1\/products/, page([{ id: 'p-2', item: named('i-2', 'Gadget'), published: true, archived_at: null }])],
+    ])
+    api.post.mockResolvedValue({ data: { currency: 'KES', lines: [], returned_total_minor: '45000', exchange_total_minor: '57000', refund_minor: '0', collect_minor: '12000' } })
+    renderApp('/ecommerce/orders/o-1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Return or exchange' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText(/^Widget/), { target: { value: '1' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Reason/), { target: { value: 'Wrong size' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add an item' }))
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('ecommerce/stores/s-1/products?per_page=200'))
+    await waitFor(() => chooseOption(within(dialog).getByLabelText('Product'), 'Gadget'))
+    expect(await within(dialog).findByRole('button', { name: 'Collect KES 120.00' }, { timeout: 3000 })).toBeInTheDocument()
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('ecommerce/orders/o-1/returns/quote', { reason: 'Wrong size', lines: [{ line_id: 'ln-1', qty: '1' }], exchange: [{ product_id: 'p-2', qty: '1' }] }))
+  })
+
+  it('records a refund by hand when the server asks for a reference', async () => {
+    mockEcommerce([['ecommerce/orders/o-1', { data: { ...DELIVERED, returns: [RETURN] } }]])
+    api.post
+      .mockRejectedValueOnce(apiError(422, 'refund_reference_required', 'Pay this refund back by hand and type its reference.'))
+      .mockResolvedValueOnce({ data: { ...DELIVERED, returns: [{ ...RETURN, refund_status: 'refunded', refund_reference: 'QK12' }] } })
+    renderApp('/ecommerce/orders/o-1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Refund WEB-A-2026-00001-R1' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Refund KES 450.00' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('ecommerce/returns/rt-1/refund', {}))
+    expect(await within(dialog).findByText('Pay this refund back by hand and type its reference.')).toBeInTheDocument()
+    fireEvent.change(within(dialog).getByLabelText(/^Refund reference/), { target: { value: 'QK12' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Refund KES 450.00' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('ecommerce/returns/rt-1/refund', { reference: 'QK12' }))
+    expect(await screen.findByText('Refund recorded.')).toBeInTheDocument()
+  })
+
+  it('collects an exchange difference with a payment method of the company', async () => {
+    const exchange = { ...RETURN, id: 'rt-2', number: 'WEB-A-2026-00001-R2', kind: 'exchange', refund_minor: '0', collect_minor: '12000', refund_status: 'none', collect_status: 'due' }
+    mockEcommerce([
+      ['ecommerce/orders/o-1', { data: { ...DELIVERED, returns: [exchange] } }],
+      ['companies/c-1/payment-methods', { data: [{ id: 'pm-1', name: 'Cash till', type: 'cash', active: true }] }],
+    ])
+    api.post.mockResolvedValue({ data: { ...DELIVERED, returns: [{ ...exchange, collect_status: 'collected' }] } })
+    renderApp('/ecommerce/orders/o-1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Collect WEB-A-2026-00001-R2' }))
+    expect(screen.queryByRole('button', { name: 'Mark returned' })).not.toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog')
+    const confirm = within(dialog).getByRole('button', { name: 'Collect KES 120.00' })
+    expect(confirm).toBeDisabled()
+    await waitFor(() => chooseOption(within(dialog).getByLabelText(/^Payment method/), 'Cash till'))
+    // Review L5: the payment's reference is required.
+    expect(confirm).toBeDisabled()
+    fireEvent.change(within(dialog).getByLabelText(/^Payment reference/), { target: { value: 'R-77' } })
+    fireEvent.click(confirm)
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('ecommerce/returns/rt-2/collect', { payment_method_id: 'pm-1', reference: 'R-77' }))
+  })
+
+  it('shows a return waiting for approval without money actions', async () => {
+    // Review H1: above the limit (with the order's other refunds), the refund waits for approval.
+    mockEcommerce([['ecommerce/orders/o-1', { data: { ...DELIVERED, returns: [{ ...RETURN, approval_status: 'pending' }] } }]])
+    renderApp('/ecommerce/orders/o-1')
+    expect(await screen.findByText('Awaiting approval')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Refund WEB-A-2026-00001-R1' })).not.toBeInTheDocument()
+  })
+
+  it('hides Return or exchange from a reader without the manage permission', async () => {
+    mockEcommerce([['ecommerce/orders/o-1', { data: DELIVERED }]], { permissions: tenantWide(['core.company.view', 'ecommerce.order.view']) })
+    renderApp('/ecommerce/orders/o-1')
+    await screen.findByText('Mpaka Road 12, Westlands')
+    expect(screen.queryByRole('button', { name: 'Return or exchange' })).not.toBeInTheDocument()
+  })
+})
+
+describe('WhatsApp order messages in store settings (ECOM-20)', () => {
+  beforeEach(() => {
+    resetSession()
+    vi.clearAllMocks()
+    signedIn()
+  })
+
+  it('says when the provider is not configured', async () => {
+    const store = {
+      id: 's-1', name: 'Duka Online', handle: 'duka', status: 'live', currency: 'KES', company: named('c-1', 'Amani Retail'), branch: null, location: null, price_list_id: null,
+      delivery_enabled: true, pickup_enabled: false, pickup_location_ids: [], min_order_minor: '0', reservation_minutes: 30, safety_buffer: '0', payment_methods: [],
+      share: { url: 'https://acme.example/shop/duka', whatsapp: 'https://wa.me/?text=x' }, whatsapp_connected: false, whatsapp_notifications: 'not_configured',
+    }
+    mockEcommerce([['ecommerce/stores/s-1', { data: store }]])
+    renderApp('/ecommerce/settings')
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Links and WhatsApp' }))
+    const badge = await screen.findByText('Not configured')
+    expect(badge.closest('[data-tone]')).toHaveAttribute('data-tone', 'neutral')
+    expect(screen.getByText(/customers get order updates by SMS and email only/)).toBeInTheDocument()
   })
 })

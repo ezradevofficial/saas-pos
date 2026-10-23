@@ -219,6 +219,60 @@ for (const app of apps) {
   }
 }
 
+// L10N-02: the mobile app's native texts the phone shows itself (iOS
+// permission prompts), through Expo's per-locale strings: pos/app.json
+// `expo.locales` must name an en and an fr file, both with the same keys,
+// French translated, and every permission text a config plugin sets must
+// have its Info.plist key in both. Android shows its own localised
+// permission dialog (the app's reason is the in-app explanation, en/fr).
+const nativePermissionKeys = {
+  cameraPermission: 'NSCameraUsageDescription',
+  microphonePermission: 'NSMicrophoneUsageDescription',
+  photosPermission: 'NSPhotoLibraryUsageDescription',
+  savePhotosPermission: 'NSPhotoLibraryAddUsageDescription',
+  locationWhenInUsePermission: 'NSLocationWhenInUseUsageDescription',
+  locationAlwaysPermission: 'NSLocationAlwaysUsageDescription',
+  locationAlwaysAndWhenInUsePermission: 'NSLocationAlwaysAndWhenInUseUsageDescription',
+  faceIDPermission: 'NSFaceIDUsageDescription',
+}
+const appJsonFile = join(root, 'pos/app.json')
+if (existsSync(appJsonFile)) {
+  const expo = JSON.parse(readFileSync(appJsonFile, 'utf8')).expo ?? {}
+  const required = new Set()
+  for (const plugin of expo.plugins ?? []) {
+    const options = Array.isArray(plugin) ? (plugin[1] ?? {}) : {}
+    for (const [option, plistKey] of Object.entries(nativePermissionKeys)) {
+      if (typeof options[option] === 'string') required.add(`ios.${plistKey}`)
+    }
+  }
+  for (const [key, value] of Object.entries(expo.ios?.infoPlist ?? {})) {
+    if (/UsageDescription$/.test(key) && typeof value === 'string') required.add(`ios.${key}`)
+  }
+  const native = {}
+  for (const locale of ['en', 'fr']) {
+    const path = expo.locales?.[locale]
+    if (typeof path !== 'string') {
+      errors.push(`pos native: app.json expo.locales has no "${locale}" file`)
+      continue
+    }
+    const file = join(root, 'pos', path)
+    if (!existsSync(file)) {
+      errors.push(`pos native: ${relative(root, file)} (expo.locales.${locale}) does not exist`)
+      continue
+    }
+    native[locale] = flatten(JSON.parse(readFileSync(file, 'utf8')))
+    for (const key of required) if (!(key in native[locale])) errors.push(`pos native: "${key}" (a permission text set in app.json) is missing from the ${locale} locale file`)
+  }
+  if (native.en && native.fr) {
+    for (const key of Object.keys(native.en)) if (!(key in native.fr)) errors.push(`pos native: "${key}" is in the en locale file but not in fr`)
+    for (const key of Object.keys(native.fr)) if (!(key in native.en)) errors.push(`pos native: "${key}" is in the fr locale file but not in en`)
+    for (const [key, value] of Object.entries(native.fr)) {
+      if (String(value).trim() === '') errors.push(`pos native: fr value for "${key}" is empty`)
+      else if (value === native.en[key] && String(value).length > 3 && !allowlist.has(value)) errors.push(`pos native: fr value for "${key}" is identical to en`)
+    }
+  }
+}
+
 if (errors.length > 0) {
   console.error(`i18n check failed (${errors.length}):\n- ${errors.join('\n- ')}`)
   process.exit(1)

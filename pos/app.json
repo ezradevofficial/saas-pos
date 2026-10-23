@@ -7,7 +7,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,13 +24,26 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
+    "locales": {
+      "en": "./locales/en.json",
+      "fr": "./locales/fr.json"
+    },
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "The camera scans product barcodes at the till.",
+          "cameraPermission": "The camera scans product barcodes at the till and takes photos as proof of delivery.",
           "recordAudioAndroid": false,
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "While a delivery is in progress, your position is shared with the shop's staff and the customer of that order, and cleared when the delivery ends.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
         }
       ],
       "@sentry/react-native"

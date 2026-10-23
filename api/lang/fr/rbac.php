@@ -220,6 +220,7 @@ return [
         'actions' => [
             'install' => 'Installer',
             'deliver' => 'Livrer',
+            'track' => 'Suivre la position des livreurs',
             'reply' => 'Répondre',
             'convert' => 'Convertir',
             'discount' => 'Accorder des remises',

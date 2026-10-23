@@ -122,6 +122,8 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/opt-out/{token}' => 'NFR-08: the unsubscribe link of a marketing email; no sign-in: the token is the credential, an HMAC of the app key under its own purpose over the tenant and delivery ids (OptOutTokens); the signed tenant is entered and only that marketing delivery is read under its RLS; answers the state and language only; rate-limited (MarketingOptOutTest) (GET reads, never withdraws)',
         'POST api/v1/opt-out/{token}' => 'NFR-08: the unsubscribe link of a marketing email; no sign-in: the token is the credential, an HMAC of the app key under its own purpose over the tenant and delivery ids (OptOutTokens); the signed tenant is entered and only that marketing delivery is read under its RLS; answers the state and language only; rate-limited (MarketingOptOutTest) (withdraws once)',
         'POST api/v1/shop/whatsapp/{token}' => 'ECOM-24: the inbound WhatsApp webhook; the 40-character token (stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id; the provider driver verifies the request; rate-limited per token (WhatsAppAndCustomersTest)',
+        'GET api/v1/shop/{store}/orders/{number}/proof-photo' => 'ECOM-41: the proof of delivery photo of a delivered order, with its 40-character tracking token (sha256) or the session of its customer; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; rate-limited (DeliveryTrackingTest)',
+        'GET api/v1/ecommerce/proof-photos/{path}' => 'ECOM-41: temporary signed URL for one proof photo and one user; the controller enters the tenant the path names and checks that user may still see the delivery (DeliveryTrackingTest)',
         'GET api/v1/shop-media/{image}' => 'ECOM-02: an item image of a published product behind a temporary signed URL (the signature is the credential); the signed tenant is entered (ShopImageController)',
         // CRM (docs/modules/crm.md): the public lead form, tested by modules/CRM/tests/LeadsTest.php.
         'POST api/v1/crm/forms/{token}' => 'CRM-06: a public web form posting a lead; the 40-character form token (stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id; answers only {received: true} (or 404); rate-limited per IP and per form',
@@ -297,6 +299,8 @@ class TenantIsolationTest extends TestCase
         'ecom_delivery' => 'ecom_delivery',
         'ecom_rider' => 'ecom_rider',
         'ecom_conversation' => 'ecom_conversation',
+        // ECOM-42: a partial return of a delivered order.
+        'ecom_return' => 'ecom_return',
         // Payroll (docs/modules/payroll.md): setup, an employee's pay setup and item, a loan, a posted run, its payslip and a return.
         'payroll_pay_group' => 'payroll_pay_group',
         'payroll_item' => 'payroll_item',
@@ -461,6 +465,8 @@ class TenantIsolationTest extends TestCase
         'pickup_location_id' => 'location',
         'rider_id' => 'ecom_rider',
         'delivery_id' => 'ecom_delivery',
+        // ECOM-42: a line of an online order coming back in a return.
+        'line_id' => 'ecom_order_line',
         'delivery_tax_code_id' => 'tax_code',
         'scope_id' => null,
     ];
@@ -478,6 +484,9 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/manufacturing/revalue' => ['nothing_to_revalue', 'MFG-15 (review fix 5): the fixture issue is not stuck (valued, or its order keeps no stock), so there is nothing to move again'],
         'POST api/v1/fixed-assets/assets/{fa_asset}/transfers' => ['transfer_pending', 'FA-14: the fixture\'s asset already has a transfer waiting for approval, so another is refused after validation'],
         'POST api/v1/fixed-assets/assets/{fa_asset}/disposals' => ['transfer_pending', 'FA-17: the fixture\'s asset has a transfer waiting for approval, so a disposal is refused after validation'],
+        'POST api/v1/ecommerce/orders/{ecom_order}/returns' => ['return_not_allowed', 'ECOM-42: the fixture order is out for delivery (accepted, not delivered), so a return is refused after validation and the permission check'],
+        'POST api/v1/ecommerce/orders/{ecom_order}/returns/quote' => ['return_not_allowed', 'ECOM-42: the fixture order is out for delivery (accepted, not delivered), so a return quote is refused after validation and the permission check'],
+        'POST api/v1/ecommerce/returns/{ecom_return}/collect' => ['collect_not_due', 'ECOM-43: the fixture return is a plain return (nothing to collect), so collecting is refused after validation and the permission check'],
         'POST api/v1/fixed-assets/runs' => ['disposals_open', 'FA-12: the fixture\'s disposal dated in February is still open, so February\'s run is refused after validation'],
     ];
 
@@ -2105,6 +2114,12 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/ecommerce/riders' => ['company_id' => $tenant->id('company'), 'user_id' => $tenant->id('manager'), 'employee_id' => $tenant->id('hr_employee')],
             'PATCH api/v1/ecommerce/riders/{ecom_rider}' => ['employee_id' => $tenant->id('hr_employee'), 'vehicle' => 'Motorbike'],
             'POST api/v1/ecommerce/cashups' => ['rider_id' => $tenant->id('ecom_rider'), 'currency' => 'KES', 'counted_minor' => '32656'],
+            'POST api/v1/ecommerce/orders/{ecom_order}/returns' => ['reason' => 'Hijack', 'lines' => [['line_id' => $tenant->id('ecom_order_line'), 'qty' => '1']],
+                'exchange' => [['product_id' => $tenant->id('ecom_product'), 'qty' => '1']]],
+            'POST api/v1/ecommerce/orders/{ecom_order}/returns/quote' => ['lines' => [['line_id' => $tenant->id('ecom_order_line'), 'qty' => '1']],
+                'exchange' => [['product_id' => $tenant->id('ecom_product'), 'qty' => '1']]],
+            'POST api/v1/ecommerce/returns/{ecom_return}/refund' => ['reference' => 'HIJACK-1'],
+            'POST api/v1/ecommerce/returns/{ecom_return}/collect' => ['payment_method_id' => $tenant->id('payment_method'), 'reference' => 'HIJACK-2'],
             'POST api/v1/ecommerce/rider/updates' => ['updates' => [['id' => (string) Str::uuid7(), 'delivery_id' => $tenant->id('ecom_delivery'), 'kind' => 'location',
                 'latitude' => '-1.28', 'longitude' => '36.82', 'occurred_at' => now()->toIso8601String()]]],
             default => null,

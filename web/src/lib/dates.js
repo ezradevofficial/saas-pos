@@ -109,3 +109,20 @@ export function partOfDay(hour) {
   if (hour < 18) return 'afternoon'
   return 'evening'
 }
+
+const RELATIVE_UNITS = [
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+]
+
+/** "5 minutes ago", "il y a 2 heures", "now": how long before `now` an instant was (or after it, in the future). */
+export function formatRelative(value, locale, now = Date.now()) {
+  if (!value) return null
+  const seconds = Math.round((new Date(value).getTime() - now) / 1000)
+  const format = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: 'auto' })
+  for (const [unit, size] of RELATIVE_UNITS) {
+    if (Math.abs(seconds) >= size) return format.format(Math.trunc(seconds / size), unit)
+  }
+  return format.format(0, 'second')
+}

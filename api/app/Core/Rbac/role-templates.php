@@ -152,7 +152,8 @@ return [
     ],
     [
         // ECOM-28 (docs/modules/ecommerce.md decision 7): a rider sees and updates only their own deliveries,
-        // from the mobile app, signed in as themselves. RBAC-03 does not name this template: flagged for the spec.
+        // from the mobile app, signed in as themselves: status, location (ECOM-29) and proof photo (ECOM-28).
+        // RBAC-03 lists it (added). Reading riders' positions is ecommerce.delivery.track, not the rider's.
         'key' => 'rider',
         'permissions' => ['ecommerce.delivery.deliver'],
         'is_owner' => false,

@@ -4,13 +4,16 @@ use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
 use Illuminate\Support\Facades\Route;
+use Modules\Ecommerce\EcommerceServiceProvider;
 use Modules\Ecommerce\Http\Controllers\CashupController;
 use Modules\Ecommerce\Http\Controllers\ConversationController;
 use Modules\Ecommerce\Http\Controllers\CustomerController;
 use Modules\Ecommerce\Http\Controllers\DeliveryController;
 use Modules\Ecommerce\Http\Controllers\OrderController;
 use Modules\Ecommerce\Http\Controllers\ProductController;
+use Modules\Ecommerce\Http\Controllers\ProofPhotoController;
 use Modules\Ecommerce\Http\Controllers\ReportController;
+use Modules\Ecommerce\Http\Controllers\ReturnController;
 use Modules\Ecommerce\Http\Controllers\RiderAppController;
 use Modules\Ecommerce\Http\Controllers\RiderController;
 use Modules\Ecommerce\Http\Controllers\StoreController;
@@ -18,6 +21,7 @@ use Modules\Ecommerce\Http\Controllers\ZoneController;
 use Modules\Ecommerce\Models\Conversation;
 use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Models\OrderReturn;
 use Modules\Ecommerce\Models\Product;
 use Modules\Ecommerce\Models\Rider;
 use Modules\Ecommerce\Models\Store;
@@ -33,6 +37,7 @@ $models = [
     'ecom_product' => Product::class,
     'ecom_zone' => Zone::class,
     'ecom_order' => Order::class,
+    'ecom_return' => OrderReturn::class,
     'ecom_delivery' => Delivery::class,
     'ecom_rider' => Rider::class,
     'ecom_conversation' => Conversation::class,
@@ -80,9 +85,17 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('ecommerce/orders/{ecom_order}/return', [OrderController::class, 'return']);
     Route::post('ecommerce/orders/{ecom_order}/refund', [OrderController::class, 'refund']);
 
+    // ECOM-42, ECOM-43: partial returns and exchanges of a delivered order.
+    Route::post('ecommerce/orders/{ecom_order}/returns/quote', [ReturnController::class, 'quote']);
+    Route::post('ecommerce/orders/{ecom_order}/returns', [ReturnController::class, 'store']);
+    Route::post('ecommerce/returns/{ecom_return}/refund', [ReturnController::class, 'refund']);
+    Route::post('ecommerce/returns/{ecom_return}/collect', [ReturnController::class, 'collect']);
+
     // ECOM-27: the delivery board and assignment.
     Route::get('ecommerce/deliveries', [DeliveryController::class, 'index']);
     Route::post('ecommerce/deliveries/{ecom_delivery}/assign', [DeliveryController::class, 'assign']);
+    // ECOM-40: the rider's position and the active delivery's trail (ecommerce.delivery.track).
+    Route::get('ecommerce/deliveries/{ecom_delivery}/track', [DeliveryController::class, 'track']);
 
     // ECOM-26: riders.
     Route::get('ecommerce/riders', [RiderController::class, 'index']);
@@ -108,6 +121,14 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // ECOM-28: the rider app.
     Route::get('ecommerce/rider/deliveries', [RiderAppController::class, 'deliveries']);
-    Route::post('ecommerce/rider/updates', [RiderAppController::class, 'updates']);
-    Route::post('ecommerce/rider/deliveries/{ecom_delivery}/photo', [RiderAppController::class, 'photo']);
+    // Review H3, M5: per rider, so a phone (or a stolen token) cannot flood the server.
+    Route::post('ecommerce/rider/updates', [RiderAppController::class, 'updates'])->middleware('throttle:'.EcommerceServiceProvider::RIDER_UPDATES_LIMITER);
+    Route::post('ecommerce/rider/deliveries/{ecom_delivery}/photo', [RiderAppController::class, 'photo'])->middleware('throttle:'.EcommerceServiceProvider::RIDER_PHOTOS_LIMITER);
 });
+
+// ECOM-41: a proof photo behind a temporary signed URL bound to the user (the
+// signature is the credential; the controller enters the tenant of the path
+// and checks the user may still see the delivery). Local media disk only:
+// on object storage the store's own temporary URL is given instead.
+Route::get('ecommerce/proof-photos/{path}', ProofPhotoController::class)->where('path', 'tenants/.+')
+    ->middleware(['throttle:media', 'signed'])->name('ecommerce.proof_photo');

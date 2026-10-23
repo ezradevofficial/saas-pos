@@ -11694,13 +11694,14 @@
       "ready": "Mark ready",
       "dispatch": "Hand to rider",
       "deliver": "Mark delivered",
-      "return": "Return",
+      "return": "Mark returned",
       "cancel": "Cancel order",
       "cancelOrder": "Cancel the order",
       "returnOrder": "Return the order",
       "refund": "Record refund",
       "assign": "Assign",
-      "back": "Back"
+      "back": "Back",
+      "returnPart": "Return or exchange"
     },
     "columns": {
       "number": "Number",
@@ -11735,7 +11736,8 @@
       "stock": "Stock",
       "fee": "Fee",
       "freeOver": "Free from",
-      "eta": "Delivery time"
+      "eta": "Delivery time",
+      "returned": "Returned"
     },
     "filters": {
       "status": "Status",
@@ -11962,7 +11964,12 @@
       "whatsappNotConnected": "Not connected yet.",
       "webhookOnce": "Give this address to your WhatsApp provider. It is shown only once.",
       "connectWebhook": "Connect WhatsApp",
-      "rotateWebhook": "Replace the WhatsApp address"
+      "rotateWebhook": "Replace the WhatsApp address",
+      "whatsappOrders": "WhatsApp order messages",
+      "whatsappAvailable": "Available",
+      "whatsappNotConfigured": "Not configured",
+      "whatsappAvailableHelp": "Customers who ask for it at checkout get their order updates on WhatsApp.",
+      "whatsappNotConfiguredHelp": "The platform owner has not set up the WhatsApp provider’s credentials, so customers get order updates by SMS and email only."
     },
     "flags": {
       "overpaid": "Paid twice: the extra payment is held for refund",
@@ -11970,6 +11977,86 @@
       "stock_short": "Paid after the stock hold ended and the stock is short: refund it or cancel the order",
       "paid_after_cancel": "Paid after it was cancelled",
       "payout_failed": "The refund payout failed: try again or refund by hand"
+    },
+    "tracking": {
+      "title": "Delivery tracking",
+      "titleNamed": "Track {{number}}",
+      "track": "Track",
+      "trackNamed": "Track {{number}}",
+      "active": "Under way",
+      "ended": "Ended",
+      "position": "Last position",
+      "reported": "Reported",
+      "noPosition": "No position reported yet.",
+      "latest": "Latest reports",
+      "sketch": "Route of the last {{total}} reports",
+      "cleared": "The route is kept only while the delivery is under way. It is cleared when the delivery ends.",
+      "proof": "Proof photo",
+      "proofAlt": "Photo taken at the delivery of order {{number}}",
+      "openProof": "Open the proof photo"
+    },
+    "returns": {
+      "title": "Return or exchange items of {{number}}",
+      "linesBack": "Items coming back",
+      "upTo": "Up to {{qty}}",
+      "qtyFormat": "Enter a quantity with up to 3 decimals.",
+      "qtyAbove": "Only {{qty}} can come back. Enter a smaller quantity.",
+      "exchange": "Exchange for another item",
+      "addExchange": "Add an item",
+      "addExchangeMore": "Add another item",
+      "chooseProduct": "Choose a product",
+      "removeExchange": "Remove this item",
+      "quote": "Amounts",
+      "quoteHint": "Enter the quantities coming back and a reason to see the amounts.",
+      "pricing": "Working out the amounts",
+      "returnedValue": "Value returned",
+      "exchangeValue": "Value of the exchange",
+      "difference": "Difference",
+      "refundAmount": "Refund {{amount}}",
+      "collectAmount": "Collect {{amount}}",
+      "noDifference": "No difference",
+      "confirmReturn": "Record return",
+      "confirmRefund": "Refund {{amount}}",
+      "confirmCollect": "Collect {{amount}}",
+      "confirmExchange": "Record exchange",
+      "recorded": "Return recorded.",
+      "listTitle": "Returns and exchanges",
+      "kinds": {
+        "return": "Return",
+        "exchange": "Exchange"
+      },
+      "directions": {
+        "in": "Back",
+        "out": "Out"
+      },
+      "refundStatuses": {
+        "due": "Refund due",
+        "refunded": "Refunded"
+      },
+      "collectStatuses": {
+        "due": "To collect",
+        "collected": "Collected"
+      },
+      "toRefund": "To refund",
+      "toCollect": "To collect",
+      "refund": "Refund",
+      "collect": "Collect",
+      "refundNamed": "Refund {{number}}",
+      "collectNamed": "Collect {{number}}",
+      "refundTitle": "Refund {{number}}",
+      "collectTitle": "Collect the difference for {{number}}",
+      "refundHelp": "The money goes back the way the customer paid. If that cannot be done here, pay it back by hand and type its reference.",
+      "refunded": "Refund recorded.",
+      "collected": "Payment collected.",
+      "paymentMethod": "Payment method",
+      "chooseMethod": "Choose a payment method",
+      "collectReference": "Payment reference",
+      "approvalStatuses": {
+        "pending": "Awaiting approval",
+        "rejected": "Not approved"
+      },
+      "awaitingApproval": "The refund is above your limit with the order’s other refunds, so it waits for a manager’s approval in Approvals. Nothing moves until then.",
+      "collectReferenceHelp": "Required: the receipt or transaction number of the payment."
     }
   },
   "shop": {
@@ -12038,7 +12125,9 @@
       "coupon": "Coupon code",
       "payment": "Payment",
       "place": "Place order and pay {{amount}}",
-      "placeLoading": "Place order"
+      "placeLoading": "Place order",
+      "whatsapp": "Send order updates on WhatsApp",
+      "whatsappHelp": "To the phone number above."
     },
     "payments": {
       "mpesa": "M-Pesa",
@@ -12077,7 +12166,27 @@
         "failed": "Payment failed",
         "refund_due": "Refund due",
         "refunded": "Refunded"
-      }
+      },
+      "riderPosition": "Your rider’s last position",
+      "updated": "Updated {{time}}",
+      "proof": "Proof of delivery",
+      "proofAlt": "Photo taken when order {{number}} was delivered",
+      "proofFailed": "The photo could not be loaded. Refresh the page to try again.",
+      "returns": "Returns and exchanges",
+      "returnKinds": {
+        "return": "Return",
+        "exchange": "Exchange"
+      },
+      "directions": {
+        "in": "Returned",
+        "out": "Received"
+      },
+      "refund": "Refund",
+      "refundStatuses": {
+        "due": "Refund due",
+        "refunded": "Refunded"
+      },
+      "toPay": "To pay"
     },
     "account": {
       "title": "Account",

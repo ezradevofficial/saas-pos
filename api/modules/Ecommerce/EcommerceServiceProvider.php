@@ -16,6 +16,9 @@ use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
+use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
+use App\Core\Workflow\Events\WorkflowCancelled;
+use App\Core\Workflow\Events\WorkflowCompleted;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Query\Builder;
@@ -26,14 +29,18 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Ecommerce\Console\ExpireCommand;
+use Modules\Ecommerce\Events\ExchangeIssued;
 use Modules\Ecommerce\Events\OrderEvent;
+use Modules\Ecommerce\Events\OrderLinesReturned;
 use Modules\Ecommerce\Events\OrderReturned;
 use Modules\Ecommerce\Http\Lists\OrderList;
 use Modules\Ecommerce\Integrations\EcommerceFiscalSource;
 use Modules\Ecommerce\Listeners\OrderIntegrations;
 use Modules\Ecommerce\Listeners\SettleOrderPayment;
+use Modules\Ecommerce\Listeners\SettleReturn;
 use Modules\Ecommerce\Notifications\OrderNotices;
 use Modules\Ecommerce\Orders\Placement;
+use Modules\Ecommerce\Orders\ReturnType;
 use Modules\Ecommerce\Webhooks\EcommerceWebhookEvents;
 use Modules\Ecommerce\WhatsApp\WhatsAppProviders;
 
@@ -60,6 +67,11 @@ class EcommerceServiceProvider extends ServiceProvider
 
     public const WHATSAPP_LIMITER = 'ecommerce-whatsapp';
 
+    /** Review H3, M5: a rider's uploads, per user. */
+    public const RIDER_UPDATES_LIMITER = 'ecommerce-rider-updates';
+
+    public const RIDER_PHOTOS_LIMITER = 'ecommerce-rider-photos';
+
     /** ECOM-08: sign-in code checks, apart from code requests. */
     public const VERIFY_LIMITER = 'ecommerce-verify';
 
@@ -68,8 +80,9 @@ class EcommerceServiceProvider extends ServiceProvider
         'store' => ['view', 'manage'],
         // ECOM-22: `create` takes phone and WhatsApp orders; `manage` moves orders through their statuses.
         'order' => ['view', 'create', 'manage', 'cancel', 'refund'],
-        // ECOM-27, ECOM-28: `deliver` is the rider's own (own deliveries only).
-        'delivery' => ['view', 'assign', 'deliver'],
+        // ECOM-27, ECOM-28: `deliver` is the rider's own (own deliveries only). ECOM-29: `track` reads a
+        // rider's position and trail (personal data, KE DPA: apart from the board's `view`).
+        'delivery' => ['view', 'assign', 'deliver', 'track'],
         'rider' => ['manage'],
         'cashup' => ['view', 'manage'],
         'whatsapp' => ['view', 'reply'],
@@ -104,6 +117,16 @@ class EcommerceServiceProvider extends ServiceProvider
                 personal: ['line' => 'empty_string', 'area' => 'null', 'notes' => 'null'],
             ));
             $subjects->register(new SubjectSource(subjectType: 'customer', table: 'ecom_orders', match: 'party_id', related: true));
+            // ECOM-40, ECOM-26 (KE DPA): a rider is a user; their trail, the last position on their
+            // deliveries and their rider record are theirs (reported, and cleared when they are deleted).
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'ecom_delivery_locations', match: 'user_id',
+                personal: ['latitude' => 'null', 'longitude' => 'null']));
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'ecom_deliveries', match: 'rider_id', through: ['ecom_riders', 'user_id'],
+                personal: ['last_latitude' => 'null', 'last_longitude' => 'null']));
+            $subjects->register(new SubjectSource(subjectType: 'user', table: 'ecom_riders', match: 'user_id', personal: ['phone' => 'null', 'vehicle' => 'null']));
+            // Review M3: a position on the way to a customer's door is theirs too (through the order's party).
+            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'ecom_deliveries', match: 'order_id', through: ['ecom_orders', 'party_id'],
+                personal: ['last_latitude' => 'null', 'last_longitude' => 'null']));
         });
         $this->app->singleton(WhatsAppProviders::class);
     }
@@ -127,11 +150,19 @@ class EcommerceServiceProvider extends ServiceProvider
         // ECOM-35: delivered orders and returns for the fiscal queue.
         $this->app->make(FiscalSources::class)->register(EcommerceFiscalSource::KEY, EcommerceFiscalSource::class);
 
+        // Review H1 (APR, RBAC-06): returns whose refunds are above the user's limit go for approval.
+        $this->app->make(DocumentTypeRegistry::class)->register(ReturnType::class);
+        Event::listen(WorkflowCompleted::class, SettleReturn::class);
+        Event::listen(WorkflowCancelled::class, SettleReturn::class);
+
         // ECOM-15: provider results for orders and refunds.
         Event::listen(PaymentIntentSettled::class, SettleOrderPayment::class);
         // ECOM-33, ECOM-35: after delivery and after a return of a delivered order.
         Event::listen(OrderEvent::class, OrderIntegrations::class);
         Event::listen(OrderReturned::class, OrderIntegrations::class);
+        // ECOM-42, ECOM-43: partial returns' credit notes and exchanges' invoices.
+        Event::listen(OrderLinesReturned::class, OrderIntegrations::class);
+        Event::listen(ExchangeIssued::class, OrderIntegrations::class);
 
         // LAY-04: lists with saved views.
         $lists = $this->app->make(ListViewCatalogue::class);
@@ -156,6 +187,9 @@ class EcommerceServiceProvider extends ServiceProvider
         RateLimiter::for(self::CHECKOUT_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.checkout_per_ip_per_minute', 10))->by(self::CHECKOUT_LIMITER.'|'.$request->ip()));
         RateLimiter::for(self::CODES_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.codes_per_ip_per_minute', 10))->by(self::CODES_LIMITER.'|'.$request->ip()));
         RateLimiter::for(self::VERIFY_LIMITER, fn (Request $request) => Limit::perMinute($config('shop.verify_per_ip_per_minute', 10))->by(self::VERIFY_LIMITER.'|'.$request->ip()));
+        $byUser = fn (Request $request, string $name) => $name.'|'.($request->user()?->getAuthIdentifier() ?? 'ip|'.$request->ip());
+        RateLimiter::for(self::RIDER_UPDATES_LIMITER, fn (Request $request) => Limit::perMinute($config('rider.updates_per_minute', 30))->by($byUser($request, self::RIDER_UPDATES_LIMITER)));
+        RateLimiter::for(self::RIDER_PHOTOS_LIMITER, fn (Request $request) => Limit::perMinute($config('rider.photos_per_minute', 20))->by($byUser($request, self::RIDER_PHOTOS_LIMITER)));
         // ECOM-24: per store token, and per calling address (unknown tokens included).
         RateLimiter::for(self::WHATSAPP_LIMITER, fn (Request $request) => [
             Limit::perMinute($config('whatsapp.per_minute', 120))->by(self::WHATSAPP_LIMITER.'|'.hash('sha256', (string) $request->route('token'))),

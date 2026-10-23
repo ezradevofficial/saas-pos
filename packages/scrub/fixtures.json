@@ -297,6 +297,27 @@
     ],
     [
       {
+        "delivery_id": "d1",
+        "location_id": "l1",
+        "latitude": -1.2633,
+        "longitude": 36.804,
+        "trail": [
+          {
+            "lat": -1.26,
+            "lng": 36.8
+          }
+        ]
+      },
+      {
+        "delivery_id": "d1",
+        "location_id": "l1",
+        "latitude": "[redacted]",
+        "longitude": "[redacted]",
+        "trail": "[redacted]"
+      }
+    ],
+    [
+      {
         "key": "LINODEKEY01234567890",
         "secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
         "bucket": "app-prod",
@@ -347,6 +368,15 @@
     "binding",
     "state",
     "entry_code",
+    "latitude",
+    "longitude",
+    "last_latitude",
+    "lat",
+    "lng",
+    "trail",
+    "location",
+    "last_location",
+    "rider_location",
     "key",
     "aws_access_key_id",
     "AWS_SECRET_ACCESS_KEY",
@@ -376,6 +406,8 @@
     "order_state",
     "sync_state",
     "ticket_count",
+    "location_id",
+    "located_at",
     "bucket",
     "region",
     "endpoint",

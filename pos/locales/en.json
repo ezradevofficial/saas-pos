@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "The camera scans product barcodes at the till and takes photos as proof of delivery.",
+    "NSLocationWhenInUseUsageDescription": "While a delivery is in progress, your position is shared with the shop's staff and the customer of that order, and cleared when the delivery ends."
+  }
+}

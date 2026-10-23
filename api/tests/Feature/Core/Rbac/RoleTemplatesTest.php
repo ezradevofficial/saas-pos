@@ -120,10 +120,10 @@ class RoleTemplatesTest extends TestCase
         // CRM (docs/modules/crm.md): 27 crm.* permissions (crm.scope.team|branch among them, CRM-08; crm.opportunity.assign, CRM-10).
         // Payroll (docs/modules/payroll.md): 16 payroll.* permissions (payroll.pay.view, decision 36; payroll.statutory.exempt, CP-01).
         // Fixed assets (docs/modules/fixed-assets.md): 17 fixed_assets.* permissions.
-        // E-commerce (docs/modules/ecommerce.md): 17 ecommerce.* permissions.
+        // E-commerce (docs/modules/ecommerce.md): 18 ecommerce.* permissions (ecommerce.delivery.track, ECOM-29).
         // API-02: core.api_key.manage. HOOK-01: core.webhook.manage. RBAC-13: core.support_access.view|manage. AUTH-11: core.sso.manage. NFR-08: core.privacy_request.* and core.consent.*.
         // MKT-01, MKT-02: core.marketplace.view|install, core.developer.manage (126 core permissions).
-        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27 + 16 + 17 + 14 + 17, count($names));
+        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 36 + 27 + 16 + 17 + 14 + 18, count($names));
     }
 
     public function test_sign_up_provisions_fifteen_system_roles_and_an_owner_assignment(): void
@@ -210,6 +210,28 @@ class RoleTemplatesTest extends TestCase
         $manager = Role::where('template_key', 'branch_manager')->sole();
         $this->assertSame(['max_quote_discount_percent' => '10', 'max_refund_amount' => '10000'], $manager->limits(), 'a Branch Manager discounts quotes up to 10 % without approval and refunds up to 10,000');
         $this->assertSame(0, LimitRule::whereNotIn('role_id', [$rep->id, $manager->id])->count(), 'other templates seed no limits');
+    }
+
+    public function test_the_rider_template_holds_only_its_own_deliveries_and_tracking_is_the_managers(): void
+    {
+        // RBAC-03 (Rider added to the template list), ECOM-28 decision 7: least privilege, the rider app only
+        // (their own deliveries, status, location and proof photo). ECOM-29: reading a rider's position is
+        // ecommerce.delivery.track, held by the Owner and the Branch Manager only.
+        $this->enter($this->signUp()->json('challenge_id'));
+        $rider = Role::where('template_key', 'rider')->sole();
+
+        $this->assertSame('Rider', $rider->name);
+        $this->assertSame(['ecommerce.delivery.deliver'], $rider->permissions()->pluck('name')->all());
+        $this->assertSame([], $rider->limits());
+        $this->assertFalse($rider->is_owner);
+
+        foreach (['owner', 'branch_manager'] as $key) {
+            $this->assertTrue(Role::where('template_key', $key)->sole()->hasPermissionTo('ecommerce.delivery.track'), $key);
+        }
+
+        foreach (['admin', 'cashier', 'accountant', 'read_only_auditor', 'rider', 'sales_rep'] as $key) {
+            $this->assertFalse(Role::where('template_key', $key)->sole()->hasPermissionTo('ecommerce.delivery.track'), $key);
+        }
     }
 
     public function test_templates_grant_party_permissions_by_job(): void

@@ -108,7 +108,7 @@ class TenantKeysTest extends TestCase
         }
 
         // The guard sees the writers it is meant to (it would pass vacuously otherwise).
-        foreach (['app/Core/MasterData/Items/ItemImages.php', 'app/Core/Branding/BrandAssets.php', 'app/Core/DataExport/TenantExports.php', 'modules/HR/Records/Documents.php', 'modules/Ecommerce/Http/Controllers/RiderAppController.php'] as $known) {
+        foreach (['app/Core/MasterData/Items/ItemImages.php', 'app/Core/Branding/BrandAssets.php', 'app/Core/DataExport/TenantExports.php', 'modules/HR/Records/Documents.php', 'modules/Ecommerce/Delivery/ProofPhotos.php'] as $known) {
             $this->assertContains($known, $writers);
         }
     }

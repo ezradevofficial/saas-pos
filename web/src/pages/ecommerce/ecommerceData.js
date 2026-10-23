@@ -18,6 +18,7 @@ export const ORDER_CANCEL = 'ecommerce.order.cancel'
 export const ORDER_REFUND = 'ecommerce.order.refund'
 export const DELIVERY_VIEW = 'ecommerce.delivery.view'
 export const DELIVERY_ASSIGN = 'ecommerce.delivery.assign'
+export const DELIVERY_TRACK = 'ecommerce.delivery.track'
 export const RIDER_MANAGE = 'ecommerce.rider.manage'
 export const CASHUP_VIEW = 'ecommerce.cashup.view'
 export const CASHUP_MANAGE = 'ecommerce.cashup.manage'
@@ -63,6 +64,12 @@ export const TONES = {
   converted: 'success',
   closed: 'neutral',
 }
+
+/** A quantity string without its trailing zeros ("2.500000" reads "2.5", "10" stays "10"). */
+export const qtyText = (qty) => (String(qty ?? '').includes('.') ? String(qty).replace(/\.?0+$/, '') : String(qty ?? ''))
+
+/** ECOM-19: an order's lines that can still go back (their returnable quantity is above zero). */
+export const returnableLines = (order) => (order.lines ?? []).filter((line) => Number(line.returnable_qty ?? 0) > 0)
 
 /** The module's query key, so a change refreshes its lists and details. */
 export const ecomKey = ['ecommerce']
