@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * APR-03: serves an approval attachment on the local media disk through a
+ * APR-03: serves an approval attachment (from its disk: local, or the object store) through a
  * temporary signed URL (ApprovalPresenter::url; the `signed` middleware
  * checks the signature and expiry). The path names the tenant: the
  * controller enters it, finds the attachment there (row-level security)

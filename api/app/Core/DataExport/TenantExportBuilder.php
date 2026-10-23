@@ -2,6 +2,7 @@
 
 namespace App\Core\DataExport;
 
+use App\Core\Files\TenantFiles;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -44,8 +45,6 @@ use ZipArchive;
 class TenantExportBuilder
 {
     public const FORMAT_VERSION = 1;
-
-    public const MEDIA_DISK = 'media';
 
     public const TEMP_ROOT = 'app/private/tenant-exports';
 
@@ -228,10 +227,13 @@ class TenantExportBuilder
      */
     private function addMedia(string $tenantId, string $dir, ZipArchive &$zip, string $zipPath, array &$files): int
     {
-        $disk = Storage::disk(self::MEDIA_DISK);
-        $prefix = "tenants/{$tenantId}/";
+        // NFR-07: the tenant files disk; on the object store every disk name
+        // rows carry (`media`, `s3`) is the same bucket.
+        $diskName = TenantFiles::disk();
+        $disk = Storage::disk($diskName);
+        $prefix = TenantFiles::PREFIX."{$tenantId}/";
         $exports = "{$prefix}exports/";
-        $local = config('filesystems.disks.'.self::MEDIA_DISK.'.driver') === 'local';
+        $local = config("filesystems.disks.{$diskName}.driver") === 'local';
         $pending = [];
         $pendingBytes = 0;
         $added = 0;

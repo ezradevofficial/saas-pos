@@ -4,6 +4,7 @@ namespace App\Core\CustomForms;
 
 use App\Core\Audit\Auditor;
 use App\Core\CustomFields\CustomFieldFiles;
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
@@ -15,12 +16,12 @@ use Throwable;
 
 /**
  * CF-04: attachments of custom form records, stored like custom field files
- * (ADR 011) on the `media` disk at
+ * (ADR 011) on the tenant files disk (TenantFiles) at
  * `tenants/{tenant}/custom-forms/{type key}/{uuid}.{ext}`, never public.
  * Uploaded first (the uploader's only), tied to the record that names them
- * on save. Readers get a temporary URL: the object store's on s3, else a
- * signed route bound to the user (CustomFormFileController), which checks
- * again that the user sees the record.
+ * on save. Readers get a temporary signed route bound to the user
+ * (CustomFormFileController), which checks again that the user sees the
+ * record and streams the file from its disk.
  */
 class CustomFormFiles
 {
@@ -33,8 +34,9 @@ class CustomFormFiles
     {
         $mime = (string) $file->getMimeType();
         $extension = CustomFieldFiles::MIMES[$mime] ?? throw new ApiException(422, 'file_type', __('core.custom_field.file_type'), ['file' => [__('core.custom_field.file_type')]]);
-        $path = sprintf('tenants/%s/custom-forms/%s/%s.%s', $this->tenants->require(), $type->key, Str::uuid7(), $extension);
-        $disk = Storage::disk(CustomFieldFiles::DISK);
+        $path = TenantFiles::key($this->tenants->require(), 'custom-forms', $type->key, Str::uuid7().'.'.$extension);
+        $diskName = TenantFiles::disk();
+        $disk = Storage::disk($diskName);
 
         if (! $disk->putFileAs(dirname($path), $file, basename($path))) {
             throw new ApiException(500, 'file_not_stored', __('core.custom_field.file_not_stored'));
@@ -43,7 +45,7 @@ class CustomFormFiles
         try {
             $stored = CustomFormAttachment::create([
                 'type_id' => $type->id,
-                'disk' => CustomFieldFiles::DISK,
+                'disk' => $diskName,
                 'path' => $path,
                 'name' => mb_substr($file->getClientOriginalName() ?: basename($path), 0, 255),
                 'mime' => $mime,
@@ -64,12 +66,6 @@ class CustomFormFiles
     public function url(CustomFormAttachment $file, User $user): string
     {
         $expires = now()->addMinutes(CustomFieldFiles::URL_MINUTES);
-
-        if (config("filesystems.disks.{$file->disk}.driver") === 's3') {
-            return Storage::disk($file->disk)->temporaryUrl($file->path, $expires, [
-                'ResponseContentDisposition' => 'attachment; filename="'.addcslashes($file->name, '"\\').'"',
-            ]);
-        }
 
         return SignedUrls::temporary('custom_forms.file', $expires, ['path' => $file->path, 'user' => $user->id]);
     }

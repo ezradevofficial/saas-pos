@@ -4,6 +4,7 @@ namespace App\Core\Imports\Http\Controllers;
 
 use App\Core\Audit\Auditor;
 use App\Core\Exports\ListExport;
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Imports\Http\Requests\ImportActionRequest;
 use App\Core\Imports\Http\Requests\ImportersRequest;
@@ -135,7 +136,8 @@ class ImportController
             throw new ApiException(422, 'file_empty', __('imports.errors.file_empty'), ['file' => [__('imports.errors.file_empty')]]);
         }
 
-        $path = $this->files->storeSource($uploaded, $id, $format);
+        $disk = TenantFiles::disk();
+        $path = $this->files->storeSource($disk, $uploaded, $id, $format);
 
         $import = new Import([
             'user_id' => $user->id,
@@ -143,7 +145,7 @@ class ImportController
             'mode' => 'create',
             'status' => Import::READY,
             'locale' => app()->getLocale(),
-            'file_disk' => ImportFiles::DISK,
+            'file_disk' => $disk,
             'file_path' => $path,
             'file_name' => mb_substr($request->file('file')->getClientOriginalName() ?: "import.{$format}", 0, 255),
             'file_format' => $format,

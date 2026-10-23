@@ -4,6 +4,7 @@ namespace Modules\HR\Records;
 
 use App\Core\Audit\Auditor;
 use App\Core\CustomFields\CustomFieldFiles;
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
@@ -22,9 +23,9 @@ use Throwable;
  * `media` disk, never public; the custom field file types and size) at
  * `tenants/{tenant}/hr/documents/{uuid}.{ext}`. Who sees one follows its
  * category (a sensitive group's view permission, else `hr.document.view`),
- * at the employee's place. Readers get a temporary URL (the object store's
- * on s3, else a signed route bound to them), checked again on download;
- * every link issued is audited (HR-11).
+ * at the employee's place. Readers get a temporary signed route bound to them
+ * (streamed from its disk), checked again on download;
+ * every download is audited (HR-11).
  */
 class Documents
 {
@@ -40,8 +41,9 @@ class Documents
     {
         $mime = (string) $file->getMimeType();
         $extension = CustomFieldFiles::MIMES[$mime] ?? throw new ApiException(422, 'file_type', __('core.custom_field.file_type'), ['file' => [__('core.custom_field.file_type')]]);
-        $path = sprintf('tenants/%s/hr/documents/%s.%s', $this->tenants->require(), Str::uuid7(), $extension);
-        $disk = Storage::disk(CustomFieldFiles::DISK);
+        $path = TenantFiles::key($this->tenants->require(), 'hr', 'documents', Str::uuid7().'.'.$extension);
+        $diskName = TenantFiles::disk();
+        $disk = Storage::disk($diskName);
 
         if (! $disk->putFileAs(dirname($path), $file, basename($path))) {
             throw new ApiException(500, 'file_not_stored', __('core.custom_field.file_not_stored'));
@@ -53,7 +55,7 @@ class Documents
                 'category' => $data['category'],
                 'title' => $data['title'],
                 'expires_on' => $data['expires_on'] ?? null,
-                'disk' => CustomFieldFiles::DISK,
+                'disk' => $diskName,
                 'path' => $path,
                 'file_name' => mb_substr($file->getClientOriginalName() ?: basename($path), 0, 255),
                 'mime' => $mime,
@@ -104,15 +106,6 @@ class Documents
     public function link(Document $document, User $user): string
     {
         $expires = now()->addMinutes(self::LINK_MINUTES);
-
-        if (config("filesystems.disks.{$document->disk}.driver") === 's3') {
-            // The object store serves the file itself: the link is audited as the download.
-            $this->downloaded($document, $user);
-
-            return Storage::disk($document->disk)->temporaryUrl($document->path, $expires, [
-                'ResponseContentDisposition' => 'attachment; filename="'.addcslashes($document->file_name, '"\\').'"',
-            ]);
-        }
 
         return SignedUrls::temporary('hr.document.file', $expires, ['path' => $document->path, 'user' => $user->id]);
     }

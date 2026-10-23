@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\Concerns\BuildsApprovals;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
 
@@ -28,7 +29,7 @@ use Tests\TestCase;
  */
 class ApprovalApiTest extends TestCase
 {
-    use BuildsApprovals, RefreshTenantDatabase;
+    use BuildsApprovals, RefreshTenantDatabase, UsesObjectStorage;
 
     protected function setUp(): void
     {
@@ -271,6 +272,26 @@ class ApprovalApiTest extends TestCase
         $url = $this->getJson($this->approvalUrl($approval), $this->headersFor($this->managerA))->json('data.attachments.0.url');
         $this->get($url)->assertOk();
         $this->get(str_replace($this->managerA->id, $stranger->id, $url))->assertForbidden();
+    }
+
+    /** NFR-07: attachments on the object store, under the tenant, served by the signed route bound to the viewer. */
+    public function test_attachments_on_the_object_store(): void
+    {
+        $this->useObjectStorage();
+        $approval = $this->submit($this->approvalGraph());
+        $stranger = $this->person('cashier', Scope::location($this->locationB->id), 'Sam Stranger');
+
+        $file = $this->post($this->approvalUrl($approval, '/attachments'), ['file' => UploadedFile::fake()->create('quote.pdf', 10, 'application/pdf')], $this->headersFor($this->requester) + ['Accept' => 'application/json'])
+            ->assertCreated()->json('data.attachments.0');
+        $row = $this->inTenant(fn () => ApprovalRequest::findOrFail($approval->id)->attachments()->sole());
+        $this->assertOnObjectStorage($row->disk, $row->path, $this->requester->tenant_id, "approvals/{$approval->id}/");
+
+        $url = $this->getJson($this->approvalUrl($approval), $this->headersFor($this->managerA))->json('data.attachments.0.url');
+        $this->assertSignedApiUrl($url);
+        $this->get($url)->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->get(str_replace($this->managerA->id, $stranger->id, $url))->assertForbidden();
+        $this->travel(16)->minutes();
+        $this->get($file['url'])->assertForbidden();
     }
 
     public function test_reassignment_needs_the_permission_and_never_goes_to_the_requester(): void

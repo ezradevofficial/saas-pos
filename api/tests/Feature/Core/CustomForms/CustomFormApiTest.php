@@ -5,6 +5,7 @@ namespace Tests\Feature\Core\CustomForms;
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Audit\AuditEntry;
 use App\Core\Currency\TenantCurrencies;
+use App\Core\CustomForms\CustomFormAttachment;
 use App\Core\CustomForms\CustomFormRecord;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Scope;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\TestCase;
 
 /**
@@ -23,7 +25,7 @@ use Tests\TestCase;
  */
 class CustomFormApiTest extends TestCase
 {
-    use BuildsOrganisation, RefreshTenantDatabase;
+    use BuildsOrganisation, RefreshTenantDatabase, UsesObjectStorage;
 
     private User $admin;
 
@@ -145,6 +147,24 @@ class CustomFormApiTest extends TestCase
         $list = $this->getJson("/api/v1/custom-form-types/{$type['id']}/records?search=00001&sort=number", $this->headersFor($this->managerA))->assertOk();
         $this->assertSame([$record['id']], array_column($list->json('data'), 'id'));
         $this->getJson("/api/v1/custom-form-types/{$type['id']}/records?format=csv", $this->headersFor($this->managerA))->assertOk();
+    }
+
+    /** NFR-07: attachments on the object store under the tenant, offered by the signed route bound to the user. */
+    public function test_attachments_on_the_object_store(): void
+    {
+        $this->useObjectStorage();
+        $type = $this->pettyCash();
+        $file = $this->post("/api/v1/custom-form-types/{$type['id']}/attachments", ['file' => UploadedFile::fake()->create('receipt.pdf', 4, 'application/pdf')], [...$this->headersFor($this->managerA), 'Accept' => 'application/json'])
+            ->assertCreated()->json('data');
+        $row = $this->inTenant(fn () => CustomFormAttachment::findOrFail($file['id']));
+        $this->assertOnObjectStorage($row->disk, $row->path, $this->owner->tenant_id, 'custom-forms/petty_cash/');
+
+        $record = $this->create($type['id'], ['attachments' => [$file['id']]], $this->managerA)->assertCreated()->json('data');
+        $url = $record['attachments'][0]['url'];
+        $this->assertSignedApiUrl($url);
+        $this->get($url)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->travel(16)->minutes();
+        $this->get($url)->assertForbidden();
     }
 
     public function test_records_are_validated(): void

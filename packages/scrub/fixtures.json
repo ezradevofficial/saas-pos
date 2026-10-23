@@ -136,6 +136,26 @@
     [
       "Tenant 0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b and NotificationsServiceProvider are kept",
       "Tenant 0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b and NotificationsServiceProvider are kept"
+    ],
+    [
+      "Upload failed with key AKIAIOSFODNN7EXAMPLE",
+      "Upload failed with key [token]"
+    ],
+    [
+      "GET https://app-prod.eu-central-1.linodeobjects.com/tenants/0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b/items/a.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=LINODEKEY01234567890/20261022/eu-central-1/s3/aws4_request&X-Amz-Date=20261022T120000Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&X-Amz-Signature=5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7",
+      "GET https://app-prod.eu-central-1.linodeobjects.com/tenants/0199f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b/items/a.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=[redacted]&X-Amz-Date=20261022T120000Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&X-Amz-Signature=[redacted]"
+    ],
+    [
+      "Authorization: AWS4-HMAC-SHA256 Credential=LINODEKEY01234567890/20261022/eu-central-1/s3/aws4_request, SignedHeaders=host, Signature=5d672d79c15b13162d9279b0855cfba6",
+      "Authorization: AWS4-HMAC-SHA256 Credential=[redacted], SignedHeaders=host, Signature=[redacted]"
+    ],
+    [
+      "env AWS_ACCESS_KEY_ID=LINODEKEY01234567890 AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY AWS_BUCKET=app-prod",
+      "env AWS_ACCESS_KEY_ID=[redacted] AWS_SECRET_ACCESS_KEY=[redacted] AWS_BUCKET=app-prod"
+    ],
+    [
+      "aws_secret_access_key: \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\"",
+      "aws_secret_access_key: \"[redacted]\""
     ]
   ],
   "objects": [
@@ -274,6 +294,26 @@
         "amount_minor": 125000000,
         "count": 3
       }
+    ],
+    [
+      {
+        "key": "LINODEKEY01234567890",
+        "secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        "bucket": "app-prod",
+        "region": "eu-central-1",
+        "aws_access_key_id": "LINODEKEY01234567890",
+        "AWS_SECRET_ACCESS_KEY": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        "X-Amz-Security-Token": "FwoGZXIvYXdzEXAMPLE"
+      },
+      {
+        "key": "[redacted]",
+        "secret": "[redacted]",
+        "bucket": "app-prod",
+        "region": "eu-central-1",
+        "aws_access_key_id": "[redacted]",
+        "AWS_SECRET_ACCESS_KEY": "[redacted]",
+        "X-Amz-Security-Token": "[redacted]"
+      }
     ]
   ],
   "sensitiveKeys": [
@@ -306,7 +346,14 @@
     "ticket",
     "binding",
     "state",
-    "entry_code"
+    "entry_code",
+    "key",
+    "aws_access_key_id",
+    "AWS_SECRET_ACCESS_KEY",
+    "secret_access_key",
+    "X-Amz-Security-Token",
+    "X-Amz-Credential",
+    "X-Amz-Signature"
   ],
   "plainKeys": [
     "name",
@@ -328,6 +375,11 @@
     "error_code",
     "order_state",
     "sync_state",
-    "ticket_count"
+    "ticket_count",
+    "bucket",
+    "region",
+    "endpoint",
+    "idempotency_status",
+    "key_count"
   ]
 }

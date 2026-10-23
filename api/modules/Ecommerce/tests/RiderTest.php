@@ -13,6 +13,7 @@ use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\Rider;
 use Modules\Ecommerce\Tests\Concerns\BuildsEcommerce;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\TestCase;
 
 // ECOM-26 to ECOM-30, NFR-04: riders, their own deliveries, status and
@@ -20,7 +21,7 @@ use Tests\TestCase;
 // being queued offline), proof by delivery code or photo, cash on delivery.
 class RiderTest extends TestCase
 {
-    use BuildsEcommerce, RefreshTenantDatabase;
+    use BuildsEcommerce, RefreshTenantDatabase, UsesObjectStorage;
 
     protected function setUp(): void
     {
@@ -97,7 +98,7 @@ class RiderTest extends TestCase
 
     public function test_a_locked_delivery_refuses_every_delivered_update_even_with_a_photo(): void
     {
-        Storage::fake('local');
+        Storage::fake('media');
         $delivery = $this->assigned();
         $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
         $wrong = $this->sentDeliveryCode() === '999999' ? '888888' : '999999';
@@ -133,7 +134,7 @@ class RiderTest extends TestCase
 
     public function test_a_photo_proves_delivery_and_a_failed_delivery_returns_the_order(): void
     {
-        Storage::fake('local');
+        Storage::fake('media');
         $first = $this->assigned();
         $this->updates([$this->update($first, 'status', ['status' => 'picked_up'])])->assertOk();
         $this->json('POST', "/api/v1/ecommerce/rider/deliveries/{$first->id}/photo", ['photo' => UploadedFile::fake()->image('door.jpg')], $this->headersFor($this->riderUser))->assertCreated();
@@ -151,6 +152,17 @@ class RiderTest extends TestCase
         $this->updates([$this->update($second, 'status', ['status' => 'failed', 'note' => 'Nobody home'])])->assertOk();
         $this->assertSame(Order::RETURNED, $this->inTenant(fn () => Order::query()->findOrFail($second->order_id)->status));
         $this->assertSame(Delivery::FAILED, $second->refresh()->status);
+    }
+
+    /** NFR-07: a proof photo goes to the object store under the tenant, never to the server's own disk. */
+    public function test_a_proof_photo_goes_to_the_object_store(): void
+    {
+        $this->useObjectStorage();
+        $delivery = $this->assigned();
+        $this->updates([$this->update($delivery, 'status', ['status' => 'picked_up'])])->assertOk();
+        $this->json('POST', "/api/v1/ecommerce/rider/deliveries/{$delivery->id}/photo", ['photo' => UploadedFile::fake()->image('door.jpg')], $this->headersFor($this->riderUser))->assertCreated();
+
+        $this->assertOnObjectStorage('s3', $delivery->refresh()->proof_photo_path, $delivery->tenant_id, "ecommerce/proofs/{$delivery->id}");
     }
 
     public function test_riders_are_users_of_the_company_and_managed_with_the_permission(): void

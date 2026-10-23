@@ -24,7 +24,7 @@ export const RULES = [
   { id: 'laravel-app-key', pattern: j('APP_KEY=base64:', '[A-Za-z0-9+/]{43}=') },
   { id: 'linode-token', pattern: j('LINODE_(API_)?TOKEN\\s*[=:]\\s*["\']?', '[0-9a-f]{64}') },
   { id: 'db-url-with-password', pattern: j('\\b(postgres(ql)?|mysql|redis)://[^:\\s/]+:', '[^@\\s/]{6,}@(?!localhost|127\\.0\\.0\\.1|postgres|redis)') },
-  { id: 'assigned-secret', pattern: j('\\b(DB_PASSWORD|DB_OWNER_PASSWORD|DB_PLATFORM_PASSWORD|REDIS_PASSWORD|MPESA_CONSUMER_SECRET|MPESA_PASSKEY|HR_DIGEST_KEY|METRICS_TOKEN|SENTRY_AUTH_TOKEN)=', '(?!null\\b|\\$|base64:\\$|\\{|<|app\\b|app_owner\\b|app_platform\\b)[^\\s#]{8,}') },
+  { id: 'assigned-secret', pattern: j('\\b(DB_PASSWORD|DB_OWNER_PASSWORD|DB_PLATFORM_PASSWORD|REDIS_PASSWORD|MPESA_CONSUMER_SECRET|MPESA_PASSKEY|HR_DIGEST_KEY|METRICS_TOKEN|SENTRY_AUTH_TOKEN|AWS_SECRET_ACCESS_KEY)=', '(?!null\\b|\\$|base64:\\$|\\{|<|app\\b|app_owner\\b|app_platform\\b)[^\\s#]{8,}') },
 ]
 
 const SKIP_EXTENSIONS = /\.(png|jpe?g|gif|webp|ico|svg|woff2?|ttf|otf|eot|pdf|zip|gz|lock|snap)$/i

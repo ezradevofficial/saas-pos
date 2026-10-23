@@ -3,6 +3,7 @@
 namespace App\Core\CustomFields;
 
 use App\Core\Audit\Auditor;
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
@@ -14,17 +15,16 @@ use Throwable;
 
 /**
  * CF-01: the files of file fields, stored like item images (MD-02) on the
- * `media` disk at `tenants/{tenant}/custom-fields/{entity}/{uuid}.{ext}`,
+ * tenant files disk at `tenants/{tenant}/custom-fields/{entity}/{uuid}.{ext}`,
  * never on a public path. A file is uploaded first and stays its
  * uploader's until a record stores its id (CustomFieldWriter ties it to
- * the record). Readers get a temporary URL: the object store's on s3,
- * else a signed route bound to the user (CustomFieldFileDownloadController),
- * which checks again that the user sees the record and the field.
+ * the record). Readers get a temporary signed route bound to the user
+ * (CustomFieldFileController::download), which checks again that the user
+ * sees the record and the field and streams the file from its disk (local,
+ * or Linode Object Storage in production; TenantFiles).
  */
 class CustomFieldFiles
 {
-    public const DISK = 'media';
-
     public const URL_MINUTES = 15;
 
     public const MAX_KB = 10240;
@@ -49,8 +49,9 @@ class CustomFieldFiles
     {
         $mime = (string) $file->getMimeType();
         $extension = self::MIMES[$mime] ?? throw new ApiException(422, 'file_type', __('core.custom_field.file_type'), ['file' => [__('core.custom_field.file_type')]]);
-        $path = sprintf('tenants/%s/custom-fields/%s/%s.%s', $this->tenants->require(), str_replace(':', '.', $field->entity), Str::uuid7(), $extension);
-        $disk = Storage::disk(self::DISK);
+        $path = TenantFiles::key($this->tenants->require(), 'custom-fields', str_replace(':', '.', $field->entity), Str::uuid7().'.'.$extension);
+        $diskName = TenantFiles::disk();
+        $disk = Storage::disk($diskName);
 
         if (! $disk->putFileAs(dirname($path), $file, basename($path))) {
             throw new ApiException(500, 'file_not_stored', __('core.custom_field.file_not_stored'));
@@ -60,7 +61,7 @@ class CustomFieldFiles
             $stored = CustomFieldFile::create([
                 'entity' => $field->entity,
                 'field_key' => $field->key,
-                'disk' => self::DISK,
+                'disk' => $diskName,
                 'path' => $path,
                 'name' => mb_substr($file->getClientOriginalName() ?: basename($path), 0, 255),
                 'mime' => $mime,
@@ -92,12 +93,6 @@ class CustomFieldFiles
     public function url(CustomFieldFile $file, User $user): string
     {
         $expires = now()->addMinutes(self::URL_MINUTES);
-
-        if (config("filesystems.disks.{$file->disk}.driver") === 's3') {
-            return Storage::disk($file->disk)->temporaryUrl($file->path, $expires, [
-                'ResponseContentDisposition' => 'attachment; filename="'.addcslashes($file->name, '"\\').'"',
-            ]);
-        }
 
         return SignedUrls::temporary('custom_fields.file', $expires, ['path' => $file->path, 'user' => $user->id]);
     }

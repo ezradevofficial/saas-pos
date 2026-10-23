@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Modules\FixedAssets\Events\AssetCapitalised;
 use Modules\FixedAssets\Models\Asset;
+use Modules\FixedAssets\Models\AssetDocument;
 use Modules\FixedAssets\Models\Posting;
 use Modules\FixedAssets\Tests\Concerns\BuildsFixedAssets;
 use Tests\Concerns\RefreshTenantDatabase;
+use Tests\Concerns\UsesObjectStorage;
 use Tests\TestCase;
 
 // FA-04 to FA-06, FA-11, FA-18, FA-27, FA-29, FA-30: the register through
@@ -22,7 +24,7 @@ use Tests\TestCase;
 // tenant's ids.
 class AssetsTest extends TestCase
 {
-    use BuildsFixedAssets, RefreshTenantDatabase;
+    use BuildsFixedAssets, RefreshTenantDatabase, UsesObjectStorage;
 
     protected function setUp(): void
     {
@@ -140,6 +142,20 @@ class AssetsTest extends TestCase
         $this->api('POST', "documents/{$document['id']}/archive")->assertOk();
         $this->get("/api/v1/fixed-assets/documents/{$document['id']}/download", $this->headersFor())->assertNotFound();
         $this->api('GET', "assets/{$asset['id']}/documents")->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    /** NFR-07: on the object store a document goes to the bucket under the tenant and is streamed by the authenticated API only. */
+    public function test_documents_on_the_object_store(): void
+    {
+        $this->useObjectStorage();
+        $asset = $this->active();
+        $document = $this->json('POST', "/api/v1/fixed-assets/assets/{$asset['id']}/documents", ['file' => UploadedFile::fake()->create('invoice.pdf', 20, 'application/pdf')],
+            $this->headersFor())->assertCreated()->json('data');
+        $row = $this->inTenant(fn () => AssetDocument::query()->findOrFail($document['id']));
+        $this->assertOnObjectStorage($row->disk, $row->path, $this->owner->tenant_id, "fixed-assets/{$asset['id']}/");
+
+        $this->get("/api/v1/fixed-assets/documents/{$document['id']}/download", $this->headersFor())->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->get("/api/v1/fixed-assets/documents/{$document['id']}/download", ['Accept' => 'application/json'])->assertUnauthorized();
     }
 
     public function test_custodians_are_users_or_hr_employees_never_both(): void

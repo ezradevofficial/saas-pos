@@ -5,6 +5,7 @@ namespace Modules\Procurement\Portal;
 use App\Core\Audit\Auditor;
 use App\Core\Billing\Models\Subscription;
 use App\Core\CustomFields\CustomFieldFiles;
+use App\Core\Files\TenantFiles;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -140,11 +141,12 @@ class PortalBids
             throw ProcurementError::make('file_type', field: 'file');
         }
 
-        $disk = Storage::disk(CustomFieldFiles::DISK);
+        $diskName = TenantFiles::disk();
+        $disk = Storage::disk($diskName);
         $path = null;
 
         try {
-            return Tx::run(function () use ($session, $file, $mime, $ip, $disk, &$path) {
+            return Tx::run(function () use ($session, $file, $mime, $ip, $diskName, $disk, &$path) {
                 $tender = $this->openTender($session);
                 // PRC-23: the cap is counted under the bidder's lock, so parallel uploads cannot pass it.
                 Bidder::query()->whereKey($session->bidder_id)->lockForUpdate()->firstOrFail();
@@ -153,7 +155,7 @@ class PortalBids
                     throw ProcurementError::make('too_many_files', ['max' => self::MAX_FILES], 'file');
                 }
 
-                $path = sprintf('tenants/%s/procurement/bids/%s/%s.sealed', $this->tenants->require(), $tender->id, Str::uuid7());
+                $path = TenantFiles::key($this->tenants->require(), 'procurement', 'bids', $tender->id, Str::uuid7().'.sealed');
 
                 if (! $disk->put($path, Seal::sealBytes(Seal::key($tender), (string) file_get_contents($file->getRealPath())))) {
                     throw ProcurementError::make('file_not_stored', status: 500);
@@ -162,7 +164,7 @@ class PortalBids
                 $stored = BidFile::query()->create([
                     'tender_id' => $tender->id,
                     'bidder_id' => $session->bidder_id,
-                    'disk' => CustomFieldFiles::DISK,
+                    'disk' => $diskName,
                     'path' => $path,
                     'name' => mb_substr($file->getClientOriginalName() ?: basename($path), 0, 255),
                     'mime' => $mime,

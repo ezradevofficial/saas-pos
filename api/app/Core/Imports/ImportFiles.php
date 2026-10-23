@@ -2,6 +2,7 @@
 
 namespace App\Core\Imports;
 
+use App\Core\Files\TenantFiles;
 use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
 use App\Core\Tenancy\TenantContext;
@@ -10,30 +11,30 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * IMP-01, IMP-03: import files on the `media` disk, under the tenant:
+ * IMP-01, IMP-03: import files on the tenant files disk (TenantFiles;
+ * Linode Object Storage in production), under the tenant:
  * `tenants/{tenant}/imports/{import}/{source.csv|source.xlsx|errors.xlsx|result.xlsx}`,
- * never on a public path. Downloads go through a temporary URL bound to
- * the user (the object store's on s3, else a signed route that enters the
- * tenant the path names and checks the user again, ImportFileController).
+ * never on a public path. Every file of an import is on the disk its row
+ * names (`file_disk`). Downloads go through a temporary signed route bound
+ * to the user, which enters the tenant the path names, checks the user
+ * again and streams the file (ImportFileController).
  */
 class ImportFiles
 {
-    public const DISK = 'media';
-
     public const URL_MINUTES = 15;
 
     public function __construct(private readonly TenantContext $tenants) {}
 
     public function directory(string $importId): string
     {
-        return sprintf('tenants/%s/imports/%s', $this->tenants->require(), $importId);
+        return TenantFiles::key($this->tenants->require(), 'imports', $importId);
     }
 
-    public function storeSource(UploadedFile $file, string $importId, string $format): string
+    public function storeSource(string $disk, UploadedFile $file, string $importId, string $format): string
     {
         $path = $this->directory($importId)."/source.{$format}";
 
-        if (! Storage::disk(self::DISK)->putFileAs(dirname($path), $file, basename($path))) {
+        if (! Storage::disk($disk)->putFileAs(dirname($path), $file, basename($path))) {
             throw new RuntimeException('The import file could not be stored.');
         }
 
@@ -41,13 +42,13 @@ class ImportFiles
     }
 
     /** Store a file written locally (a result or error file) and remove the local copy. */
-    public function storeLocal(string $localPath, string $importId, string $name): string
+    public function storeLocal(string $disk, string $localPath, string $importId, string $name): string
     {
         $path = $this->directory($importId).'/'.$name;
         $stream = fopen($localPath, 'r');
 
         try {
-            if ($stream === false || ! Storage::disk(self::DISK)->writeStream($path, $stream)) {
+            if ($stream === false || ! Storage::disk($disk)->writeStream($path, $stream)) {
                 throw new RuntimeException('The import file could not be stored.');
             }
         } finally {
@@ -67,11 +68,11 @@ class ImportFiles
      *
      * @return array{0: string, 1: callable(): void}
      */
-    public function local(string $path): array
+    public function local(string $diskName, string $path): array
     {
-        $disk = Storage::disk(self::DISK);
+        $disk = Storage::disk($diskName);
 
-        if (config('filesystems.disks.'.self::DISK.'.driver') === 'local') {
+        if (config("filesystems.disks.{$diskName}.driver") === 'local') {
             return [$disk->path($path), fn () => null];
         }
 
@@ -96,12 +97,6 @@ class ImportFiles
     public function url(string $path, User $user, string $downloadName): string
     {
         $expires = now()->addMinutes(self::URL_MINUTES);
-
-        if (config('filesystems.disks.'.self::DISK.'.driver') === 's3') {
-            return Storage::disk(self::DISK)->temporaryUrl($path, $expires, [
-                'ResponseContentDisposition' => 'attachment; filename="'.addcslashes($downloadName, '"\\').'"',
-            ]);
-        }
 
         return SignedUrls::temporary('imports.file', $expires, ['path' => $path, 'user' => $user->id]);
     }

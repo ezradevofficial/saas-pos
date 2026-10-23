@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Items;
 
 use App\Core\Audit\Auditor;
+use App\Core\Files\TenantFiles;
 use App\Core\Http\ApiException;
 use App\Core\Http\SignedUrls;
 use App\Core\Identity\Models\User;
@@ -14,19 +15,16 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * MD-02: item images on the `media` disk, at
- * `tenants/{tenant}/items/{item}/{uuid}.{ext}`, at most
- * Item::MAX_IMAGES per item, in `position` order (1, 2, ...). Never served
- * from a public path: readers get a temporary URL, signed by the object
- * store (s3 driver) or, on the local driver, a signed route
+ * MD-02: item images on the tenant files disk (TenantFiles; Linode Object
+ * Storage in production), at `tenants/{tenant}/items/{item}/{uuid}.{ext}`,
+ * at most Item::MAX_IMAGES per item, in `position` order (1, 2, ...).
+ * Never served from a public path: readers get a temporary signed route
  * (`GET media/{path}`, MediaController) bound to the user, which checks the
- * tenant and `core.item.view` again. Every change is audited on the item
+ * tenant and `core.item.view` again and streams the file from its disk. Every change is audited on the item
  * under the key `images`, the field name field rules hide them by (RBAC-05).
  */
 class ItemImages
 {
-    public const DISK = 'media';
-
     public const URL_MINUTES = 15;
 
     private const EXTENSIONS = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
@@ -44,21 +42,22 @@ class ItemImages
 
         $mime = $file->getMimeType();
         [$width, $height] = getimagesize($file->getRealPath()) ?: [0, 0];
-        $path = sprintf('tenants/%s/items/%s/%s.%s', $this->tenants->require(), $item->id, Str::uuid7(), self::EXTENSIONS[$mime]);
-        $disk = Storage::disk(self::DISK);
+        $path = TenantFiles::key($this->tenants->require(), 'items', $item->id, Str::uuid7().'.'.self::EXTENSIONS[$mime]);
+        $diskName = TenantFiles::disk();
+        $disk = Storage::disk($diskName);
 
         if (! $disk->putFileAs(dirname($path), $file, basename($path))) {
             throw new ApiException(500, 'image_not_stored', __('core.item.image_not_stored'));
         }
 
         try {
-            return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($item, $path, $mime, $file, $width, $height) {
+            return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($item, $diskName, $path, $mime, $file, $width, $height) {
                 Item::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
                 $count = $this->assertRoom($item);
 
                 $image = ItemImage::create([
                     'item_id' => $item->id,
-                    'disk' => self::DISK,
+                    'disk' => $diskName,
                     'path' => $path,
                     'position' => $count + 1,
                     'mime' => $mime,
@@ -137,17 +136,10 @@ class ItemImages
         });
     }
 
-    /**
-     * A temporary URL for $user: the object store's own on s3, else the
-     * signed media route bound to the user.
-     */
+    /** A temporary URL for $user: the signed media route bound to the user, on every disk. */
     public function url(ItemImage $image, User $user): string
     {
         $expires = now()->addMinutes(self::URL_MINUTES);
-
-        if (config("filesystems.disks.{$image->disk}.driver") === 's3') {
-            return Storage::disk($image->disk)->temporaryUrl($image->path, $expires);
-        }
 
         return SignedUrls::temporary('media.show', $expires, ['path' => $image->path, 'user' => $user->id]);
     }

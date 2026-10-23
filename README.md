@@ -194,7 +194,7 @@ Before the first deploy of an environment, set in `<path>/api/.env`:
 - [ ] `DB_USERNAME=app` (runtime role) and `DB_OWNER_*` (migrations and the deploy commands: `permissions:sync`, `currencies:sync`, `country-packs:publish`, `country-packs:holidays`, the seed-defaults commands and `app:preflight`). Only the host the deploy runs on needs `DB_OWNER_*`.
 - [ ] Branding (BR-04, BR-05): `APP_BASE_DOMAIN`, `BRANDING_CNAME_TARGET`, the wildcard DNS and certificate, and Caddy's on-demand TLS `ask` pointed at `http://127.0.0.1:<port>/api/v1/tls/ask`, with `/api/v1/tls/ask` blocked from the public interface (see docs/integrations.md, Branding).
 - [ ] Horizon and the scheduler running, see [Queue workers](#queue-workers)
-- [ ] item images (MD-02): `MEDIA_DISK_DRIVER=s3` with a private Linode Object Storage bucket, see [Media storage](#media-storage). Without it, images are kept under `api/storage/app/media` on the web server.
+- [ ] tenant files (NFR-07): the `AWS_*` variables for a private Linode Object Storage bucket (`AWS_BUCKET` switches it on), see [Media storage](#media-storage). `app:preflight` fails in production without them.
 
 Each deploy:
 
@@ -276,19 +276,10 @@ The Horizon dashboard (`/horizon`) shows every tenant's job payloads. It opens o
 
 #### Media storage
 
-Item images (MD-02) live on the `media` disk, at `tenants/{tenant}/items/{item}/{uuid}.{ext}`. They are never served from a public path. The API returns temporary URLs, valid 15 minutes.
+Tenant files (item images, branding, documents, attachments, imports, exports, proof photos) live on the tenant files disk (the bucket once `AWS_BUCKET` is set), at keys that start with the tenant, e.g. `tenants/{tenant}/items/{item}/{uuid}.{ext}` (TEN-01). They are never served from a public path: the API streams them behind temporary signed URLs bound to the user (15 minutes for images), which check the tenant and the user's access again.
 
-- **Local driver** (default, development and tests): files under `api/storage/app/media`. URLs point to the signed route `GET /api/v1/media/{path}`, which checks the tenant and that the user may still view the item.
-- **Linode Object Storage** (production): an S3-compatible bucket, private (no public ACL). URLs are presigned by the object store. This needs the `league/flysystem-aws-s3-v3` package, which is not installed yet. Add it before switching the driver. Set in `<path>/api/.env`:
-
-| Variable | Value |
-| --- | --- |
-| `MEDIA_DISK_DRIVER` | `s3` |
-| `MEDIA_ACCESS_KEY_ID` / `MEDIA_SECRET_ACCESS_KEY` | An Object Storage access key limited to the bucket (read/write) |
-| `MEDIA_REGION` | The cluster's region, e.g. `eu-central-1` or `us-east-1` |
-| `MEDIA_ENDPOINT` | The cluster endpoint, e.g. `https://eu-central-1.linodeobjects.com` |
-| `MEDIA_BUCKET` | The bucket name |
-| `MEDIA_USE_PATH_STYLE_ENDPOINT` | `false` (Linode supports virtual-hosted style) |
+- **Local** (no `AWS_BUCKET`, development; tests force it with `MEDIA_DISK=media`): files under `api/storage/app/media`.
+- **Linode Object Storage** (`AWS_BUCKET` set, staging and production): a private S3-compatible bucket, never presigned. Variables, the preflight check and `storage:migrate-to-object-storage` for files kept on disk before: [docs/deploy-linode.md, Object Storage](docs/deploy-linode.md#object-storage).
 
 #### If a deploy stops
 
