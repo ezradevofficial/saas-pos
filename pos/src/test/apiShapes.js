@@ -74,6 +74,8 @@ export const SHAPES = {
     shift_id: [true, re(UUID)],
     cashier_id: [true, re(UUID)],
     customer_id: [false, re(UUID)],
+    buyer_tax_id: [false, str(50)],
+    buyer_name: [false, str(255)],
     receipt_seq: [true, int],
     receipt_number: [true, str(80)],
     sold_at: [true, DATE],

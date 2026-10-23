@@ -90,7 +90,7 @@ Staff permissions: `platform.marketplace.view` (owner, support, finance, complia
 
 - **Pricing**: free, or paid with a monthly price per currency (KES, USD, CDF, minor units) and an optional yearly one (twelve months otherwise).
 - **Billed through the subscription engine** (ADR 016). Billing exposes `AddOnCharges`; the marketplace binds it. Each period invoice carries one `app` line per paid, active install, in the subscription's currency and cycle. Installed during a paid period, the rest of the period is invoiced at once as an `upgrade` invoice, pro-rated by day as a plan upgrade is. Installed during the trial, nothing is charged until the first invoice. A suspended app is not billed. Uninstalling stops the next renewal's line; the period paid is not refunded. Unpaid app lines are unpaid invoice lines: dunning treats them like the plan.
-- **The developers' ledger** (`marketplace_payables`, an operator tenant table, `GlobalTables::OPERATOR`). When an operator invoice is paid (`OperatorInvoicePaid`, raised in the operator's context inside the paying transaction), each `app` line earns the app's developer 80 % (`marketplace.developer_share_percent`) of the line's amount net of discount and tax, half up, once per line (unique index). Append-only (no update or delete grant).
+- **The developers' ledger** (`marketplace_payables`, an operator tenant table, `GlobalTables::OPERATOR`). When an operator invoice is paid (`OperatorInvoicePaid`, raised in the operator's context inside the paying transaction), each `app` line earns the app's developer 80 % (`marketplace.developer_share_percent`) of the line's amount net of tax, half up, once per line (unique index). App lines never take a share of the plan's discounts (the coupon, the annual discount), so this is the app's full price net of tax (decision 9). Append-only (no update or delete grant).
 - **Payouts are manual** until a provider is chosen: staff see balances per developer and currency, a developer's ledger, and record a payout with its reference, never more than the balance (serialised per developer and currency). Audited in the operator's chain and the platform chain.
 - **Sandboxes** install paid apps free (API-05: never billed).
 - **Suspended tenants** follow the existing rules: billing keeps working; app tokens stop because the tenant is not active, like every other non-exempt access. Webhooks to installed apps stop too (Phase 8 review M2, ADR 021): nothing is fanned out while the tenant is suspended, and deliveries already made wait, then resume when it is active again.
@@ -112,17 +112,19 @@ A connector's OAuth client stays revoked, with no redirect URI, until the owner 
 
 The new tenant tables are exported. `app_installations.api_key_id` (a row id) and `oauth_refresh_tokens.access_token_id` (a hash of a JWT identifier) are allowed; no secret or bearer value is stored in them.
 
-## Decisions to confirm (owner)
+## Decisions (accepted by the owner 2026-10-22)
+
+All nine were accepted by the owner on 2026-10-22, decision 9 with a change: a plan coupon is never spread across app lines.
 
 1. **An app acts as an existing role the installer picks** (like API keys), limited by the app's scopes, instead of a role generated from the scopes. Safer (the `cannot_grant` rule is unchanged) but the installer has to choose a role.
-2. **The developer's 80 % is computed on the line net of discount and tax**, and earned when the invoice is paid, not when it is issued.
+2. **The developer's 80 % is computed on the line net of discount and tax**, and earned when the invoice is paid, not when it is issued. Since decision 9's change, an app line carries no discount, so this is the app's full price net of tax.
 3. **Paid apps are free during the platform trial**, as plan changes are; no refund for the rest of a period when an app is uninstalled; a new price applies from the next renewal.
 4. **Developers are tenants**: a developer account is a tenant's (sandbox or live), not a separate identity. Payout details (bank, mobile money) are not stored; staff contact the developer by its email and record the payout reference.
 5. **Paid apps in a sandbox are free**; sandboxes are never billed (API-05).
 6. **The Power BI and Excel connector uses CSV feeds** of the existing list endpoints rather than new OData endpoints.
 7. **Staff review roles**: compliance and engineering review apps; finance records payouts; support only views.
 8. **Per-install webhook keys are derived, not delivered**: the developer computes each install's key from the app's webhook secret and the signed `installation_id` (`HMAC-SHA256`, docs/webhooks.md). This replaces the earlier accepted risk (app secrets readable by tenant sessions), which is removed.
-9. **A coupon spread across app lines lowers the developer's 80 %.** A coupon's discount is applied across the invoice's lines, app lines included, and the developer earns 80 % of each line net of discount (decision 2). The alternative is to apply coupons to plan and module lines only, so app lines are always billed at the developer's price.
+9. **Plan coupons never reduce the developer's 80 %** (changed by the owner, 2026-10-22). A plan-level coupon applies to the plan lines only (bundle, module, unit and overage lines) and is never spread across marketplace app lines, so an app line is billed at the developer's price and the developer's share is computed on the app's full price, net of tax. The annual discount is the plan's too and is spread the same way. `Invoicing::withTax` gives app lines no share of the invoice's negative lines; only an invoice with no other positive line (an app's pro-rated install charge with a rounding line) spreads over its app lines, so the lines still add up to the total. Built as first proposed, the coupon was spread across every line, app lines included, which lowered the developer's 80 %. Test: `PaidAppsTest::test_a_plan_coupon_never_lowers_the_app_line_or_the_developers_share`.
 
 ## Owner inputs still needed
 

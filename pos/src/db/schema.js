@@ -41,9 +41,13 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * outbox) and `hr_clock_attempts` (wrong clock-in PINs counted per
  * employee on this till).
  *
+ * v10 (POS-08, POS-10, owner decision 2026-10-22): local `pos_sales` keeps
+ * the buyer snapshot (`buyer_tax_id`, `buyer_name`) the sale was printed
+ * and uploaded with; null without a customer tax id.
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -166,6 +170,9 @@ export const schema = appSchema({
         { name: 'shift_id', type: 'string', isIndexed: true },
         { name: 'status', type: 'string' },
         { name: 'sold_at', type: 'number', isIndexed: true },
+        // v10: the buyer snapshot.
+        { name: 'buyer_tax_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'buyer_name', type: 'string', isOptional: true },
         data,
       ],
     }),

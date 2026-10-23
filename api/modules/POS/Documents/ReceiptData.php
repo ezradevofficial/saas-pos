@@ -54,7 +54,7 @@ class ReceiptData
         $dual = $sale->base_currency !== $currency ? $this->money($sale->base_total_minor, $sale->base_currency) : null;
 
         $data = [
-            ...$this->common($company, $branch, $location, $customer),
+            ...$this->common($company, $branch, $location, $customer, $sale),
             'currencies' => $this->currencies([$currency, $sale->change_currency, $sale->base_currency, ...$sale->payments->pluck('currency')->all()]),
             'document' => [
                 'number' => $sale->receipt_number,
@@ -124,7 +124,7 @@ class ReceiptData
         });
 
         $data = [
-            ...$this->common($company, $branch, $location, $customer),
+            ...$this->common($company, $branch, $location, $customer, $sale),
             'currencies' => $this->currencies([$currency, ...$refund->payments->pluck('currency')->all()]),
             'document' => [
                 'number' => $refund->receipt_number,
@@ -165,7 +165,8 @@ class ReceiptData
         ];
     }
 
-    private function common(Company $company, Branch $branch, Location $location, ?Party $customer): array
+    /** POS-10: the buyer's tax id (and then name) is the sale's snapshot, as its fiscal documents name it, never the live party's. */
+    private function common(Company $company, Branch $branch, Location $location, ?Party $customer, Sale $sale): array
     {
         return [
             'company' => [
@@ -183,8 +184,8 @@ class ReceiptData
             'branch' => ['name' => $branch->name, 'code' => $branch->code, 'address' => self::address($branch->address)],
             'location' => ['name' => $location->name, 'code' => $location->code],
             'customer' => $customer === null ? null : [
-                'name' => $customer->name,
-                'tax_id' => $customer->tax_id,
+                'name' => $sale->buyer_name ?? $customer->name,
+                'tax_id' => $sale->buyer_tax_id,
                 'phone' => $customer->phoneNumbers()[0] ?? null,
                 'email' => $this->email($customer),
                 'address' => self::address($customer->addresses[0] ?? null),

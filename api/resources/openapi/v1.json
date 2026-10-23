@@ -6073,6 +6073,30 @@
                                     "name"
                                 ]
                             },
+                            "buyer": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "properties": {
+                                    "tax_id": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "name": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "tax_id",
+                                    "name"
+                                ]
+                            },
                             "currency": {
                                 "type": "string"
                             },
@@ -6240,6 +6264,7 @@
                             "shift_id",
                             "cashier",
                             "customer",
+                            "buyer",
                             "currency",
                             "subtotal",
                             "discount",
@@ -6394,6 +6419,30 @@
                                     "name"
                                 ]
                             },
+                            "buyer": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "properties": {
+                                    "tax_id": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "name": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "tax_id",
+                                    "name"
+                                ]
+                            },
                             "currency": {
                                 "type": "string"
                             },
@@ -6497,6 +6546,7 @@
                             "shift_id",
                             "cashier",
                             "customer",
+                            "buyer",
                             "currency",
                             "subtotal",
                             "discount",

@@ -46,6 +46,7 @@ describe('shared sale payload fixture (POS-01, POS-03)', () => {
       cashierId: expected.cashier_id,
       actorProof: expected.actor_proof,
       customerId: expected.customer_id,
+      buyer: { taxId: expected.buyer_tax_id, name: expected.buyer_name },
       number: { seq: expected.receipt_seq, number: expected.receipt_number, rangeId: expected.number_range_id },
       soldAt: expected.sold_at,
       offline: expected.offline,

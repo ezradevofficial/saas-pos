@@ -553,6 +553,7 @@ class TenantIsolationTest extends TestCase
     /** Fields ending in `_id` that are not references to rows, with why. */
     public const NOT_REFERENCES = [
         'tax_id' => "a company's tax registration number, free text",
+        'buyer_tax_id' => "POS-10: the buyer's KRA PIN or NIF as the till printed it, free text, never a row",
         'client_id' => 'API-02 (ADR 024): an OAuth client id, a global marketplace client looked up under its own policy, never a tenant row',
         'sms_sender_id' => 'BR-06: the alphanumeric SMS sender name (3 to 11 letters), free text, never a row',
         'external_id' => 'HR-24: a biometric device\'s own event id, free text the device names; looked up only for that device under its tenant, never a reference to another row',

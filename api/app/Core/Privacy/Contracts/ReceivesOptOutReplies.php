@@ -18,8 +18,10 @@ interface ReceivesOptOutReplies
     public function isOptOut(string $text): bool;
 
     /**
-     * Withdraw marketing consent on $channel for every customer of the
-     * current tenant with this phone number (E.164) who still consents.
+     * Withdraw marketing consent on every channel for every customer of
+     * the current tenant with this phone number (E.164) who still consents
+     * on any channel (owner decision 2026-10-22). $channel is the one the
+     * reply came by (sms or whatsapp), named in the evidence.
      *
      * @param  string  $via  where the reply arrived, for the evidence (e.g. `store_whatsapp`)
      * @return int the customers withdrawn
