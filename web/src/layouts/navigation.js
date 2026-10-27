@@ -198,6 +198,25 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    // Fuel station (docs/modules/fuel-station.md): only while the module (key `fuel`) is active (RBAC-08).
+    id: 'fuel',
+    label: (t) => t('nav.groups.fuel'),
+    items: [
+      { to: '/fuel/shifts', icon: 'shifts', label: (t) => t('nav.fuelShifts'), permission: 'fuel.shift.view', module: 'fuel' },
+      { to: '/fuel/sales', icon: 'sales', label: (t) => t('nav.fuelSales'), permission: 'fuel.sale.view', module: 'fuel' },
+      { to: '/fuel/settlements', icon: 'approvals', label: (t) => t('nav.fuelSettlements'), permission: 'fuel.variance.view', module: 'fuel' },
+      { to: '/fuel/reconciliations', icon: 'counts', label: (t) => t('nav.fuelReconciliations'), permission: 'fuel.variance.view', module: 'fuel' },
+      { to: '/fuel/meter-resets', icon: 'adjustments', label: (t) => t('nav.fuelMeterResets'), permission: 'fuel.variance.view', module: 'fuel' },
+      { to: '/fuel/dips', icon: 'stock', label: (t) => t('nav.fuelDips'), permission: 'fuel.dip.view', module: 'fuel' },
+      { to: '/fuel/deliveries', icon: 'deliveries', label: (t) => t('nav.fuelDeliveries'), permission: 'fuel.delivery.view', module: 'fuel' },
+      { to: '/fuel/prices', icon: 'promotions', label: (t) => t('nav.fuelPrices'), permission: 'fuel.price.view', module: 'fuel' },
+      { to: '/fuel/vehicles', icon: 'customers', label: (t) => t('nav.fuelVehicles'), permission: 'fuel.vehicle.view', module: 'fuel' },
+      { to: '/fuel/vouchers', icon: 'receipts', label: (t) => t('nav.fuelVouchers'), permission: 'fuel.voucher.view', module: 'fuel' },
+      { to: '/fuel/reports/shift-summary', icon: 'chart', label: (t) => t('nav.fuelReports'), permission: 'fuel.report.view', module: 'fuel' },
+      { to: '/fuel/setup', icon: 'settings', label: (t) => t('nav.fuelSetup'), permission: ['fuel.setup.view', 'fuel.settings.view', 'fuel.settings.edit'], module: 'fuel' },
+    ],
+  },
+  {
     // CRM and sales (docs/modules/crm.md, Screens): only while the module is active (RBAC-08).
     id: 'crm',
     label: (t) => t('nav.groups.crm'),

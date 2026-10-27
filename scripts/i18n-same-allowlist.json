@@ -115,5 +115,12 @@
   "Folio",
   "Charge",
   "RevPAR {{currency}}",
-  "RevPAR"
+  "RevPAR",
+  "Station",
+  "Stations",
+  "Litres",
+  "Litres {{n}}",
+  "{{count}} point",
+  "{{count}} points",
+  "Gains"
 ]
