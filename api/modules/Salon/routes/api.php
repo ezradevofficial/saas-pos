@@ -3,6 +3,7 @@
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
+use App\Core\MasterData\Parties\Party;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use Illuminate\Support\Facades\Route;
 use Modules\Salon\Http\Controllers\AppointmentController;
@@ -34,7 +35,7 @@ use Modules\Salon\Models\TimeOff;
 // route is closed (403 `module_inactive`) unless the tenant has the Salon module active. A route names the permission it
 // needs with `->defaults('permission', ...)`; its request checks it at the place the request touches (RBAC-04).
 
-foreach (['salon_service', 'salon_ptype', 'salon_staff', 'salon_resource', 'salon_appointment', 'salon_queue', 'salon_package', 'salon_exception', 'salon_rule', 'salon_batch', 'salon_payment', 'salon_timeoff'] as $parameter) {
+foreach (['salon_service', 'salon_ptype', 'salon_staff', 'salon_resource', 'salon_appointment', 'salon_queue', 'salon_package', 'salon_exception', 'salon_rule', 'salon_batch', 'salon_payment', 'salon_timeoff', 'salon_client'] as $parameter) {
     Route::pattern($parameter, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 }
 
@@ -50,6 +51,7 @@ Route::model('salon_rule', CommissionRule::class);
 Route::model('salon_batch', CommissionBatch::class);
 Route::model('salon_payment', Payment::class);
 Route::model('salon_timeoff', TimeOff::class);
+Route::model('salon_client', Party::class);
 
 // SAL-29: what a paired salon till sends (device token only).
 Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureDeviceToken::class, 'module:salon'])->group(function () {
@@ -126,9 +128,9 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // SAL-25: clients.
     Route::get('salon/clients', [ClientController::class, 'index'])->defaults('permission', 'salon.client.view');
     Route::post('salon/clients', [ClientController::class, 'store'])->defaults('permission', 'salon.client.manage');
-    Route::get('salon/clients/{party}', [ClientController::class, 'show'])->defaults('permission', 'salon.client.view');
-    Route::put('salon/clients/{party}', [ClientController::class, 'update'])->defaults('permission', 'salon.client.manage');
-    Route::get('salon/clients/{party}/visits', [ClientController::class, 'visits'])->defaults('permission', 'salon.client.view');
+    Route::get('salon/clients/{salon_client}', [ClientController::class, 'show'])->defaults('permission', 'salon.client.view');
+    Route::put('salon/clients/{salon_client}', [ClientController::class, 'update'])->defaults('permission', 'salon.client.manage');
+    Route::get('salon/clients/{salon_client}/visits', [ClientController::class, 'visits'])->defaults('permission', 'salon.client.view');
 
     // SAL-18: packages and the credit exceptions.
     Route::get('salon/packages', [PackageController::class, 'index'])->defaults('permission', 'salon.package.view');

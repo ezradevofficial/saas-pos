@@ -2,7 +2,9 @@
 
 namespace Modules\Salon\Tests;
 
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Sync\DeviceScope;
+use Illuminate\Testing\TestResponse;
 use Modules\Salon\Models\Appointment;
 use Modules\Salon\Models\Client;
 use Modules\Salon\Models\Package;
@@ -22,7 +24,7 @@ class DeviceSyncTest extends TestCase
 {
     use BuildsSalon, RefreshTenantDatabase;
 
-    private function sync(array $records, ?string $token = null): \Illuminate\Testing\TestResponse
+    private function sync(array $records, ?string $token = null): TestResponse
     {
         return $this->postJson('/api/v1/salon/device/sync', $records, $this->tillHeaders($token));
     }
@@ -201,7 +203,7 @@ class DeviceSyncTest extends TestCase
             $this->assertContains($key, $keys());
         }
 
-        $this->inTenant(fn () => app(\App\Core\Rbac\ModuleRegistry::class)->deactivate('salon'));
+        $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('salon'));
         $this->assertSame([], array_values(array_filter($keys(), fn ($key) => str_starts_with($key, 'salon_'))));
     }
 }

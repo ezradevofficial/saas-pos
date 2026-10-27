@@ -2,6 +2,7 @@
 
 namespace Modules\Salon\Tests;
 
+use Illuminate\Testing\TestResponse;
 use Modules\Salon\Models\Package;
 use Modules\Salon\Models\Payment;
 use Modules\Salon\Tests\Concerns\BuildsSalon;
@@ -13,7 +14,7 @@ class ReportsTest extends TestCase
 {
     use BuildsSalon, RefreshTenantDatabase;
 
-    private function report(string $name, $user = null, array $query = []): \Illuminate\Testing\TestResponse
+    private function report(string $name, $user = null, array $query = []): TestResponse
     {
         return $this->api('GET', "salon/reports/{$name}?".http_build_query(['branch_id' => $this->branchA->id, 'from' => $this->today, 'to' => $this->today, ...$query]), [], $user ?? $this->manager);
     }

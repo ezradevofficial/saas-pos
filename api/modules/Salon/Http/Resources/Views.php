@@ -6,7 +6,6 @@ use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Http\Resources\HidesFields;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Parties\Party;
-use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Models\Company;
 use Illuminate\Http\Request;

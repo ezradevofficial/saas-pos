@@ -82,7 +82,7 @@ class ConcurrencyTest extends TestCase
         $results = $this->race($workers);
 
         $this->assertContains('booked', $results);
-        $this->assertEqualsCanonicalizing(['booked', 'slot_taken'], array_unique($results));
+        $this->assertEqualsCanonicalizing(['booked', 'slot_taken'], array_values(array_unique($results)));
         $lines = $this->inTenant(fn () => Line::query()->where('holds', true)->orderBy('starts_at')->get());
         $this->assertSame($lines->count(), count(array_filter($results, fn ($r) => $r === 'booked')));
 

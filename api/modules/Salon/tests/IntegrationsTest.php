@@ -4,6 +4,8 @@ namespace Modules\Salon\Tests;
 
 use App\Core\MasterData\Items\Item;
 use App\Core\Rbac\ModuleRegistry;
+use App\Core\Sync\DeviceScope;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Event;
 use Modules\HR\Models\LeaveRequest;
 use Modules\HR\Models\LeaveType;
@@ -11,8 +13,10 @@ use Modules\HR\Models\RosterShift;
 use Modules\HR\Models\Shift;
 use Modules\Inventory\Contracts\StockWrittenOff;
 use Modules\Inventory\Models\Movement;
+use Modules\Salon\Models\SalonBranch;
 use Modules\Salon\Models\SalonException;
 use Modules\Salon\Models\Service;
+use Modules\Salon\Sync\Sources\StaffSource;
 use Modules\Salon\Tests\Concerns\BuildsSalon;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -67,7 +71,7 @@ class IntegrationsTest extends TestCase
     {
         $this->setUpSalon(inventory: true);
         $this->useShampoo();
-        $this->inTenant(fn () => \Modules\Salon\Models\SalonBranch::query()->update(['location_id' => null]));
+        $this->inTenant(fn () => SalonBranch::query()->update(['location_id' => null]));
         $this->finished('10:00');
         $this->assertSame(0, $this->inTenant(fn () => Movement::query()->where('item_id', $this->soap->id)->count()));
         $this->assertSame(['consumption_no_location'], $this->inTenant(fn () => SalonException::query()->pluck('kind')->all()));
@@ -96,15 +100,15 @@ class IntegrationsTest extends TestCase
 
             foreach ([0, 1] as $day) {
                 RosterShift::create([
-                    'employee_id' => $employee, 'company_id' => $this->acme->id, 'branch_id' => $this->branchA->id, 'date' => \Carbon\CarbonImmutable::parse($this->today)->addDays($day)->toDateString(),
+                    'employee_id' => $employee, 'company_id' => $this->acme->id, 'branch_id' => $this->branchA->id, 'date' => CarbonImmutable::parse($this->today)->addDays($day)->toDateString(),
                     'shift_id' => $shift->id, 'start_at' => $this->at('12:00', $day), 'end_at' => $this->at('18:00', $day), 'break_minutes' => 0, 'source' => 'manual', 'status' => 'planned',
                 ]);
             }
 
             $type = LeaveType::create(['company_id' => $this->acme->id, 'code' => 'AL', 'name' => 'Annual leave', 'paid' => true, 'accrual' => 'none', 'count_basis' => 'working_days']);
             LeaveRequest::create([
-                'number' => 'LV-1', 'employee_id' => $employee, 'company_id' => $this->acme->id, 'leave_type_id' => $type->id, 'start_date' => \Carbon\CarbonImmutable::parse($this->today)->addDay()->toDateString(),
-                'end_date' => \Carbon\CarbonImmutable::parse($this->today)->addDay()->toDateString(), 'days' => '1', 'dates' => [['date' => \Carbon\CarbonImmutable::parse($this->today)->addDay()->toDateString(), 'fraction' => '1']],
+                'number' => 'LV-1', 'employee_id' => $employee, 'company_id' => $this->acme->id, 'leave_type_id' => $type->id, 'start_date' => CarbonImmutable::parse($this->today)->addDay()->toDateString(),
+                'end_date' => CarbonImmutable::parse($this->today)->addDay()->toDateString(), 'days' => '1', 'dates' => [['date' => CarbonImmutable::parse($this->today)->addDay()->toDateString(), 'fraction' => '1']],
                 'status' => 'approved', 'requested_by' => $this->owner->id,
             ]);
         });
@@ -119,7 +123,7 @@ class IntegrationsTest extends TestCase
         $book('14:00', 1)->assertStatus(422)->assertJsonPath('code', 'staff_off');
         $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->bob->id]], '14:00', ['starts_at' => $this->at('14:00', 1)]), $this->desk)->assertCreated();
         // What the till pulls already has HR folded in.
-        $off = collect($this->inTenant(fn () => app(\Modules\Salon\Sync\Sources\StaffSource::class)->rows(\App\Core\Sync\DeviceScope::of($this->till))))->firstWhere('name', 'Ann')['off'];
+        $off = collect($this->inTenant(fn () => app(StaffSource::class)->rows(DeviceScope::of($this->till))))->firstWhere('name', 'Ann')['off'];
         $this->assertContains([$this->at('00:00', 1), $this->at('00:00', 2)], $off);
     }
 }

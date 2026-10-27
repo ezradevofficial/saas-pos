@@ -120,6 +120,18 @@ class Places
             ->orWhereIn($query->qualifyColumn($branchColumn), $visible->idsFor(Scope::BRANCH)));
     }
 
+    /** The first company (oldest first) where $user holds $permission somewhere, or null. */
+    public function defaultCompany(User $user, string $permission): ?string
+    {
+        foreach (Company::query()->whereNull('archived_at')->orderBy('created_at')->orderBy('id')->pluck('id') as $id) {
+            if ($this->inCompany($user, $permission, (string) $id)) {
+                return (string) $id;
+            }
+        }
+
+        return null;
+    }
+
     /** The companies where $user holds $permission somewhere; null for every company. @return list<string>|null */
     public function companyIds(User $user, string $permission): ?array
     {

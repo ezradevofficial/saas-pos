@@ -7,11 +7,15 @@ use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Rbac\ModuleRegistry;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
 use Modules\Ecommerce\Models\Customer;
 use Modules\Ecommerce\Models\CustomerSession;
 use Modules\Ecommerce\Models\Store;
 use Modules\Salon\Models\Appointment;
+use Modules\Salon\Models\Line;
+use Modules\Salon\Models\Payment;
 use Modules\Salon\Models\QueueEntry;
 use Modules\Salon\Models\SalonBranch;
 use Modules\Salon\Tests\Concerns\BuildsSalon;
@@ -30,17 +34,17 @@ class OnlineBookingTest extends TestCase
         parent::setUp();
 
         $this->setUpSalon();
-        \Illuminate\Support\Facades\Cache::flush();
+        Cache::flush();
         // Five writes a minute is the real limit; the tests that are not about it book more than that.
         config(['salon.booking.writes_per_ip_per_minute' => 100]);
     }
 
-    private function page(string $path = '', array $query = []): \Illuminate\Testing\TestResponse
+    private function page(string $path = '', array $query = []): TestResponse
     {
         return $this->getJson('/api/v1/salon-booking/'.self::CODE.$path.($query === [] ? '' : '?'.http_build_query($query)), ['Accept' => 'application/json']);
     }
 
-    private function reserve(array $body, array $headers = [], string $path = '/appointments'): \Illuminate\Testing\TestResponse
+    private function reserve(array $body, array $headers = [], string $path = '/appointments'): TestResponse
     {
         return $this->postJson('/api/v1/salon-booking/'.self::CODE.$path, $body, ['Accept' => 'application/json', ...$headers]);
     }
@@ -114,7 +118,7 @@ class OnlineBookingTest extends TestCase
         // The stylist the page picked is free-form ("anyone"): Ann or Bob, both qualified, are fine; the same time again goes to the other.
         $this->reserve($this->booking('10:00', ['guest_name' => 'Second', 'guest_phone' => '0722000111']))->assertCreated();
         $this->reserve($this->booking('10:00', ['guest_name' => 'Third', 'guest_phone' => '0722000222']))->assertStatus(409)->assertJsonPath('code', 'slot_taken');
-        $this->assertEqualsCanonicalizing([$this->ann->id, $this->bob->id], $this->inTenant(fn () => \Modules\Salon\Models\Line::query()->pluck('staff_id')->all()));
+        $this->assertEqualsCanonicalizing([$this->ann->id, $this->bob->id], $this->inTenant(fn () => Line::query()->pluck('staff_id')->all()));
     }
 
     public function test_a_booking_needs_a_way_to_reach_the_visitor_a_slot_on_the_grid_and_a_stylist_who_takes_online_bookings(): void
@@ -151,13 +155,13 @@ class OnlineBookingTest extends TestCase
     public function test_writing_to_the_page_is_rate_limited_per_address(): void
     {
         config(['salon.booking.writes_per_ip_per_minute' => 2]);
-        \Illuminate\Support\Facades\Cache::flush();
+        Cache::flush();
         $this->reserve($this->booking('10:00'))->assertCreated();
         $this->reserve($this->booking('10:30', ['guest_phone' => '0722000111']))->assertCreated();
         $this->reserve($this->booking('11:00', ['guest_phone' => '0722000222']))->assertStatus(429);
         // Reading is limited too, on its own count.
         config(['salon.booking.per_ip_per_minute' => 3]);
-        \Illuminate\Support\Facades\Cache::flush();
+        Cache::flush();
         $codes = [];
 
         foreach (range(1, 5) as $n) {
@@ -180,13 +184,13 @@ class OnlineBookingTest extends TestCase
         $this->getJson('/api/v1/salon-booking/'.self::CODE."/appointments/{$made['number']}?phone=0712345678")->assertOk()->assertJsonPath('data.deposit_paid_minor', '0');
         // With the company's M-Pesa set up, the right phone starts the push for what is still due; the deposit counts once the provider settles.
         config(['payments.callback_base_url' => 'https://api.example.com', 'payments.mpesa.base_url' => 'https://sandbox.safaricom.co.ke', 'payments.drivers' => []]);
-        \Illuminate\Support\Facades\Http::fake([
-            'sandbox.safaricom.co.ke/oauth/*' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok', 'expires_in' => '3599']),
-            'sandbox.safaricom.co.ke/mpesa/stkpush/*' => \Illuminate\Support\Facades\Http::response(['MerchantRequestID' => 'm-1', 'CheckoutRequestID' => 'ws_CO_online1', 'ResponseCode' => '0', 'ResponseDescription' => 'Success', 'CustomerMessage' => 'Success']),
+        Http::fake([
+            'sandbox.safaricom.co.ke/oauth/*' => Http::response(['access_token' => 'tok', 'expires_in' => '3599']),
+            'sandbox.safaricom.co.ke/mpesa/stkpush/*' => Http::response(['MerchantRequestID' => 'm-1', 'CheckoutRequestID' => 'ws_CO_online1', 'ResponseCode' => '0', 'ResponseDescription' => 'Success', 'CustomerMessage' => 'Success']),
         ]);
         $this->inTenant(fn () => $this->methods['mpesa']->fill(['settings' => ['shortcode' => '174379'], 'secrets' => ['consumer_key' => 'ck', 'consumer_secret' => 'cs', 'passkey' => 'pk'], 'active' => true])->save());
         $this->postJson('/api/v1/salon-booking/'.self::CODE."/appointments/{$made['number']}/pay", ['phone' => '0712345678'])->assertOk()->assertJsonPath('data.deposit_paid_minor', '0');
-        $pending = $this->inTenant(fn () => \Modules\Salon\Models\Payment::query()->sole());
+        $pending = $this->inTenant(fn () => Payment::query()->sole());
         $this->assertSame(['deposit', 'pending', '50000', null], [$pending->kind, $pending->status, (string) $pending->amount_minor, $pending->created_by]);
 
         // Unpaid after the hold: released, no fee, and the time is free again.

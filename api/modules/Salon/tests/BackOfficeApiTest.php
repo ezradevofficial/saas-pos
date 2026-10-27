@@ -4,13 +4,17 @@ namespace Modules\Salon\Tests;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Items\Uom;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\Rbac\Models\LimitRule;
 use App\Core\Rbac\Scope;
 use Modules\Salon\Models\PackageType;
 use Modules\Salon\Models\Resource;
 use Modules\Salon\Models\Service;
 use Modules\Salon\Models\Staff;
 use Modules\Salon\Models\StaffHour;
+use Modules\Salon\Models\TimeOff;
+use Modules\Salon\SalonServiceProvider;
 use Modules\Salon\Tests\Concerns\BuildsSalon;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -36,7 +40,7 @@ class BackOfficeApiTest extends TestCase
         $this->setUpSalon();
         $names = [];
 
-        foreach (\Modules\Salon\SalonServiceProvider::PERMISSIONS as $resource => $actions) {
+        foreach (SalonServiceProvider::PERMISSIONS as $resource => $actions) {
             foreach ($actions as $action) {
                 $names[] = "salon.{$resource}.{$action}";
             }
@@ -60,7 +64,7 @@ class BackOfficeApiTest extends TestCase
         $this->assertContains('salon.commission.rule', $admin);
         $this->assertNotContains('salon.commission.approve', $admin);
         $this->assertNotContains('salon.client.notes', $admin);
-        $this->assertSame(10000.0, (float) $this->inTenant(fn () => \App\Core\Rbac\Models\LimitRule::query()->where('role_id', $this->roles->get('salon_manager')->id)->where('key', 'max_refund_amount')->value('value')));
+        $this->assertSame(10000.0, (float) $this->inTenant(fn () => LimitRule::query()->where('role_id', $this->roles->get('salon_manager')->id)->where('key', 'max_refund_amount')->value('value')));
     }
 
     public function test_the_service_menu_is_set_up_by_the_admin_from_service_items_of_the_company(): void
@@ -81,7 +85,7 @@ class BackOfficeApiTest extends TestCase
         $this->api('POST', 'salon/services', [...$body, 'item_id' => $oil->id], $this->owner)->assertStatus(422)->assertJsonPath('code', 'item_not_service');
         $this->api('POST', 'salon/services', [...$body, 'item_id' => $this->id()], $this->owner)->assertStatus(422);
         $other = $this->otherSalonTenant();
-        $foreign = $this->asTenant($other['user']->tenant_id, fn () => Item::create(['code' => 'ALIEN', 'name' => 'Alien', 'type' => 'service', 'base_uom_id' => \App\Core\MasterData\Items\Uom::create(['code' => 'EA', 'name' => 'Each', 'kind' => 'count'])->id])->id);
+        $foreign = $this->asTenant($other['user']->tenant_id, fn () => Item::create(['code' => 'ALIEN', 'name' => 'Alien', 'type' => 'service', 'base_uom_id' => Uom::create(['code' => 'EA', 'name' => 'Each', 'kind' => 'count'])->id])->id);
         $this->api('POST', 'salon/services', [...$body, 'item_id' => $foreign], $this->owner)->assertStatus(422);
         $this->api('PUT', "salon/services/{$made['id']}", ['staff_ids' => [$this->id()]], $this->owner)->assertStatus(422);
         $this->api('PUT', "salon/services/{$made['id']}", ['duration_minutes' => 3], $this->owner)->assertStatus(422);
@@ -226,7 +230,7 @@ class BackOfficeApiTest extends TestCase
         $this->setUpSalon();
         $this->book('10:00');
         $this->book('11:00', $this->bob);
-        $this->inTenant(fn () => \Modules\Salon\Models\TimeOff::create(['staff_id' => $this->bob->id, 'starts_at' => $this->at('15:00'), 'ends_at' => $this->at('16:00'), 'reason' => 'other']));
+        $this->inTenant(fn () => TimeOff::create(['staff_id' => $this->bob->id, 'starts_at' => $this->at('15:00'), 'ends_at' => $this->at('16:00'), 'reason' => 'other']));
 
         $day = $this->api('GET', 'salon/calendar?'.http_build_query(['branch_id' => $this->branchA->id, 'date' => $this->today]), [], $this->desk)->assertOk()->json('data');
         $this->assertSame([$this->today, 'Africa/Nairobi', 2], [$day['date'], $day['timezone'], count($day['appointments'])]);

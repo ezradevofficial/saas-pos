@@ -4,6 +4,7 @@ namespace Modules\Salon\Tests;
 
 use App\Core\Audit\AuditEntry;
 use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Parties\Party;
 use Modules\Salon\Models\Appointment;
 use Modules\Salon\Models\Line;
 use Modules\Salon\Models\Service;
@@ -103,7 +104,7 @@ class BookingTest extends TestCase
         $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '10:00', ['client_id' => $this->id()]), $this->desk)->assertStatus(422);
         $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->id()]], '10:00'), $this->desk)->assertStatus(422);
         // A supplier is not a client.
-        $supplier = $this->inTenant(fn () => \App\Core\MasterData\Parties\Party::create(['kind' => 'organisation', 'name' => 'Supplier', 'roles' => ['supplier'], 'company_id' => $this->acme->id]));
+        $supplier = $this->inTenant(fn () => Party::create(['kind' => 'organisation', 'name' => 'Supplier', 'roles' => ['supplier'], 'company_id' => $this->acme->id]));
         $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '10:00', ['client_id' => $supplier->id]), $this->desk)->assertStatus(422)->assertJsonPath('code', 'client_unknown');
         // The desk works at branch A only.
         $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '10:00', ['branch_id' => $this->branchB->id]), $this->desk)->assertForbidden();

@@ -33,10 +33,4 @@ class Access
 
         return $staff !== null && Line::query()->where('appointment_id', $appointment->id)->where('staff_id', $staff->id)->exists();
     }
-
-    /** Whether $user reads the whole place (not only their own). */
-    public function readsAll(User $user, string $permission = 'salon.appointment.view'): bool
-    {
-        return $this->resolver->visibleIds($user, $permission)->all || $this->resolver->visibleIds($user, $permission)->companiesTouched() !== [];
-    }
 }

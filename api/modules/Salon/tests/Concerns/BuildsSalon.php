@@ -13,6 +13,7 @@ use Illuminate\Testing\TestResponse;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Modules\Salon\Models\Appointment;
 use Modules\Salon\Models\CommissionRule;
+use Modules\Salon\Models\Line;
 use Modules\Salon\Models\PackageType;
 use Modules\Salon\Models\Resource;
 use Modules\Salon\Models\SalonBranch;
@@ -196,7 +197,7 @@ trait BuildsSalon
     protected function salonSale(string $appointmentId, int $seq, User $cashier, array $extra = [], ?array $payments = null, array $ext = [], array $overrides = []): array
     {
         $appointment = $this->appointment($appointmentId);
-        $lines = $this->inTenant(fn () => \Modules\Salon\Models\Line::query()->where('appointment_id', $appointmentId)->orderBy('position')->get()
+        $lines = $this->inTenant(fn () => Line::query()->where('appointment_id', $appointmentId)->orderBy('position')->get()
             ->map(fn ($l) => $this->serviceLine(Item::query()->findOrFail($l->item_id), (int) $l->price_minor))->all());
         $lines = $overrides['lines'] ?? [...$lines, ...$extra];
         $total = (string) array_sum(array_map(fn (array $l) => (int) $l['total_minor'], $lines));

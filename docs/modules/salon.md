@@ -96,7 +96,7 @@ price change is a new catalogue price row.
 | `salon.appointment.override` | Book outside hours or on time off (with a reason) |
 | `salon.queue.view`, `.manage` | See / run the walk-in queue |
 | `salon.client.view`, `.manage`, `.notes` | See / edit client profiles; read and write allergies and formulas |
-| `salon.package.view`, `.sell`, `.adjust` | See packages; (reserved) sell; correct sessions with a reason |
+| `salon.package.view`, `.adjust` | See packages; correct sessions with a reason (a package is sold at the till, so there is no sell permission) |
 | `salon.deposit.take`, `.refund` | Take a deposit; refund one |
 | `salon.fee.waive` | Waive a cancellation or no-show fee |
 | `salon.exception.view`, `.resolve` | See and close credit exceptions |
@@ -131,19 +131,19 @@ zone, hours `HH:MM` local. Lists are `{data: [...]}`, whole, unless noted
 | `GET salon/availability` | `?branch_id&date&service_ids[]&staff_id?` returns `{data: {slots: [{starts_at, ends_at, lines: [{service_id, staff_id, resource_id, starts_at, ends_at}]}]}}` |
 | `GET salon/calendar?branch_id&date&days?` | Every staff member's and resource's day: appointments, hours, breaks, time off |
 | `GET/POST salon/appointments`, `GET salon/appointments/{id}` | Filters `branch_id`, `staff_id`, `client_id`, `status`, `from`, `to`, `source`; create `{branch_id, client_id?, guest_name?, guest_phone?, guest_email?, notes?, lines: [{service_id, staff_id, resource_id?, starts_at}], override_reason?}` (later lines follow the first) |
-| `POST salon/appointments/{id}/move` | `{lines: [{id, staff_id, resource_id?, starts_at}], override_reason?}` |
+| `POST salon/appointments/{id}/move` | `{starts_at, lines?: [{id, staff_id?, resource_id?}], override_reason?}` (the lines keep their order and lengths after the first) |
 | `POST salon/appointments/{id}/check-in\|start\|finish` | Day flow |
 | `POST salon/appointments/{id}/cancel`, `.../no-show`, `.../waive-fee` | `{reason}` (waive needs a reason) |
 | `PUT salon/appointments/{id}/notes` | `{service_notes}` (formula used, `salon.client.notes`) |
 | `GET salon/appointments/{id}/checkout` | The lines the till rings: `{lines: [{item_id, name, qty, unit_price_minor, currency, staff_id, kind}], fee, deposit_balance_minor, packages}` |
 | `POST salon/appointments/{id}/deposit`, `.../deposit/refund` | `{payment_method_id, amount_minor, mode: direct\|stk, phone?, reference?}`; payments listed in the appointment; `GET salon/payments/{id}/check` polls a push |
 | `GET/POST salon/queue`, `POST salon/queue/{id}/seat\|leave` | `{branch_id, guest_name, guest_phone?, client_id?, service_ids, staff_id?}`; seat `{staff_id, resource_id?}` |
-| `GET salon/clients`, `GET/POST salon/clients/{party}`, `PUT salon/clients/{party}` | Profile `{party_id, name, phone, email, preferred_staff_id, preferences, allergies, formulas, notes}`; `GET .../visits` |
+| `GET/POST salon/clients`, `GET/PUT salon/clients/{id}`, `GET salon/clients/{id}/visits` | `company_id` is optional on reads (the client's own, else the first company the reader may view); profile `{party_id, name, phone, email, preferred_staff_id, preferences, allergies, formulas, notes}` |
 | `GET salon/packages`, `GET salon/packages/{id}`, `POST salon/packages/{id}/adjust` | `{customer_id, status}`; adjust `{sessions, reason}` |
 | `GET salon/exceptions`, `POST salon/exceptions/{id}/resolve` | `{note}` |
 | `GET/POST salon/commission-rules`, `PUT .../{id}`, `POST .../archive` | `{company_id, staff_id?, service_id?, applies_to: service\|product, kind: percent\|fixed, rate?, amount_minor?, currency?, effective_from, effective_to?}` |
 | `GET salon/commissions` | Entries; filters `staff_id`, `from`, `to`, `batch_id`, `unbatched` |
-| `GET/POST salon/commission-batches`, `GET .../{id}` | `{company_id, period_start, period_end, currency}`; the batch has `payouts` per staff and the entries |
+| `GET/POST salon/commission-batches`, `GET .../{id}` | `{company_id, branch_id?, period_start, period_end, currency}` (with a branch, only that branch's entries are batched); the batch has `payouts` per staff and the entries |
 | `POST salon/commission-batches/{id}/submit\|approve\|reject\|export` | reject needs `{reason}`; `GET .../{id}/csv` |
 | `GET salon/tips` | Tips per staff |
 | `GET salon/reports/utilisation\|services\|no-shows\|commissions\|liability` | `?company_id\|branch_id&from&to` |

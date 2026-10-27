@@ -5,6 +5,9 @@ namespace Modules\Salon\Tests;
 use App\Core\Audit\AuditEntry;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
+use Modules\HR\Models\RosterShift;
+use Modules\HR\Models\Shift;
+use Modules\Payroll\Contracts\ExternalEarnings;
 use Modules\Payroll\Models\EmployeeItem;
 use Modules\Payroll\Models\PayrollEmployee;
 use Modules\Salon\Models\CommissionEntry;
@@ -195,8 +198,8 @@ class CommissionTest extends TestCase
         // HR is now the source of Ann's hours: with no planned shift she cannot be booked; with one (08:00 to 18:00) she can.
         $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '09:00'), $this->desk)->assertStatus(422)->assertJsonPath('code', 'outside_hours');
         $this->inTenant(function () use ($employee) {
-            $shift = \Modules\HR\Models\Shift::create(['company_id' => $this->acme->id, 'code' => 'DAY', 'name' => 'Day', 'start_time' => '08:00', 'end_time' => '18:00', 'break_minutes' => 0]);
-            \Modules\HR\Models\RosterShift::create([
+            $shift = Shift::create(['company_id' => $this->acme->id, 'code' => 'DAY', 'name' => 'Day', 'start_time' => '08:00', 'end_time' => '18:00', 'break_minutes' => 0]);
+            RosterShift::create([
                 'employee_id' => $employee, 'company_id' => $this->acme->id, 'branch_id' => $this->branchA->id, 'date' => $this->today, 'shift_id' => $shift->id,
                 'start_at' => $this->at('08:00'), 'end_at' => $this->at('18:00'), 'break_minutes' => 0, 'source' => 'manual', 'status' => 'planned',
             ]);
@@ -220,7 +223,7 @@ class CommissionTest extends TestCase
         $this->assertSame($employee, $this->inTenant(fn () => PayrollEmployee::query()->find($items[0]->payroll_employee_id)->employee_id));
         // The same batch cannot be sent twice; the contract is idempotent by batch and staff even if it were asked again.
         $this->api('POST', "salon/commission-batches/{$id}/export", [], $this->manager)->assertStatus(409);
-        $again = $this->inTenant(fn () => app(\Modules\Payroll\Contracts\ExternalEarnings::class)->addOnce($this->acme->id, $employee, 'COMMISSION', 17778, 'KES', '2027-03-31', "salon:{$id}:{$this->ann->id}", null));
+        $again = $this->inTenant(fn () => app(ExternalEarnings::class)->addOnce($this->acme->id, $employee, 'COMMISSION', 17778, 'KES', '2027-03-31', "salon:{$id}:{$this->ann->id}", null));
         $this->assertSame('exists', $again['status']);
         $this->assertSame(1, $this->inTenant(fn () => EmployeeItem::query()->count()));
     }

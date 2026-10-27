@@ -4,7 +4,6 @@ namespace Modules\Salon\Sync\Sources;
 
 use App\Core\Sync\Contracts\SnapshotSource;
 use App\Core\Sync\DeviceScope;
-use Carbon\CarbonImmutable;
 use Modules\Salon\Availability\StaffCalendar;
 use Modules\Salon\Models\Resource;
 use Modules\Salon\Models\Staff;
@@ -59,10 +58,5 @@ class StaffSource implements SnapshotSource
         }
 
         return $rows;
-    }
-
-    public static function window(CarbonImmutable $at): CarbonImmutable
-    {
-        return $at->addDays(self::DAYS);
     }
 }

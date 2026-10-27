@@ -11,7 +11,7 @@ class ClientRequest extends SalonRequest
     public function rules(): array
     {
         return [
-            'company_id' => ['required', 'uuid', Rule::exists('companies', 'id')],
+            'company_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('companies', 'id')],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:200'],
         ];
     }

@@ -112,7 +112,7 @@ class ServiceController
     /** Items a service can be made from: the company's service-like items not yet on the menu. */
     public function items(ViewRequest $request): JsonResponse
     {
-        $companyId = (string) $request->input('company_id');
+        $companyId = (string) ($request->input('company_id') ?: $this->places->defaultCompany($request->user(), $request->permission()) ?? throw Errors::make(422, 'company_required', field: 'company_id'));
         $taken = Service::query()->where('company_id', $companyId)->whereNull('archived_at')->pluck('item_id')
             ->merge(PackageType::query()->where('company_id', $companyId)->whereNull('archived_at')->pluck('item_id'));
         $items = Item::query()->whereNull('archived_at')->whereIn('type', ['service', 'non_stock'])->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId))

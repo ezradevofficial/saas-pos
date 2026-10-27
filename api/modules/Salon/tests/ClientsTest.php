@@ -7,6 +7,7 @@ use App\Core\MasterData\Parties\Party;
 use App\Core\Privacy\SubjectData;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\Scope;
+use Illuminate\Support\Facades\DB;
 use Modules\Salon\Models\Appointment;
 use Modules\Salon\Models\Client;
 use Modules\Salon\Models\Package;
@@ -42,7 +43,7 @@ class ClientsTest extends TestCase
         $this->assertSame('Peanut oil', $this->api('GET', $this->url(), [], $this->annUser)->json('data.allergies'));
         $this->assertSame(1, $this->inTenant(fn () => Client::query()->count()));
         // They are encrypted at rest.
-        $raw = $this->inTenant(fn () => \Illuminate\Support\Facades\DB::table('salon_clients')->first());
+        $raw = $this->inTenant(fn () => DB::table('salon_clients')->first());
         $this->assertStringNotContainsString('Peanut', (string) $raw->allergies);
         $this->assertStringNotContainsString('Level 6', (string) $raw->formulas);
 
