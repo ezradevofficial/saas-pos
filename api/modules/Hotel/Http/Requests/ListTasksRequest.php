@@ -33,7 +33,7 @@ class ListTasksRequest extends HotelRequest
             'branch' => ['sometimes', 'uuid', Rule::exists('branches', 'id')],
             'status' => ['sometimes', 'string', Rule::in([...array_diff([HousekeepingTask::PENDING, HousekeepingTask::IN_PROGRESS, HousekeepingTask::DONE, HousekeepingTask::INSPECTED, HousekeepingTask::CANCELLED], []), 'open', 'all'])],
             'kind' => ['sometimes', 'string', Rule::in(HousekeepingTask::KINDS)],
-            'assigned_to' => ['sometimes', 'uuid', Rule::exists('users', 'id')],
+            'assigned_to' => ['sometimes', 'uuid', Rule::exists('users', 'id')->whereNot('status', 'service')],
             'date' => HotelRules::day(false),
             'per_page' => ['sometimes', 'integer', 'between:1,'.ListRequest::MAX_PER_PAGE],
             'page' => ['sometimes', 'integer', 'min:1'],

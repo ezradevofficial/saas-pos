@@ -14,7 +14,7 @@ class StoreVanRequest extends VanSalesRequest
             'branch_id' => ['required', 'uuid', Rule::exists('branches', 'id')],
             'name' => ['required', 'string', 'max:120'],
             'plate' => ['sometimes', 'nullable', 'string', 'max:30'],
-            'rep_id' => ['required', 'uuid', Rule::exists('users', 'id')],
+            'rep_id' => ['required', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
             'device_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('devices', 'id')],
             'location_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('locations', 'id')],
         ];

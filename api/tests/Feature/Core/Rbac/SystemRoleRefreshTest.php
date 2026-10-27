@@ -168,13 +168,14 @@ class SystemRoleRefreshTest extends TestCase
             $this->assertSame(['max_quote_discount_percent' => '10', 'max_refund_amount' => '10000'], Role::where('template_key', 'branch_manager')->sole()->limits());
             $this->assertSame(['max_discount_percent' => '15', 'max_quote_discount_percent' => '15'], $limits('Quote desk'));
             $this->assertSame(['max_discount_percent' => '5'], $limits('Till lead'));
-            $this->assertSame(3, AuditEntry::where('action', 'rbac.role.limits_update')->count());
+            // The sales rep, the branch manager, the route supervisor (its refund limit, VAN-17) and the Quote desk's new key: four.
+            $this->assertSame(4, AuditEntry::where('action', 'rbac.role.limits_update')->count());
         });
 
         // Idempotent.
         DB::usingConnection('pgsql_owner', fn () => (require database_path('migrations/2026_11_27_000100_add_quote_discount_limit.php'))->up());
         Artisan::call('permissions:sync');
-        $this->assertSame(3, $this->asTenant($tenant, fn () => AuditEntry::where('action', 'rbac.role.limits_update')->count()));
+        $this->assertSame(4, $this->asTenant($tenant, fn () => AuditEntry::where('action', 'rbac.role.limits_update')->count()));
     }
 
     /**

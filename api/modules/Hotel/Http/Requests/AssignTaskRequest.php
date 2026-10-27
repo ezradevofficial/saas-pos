@@ -19,6 +19,6 @@ class AssignTaskRequest extends HotelRequest
 
     public function rules(): array
     {
-        return ['assigned_to' => ['present', 'nullable', 'uuid', Rule::exists('users', 'id')]];
+        return ['assigned_to' => ['present', 'nullable', 'uuid', Rule::exists('users', 'id')->where('status', 'active')]];
     }
 }

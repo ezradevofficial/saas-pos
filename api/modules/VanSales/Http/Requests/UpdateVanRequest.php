@@ -12,7 +12,7 @@ class UpdateVanRequest extends BoundRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:120'],
             'plate' => ['sometimes', 'nullable', 'string', 'max:30'],
-            'rep_id' => ['sometimes', 'required', 'uuid', Rule::exists('users', 'id')],
+            'rep_id' => ['sometimes', 'required', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
             'device_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('devices', 'id')],
         ];
     }
