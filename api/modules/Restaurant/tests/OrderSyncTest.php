@@ -2,6 +2,7 @@
 
 namespace Modules\Restaurant\Tests;
 
+use App\Core\MasterData\Items\Item;
 use App\Core\Rbac\ModuleRegistry;
 use Carbon\CarbonImmutable;
 use Modules\Restaurant\Models\Order;
@@ -123,7 +124,7 @@ class OrderSyncTest extends TestCase
 
     public function test_unrouted_categories_go_to_the_default_station_and_without_one_to_no_station(): void
     {
-        $other = $this->inTenant(fn () => \App\Core\MasterData\Items\Item::create(['code' => 'GIFT', 'name' => 'Gift', 'type' => 'non_stock', 'base_uom_id' => $this->each->id]));
+        $other = $this->inTenant(fn () => Item::create(['code' => 'GIFT', 'name' => 'Gift', 'type' => 'non_stock', 'base_uom_id' => $this->each->id]));
         $this->store($this->orderRecord([$this->sent($this->orderLine(['item_id' => $other->id, 'name' => 'Gift']))]));
         $this->assertSame($this->kitchen->id, Ticket::query()->sole()->station_id);
 

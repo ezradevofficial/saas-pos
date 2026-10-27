@@ -30,7 +30,7 @@ class RoleTemplatesTest extends TestCase
     private const TEMPLATE_KEYS = [
         'owner', 'admin', 'branch_manager', 'sales_rep', 'cashier', 'rider', 'waiter', 'storekeeper', 'accountant',
         'hr_officer', 'payroll_officer', 'procurement_officer', 'approver', 'employee_self_service',
-        'read_only_auditor',
+        'read_only_auditor', 'kitchen', 'bartender',
     ];
 
     protected function setUp(): void
@@ -123,15 +123,16 @@ class RoleTemplatesTest extends TestCase
         // E-commerce (docs/modules/ecommerce.md): 18 ecommerce.* permissions (ecommerce.delivery.track, ECOM-29).
         // API-02: core.api_key.manage. HOOK-01: core.webhook.manage. RBAC-13: core.support_access.view|manage. AUTH-11: core.sso.manage. NFR-08: core.privacy_request.* and core.consent.*.
         // MKT-01, MKT-02: core.marketplace.view|install, core.developer.manage (126 core permissions).
-        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 37 + 27 + 16 + 17 + 14 + 18, count($names));
+        // Restaurant (docs/modules/restaurant.md): 17 restaurant.* permissions.
+        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 37 + 27 + 16 + 17 + 14 + 18 + 17, count($names));
     }
 
-    public function test_sign_up_provisions_fifteen_system_roles_and_an_owner_assignment(): void
+    public function test_sign_up_provisions_seventeen_system_roles_and_an_owner_assignment(): void
     {
         $tenantId = $this->enter($this->signUp()->json('challenge_id'));
 
         $roles = Role::orderBy('template_key')->get();
-        $this->assertCount(15, $roles);
+        $this->assertCount(17, $roles);
         $this->assertEqualsCanonicalizing(self::TEMPLATE_KEYS, $roles->pluck('template_key')->all());
         $this->assertTrue($roles->every(fn (Role $r) => $r->is_system && $r->tenant_id === $tenantId));
 
@@ -157,7 +158,8 @@ class RoleTemplatesTest extends TestCase
         // E-commerce: the 7 views, store and rider set-up (9).
         // AUTH-11: nor single sign-on (core.sso.manage), the Owner's alone.
         // Payroll: exempting the company from a pack component (payroll.statutory.exempt, CP-01).
-        $this->assertSame(Permission::where('module', 'core')->count() - 3 + 4 + 10 + 6 + 10 + 6 + 10 + 7 + 9 + 6 + 9 + 1, $admin->permissions()->count());
+        // Restaurant: the 6 views and the floor, stations, modifiers and service charge set-up (10).
+        $this->assertSame(Permission::where('module', 'core')->count() - 3 + 4 + 10 + 6 + 10 + 6 + 10 + 7 + 9 + 6 + 9 + 1 + 10, $admin->permissions()->count());
         $this->assertTrue($admin->hasPermissionTo('payroll.statutory.exempt'));
         $this->assertFalse(Role::where('template_key', 'payroll_officer')->sole()->hasPermissionTo('payroll.statutory.exempt'));
         $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));
@@ -187,7 +189,7 @@ class RoleTemplatesTest extends TestCase
             $assignment->user_id, $assignment->role_id, $assignment->scope_type, $assignment->scope_id,
         ]);
 
-        $this->assertSame(15, AuditEntry::where('action', 'rbac.role.create')->count());
+        $this->assertSame(17, AuditEntry::where('action', 'rbac.role.create')->count());
         $this->assertSame(1, AuditEntry::where('action', 'rbac.assignment.create')->count());
     }
 

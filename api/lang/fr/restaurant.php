@@ -5,6 +5,7 @@
 return [
     'cancelled_by_till' => 'Annulée à la caisse.',
     'errors' => [
+        'name_taken' => 'Ce nom est déjà utilisé à cet emplacement. Choisissez un autre nom.',
         'location_unknown' => 'Choisissez un emplacement existant.',
         'location_archived' => 'Cet emplacement est archivé. Choisissez un emplacement actif.',
         'area_unknown' => 'Choisissez une zone de cet emplacement qui n’est pas archivée.',

@@ -105,7 +105,7 @@ class Summary
 
         foreach ($lines as $line) {
             $value = Bill::line([
-                'qty' => (string) $line->qty, 'unit_price_minor' => (string) $line->unit_price_minor, 'modifiers' => json_decode((string) $line->modifiers, true) ?: [],
+                'qty' => (string) $line->qty, 'unit_price_minor' => (string) $line->unit_price_minor, 'modifiers' => $line->modifiers ?? [],
                 'tax_rate' => $line->tax_rate === null ? null : (string) $line->tax_rate, 'tax_inclusive' => (bool) $line->tax_inclusive,
             ])['payable'];
             $key = "{$line->voided_by}|{$line->currency}";

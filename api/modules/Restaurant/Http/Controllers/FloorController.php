@@ -43,14 +43,14 @@ class FloorController
     public function storeArea(StoreAreaRequest $request): JsonResponse
     {
         $place = $this->places->open((string) $request->input('location_id'));
-        $area = Area::create([...$request->safe()->only(['location_id', 'name', 'sort']), 'company_id' => $place['company_id'], 'branch_id' => $place['branch_id']]);
+        $area = Errors::named(fn () => Area::create([...$request->safe()->only(['location_id', 'name', 'sort']), 'company_id' => $place['company_id'], 'branch_id' => $place['branch_id']]));
 
-        return response()->json(['data' => Presenters::area($area)], 201);
+        return response()->json(['data' => Presenters::area($area->refresh())], 201);
     }
 
     public function updateArea(UpdateAreaRequest $request, Area $restArea): JsonResponse
     {
-        $restArea->fill($request->validated())->save();
+        Errors::named(fn () => $restArea->fill($request->validated())->save());
 
         return response()->json(['data' => Presenters::area($restArea)]);
     }
@@ -104,9 +104,9 @@ class FloorController
             throw Errors::make(422, 'area_unknown', field: 'area_id');
         }
 
-        $table = Table::create([...$request->validated(), 'company_id' => $place['company_id'], 'branch_id' => $place['branch_id']]);
+        $table = Errors::named(fn () => Table::create([...$request->validated(), 'company_id' => $place['company_id'], 'branch_id' => $place['branch_id']]));
 
-        return response()->json(['data' => Presenters::table($table)], 201);
+        return response()->json(['data' => Presenters::table($table->refresh())], 201);
     }
 
     public function updateTable(UpdateTableRequest $request, Table $restTable): JsonResponse
@@ -119,7 +119,7 @@ class FloorController
             }
         }
 
-        $restTable->fill($request->validated())->save();
+        Errors::named(fn () => $restTable->fill($request->validated())->save());
 
         return response()->json(['data' => Presenters::table($restTable)]);
     }

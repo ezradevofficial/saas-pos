@@ -5,6 +5,7 @@
 return [
     'cancelled_by_till' => 'Cancelled at the till.',
     'errors' => [
+        'name_taken' => 'This name is already used at this location. Choose another name.',
         'location_unknown' => 'Choose a location that exists.',
         'location_archived' => 'This location is archived. Choose an active location.',
         'area_unknown' => 'Choose an area of this location that is not archived.',

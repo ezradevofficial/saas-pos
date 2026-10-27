@@ -94,6 +94,15 @@ trait BuildsRestaurant
         return $this->json($method, '/api/v1/'.$uri, $body, $this->headersFor($user));
     }
 
+    /** Another tenant with the Restaurant module active, so only isolation (not the module gate) refuses it. */
+    protected function otherRestaurantTenant(): array
+    {
+        $other = $this->otherTenant();
+        $this->asTenant($other['user']->tenant_id, fn () => app(ModuleRegistry::class)->activate('restaurant'));
+
+        return $other;
+    }
+
     /** One order line as the till sends it (a burger of KES 800.00, test tax 12.5 % exclusive). */
     protected function orderLine(array $overrides = []): array
     {

@@ -31,7 +31,7 @@ class Setup
 
             if ($station->is_default) {
                 // One default per location (REST-08): the previous one steps down.
-                Station::query()->where('location_id', $station->location_id)->where('is_default', true)->whereKeyNot($station->id ?? '')->get()
+                Station::query()->where('location_id', $station->location_id)->where('is_default', true)->when($station->exists, fn ($q) => $q->whereKeyNot($station->id))->get()
                     ->each(function (Station $other) {
                         $other->is_default = false;
                         $other->save();
