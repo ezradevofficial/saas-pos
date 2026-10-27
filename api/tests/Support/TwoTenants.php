@@ -74,12 +74,15 @@ use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\OrderLine;
 use Modules\Ecommerce\WhatsApp\FakeWhatsAppProvider;
 use Modules\FuelStation\Models\Dip;
+use Modules\FuelStation\Models\FuelSale;
 use Modules\FuelStation\Models\MeterReset;
 use Modules\FuelStation\Models\Nozzle;
 use Modules\FuelStation\Models\Price;
 use Modules\FuelStation\Models\Product;
 use Modules\FuelStation\Models\Pump;
 use Modules\FuelStation\Models\Reconciliation;
+use Modules\FuelStation\Models\SaleTender;
+use Modules\FuelStation\Models\Settings;
 use Modules\FuelStation\Models\SettlementTender;
 use Modules\FuelStation\Models\Shift;
 use Modules\FuelStation\Models\ShiftNozzle;
@@ -89,6 +92,7 @@ use Modules\FuelStation\Models\StrappingPoint;
 use Modules\FuelStation\Models\Tank;
 use Modules\FuelStation\Models\Vehicle;
 use Modules\FuelStation\Models\Voucher;
+use Modules\FuelStation\Models\VoucherRedemption;
 use Modules\Hotel\Models\ChargeException;
 use Modules\Hotel\Models\HousekeepingTask;
 use Modules\Hotel\Models\NightAuditRun;
@@ -685,7 +689,7 @@ final class TwoTenants
         // Fuel station (docs/modules/fuel-station.md): the module switched on; a station at the location with a product, tank and chart,
         // a pump with nozzles, a price, a closed shift with a pending settlement, a dip with its reconciliation, a delivery, a pending
         // meter reset, a vehicle and a voucher.
-        $fuel = self::fuel($tenantId, $ownerId, $company, $branch, $location, $taxCategory, $upper);
+        $fuel = self::fuel($test, [...$owner, 'Accept' => 'application/json'], $tenantId, $ownerId, $company, $branch, $location, $taxCategory, $deviceToken, $pos, $priceList, $taxCode, $upper);
         // Van sales (docs/modules/van-sales.md): the module switched on; settings, a van at the till's outlet, a route with
         // a stop, an open run (a visit with a check-in, a flagged credit sale with its stock, tender and ledger rows, a
         // collection), a load sheet requested from the store, and a closed run with a counted reconciliation.
@@ -1710,9 +1714,9 @@ final class TwoTenants
      * @return array<string, string> fuel_station, fuel_product, fuel_tank, fuel_pump, fuel_nozzle, fuel_nozzle_other, fuel_price, fuel_shift, fuel_settlement,
      *                               fuel_reset, fuel_reconciliation, fuel_dip, fuel_delivery, fuel_vehicle, fuel_voucher, fuel_item
      */
-    private static function fuel(string $tenantId, string $ownerId, string $company, string $branch, string $location, string $taxCategory, string $upper): array
+    private static function fuel(TestCase $test, array $owner, string $tenantId, string $ownerId, string $company, string $branch, string $location, string $taxCategory, string $deviceToken, array $pos, string $priceList, string $taxCode, string $upper): array
     {
-        return app(TenantContext::class)->run($tenantId, function () use ($ownerId, $company, $branch, $location, $taxCategory, $upper) {
+        $ids = app(TenantContext::class)->run($tenantId, function () use ($ownerId, $company, $branch, $location, $taxCategory, $upper) {
             app(ModuleRegistry::class)->activate('fuel');
             $at = CarbonImmutable::now()->subHours(5);
             $litre = Uom::create(['code' => "L{$upper}", 'name' => "Litre {$upper}", 'kind' => 'volume']);
@@ -1759,14 +1763,47 @@ final class TwoTenants
             ]);
             $customer = Party::create(['kind' => 'person', 'name' => "Fleet customer {$upper}", 'roles' => ['customer'], 'company_id' => $company]);
             $vehicle = Vehicle::create(['company_id' => $company, 'party_id' => $customer->id, 'registration' => "KFL{$upper}123", 'label' => "Truck {$upper}", 'fuel_type' => 'diesel']);
+            $saleNozzle = Nozzle::create([...$place, 'station_id' => $station->id, 'pump_id' => $pump->id, 'tank_id' => $tank->id, 'code' => 'C', 'last_reading_litres' => '2000', 'last_reading_at' => $at]);
+            $voucherMethod = PaymentMethod::create(['company_id' => $company, 'type' => 'fuel_voucher', 'name' => "Fuel voucher {$upper}", 'currency' => 'KES', 'active' => true, 'position' => 21]);
+            $sellable = Voucher::create(['company_id' => $company, 'code' => "SELL{$upper}0001", 'currency' => 'KES', 'value_minor' => 1000000, 'balance_minor' => 1000000, 'issued_by' => $ownerId]);
             $voucher = Voucher::create(['company_id' => $company, 'code' => "VOUCH{$upper}0001", 'currency' => 'KES', 'value_minor' => 500000, 'balance_minor' => 500000, 'issued_by' => $ownerId]);
 
             return [
                 'fuel_station' => $station->id, 'fuel_product' => $product->id, 'fuel_tank' => $tank->id, 'fuel_pump' => $pump->id, 'fuel_nozzle' => $nozzle->id, 'fuel_nozzle_other' => $other->id,
                 'fuel_price' => $price->id, 'fuel_shift' => $shift->id, 'fuel_settlement' => $settlement->id, 'fuel_reset' => $reset->id, 'fuel_reconciliation' => $reconciliation->id, 'fuel_dip' => $routine->id,
                 'fuel_delivery' => $delivery->id, 'fuel_vehicle' => $vehicle->id, 'fuel_voucher' => $voucher->id, 'fuel_item' => $item->id,
+                'fuel_uom' => $litre->id, 'fuel_nozzle_sale' => $saleNozzle->id, 'fuel_voucher_method' => $voucherMethod->id, 'fuel_voucher_code' => $sellable->code,
             ];
         });
+
+        // FUEL-03: the company's tolerances, through the settings endpoint.
+        self::ok($test->putJson("/api/v1/companies/{$company}/fuel-settings", ['cash_variance_tolerance_minor' => 1000, 'litre_tolerance' => '5', 'test_tolerance_litres' => '20'], $owner));
+
+        // FUEL-09, FUEL-12, FUEL-18, FUEL-21: a shift opened by the till on a nozzle of its own, and a till sale of fuel on it paid with a
+        // voucher: a fuel sale, its tender rows and the voucher's redemption.
+        $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
+        $shift = (string) Str::uuid7();
+        $stored = self::ok($test->postJson('/api/v1/fuel/device/shifts', ['shifts' => [[
+            'id' => $shift,
+            'opening' => ['opened_by_id' => $ownerId, 'opened_at' => now()->subMinutes(30)->toIso8601String(), 'nozzles' => [['nozzle_id' => $ids['fuel_nozzle_sale'], 'attendant_id' => $ownerId, 'reading' => '2000.000']]],
+        ]]], $device));
+        Assert::assertSame('stored', $stored->json('results.0.status'), 'TwoTenants fuel shift: '.$stored->getContent());
+
+        $sale = self::posSale(fn () => (string) Str::uuid7(), $pos['pos_shift'], $ownerId, 10, str_replace('{000001}', '000010', $pos['pos_receipt_pattern']), $ids['fuel_item'], $ids['fuel_uom'], $priceList, $ids['fuel_voucher_method'], $taxCode);
+        $sale['lines'][0] = [...$sale['lines'][0], 'qty' => '10.000', 'unit_price_minor' => '18050', 'list_price_minor' => '18050', 'tax_minor' => '20056', 'total_minor' => '180500'];
+        $sale['totals'] = ['subtotal_minor' => '180500', 'discount_minor' => '0', 'tax_minor' => '20056', 'total_minor' => '180500'];
+        $sale['payments'][0] = [...$sale['payments'][0], 'amount_minor' => '180500', 'amount_in_sale_minor' => '180500', 'tender' => ['code' => $ids['fuel_voucher_code']]];
+        $sale['extensions'] = ['fuel' => ['shift_id' => $shift, 'lines' => [['line_id' => $sale['lines'][0]['id'], 'nozzle_id' => $ids['fuel_nozzle_sale']]]]];
+        self::ok($test->postJson('/api/v1/pos/sales', ['sales' => [$sale]], $device))->assertJsonPath('results.0.status', 'stored');
+        $recorded = app(TenantContext::class)->run($tenantId, fn () => [
+            FuelSale::query()->where('sale_id', $sale['id'])->count(),
+            SaleTender::query()->where('sale_id', $sale['id'])->count(),
+            VoucherRedemption::query()->where('sale_id', $sale['id'])->count(),
+            Settings::query()->where('company_id', $company)->count(),
+        ]);
+        Assert::assertSame([1, 1, 1, 1], $recorded, 'TwoTenants fuel: the fuel sale, its tender, the voucher redemption and the settings');
+
+        return [...$ids, 'fuel_shift_open' => $shift, 'fuel_sale' => $sale['id']];
     }
 
     /**

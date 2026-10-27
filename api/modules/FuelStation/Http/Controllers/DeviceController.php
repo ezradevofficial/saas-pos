@@ -13,6 +13,7 @@ use Modules\FuelStation\Shifts\ShiftUploads;
 use Modules\FuelStation\Support\Stations;
 use Modules\POS\Sync\Authority;
 use Modules\POS\Sync\DevicePlace;
+use Modules\POS\Sync\Rejection as PosRejection;
 
 /**
  * FUEL-22: what a paired till sends (device token only; place from the
@@ -44,7 +45,7 @@ class DeviceController
 
                 $reset = $resets->request($nozzle, $data, $by, $authority->proven($place->device, $by, $data['actor_proof'] ?? null) !== null, $place->device->id);
                 $results[] = ['id' => $reset->id, 'status' => 'stored', 'reset_status' => $reset->status];
-            } catch (Rejection $rejection) {
+            } catch (Rejection|PosRejection $rejection) {
                 $results[] = ['id' => $data['id'], 'status' => 'rejected', 'error' => $rejection->toArray()];
             } catch (ApiException $e) {
                 $results[] = ['id' => $data['id'], 'status' => 'rejected', 'error' => (new Rejection($e->errorCode, array_key_first($e->errors) ?: null))->toArray()];

@@ -2143,7 +2143,7 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/fuel/nozzles' => ['pump_id' => $tenant->id('fuel_pump'), 'tank_id' => $tenant->id('fuel_tank'), 'code' => 'ISO-N'],
             'PATCH api/v1/fuel/nozzles/{fuel_nozzle}' => ['tank_id' => $tenant->id('fuel_tank')],
             'POST api/v1/fuel/prices' => ['location_id' => $tenant->id('location'), 'product_id' => $tenant->id('fuel_product'), 'price_minor' => 19000, 'effective_from' => now()->addDays(3)->toIso8601String(), 'reference' => 'Isolation notice'],
-            'POST api/v1/fuel/meter-resets' => ['nozzle_id' => $tenant->id('fuel_nozzle'), 'reading_before' => '1100', 'reading_after' => '0', 'reason' => 'Isolation check'],
+            'POST api/v1/fuel/meter-resets' => ['nozzle_id' => $tenant->id('fuel_nozzle'), 'reading_before' => '5000', 'reading_after' => '0', 'reason' => 'Isolation check'],
             'POST api/v1/fuel/dips' => ['tank_id' => $tenant->id('fuel_tank'), 'dip_cm' => '49', 'taken_at' => now()->subMinutes(10)->toIso8601String()],
             'POST api/v1/fuel/deliveries' => [
                 'tank_id' => $tenant->id('fuel_tank'), 'supplier_id' => $tenant->id('party'), 'note_number' => 'ISO-DN', 'note_litres' => '1000', 'before_dip_cm' => '40', 'after_dip_cm' => '50',
@@ -2165,7 +2165,7 @@ class TenantIsolationTest extends TestCase
                 ],
             ]]],
             'POST api/v1/fuel/device/meter-resets' => ['resets' => [[
-                'id' => (string) Str::uuid7(), 'nozzle_id' => $tenant->id('fuel_nozzle_other'), 'reading_before' => '500', 'reading_after' => '0', 'reason' => 'Isolation check',
+                'id' => (string) Str::uuid7(), 'nozzle_id' => $tenant->id('fuel_nozzle_sale'), 'shift_id' => $tenant->id('fuel_shift_open'), 'reading_before' => '2000', 'reading_after' => '0', 'reason' => 'Isolation check',
                 'requested_by_id' => $tenant->id('user'), 'requested_at' => now()->toIso8601String(),
             ]]],
             // HR (docs/modules/hr.md): bodies naming A's own employees, places, dimensions, types, shifts and templates.

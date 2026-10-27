@@ -27,6 +27,7 @@ use Modules\POS\Sync\Authority;
 use Modules\POS\Sync\DevicePlace;
 use Modules\POS\Sync\Flags;
 use Modules\POS\Sync\Records;
+use Modules\POS\Sync\Rejection as PosRejection;
 
 /**
  * FUEL-09, FUEL-10, FUEL-16, FUEL-22: shifts uploaded by a till, idempotent
@@ -75,7 +76,8 @@ class ShiftUploads
         return array_map(function (array $data) use ($place) {
             try {
                 return $this->stored(DB::connection(TenantContext::CONNECTION)->transaction(fn () => $this->one($place, $data)));
-            } catch (Rejection $rejection) {
+            } catch (Rejection|PosRejection $rejection) {
+                // POS Authority names an unknown actor with its own rejection (`user_unknown`): the same clean refusal, never a 500.
                 return $this->rejected($data['id'], $rejection);
             } catch (ApiException $e) {
                 // A dip or reading the server cannot take (out of the chart, out of order): the same envelope as any refusal.
@@ -388,7 +390,7 @@ class ShiftUploads
     }
 
     /** @return array<string, mixed> */
-    private function rejected(string $id, Rejection $rejection): array
+    private function rejected(string $id, Rejection|PosRejection $rejection): array
     {
         return ['id' => $id, 'status' => 'rejected', 'error' => $rejection->toArray()];
     }
