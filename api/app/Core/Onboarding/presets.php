@@ -61,9 +61,10 @@ return [
         [
             'key' => 'hotel',
             'pos_mode' => 'hotel',
-            'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'storekeeper', 'accountant'],
+            // HOT-33: the hotel module (rooms, bookings, folios, housekeeping, night audit) and the front-desk roles.
+            'role_templates' => ['admin', 'branch_manager', 'receptionist', 'housekeeping', 'night_auditor', 'cashier', 'waiter', 'storekeeper', 'accountant'],
             'flows' => [],
-            'modules' => ['pos', 'inventory', 'stores', 'accounting_essentials'],
+            'modules' => ['pos', 'inventory', 'stores', 'hotel', 'accounting_essentials'],
             'quantities' => ['outlet' => 2, 'device' => 4, 'employee' => 25],
         ],
         [
@@ -119,7 +120,7 @@ return [
     ],
 
     'module_groups' => [
-        'sell' => ['pos', 'inventory', 'pharmacy', 'loyalty', 'ecommerce'],
+        'sell' => ['pos', 'inventory', 'pharmacy', 'hotel', 'loyalty', 'ecommerce'],
         'operate' => ['stores', 'procurement', 'manufacturing', 'fixed_assets'],
         'finance_people' => ['accounting_essentials', 'accounting_pro', 'crm', 'hr', 'payroll'],
     ],

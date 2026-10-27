@@ -79,7 +79,9 @@
         {"code": "4920", "type": "income", "subtype": "other_income", "parent": "4000", "postable": true, "cash_flow": null},
         {"code": "6510", "type": "expense", "subtype": "expense", "parent": "6000", "postable": true, "cash_flow": null},
         {"code": "7400", "type": "expense", "subtype": "expense", "parent": "7000", "postable": true, "cash_flow": null},
-        {"code": "1270", "type": "asset", "subtype": "current_asset", "parent": "1100", "postable": true, "cash_flow": "operating"}
+        {"code": "1270", "type": "asset", "subtype": "current_asset", "parent": "1100", "postable": true, "cash_flow": "operating"},
+        {"code": "1280", "type": "asset", "subtype": "current_asset", "parent": "1100", "postable": true, "cash_flow": "operating"},
+        {"code": "4110", "type": "income", "subtype": "revenue", "parent": "4000", "postable": true, "cash_flow": null}
     ],
     "roles": {
         "receivable": "1200",
@@ -105,7 +107,8 @@
                     "type:bank_transfer": "1120",
                     "type:voucher": "1230",
                     "type:points": "1230",
-                    "type:credit": "1230"
+                    "type:credit": "1230",
+                    "type:room_charge": "1280"
                 }
             },
             {
@@ -757,6 +760,74 @@
                 "field": "overage",
                 "side": "credit",
                 "account": "4900"
+            }
+        ],
+        "hotel.charge": [
+            {
+                "field": "ledger",
+                "side": "debit",
+                "account": "1280"
+            },
+            {
+                "field": "revenue.*",
+                "side": "credit",
+                "account": "4200",
+                "accounts": {
+                    "rooms": "4110"
+                }
+            },
+            {
+                "field": "tax.*",
+                "side": "credit",
+                "account": "2200"
+            }
+        ],
+        "hotel.payment": [
+            {
+                "field": "tender.*",
+                "side": "debit",
+                "by": "payment_method",
+                "accounts": {
+                    "type:cash": "1110",
+                    "type:mobile_money": "1130",
+                    "type:card": "1120",
+                    "type:bank_transfer": "1120"
+                }
+            },
+            {
+                "field": "ledger",
+                "side": "credit",
+                "account": "1280"
+            }
+        ],
+        "hotel.deposit": [
+            {
+                "field": "tender.*",
+                "side": "debit",
+                "by": "payment_method",
+                "accounts": {
+                    "type:cash": "1110",
+                    "type:mobile_money": "1130",
+                    "type:card": "1120",
+                    "type:bank_transfer": "1120"
+                }
+            },
+            {
+                "field": "deposit",
+                "side": "credit",
+                "account": "2300"
+            }
+        ],
+        "hotel.deposit_applied": [
+            {
+                "field": "deposit",
+                "side": "debit",
+                "account": "2300"
+            },
+            {
+                "field": "ledger",
+                "side": "credit",
+                "account": "1280"
             }
         ]
     }

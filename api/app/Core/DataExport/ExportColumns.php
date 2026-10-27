@@ -61,6 +61,8 @@ final class ExportColumns
         'hr_employee_identifiers.value_digest' => 'a keyed digest of an employee\'s ID number, for uniqueness: attackable offline with the key',
         'hr_pay_accounts.account_number' => 'an employee\'s bank or mobile-money account number, shown in full only to bank readers (encrypted)',
         'hr_employees.medical_notes' => 'an employee\'s medical notes, shown only to medical readers (encrypted)',
+        // HOT-16: a guest's identity document number, encrypted; shown in full only to identity readers.
+        'hotel_guests.id_number' => 'a guest\'s ID or passport number, shown in full only to identity readers (HOT-16, encrypted)',
         // HR-23: clock-in PINs, kept as POS PINs are.
         'hr_clock_pins.pin_hash' => 'clock-in PIN hash (HR-23)',
         'hr_clock_pins.pin_salt' => 'clock-in PIN salt (HR-23)',

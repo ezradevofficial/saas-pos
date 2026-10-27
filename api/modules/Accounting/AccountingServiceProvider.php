@@ -55,6 +55,7 @@ use Modules\FixedAssets\Events\AssetImpaired;
 use Modules\FixedAssets\Events\AssetRevalued;
 use Modules\FixedAssets\Events\DepreciationPosted;
 use Modules\FixedAssets\Events\DepreciationReversed;
+use Modules\Hotel\Events\HotelPosting;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\CreditAdjusted;
 use Modules\Loyalty\Events\CreditCharged;
@@ -123,6 +124,8 @@ class AccountingServiceProvider extends ServiceProvider
         PayrollPosted::class,
         // ECOM-32: E-commerce's delivered orders, returns and rider cash-ups.
         EcommercePosting::class,
+        // HOT-27: Hotel's folio charges, payments, deposits and deposits applied.
+        HotelPosting::class,
     ];
 
     /** ACC-28: the Loyalty ledger events Accounting posts. */
