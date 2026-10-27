@@ -180,13 +180,49 @@ class RouteSellingTest extends TestCase
         $this->inTenant(fn () => $this->assertSame([], VanSale::query()->where('sale_id', $sale['id'])->sole()->flags));
     }
 
-    public function test_a_sale_of_another_run_or_none_is_a_normal_sale_and_nothing_more(): void
+    public function test_a_sale_at_the_van_naming_no_run_or_another_joins_the_open_run_flagged_unlinked(): void
     {
-        $this->startRun();
+        $run = $this->startRun();
         $ghost = $this->vanSale($this->id(), 1);
         $plain = $this->saleBody($this->vanShift, 2, ['cashier_id' => $this->rep->id, 'actor_proof' => $this->actorProof($this->rep->id, $this->vanDevice), 'receipt_number' => 'R-V01-000002']);
 
         $this->sellOnVan($ghost, $plain)->assertOk()->assertJsonPath('results.0.status', 'stored')->assertJsonPath('results.1.status', 'stored');
+
+        $this->inTenant(function () use ($run, $ghost, $plain) {
+            $this->assertSame(2, VanSale::query()->count());
+
+            foreach ([$ghost, $plain] as $sale) {
+                $link = VanSale::query()->where('sale_id', $sale['id'])->sole();
+                $this->assertSame([$run, ['unlinked'], 'pending'], [$link->run_id, $link->flags, $link->review_status]);
+            }
+
+            // Its stock and cash count in the day, so the count cannot leave them out.
+            $this->assertSame(4.0, (float) StockLine::query()->where('run_id', $run)->where('kind', 'sold')->sum('qty'));
+            $this->assertSame(225000, (int) Tender::query()->where('run_id', $run)->sum('amount_minor'));
+        });
+    }
+
+    public function test_a_sale_at_a_van_with_no_run_is_flagged_and_its_credit_still_counts(): void
+    {
+        $over = $this->vanSale($this->id(), 1, $this->shop, [$this->pay('credit', '1518750')], '27');
+
+        $this->sellOnVan($over)->assertOk()->assertJsonPath('results.0.status', 'stored');
+
+        $this->inTenant(function () use ($over) {
+            $link = VanSale::query()->where('sale_id', $over['id'])->sole();
+            $this->assertNull($link->run_id);
+            $this->assertSame(['unlinked', 'over_limit'], $link->flags);
+            $this->assertSame('pending', $link->review_status);
+            $this->assertSame(['KES' => 1518750], app(Ledger::class)->balances($this->shop->id));
+        });
+    }
+
+    public function test_a_sale_at_a_place_that_is_no_vans_is_a_normal_sale_and_nothing_more(): void
+    {
+        $this->startRun();
+        $from = (int) $this->ranges()->assertOk()->json('data.0.from');
+        $sale = $this->saleBody($this->openShift(), $from, ['receipt_number' => sprintf('R-L01-%06d', $from), 'extensions' => ['van_sales' => ['run_id' => $this->id()]]]);
+        $this->upload([$sale])->assertOk()->assertJsonPath('results.0.status', 'stored');
 
         $this->inTenant(fn () => $this->assertSame(0, VanSale::query()->count()));
     }

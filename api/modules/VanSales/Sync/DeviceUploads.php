@@ -11,6 +11,7 @@ use App\Core\Rbac\ScopeResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
+use Modules\POS\Sync\Authority;
 use Modules\POS\Sync\DevicePlace;
 use Modules\POS\Sync\NumberRanges;
 use Modules\POS\Sync\Rejection as PosRejection;
@@ -25,6 +26,7 @@ use Modules\VanSales\Models\Van;
 use Modules\VanSales\Models\VanSale;
 use Modules\VanSales\Models\Visit;
 use Modules\VanSales\Reconciliation\Counts;
+use Modules\VanSales\Reconciliation\Reopening;
 use Modules\VanSales\Support\Errors;
 use Modules\VanSales\Support\Settings;
 
@@ -52,6 +54,8 @@ class DeviceUploads
         private readonly Counts $counts,
         private readonly Ledger $ledger,
         private readonly Auditor $auditor,
+        private readonly Authority $authority,
+        private readonly Reopening $reopening,
     ) {}
 
     /**
@@ -97,9 +101,18 @@ class DeviceUploads
         return $van;
     }
 
-    private function actor(DevicePlace $place, string $userId, string $permission): User
+    /**
+     * The person a record names (VAN-27, AUTH-07). The device names them, so
+     * the server checks: they exist, hold the permission at the van's place,
+     * and either carry a verified sign-in attestation (`actor_proof`) or, where
+     * `$proofRequired` is false, are the rep of the day (`$repId`). Money
+     * (collections) and stock (load confirmations) always need the proof.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function actor(DevicePlace $place, array $data, string $permission, bool $proofRequired, ?string $repId = null): User
     {
-        $user = User::query()->find($userId);
+        $user = User::query()->find($data['user_id'] ?? '');
 
         if ($user === null || ! $user->isActive()) {
             throw Errors::make(422, 'rep_unknown', field: 'user_id');
@@ -109,7 +122,25 @@ class DeviceUploads
             throw Errors::make(403, 'not_permitted', field: 'user_id');
         }
 
+        $proven = $this->authority->proven($place->device, $user, is_array($data['actor_proof'] ?? null) ? $data['actor_proof'] : null) !== null;
+
+        if (! $proven && ($proofRequired || $user->id !== $repId)) {
+            throw Errors::make(422, 'actor_unverified', field: 'user_id');
+        }
+
         return $user;
+    }
+
+    /** A customer of the run's company (or a shared one) with the customer role (VAN-17). */
+    private function customer(string $id, string $companyId, string $field = 'customer_id'): Party
+    {
+        $party = Party::query()->find($id);
+
+        if ($party === null || ! in_array('customer', (array) $party->roles, true) || ($party->company_id !== null && $party->company_id !== $companyId)) {
+            throw Errors::make(422, 'customer_unknown', field: $field);
+        }
+
+        return $party;
     }
 
     /** @return array<string, mixed> */
@@ -126,7 +157,7 @@ class DeviceUploads
             return ['id' => $existing->id, 'status' => 'stored', 'run_status' => $existing->status];
         }
 
-        $user = $this->actor($place, $data['user_id'], 'van_sales.run.start');
+        $user = $this->actor($place, $data, 'van_sales.run.start', false, $van->rep_id);
         $routeId = $data['route_id'] ?? null;
 
         if ($routeId !== null && ! Route::query()->whereNull('archived_at')->where('company_id', $van->company_id)->whereKey($routeId)->exists()) {
@@ -171,7 +202,7 @@ class DeviceUploads
     private function visit(DevicePlace $place, array $data): array
     {
         $run = $this->runOf($place, $data['run_id']);
-        $user = $this->actor($place, $data['user_id'], 'van_sales.visit.record');
+        $user = $this->actor($place, $data, 'van_sales.visit.record', false, $run->rep_id);
         $existing = Visit::query()->find($data['id']);
 
         if ($existing !== null && $existing->run_id !== $run->id) {
@@ -182,10 +213,7 @@ class DeviceUploads
             throw Errors::make(409, 'run_closed', field: 'run_id');
         }
 
-        if (! Party::query()->whereKey($data['customer_id'])->exists()) {
-            throw Errors::make(422, 'customer_unknown', field: 'customer_id');
-        }
-
+        $this->customer($data['customer_id'], $run->company_id);
         $stopId = $data['stop_id'] ?? null;
 
         if ($stopId !== null && ! Stop::query()->where('company_id', $run->company_id)->whereKey($stopId)->exists()) {
@@ -245,7 +273,7 @@ class DeviceUploads
         }
 
         $run = $this->runOf($place, $data['run_id']);
-        $user = $this->actor($place, $data['user_id'], 'van_sales.collection.record');
+        $user = $this->actor($place, $data, 'van_sales.collection.record', true);
         $method = PaymentMethod::query()->find($data['payment_method_id']);
 
         if ($method === null || $method->company_id !== $run->company_id || ! in_array($method->type, ['cash', 'mobile_money'], true)) {
@@ -256,7 +284,7 @@ class DeviceUploads
             throw Errors::make(422, 'collection_invalid', field: 'currency');
         }
 
-        $customer = Party::query()->find($data['customer_id']) ?? throw Errors::make(422, 'customer_unknown', field: 'customer_id');
+        $customer = $this->customer($data['customer_id'], $run->company_id);
         $amount = (int) $data['amount_minor'];
 
         if ($amount <= 0) {
@@ -299,6 +327,9 @@ class DeviceUploads
             'kind' => $method->type, 'currency' => $data['currency'], 'amount_minor' => $amount, 'created_at' => now(), 'updated_at' => now(),
         ]);
 
+        // Money that reaches a run after its count changes what the count has to say (VAN-20).
+        $this->reopening->late($run, 'late_collection');
+
         return ['id' => $collection->id, 'status' => 'stored', 'receipt_number' => $collection->receipt_number, 'flags' => $flags];
     }
 
@@ -306,7 +337,7 @@ class DeviceUploads
     private function count(DevicePlace $place, array $data): array
     {
         $run = $this->runOf($place, $data['run_id']);
-        $user = $this->actor($place, $data['user_id'], 'van_sales.reconciliation.submit');
+        $user = $this->actor($place, $data, 'van_sales.reconciliation.submit', false, $run->rep_id);
         $count = $this->counts->submit($run, [
             'id' => $data['id'], 'submitted_at' => $data['submitted_at'], 'note' => $data['note'] ?? null,
             'lines' => $data['lines'] ?? [], 'tenders' => $data['tenders'] ?? [],

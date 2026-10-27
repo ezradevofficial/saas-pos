@@ -3,7 +3,10 @@
 namespace Modules\VanSales\Http\Requests;
 
 use App\Core\Rbac\Scope;
+use App\Core\Rbac\ScopeResolver;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 use Modules\VanSales\Models\Van;
 
 /** POST van-sales/loads (VAN-07): `van_sales.load.create` at the van's location. */
@@ -20,6 +23,16 @@ class StoreLoadRequest extends VanSalesRequest
             'lines.*.item_id' => ['required', 'uuid', Rule::exists('items', 'id')],
             'lines.*.qty' => ['required', 'numeric', 'gt:0', 'max:999999999999', 'regex:/^\d+(\.\d{1,6})?$/'],
         ];
+    }
+
+    /** The stock leaves the warehouse, so the right is needed there too (RBAC-04). */
+    public function after(): array
+    {
+        return [...parent::after(), function (Validator $validator) {
+            if ($validator->errors()->isEmpty() && ! app(ScopeResolver::class)->can($this->user(), $this->permission(), Scope::location((string) $this->input('from_location_id')))) {
+                throw new AuthorizationException(__('rbac.forbidden'));
+            }
+        }];
     }
 
     protected function target(): ?Scope

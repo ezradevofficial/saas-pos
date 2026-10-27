@@ -16,6 +16,7 @@ class ConfirmLoadRequest extends FormRequest
     {
         return [
             'user_id' => ['required', 'uuid'],
+            'actor_proof' => ['nullable', 'array'],
             'lines' => ['required', 'array', 'min:1', 'max:200'],
             'lines.*.id' => ['required', 'uuid'],
             'lines.*.qty_received' => ['required', 'regex:/^\d{1,12}(\.\d{1,6})?$/'],

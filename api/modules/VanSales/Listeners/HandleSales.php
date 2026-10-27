@@ -41,10 +41,7 @@ class HandleSales implements ShouldQueue
 
     public function shouldQueue(SaleCompleted|SaleVoided|SaleRefunded $event): bool
     {
-        if ($event instanceof SaleCompleted && ! isset($event->sale['extensions']['van_sales'])) {
-            return false;
-        }
-
+        // Every sale is looked at: whether it belongs to a van is decided by where it was made, not by what the device says (VAN-10).
         return $this->tenants->id() === $event->tenantId ? $this->active() : $this->tenants->run($event->tenantId, fn () => $this->active());
     }
 

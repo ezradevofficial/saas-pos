@@ -196,10 +196,11 @@ class Loads
                 $counted[$line->id] = $qty;
             }
 
+            // The transfer arrives as it was sent. What the rep found short is kept as counted (`qty_confirmed`) and
+            // reaches an approver in the day's reconciliation, where the load is what was sent; Inventory is never
+            // told to write it off on the rep's word alone (VAN-08, VAN-21).
             if ($load->transfer_id !== null) {
-                $this->transfers->receive($rep, $load->transfer_id,
-                    $lines->map(fn (LoadLine $l) => ['item_id' => $l->item_id, 'qty_received' => (string) Qty::show($counted[$l->id] ?? Qty::of((string) $l->qty))])->values()->all(),
-                    __('van_sales.loads.short_reason'));
+                $this->transfers->receive($rep, $load->transfer_id);
             }
 
             foreach ($lines as $line) {

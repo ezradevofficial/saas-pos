@@ -8,6 +8,7 @@ use App\Core\Workflow\DocumentTypes\DocumentType;
 use App\Core\Workflow\DocumentTypes\FieldDefinition;
 use Illuminate\Support\Str;
 use Modules\VanSales\Models\Count;
+use Modules\VanSales\Models\Run;
 use Modules\VanSales\Models\Van;
 
 /**
@@ -75,7 +76,10 @@ class ReconciliationType extends DocumentType
 
     public function requesterId(string $documentId): ?string
     {
-        return $this->find($documentId)?->submitted_by;
+        // The rep of the day: with whoever submitted the count (the flow's starter), never an approver (APR-07).
+        $count = $this->find($documentId);
+
+        return $count === null ? null : (Run::query()->whereKey($count->run_id)->value('rep_id') ?? $count->submitted_by);
     }
 
     public function viewPermission(): string

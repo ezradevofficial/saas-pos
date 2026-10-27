@@ -31,6 +31,9 @@ use Modules\Inventory\Stock\StockLedger;
  */
 class RecordStockWrittenOff implements ShouldQueue
 {
+    /** The document types that may name themselves as the source of a write-off in the stock ledger. */
+    public const SOURCES = ['pharmacy.write_off', 'van_sales.write_off'];
+
     public bool $afterCommit = true;
 
     public int $tries = 5;
@@ -54,6 +57,12 @@ class RecordStockWrittenOff implements ShouldQueue
     {
         $this->tenants->run($event->tenantId, function () use ($event) {
             if (! $this->modules->isActive(InventoryServiceProvider::MODULE)) {
+                return;
+            }
+
+            if (! in_array($event->source, self::SOURCES, true)) {
+                Log::warning('inventory: write-off from an unknown source', ['write_off' => $event->writeOffId, 'source' => $event->source]);
+
                 return;
             }
 

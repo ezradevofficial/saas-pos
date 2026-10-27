@@ -29,6 +29,7 @@ class Count extends Model implements HasScope
             'submitted_at' => 'datetime',
             'decided_at' => 'datetime',
             'written_off_at' => 'datetime',
+            'flags' => 'array',
         ];
     }
 

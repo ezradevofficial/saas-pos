@@ -17,6 +17,7 @@ use Modules\VanSales\Models\Tender;
 use Modules\VanSales\Models\Van;
 use Modules\VanSales\Models\VanSale;
 use Modules\VanSales\Models\Visit;
+use Modules\VanSales\Reconciliation\Reopening;
 use Modules\VanSales\Support\Qty;
 use Modules\VanSales\Support\Settings;
 use Modules\VanSales\Support\Units;
@@ -27,6 +28,13 @@ use Modules\VanSales\Support\Units;
  * is read, except the POS stock-lines contract for a refund's units). Every
  * write is once per source (unique indexes), so a retried listener adds
  * nothing. The sale itself is never judged out: it is flagged (VAN-11).
+ *
+ * Any sale at a van's location counts for that van, whatever the device
+ * says: the run the sale names is used only if it is the van's own; else the
+ * van's open run, else the van's latest run before the sale, flagged
+ * `unlinked`. A sale reaching a run that was already counted is flagged
+ * `after_count` and reopens its reconciliation (Reopening). Credit is
+ * ledgered and judged against the limit in every case.
  */
 class SaleLinks
 {
@@ -35,26 +43,44 @@ class SaleLinks
         private readonly Ledger $ledger,
         private readonly Units $units,
         private readonly Auditor $auditor,
+        private readonly Reopening $reopening,
     ) {}
 
     /** @param array<string, mixed> $sale SaleSnapshot::sale() */
     public function completed(string $saleId, string $locationId, array $sale): void
     {
-        $ext = $sale['extensions']['van_sales'] ?? null;
-
-        if (! is_array($ext) || empty($ext['run_id']) || ! Str::isUuid((string) $ext['run_id']) || VanSale::query()->where('sale_id', $saleId)->exists()) {
+        if (VanSale::query()->where('sale_id', $saleId)->exists()) {
             return;
         }
 
-        $run = Run::query()->whereKey($ext['run_id'])->first();
+        $van = Van::query()->where('location_id', $locationId)->first();
 
-        // A sale of another van's run, or of no run, is a normal sale and nothing more.
-        if ($run === null || $run->location_id !== $locationId) {
+        // A sale at a place that is no van's is a normal sale and nothing more.
+        if ($van === null) {
             return;
+        }
+
+        $ext = $sale['extensions']['van_sales'] ?? null;
+        $soldAt = CarbonImmutable::parse($sale['sold_at'])->utc();
+        $flags = [];
+        $run = null;
+
+        if (is_array($ext) && ! empty($ext['run_id']) && Str::isUuid((string) $ext['run_id'])) {
+            $named = Run::query()->whereKey($ext['run_id'])->first();
+            $run = $named !== null && $named->van_id === $van->id ? $named : null;
+        }
+
+        if ($run === null) {
+            $flags[] = 'unlinked';
+            $run = Run::query()->where('van_id', $van->id)->where('status', 'open')->first()
+                ?? Run::query()->where('van_id', $van->id)->where('started_at', '<=', $soldAt)->orderByDesc('started_at')->first();
+        }
+
+        if ($run !== null && $run->status !== 'open') {
+            $flags[] = 'after_count';
         }
 
         $currency = (string) $sale['currency'];
-        $soldAt = CarbonImmutable::parse($sale['sold_at'])->utc();
         $customerId = $sale['customer_id'] ?? null;
         $credit = 0;
 
@@ -64,7 +90,6 @@ class SaleLinks
             }
         }
 
-        $flags = [];
         $limit = null;
         $before = null;
         $decision = null;
@@ -75,19 +100,20 @@ class SaleLinks
             $judged = CreditCheck::judge(
                 $credit, $currency, $customer !== null, $customer?->credit_limit_minor === null ? null : (int) $customer->credit_limit_minor,
                 $customer?->credit_limit_currency, $before, is_array($ext['credit'] ?? null) ? $ext['credit'] : null,
-                (bool) ($sale['offline'] ?? false), Settings::for($run->company_id)['flag_offline_credit'],
+                (bool) ($sale['offline'] ?? false), $soldAt, CarbonImmutable::now(), Settings::for($van->company_id)['flag_offline_credit'],
             );
-            [$flags, $limit, $decision] = [$judged['flags'], $judged['limit_minor'], $judged['decision']];
+            [$flags, $limit, $decision] = [[...$flags, ...$judged['flags']], $judged['limit_minor'], $judged['decision']];
         }
 
-        $visitId = ! empty($ext['visit_id']) && Str::isUuid((string) $ext['visit_id']) ? Visit::query()->where('run_id', $run->id)->whereKey($ext['visit_id'])->value('id') : null;
+        $visitId = $run !== null && is_array($ext) && ! empty($ext['visit_id']) && Str::isUuid((string) $ext['visit_id'])
+            ? Visit::query()->where('run_id', $run->id)->whereKey($ext['visit_id'])->value('id') : null;
         $link = VanSale::create([
-            'company_id' => $run->company_id,
-            'run_id' => $run->id,
+            'company_id' => $van->company_id,
+            'run_id' => $run?->id,
             'visit_id' => $visitId,
             'sale_id' => $saleId,
             'customer_id' => $customerId,
-            'exchange_for_sale_id' => ! empty($ext['exchange_for_sale_id']) && Str::isUuid((string) $ext['exchange_for_sale_id']) ? $ext['exchange_for_sale_id'] : null,
+            'exchange_for_sale_id' => is_array($ext) && ! empty($ext['exchange_for_sale_id']) && Str::isUuid((string) $ext['exchange_for_sale_id']) ? $ext['exchange_for_sale_id'] : null,
             'currency' => $currency,
             'total_minor' => (int) $sale['totals']['total_minor'],
             'credit_minor' => $credit,
@@ -104,32 +130,39 @@ class SaleLinks
             Visit::query()->whereKey($visitId)->update(['status' => 'sold', 'no_sale_reason' => null]);
         }
 
-        $quantities = [];
+        if ($run !== null) {
+            $quantities = [];
 
-        foreach ($sale['lines'] ?? [] as $line) {
-            $quantities[$line['item_id']] = ($quantities[$line['item_id']] ?? Qty::zero())->plus($this->units->toBase($line['item_id'], $line['uom_id'] ?? null, (string) $line['qty']));
+            foreach ($sale['lines'] ?? [] as $line) {
+                $quantities[$line['item_id']] = ($quantities[$line['item_id']] ?? Qty::zero())->plus($this->units->toBase($line['item_id'], $line['uom_id'] ?? null, (string) $line['qty']));
+            }
+
+            foreach ($quantities as $itemId => $qty) {
+                $this->stock($run->id, 'sold', 'sale', $saleId, $itemId, $qty);
+            }
+
+            foreach ($this->tenderTotals($sale['payments'] ?? []) as [$kind, $cur, $amount]) {
+                $this->tender($run->id, 'sale', $saleId, $kind, $cur, $amount);
+            }
+
+            $change = (int) ($sale['change']['amount_minor'] ?? 0);
+
+            if ($change > 0) {
+                $this->tender($run->id, 'sale_change', $saleId, 'cash', (string) ($sale['change']['currency'] ?? $currency), -$change);
+            }
         }
 
-        foreach ($quantities as $itemId => $qty) {
-            $this->stock($run->id, 'sold', 'sale', $saleId, $itemId, $qty);
-        }
-
-        foreach ($this->tenderTotals($sale['payments'] ?? []) as [$kind, $cur, $amount]) {
-            $this->tender($run->id, 'sale', $saleId, $kind, $cur, $amount);
-        }
-
-        $change = (int) ($sale['change']['amount_minor'] ?? 0);
-
-        if ($change > 0) {
-            $this->tender($run->id, 'sale_change', $saleId, 'cash', (string) ($sale['change']['currency'] ?? $currency), -$change);
-        }
-
+        // Credit is ledgered whatever the run: the customer owes it.
         if ($credit > 0 && $customerId !== null) {
-            $this->ledger->add($run->company_id, $customerId, $run->id, 'sale', $saleId, $currency, $credit, $soldAt);
+            $this->ledger->add($van->company_id, $customerId, $run?->id, 'sale', $saleId, $currency, $credit, $soldAt);
         }
 
         if ($flags !== []) {
             $this->auditor->record('van_sales.sale.flagged', $link, null, ['flags' => $flags, 'credit_minor' => (string) $credit, 'currency' => $currency]);
+        }
+
+        if ($run !== null) {
+            $this->reopening->late($run, 'late_sale');
         }
     }
 
@@ -145,22 +178,28 @@ class SaleLinks
         $link->forceFill(['status' => 'voided', 'flags' => array_values(array_unique([...$link->flags, 'voided']))])->save();
         $at = CarbonImmutable::parse($voidedAt ?? now())->utc();
 
-        foreach (StockLine::query()->where('source_type', 'sale')->where('source_id', $saleId)->get() as $line) {
-            $this->stock($link->run_id, 'sold', 'void', $saleId, $line->item_id, Qty::of((string) $line->qty)->negated());
-        }
+        if ($link->run_id !== null) {
+            foreach (StockLine::query()->where('source_type', 'sale')->where('source_id', $saleId)->get() as $line) {
+                $this->stock($link->run_id, 'sold', 'void', $saleId, $line->item_id, Qty::of((string) $line->qty)->negated());
+            }
 
-        foreach ($this->tenderTotals($sale['payments'] ?? []) as [$kind, $cur, $amount]) {
-            $this->tender($link->run_id, 'void', $saleId, $kind, $cur, -$amount);
-        }
+            foreach ($this->tenderTotals($sale['payments'] ?? []) as [$kind, $cur, $amount]) {
+                $this->tender($link->run_id, 'void', $saleId, $kind, $cur, -$amount);
+            }
 
-        $change = (int) ($sale['change']['amount_minor'] ?? 0);
+            $change = (int) ($sale['change']['amount_minor'] ?? 0);
 
-        if ($change > 0) {
-            $this->tender($link->run_id, 'void_change', $saleId, 'cash', (string) ($sale['change']['currency'] ?? $link->currency), $change);
+            if ($change > 0) {
+                $this->tender($link->run_id, 'void_change', $saleId, 'cash', (string) ($sale['change']['currency'] ?? $link->currency), $change);
+            }
         }
 
         if ($link->credit_minor > 0 && $link->customer_id !== null) {
             $this->ledger->add($link->company_id, $link->customer_id, $link->run_id, 'sale_void', $saleId, $link->currency, -(int) $link->credit_minor, $at);
+        }
+
+        if ($link->run_id !== null && ($run = Run::query()->find($link->run_id)) !== null) {
+            $this->reopening->late($run, 'late_void');
         }
     }
 
@@ -212,6 +251,8 @@ class SaleLinks
         if ($credit > 0 && ! empty($refund['customer_id'])) {
             $this->ledger->add($run->company_id, $refund['customer_id'], $run->id, 'refund', $refundId, (string) $refund['currency'], -$credit, $at);
         }
+
+        $this->reopening->late($run, 'late_refund');
     }
 
     /**

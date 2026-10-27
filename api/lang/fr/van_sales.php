@@ -40,6 +40,10 @@ return [
         'review_not_pending' => 'Cette vente a déjà été examinée.',
         'unload_not_ready' => 'Le déchargement n’est pas prêt à être reçu. Il faut un transfert approuvé vers l’entrepôt.',
         'upload_rejected' => 'Rien n’a été enregistré. Vérifiez les messages de chaque enregistrement et renvoyez.',
+        'actor_unverified' => 'La connexion de cette personne sur l’appareil n’a pas pu être vérifiée. Reconnectez-vous sur l’appareil en ligne et renvoyez l’enregistrement.',
+        'void_own_collection' => 'Vous ne pouvez pas annuler un encaissement que vous avez fait vous-même. Demandez à un superviseur.',
+        'void_limit_exceeded' => 'Cet encaissement dépasse ce que vous pouvez rembourser. Demandez à une personne ayant une limite plus élevée.',
+        'collection_counted' => 'Cette journée a déjà été comptée. Seule une personne qui décide des rapprochements peut annuler cet encaissement.',
         'batch_size' => 'Envoyez entre 1 et 100 enregistrements à la fois.',
     ],
 

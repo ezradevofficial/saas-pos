@@ -155,6 +155,9 @@ trait BuildsVanSales
     {
         $gross = (int) round(56250 * (float) $qty);
         $tax = (int) round($gross * 0.125 / 1.125);
+        // The device's credit decision names the limit it used (the customer's, unless a test says otherwise).
+        $credits = array_filter($payments ?? [], fn (array $p) => $p['payment_method_id'] === $this->methods['credit']->id);
+        $ext = $credits === [] ? $ext : array_replace(['credit' => ['limit_minor' => '1000000']], $ext);
         $body = $this->saleBody($this->vanShift, $seq, [
             'cashier_id' => $this->rep->id,
             'actor_proof' => $this->actorProof($this->rep->id, $this->vanDevice),
@@ -184,7 +187,7 @@ trait BuildsVanSales
         ], $this->supervisor)->assertCreated()->json('data');
 
         $this->postJson("/api/v1/van-sales/device/loads/{$load['id']}/confirm", [
-            'user_id' => $this->rep->id, 'lines' => [['id' => $load['lines'][0]['id'], 'qty_received' => $qty]],
+            'user_id' => $this->rep->id, 'actor_proof' => $this->actorProof($this->rep->id, $this->vanDevice), 'lines' => [['id' => $load['lines'][0]['id'], 'qty_received' => $qty]],
         ], $this->tillHeaders($this->vanToken))->assertOk();
 
         return $load['id'];

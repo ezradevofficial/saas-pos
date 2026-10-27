@@ -211,7 +211,8 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->tenantId();
             $table->foreignUuid('company_id')->constrained()->restrictOnDelete();
-            $table->foreignUuid('run_id')->constrained('vs_runs')->restrictOnDelete();
+            // Null for a sale at a van that has no day to join (flagged `unlinked`, VAN-10).
+            $table->foreignUuid('run_id')->nullable()->constrained('vs_runs')->restrictOnDelete();
             $table->foreignUuid('visit_id')->nullable()->constrained('vs_visits')->restrictOnDelete();
             $table->uuid('sale_id');
             $table->foreignUuid('customer_id')->nullable()->constrained('parties')->restrictOnDelete();
@@ -352,6 +353,9 @@ return new class extends Migration
             $table->foreignUuid('van_id')->constrained('vs_vans')->restrictOnDelete();
             $table->foreignUuid('run_id')->constrained('vs_runs')->restrictOnDelete();
             $table->smallInteger('attempt')->default(1);
+            // `count` is the rep's end-of-day count; `unload_shortfall` is what the warehouse found short of the unload (VAN-23).
+            $table->string('kind', 20)->default('count');
+            $table->jsonb('flags')->default('[]');
             $table->string('status', 10)->default('pending');
             $user($table, 'submitted_by', false);
             $user($table, 'decided_by');
@@ -371,7 +375,7 @@ return new class extends Migration
             $table->index('van_id');
             $table->index(['tenant_id', 'status']);
         });
-        DB::statement("alter table vs_counts add constraint vs_counts_check check (status in ('pending', 'balanced', 'approved', 'rejected'))");
+        DB::statement("alter table vs_counts add constraint vs_counts_check check (status in ('pending', 'balanced', 'approved', 'rejected') and kind in ('count', 'unload_shortfall'))");
         Rls::enable('vs_counts');
 
         Schema::create('vs_count_lines', function (Blueprint $table) {
@@ -382,6 +386,8 @@ return new class extends Migration
             $table->decimal('load_qty', 18, 6);
             $table->decimal('sold_qty', 18, 6);
             $table->decimal('returned_qty', 18, 6);
+            // What the rep said came back when more than the van held (Inventory), kept beside the figure counted (VAN-19).
+            $table->decimal('returned_claimed_qty', 18, 6)->nullable();
             $table->decimal('damaged_qty', 18, 6);
             $table->decimal('variance_qty', 18, 6);
             $table->timestampsTz();

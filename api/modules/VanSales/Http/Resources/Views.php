@@ -173,15 +173,15 @@ class Views
         ])->values()->all();
     }
 
-    /** @param Collection<int, Party> $parties */
-    public function accounts(Collection $parties, bool $detail = false): array
+    /** @param Collection<int, Party> $parties @param list<string>|null $companyIds the balances and entries of these companies only (RBAC-04) */
+    public function accounts(Collection $parties, bool $detail = false, ?array $companyIds = null): array
     {
         return $parties->map(fn (Party $party) => [
             'customer_id' => $party->id, 'customer_name' => $party->name,
             'credit_limit_minor' => $party->credit_limit_minor === null ? null : (string) $party->credit_limit_minor,
             'credit_limit_currency' => $party->credit_limit_currency,
-            'balances' => collect($this->ledger->balances($party->id))->map(fn (int $amount, string $currency) => ['currency' => $currency, 'amount_minor' => (string) $amount])->values()->all(),
-            ...($detail ? ['entries' => CreditEntry::query()->where('customer_id', $party->id)->orderByDesc('occurred_at')->orderByDesc('id')->limit(200)->get()->map(fn (CreditEntry $e) => [
+            'balances' => collect($this->ledger->balances($party->id, $companyIds))->map(fn (int $amount, string $currency) => ['currency' => $currency, 'amount_minor' => (string) $amount])->values()->all(),
+            ...($detail ? ['entries' => CreditEntry::query()->where('customer_id', $party->id)->when($companyIds !== null, fn ($q) => $q->whereIn('company_id', $companyIds))->orderByDesc('occurred_at')->orderByDesc('id')->limit(200)->get()->map(fn (CreditEntry $e) => [
                 'id' => $e->id, 'kind' => $e->kind, 'currency' => $e->currency, 'amount_minor' => (string) $e->amount_minor,
                 'occurred_at' => $this->iso($e->occurred_at), 'run_id' => $e->run_id,
             ])->values()->all()] : []),
@@ -220,6 +220,8 @@ class Views
             'decided_by_name' => $users[$count->decided_by] ?? null, 'note' => $count->note,
             'stock_variance_lines' => (int) $count->stock_variance_lines, 'cash_variance_base_minor' => (string) $count->cash_variance_base_minor,
             'unload' => $this->unloads->of($count),
+            'kind' => $count->kind,
+            'flags' => array_values($count->flags ?? []),
         ];
 
         if ($detail) {
@@ -227,7 +229,7 @@ class Views
             $items = $this->names(Item::class, $lines->pluck('item_id'));
             $row['lines'] = $lines->sortBy(fn ($l) => $items[$l->item_id] ?? '')->map(fn (CountLine $l) => [
                 'item_id' => $l->item_id, 'item_name' => $items[$l->item_id] ?? null, 'load_qty' => Qty::show((string) $l->load_qty),
-                'sold_qty' => Qty::show((string) $l->sold_qty), 'returned_qty' => Qty::show((string) $l->returned_qty),
+                'sold_qty' => Qty::show((string) $l->sold_qty), 'returned_qty' => Qty::show((string) $l->returned_qty), 'returned_claimed_qty' => $l->returned_claimed_qty === null ? null : Qty::show((string) $l->returned_claimed_qty),
                 'damaged_qty' => Qty::show((string) $l->damaged_qty), 'variance_qty' => Qty::show((string) $l->variance_qty),
             ])->values()->all();
             $row['tenders'] = CountTender::query()->where('count_id', $count->id)->orderBy('currency')->orderBy('kind')->get()->map(fn (CountTender $t) => [

@@ -2,8 +2,6 @@
 
 namespace Modules\VanSales\Http\Controllers;
 
-use App\Core\Identity\Models\User;
-use App\Core\Rbac\ScopeResolver;
 use Illuminate\Http\JsonResponse;
 use Modules\POS\Sync\DevicePlace;
 use Modules\VanSales\Http\Requests\ConfirmLoadRequest;
@@ -34,7 +32,7 @@ class DeviceController
         return response()->json(['results' => $results]);
     }
 
-    public function confirmLoad(ConfirmLoadRequest $request, Load $vsLoad, Loads $loads, Views $views, ScopeResolver $resolver): JsonResponse
+    public function confirmLoad(ConfirmLoadRequest $request, Load $vsLoad, Loads $loads, Views $views, DeviceUploads $uploads): JsonResponse
     {
         $place = DevicePlace::of($request->user());
         $van = Van::query()->whereNull('archived_at')->where('location_id', $place->location->id)->first();
@@ -43,15 +41,8 @@ class DeviceController
             throw Errors::make(404, 'load_unknown');
         }
 
-        $person = User::query()->find($request->validated('user_id'));
-
-        if ($person === null || ! $person->isActive()) {
-            throw Errors::make(422, 'rep_unknown', field: 'user_id');
-        }
-
-        if (! $resolver->can($person, 'van_sales.load.confirm', $place->scope())) {
-            throw Errors::make(403, 'not_permitted', field: 'user_id');
-        }
+        // The device names the rep: the server wants the sign-in proof for it (AUTH-07).
+        $person = $uploads->actor($place, $request->validated(), 'van_sales.load.confirm', true);
 
         $load = $loads->confirm($vsLoad, $person, $request->validated('lines'));
 

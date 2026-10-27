@@ -2,13 +2,11 @@
 
 namespace Modules\VanSales\Console;
 
-use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\DueTenants;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Console\Command;
 use Modules\VanSales\Models\Setting;
 use Modules\VanSales\Models\Visit;
-use Modules\VanSales\VanSalesServiceProvider;
 
 /**
  * VAN-24, NFR-08: check-in positions are personal data; they are cleared
@@ -21,14 +19,11 @@ class PurgePositionsCommand extends Command
 
     protected $description = 'Clear van check-in positions older than each company retention';
 
-    public function handle(DueTenants $tenants, TenantContext $context, ModuleRegistry $modules): int
+    public function handle(DueTenants $tenants, TenantContext $context): int
     {
         foreach ($tenants->active() as $tenantId) {
-            $context->run($tenantId, function () use ($modules, $tenantId) {
-                if (! $modules->isActive(VanSalesServiceProvider::MODULE)) {
-                    return;
-                }
-
+            // Positions are personal data: they go on schedule even if the tenant has since switched the module off (NFR-08).
+            $context->run($tenantId, function () use ($tenantId) {
                 $cleared = 0;
                 $custom = Setting::query()->pluck('gps_retention_days', 'company_id')->all();
 

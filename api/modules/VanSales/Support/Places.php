@@ -84,6 +84,14 @@ class Places
         return $visible->all ? $query : $query->whereIn($query->qualifyColumn($column), $visible->idsFor(Scope::BRANCH));
     }
 
+    /** The companies where $user holds $permission somewhere; null for every company. @return list<string>|null */
+    public function companyIds(User $user, string $permission): ?array
+    {
+        $visible = $this->resolver->visibleIds($user, $permission);
+
+        return $visible->all ? null : ($visible->companiesTouched() ?? []);
+    }
+
     /** $query limited to rows of the companies where $user holds $permission somewhere. */
     public function filterCompanies(Builder $query, User $user, string $permission, string $column = 'company_id'): Builder
     {

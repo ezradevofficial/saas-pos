@@ -16,10 +16,10 @@ class Ledger
 {
     public function __construct(private readonly TenantContext $tenants) {}
 
-    /** @return array<string, int> currency => balance in minor units */
-    public function balances(string $customerId): array
+    /** @param list<string>|null $companyIds only the entries of these companies (null: all) @return array<string, int> currency => balance in minor units */
+    public function balances(string $customerId, ?array $companyIds = null): array
     {
-        return CreditEntry::query()->where('customer_id', $customerId)->groupBy('currency')->selectRaw('currency, sum(amount_minor) as amount')
+        return CreditEntry::query()->where('customer_id', $customerId)->when($companyIds !== null, fn ($q) => $q->whereIn('company_id', $companyIds))->groupBy('currency')->selectRaw('currency, sum(amount_minor) as amount')
             ->orderBy('currency')->pluck('amount', 'currency')->map(fn ($v) => (int) $v)->all();
     }
 

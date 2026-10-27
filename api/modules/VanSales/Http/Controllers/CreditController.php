@@ -30,20 +30,19 @@ class CreditController
             $query->where('name', 'ilike', '%'.addcslashes((string) $request->input('search'), '\\%_').'%');
         }
 
-        return response()->json(['data' => $this->views->accounts($query->limit(500)->get())]);
+        return response()->json(['data' => $this->views->accounts($query->limit(500)->get(), false, $this->places->companyIds($request->user(), $request->permission()))]);
     }
 
     public function account(ViewRequest $request, Party $party): JsonResponse
     {
-        if (! CreditEntry::query()->where('customer_id', $party->id)->exists()) {
+        // RBAC-04: only the entries of the companies the reader may see; a customer with none there is not found.
+        $companies = $this->places->companyIds($request->user(), $request->permission());
+
+        if (! CreditEntry::query()->where('customer_id', $party->id)->when($companies !== null, fn ($q) => $q->whereIn('company_id', $companies))->exists()) {
             throw Errors::make(404, 'customer_unknown');
         }
 
-        if ($party->company_id !== null && ! $this->places->inCompany($request->user(), $request->permission(), $party->company_id)) {
-            throw Errors::make(403, 'not_permitted');
-        }
-
-        return response()->json(['data' => $this->views->accounts(collect([$party]), true)[0]]);
+        return response()->json(['data' => $this->views->accounts(collect([$party]), true, $companies)[0]]);
     }
 
     public function reviews(ViewRequest $request): JsonResponse

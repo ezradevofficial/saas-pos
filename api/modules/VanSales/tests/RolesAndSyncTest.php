@@ -75,11 +75,11 @@ class RolesAndSyncTest extends TestCase
     {
         $held = $this->granted('route_supervisor');
 
-        foreach (['van_sales.reconciliation.approve', 'van_sales.credit.review', 'van_sales.van.manage', 'van_sales.route.manage', 'van_sales.load.create', 'van_sales.load.release', 'van_sales.visit.track', 'van_sales.unload.receive'] as $right) {
+        foreach (['van_sales.reconciliation.approve', 'van_sales.credit.review', 'van_sales.van.manage', 'van_sales.route.manage', 'van_sales.load.create', 'van_sales.visit.track', 'van_sales.unload.receive'] as $right) {
             $this->assertContains($right, $held);
         }
 
-        foreach (['van_sales.reconciliation.submit', 'van_sales.collection.record', 'van_sales.run.start', 'van_sales.visit.record', 'van_sales.settings.edit'] as $never) {
+        foreach (['van_sales.load.release', 'van_sales.reconciliation.submit', 'van_sales.collection.record', 'van_sales.run.start', 'van_sales.visit.record', 'van_sales.settings.edit'] as $never) {
             $this->assertNotContains($never, $held);
         }
     }

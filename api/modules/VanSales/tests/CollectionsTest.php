@@ -34,6 +34,7 @@ class CollectionsTest extends TestCase
             'id' => $this->id(), 'run_id' => $this->run, 'visit_id' => null, 'customer_id' => $this->shop->id, 'user_id' => $this->rep->id,
             'payment_method_id' => $this->methods[$method]->id, 'currency' => 'KES', 'amount_minor' => $amount, 'provider_reference' => null,
             'receipt_seq' => $seq, 'receipt_number' => sprintf('R-V01-%06d', $seq), 'collected_at' => $this->at(30),
+            'actor_proof' => $this->actorProof($this->rep->id, $this->vanDevice),
         ], $overrides);
     }
 

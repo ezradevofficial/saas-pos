@@ -6,6 +6,7 @@ use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
 use Modules\Inventory\Contracts\StockTransfers;
 use Modules\VanSales\Models\Count;
+use Modules\VanSales\Models\Run;
 use Modules\VanSales\Support\Errors;
 
 /**
@@ -19,6 +20,7 @@ class Unloads
     public function __construct(
         private readonly StockTransfers $transfers,
         private readonly Auditor $auditor,
+        private readonly Counts $counts,
     ) {}
 
     /** @return array{status: string, number: string}|null null when the count has no unload */
@@ -73,6 +75,10 @@ class Unloads
             }
 
             $done = $this->transfers->receive($by, $state['id'], $lines, __('van_sales.loads.unload_short_reason'));
+            // Whatever the warehouse found short goes to an approver; the run closes once nothing waits (VAN-23).
+            $this->counts->unloadShortfall($count, $done['lines'] ?? [], $by);
+            $run = Run::query()->whereKey($count->run_id)->lockForUpdate()->first();
+            $run === null || $this->counts->closeIfDone($run);
             $this->auditor->record('van_sales.count.unload_receive', $count, null, ['transfer' => $done['number'] ?? null, 'lines' => count($lines ?? $state['lines'])], ['user_id' => $by->id]);
 
             return ['status' => $this->status($done['status'] ?? 'received'), 'number' => (string) ($done['number'] ?? '')];

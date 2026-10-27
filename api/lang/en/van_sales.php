@@ -40,6 +40,10 @@ return [
         'review_not_pending' => 'This sale was already reviewed.',
         'unload_not_ready' => 'The unload is not ready to receive. It needs an approved transfer to the warehouse.',
         'upload_rejected' => 'Nothing was stored. Check the messages on each record and send again.',
+        'actor_unverified' => 'This person’s sign-in on the device could not be checked. Sign in again on the device while online and send the record again.',
+        'void_own_collection' => 'You cannot void a collection you took yourself. Ask a supervisor.',
+        'void_limit_exceeded' => 'This collection is above what you may give back. Ask someone with a higher limit.',
+        'collection_counted' => 'This day was already counted. Only someone who decides reconciliations can void this collection.',
         'batch_size' => 'Send between 1 and 100 records at a time.',
     ],
 

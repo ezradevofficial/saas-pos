@@ -21,7 +21,7 @@ use Modules\Inventory\Models\Transfer;
  * quantities are decimal strings in each item's base unit. Every method
  * answers null / [] while Inventory is not active for the tenant (RBAC-08).
  *
- * @phpstan-type State array{id: string, number: string, status: string, from_location_id: string, to_location_id: string, lines: list<array{id: string, item_id: string, qty: string}>}
+ * @phpstan-type State array{id: string, number: string, status: string, from_location_id: string, to_location_id: string, lines: list<array{id: string, item_id: string, qty: string, qty_received: ?string}>}
  */
 final class StockTransfers
 {
@@ -70,7 +70,7 @@ final class StockTransfers
             'status' => $transfer->status,
             'from_location_id' => $transfer->from_location_id,
             'to_location_id' => $transfer->to_location_id,
-            'lines' => $transfer->lines->map(fn ($line) => ['id' => (string) $line->id, 'item_id' => (string) $line->item_id, 'qty' => (string) $line->qty_base])->values()->all(),
+            'lines' => $transfer->lines->map(fn ($line) => ['id' => (string) $line->id, 'item_id' => (string) $line->item_id, 'qty' => (string) $line->qty_base, 'qty_received' => $line->qty_received === null ? null : (string) $line->qty_received])->values()->all(),
         ];
     }
 
