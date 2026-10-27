@@ -62,6 +62,8 @@ POS module itself provides; Procurement will reach it through the
 | INV-22 | **Dashboard widgets** (LAY-01): `inventory.low_stock` (list) and `inventory.stock_value` (KPI, needs `inventory.valuation.view`). | Must |
 | INV-23 | **Numbering** (NUM-01): transfers `TR-{BRANCH}-{YYYY}-{00001}`, adjustments `ADJ-{BRANCH}-{YYYY}-{00001}`, counts `CNT-{BRANCH}-{YYYY}-{00001}`, yearly. | Must |
 | INV-25 | **Value-only cost adjustments** (owner approved, 2026-10-14). A `cost_adjustment` movement has zero quantity (the database allows zero only for this kind) and a value; it names the receipt movement it adjusts. The value goes to the units of that receipt still on hand (FIFO: the receipt's layer; weighted average: the company's pool, for at most the received quantity); the share of units already sold is recorded as the movement's `cost_variance_minor` (flags `partly_sold`, `nothing_on_hand`) and raised in `StockMoved` for Accounting. Landed costs allocated after receipt (PRC-17) arrive this way, once per allocation line. | Must |
+| INV-26 | **Write-offs from other modules.** A `StockWrittenOff` event (Pharmacy, PHA-12) takes the written-off quantities out as `adjustment_out` movements at the company's cost, once per write-off; batches named by the sender when Inventory tracks them, else earliest expiry first. Backward compatible: no schema change. | Should |
+| INV-27 | **Transfer contract.** `Contracts\TransferLines::forTransfer($id)` returns what a received transfer sent and received, as plain data, so a module can move its own detail (Pharmacy lots, PHA-13) without reading Inventory's tables. Backward compatible: no schema change. | Should |
 | INV-24 | **Audit** (AUD-01): settings, item stock settings and variant links, reorder rules, and every document's create, submit, decision, dispatch, receipt, posting and cancellation. The ledger itself is the record of every movement. | Must |
 
 ## Data model
@@ -126,6 +128,8 @@ values only):
 | `StoreIssued` | Stores (`ledger = inventory`) | `store_issue` movements out of the store, never refused (flagged `negative_stock`), batches FEFO (docs/modules/stores.md, STR-08) |
 | `StoreReturned` | Stores (`ledger = inventory`) | `store_return` movements back at the cost the issue went out at |
 | `MaterialsMoved` | Manufacturing (Inventory-ledger documents only) | `MoveStockForManufacturing`: `production_issue` and `recipe_consumption` out (never refused, batches FEFO), `production_return` and `recipe_return` back from the origin's movements at their cost, `production_receipt` in at the costed value; once per document (docs/modules/manufacturing.md, MFG-15) |
+| `StockWrittenOff` | Pharmacy (contract defined here, INV-26) | `RecordStockWrittenOff`: `adjustment_out` movements at the company's cost, never refused (flagged `negative_stock`), once per write-off |
+| `TransferReceived` | Inventory | unchanged; modules that track their own detail (Pharmacy lots, INV-27) read what moved through `TransferLines::forTransfer()`, never Inventory's tables |
 | `WorkflowCompleted`, `WorkflowCancelled` | Core | settle transfers, adjustments and counts |
 
 The POS events carry ids; the POS module provides their stock lines

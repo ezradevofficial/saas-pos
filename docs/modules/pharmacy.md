@@ -57,9 +57,9 @@ prescriptions and the controlled register; it just receives no sales.
 | PHA-17 | **Pharmacist approval.** A line of an item whose class is in `pharmacist_classes` needs someone who holds `pharmacy.dispense.approve` at the location: the signed-in cashier if they hold it, otherwise a pharmacist's PIN override on the till (AUTH-08, offline signed form), redeemed once for the sale. Unproven approval is kept and flagged `pharmacist_unverified`; a sale with none is flagged `pharmacist_missing`. The approver is stored on the dispense record. | Must |
 | PHA-18 | **Controlled-drug register.** An append-only ledger (`pharmacy_register_entries`) per controlled item and location: receipts, dispenses, returns, transfers, write-offs and corrections, each with a signed quantity, the running balance after it, lot and batch number, the prescription, prescriber, patient and pharmacist at the time, and the source document. Entry numbers run 1, 2, 3 per item and location. The database refuses updates and deletes (also for the owner role); a correction is a new `adjustment` entry that needs `pharmacy.register.adjust` and a reason. | Must |
 | PHA-19 | **Register printing and export.** The register of one item at one location prints as a page of its own (black on white, with the pharmacy's name, item, period, opening and closing balance and signature lines) and exports to CSV, XLSX or PDF (EXP-01). Registers are never filtered by a user's field rules, only by their locations. | Must |
-| PHA-20 | **Agrovet.** Pesticide and agrochemical items carry the `agrochemical` class (or `poison`), `usage_notes` shown at the till when the item is added, and `restricted_sale`, which requires a pharmacist or authorised person (PHA-17) and the buyer to be named (a customer or a free-text name on the sale). | Must |
+| PHA-20 | **Agrovet.** Pesticide and agrochemical items carry the `agrochemical` class (or `poison`), `usage_notes` shown at the till when the item is added, and `restricted_sale`, which requires a pharmacist or authorised person (PHA-17) and the buyer to be named (a customer on the sale; a sale without one is flagged `buyer_missing`). | Must |
 | PHA-21 | **Veterinary drugs** follow exactly the same lot, expiry, FEFO, quarantine, recall and prescription rules (`product_kind = veterinary`); a veterinary item may be `prescription_only` with the prescriber a veterinarian (the same fields). `withdrawal_days` is shown at the till and on the prescription log. | Must |
-| PHA-22 | **Recalls.** A recall names an item and a batch number (and a reason and an optional regulator reference). It blocks every lot of that item and batch number in the tenant at once, at every location and every till (the next sync; the server flags any sale of it that still arrives), quarantines their stock, and notifies holders of `pharmacy.recall.view` (`pharmacy.recall.issued`). Lifting it (reason, audited) releases the lots unless they were quarantined for another reason. | Must |
+| PHA-22 | **Recalls.** A recall names an item and a batch number (and a reason and an optional regulator reference). It blocks every lot of that item and batch number in the tenant at once, at every location and every till (the next sync; the server flags any sale of it that still arrives), keeps their stock on the books until it is written off or returned, and notifies holders of `pharmacy.recall.view` (`pharmacy.recall.issued`). Lifting it (reason, audited) releases the lots unless they were quarantined for another reason. | Must |
 | PHA-23 | **Recall customers.** `GET pharmacy/recalls/{id}/customers` lists who bought the recalled lots: customer, phone, sale, receipt number, quantity, date and place, from the sale ledger (refunded quantities netted). Sales without a named customer are counted as `unattributed`. | Must |
 | PHA-24 | **Reports** (lists with sort, filters and export, ADR 008): expiry (lots with stock expiring within N days or expired, with value-free quantities), slow movers per batch (days since the lot last sold and stock on hand), the controlled-drug register, and the prescription log (dispensing against prescriptions, with flags). Scoped by location (RBAC-04). | Must |
 | PHA-25 | **Offline till.** Sync entities `pharmacy_settings` (snapshot), `pharmacy_items` (incremental profiles) and `pharmacy_lots` (incremental: each lot with stock at the till's location with batch number, dates, quantity and blocked state). Batch picking, expiry checks, the warning, prescription capture and pharmacist override all work offline for at least 7 days (NFR-04). Staff rows carry `pharmacy.` permissions. | Must |
@@ -106,14 +106,17 @@ Sales are named by id only; POS tables are never referenced.
 | `pharmacy.register.view`, `.print`, `.adjust` | The controlled-drug register |
 | `pharmacy.report.view` | Expiry, slow-mover and prescription log reports |
 
-Role templates: **Pharmacist** holds all of the above except
-`pharmacy.settings.edit` and `pharmacy.recall.lift` is included; **Pharmacy
-technician** receives, transfers, views lots, captures prescriptions and
-views reports, but cannot approve a dispense, quarantine, issue a recall,
-read the register's corrections or adjust it. Branch Manager holds
-everything; Admin configures (settings and item profiles); Cashier holds
-`pharmacy.prescription.create` (captures a prescription at the till);
-Storekeeper, Accountant and Read-only auditor view.
+Role templates (RBAC-03): **Pharmacist** holds everything except
+`pharmacy.settings.edit`; **Pharmacy technician** receives, transfers, views
+lots, captures prescriptions and views reports, but cannot authorise a
+dispense, quarantine, issue a recall, or adjust the register. **Branch
+manager** holds everything except authorising a dispense (not a pharmacist),
+`pharmacy.settings.edit` and `pharmacy.item.configure`; **Admin** configures
+(settings and item profiles) and reads records but not prescriptions
+(patients are personal data); **Cashier** holds `pharmacy.prescription.create`
+(takes a prescription down at the till); **Approver** decides write-offs;
+Storekeeper, Accountant and Read-only auditor view (an auditor does not read
+prescriptions).
 
 ## API (`/api/v1`, user tokens, module `pharmacy`)
 

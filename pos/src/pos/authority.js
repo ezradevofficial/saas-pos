@@ -19,6 +19,8 @@ export const PERMISSIONS = {
   shiftOpen: 'pos.shift.open',
   shiftClose: 'pos.shift.close',
   shiftManage: 'pos.shift.manage',
+  // PHA-17: a pharmacist authorises a restricted dispense (the Pharmacy module's right; the server redeems the override for the sale).
+  dispense: 'pharmacy.dispense.authorise',
 };
 
 export const LIMITS = { discount: 'max_discount_percent', refund: 'max_refund_amount' };
@@ -45,7 +47,7 @@ export function within(staff, key, value) {
 /**
  * Whether `staff` may do `action` alone: { allowed, permission, reason }.
  * action: 'discount' (value = percent), 'price', 'void', 'refund'
- * (value = base major amount), 'pay_out', 'pay_in'.
+ * (value = base major amount), 'pay_out', 'pay_in', 'dispense'.
  */
 export function check(staff, action, value) {
   switch (action) {
@@ -60,6 +62,8 @@ export function check(staff, action, value) {
     case 'pay_out':
     case 'pay_in':
       return decide(staff, PERMISSIONS.cash);
+    case 'dispense':
+      return decide(staff, PERMISSIONS.dispense);
     default:
       throw new Error(`Unknown action [${action}]`);
   }

@@ -185,7 +185,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
         if (await posStore.sale(cart.id)) throw new SellingError('sale_exists', { id: cart.id });
         const at = serverNow();
         // POS-11: tax by the day the sale completes, in the company's zone (the server's tax day).
-        const computed = computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.dayAt ? catalogue.dayAt(at) : catalogue.day, catalogue, at });
+        const computed = computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.dayAt ? catalogue.dayAt(at) : catalogue.day, catalogue, at, user });
         if (!computed.lines.length) throw new SellingError('empty_sale');
         if (computed.blocked.length) throw new SellingError('lines_blocked', { blocked: computed.blocked });
         const currency = catalogue.saleCurrency;

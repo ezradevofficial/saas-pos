@@ -192,7 +192,16 @@
       "tax_code_archived": "Code de taxe archivé",
       "price_missing": "Pas de prix",
       "item_unknown": "Article inconnu",
-      "discount_above_price": "Remise supérieure au prix"
+      "discount_above_price": "Remise supérieure au prix",
+      "lot_expired": "Lot périmé",
+      "lot_recalled": "Lot rappelé",
+      "lot_quarantined": "Lot en attente",
+      "lot_too_close": "Lot trop proche de la péremption",
+      "lot_short": "Pas assez de stock valide. Choisissez un autre lot ou réduisez la quantité.",
+      "prescription_needed": "Ordonnance requise",
+      "prescription_stale": "Ordonnance trop ancienne",
+      "pharmacist_needed": "Approbation du pharmacien requise",
+      "buyer_needed": "Choisissez le client qui achète"
     },
     "sale": {
       "title": "Vente en cours",
@@ -266,7 +275,8 @@
         "void": "Annuler une vente demande un responsable. Un responsable l’approuve avec son code PIN.",
         "refund": "Ce remboursement demande un responsable. Un responsable l’approuve avec son code PIN.",
         "pay_out": "Une sortie d’espèces demande un responsable. Un responsable l’approuve avec son code PIN.",
-        "pay_in": "Une entrée d’espèces demande un responsable. Un responsable l’approuve avec son code PIN."
+        "pay_in": "Une entrée d’espèces demande un responsable. Un responsable l’approuve avec son code PIN.",
+        "dispense": "La vente de ce produit demande un pharmacien. Un pharmacien l’approuve avec son code PIN."
       },
       "nobody": "Personne sur cette caisse ne peut approuver ceci. Demandez à un administrateur de donner un rôle ici à un responsable, puis synchronisez.",
       "pinFor": "Code PIN de {{name}}",
@@ -541,6 +551,32 @@
         "credit_limit_exceeded": "Le client dépasserait sa limite de crédit. Il y reste {{amount}}.",
         "amount": "Saisissez un montant supérieur à zéro."
       }
+    },
+    "pharmacy": {
+      "batchLine": "Lot {{batch}} · expire le {{date}} · {{qty}}",
+      "nearExpiry": "Péremption proche",
+      "chooseBatch": "Choisir le lot",
+      "chooseFor": "Choisir le lot de {{name}}",
+      "chooseTitle": "Lots de {{name}}",
+      "batchOption": "Lot {{batch}} · expire le {{date}} · {{qty}} en stock",
+      "useBatch": "Utiliser le lot {{batch}}",
+      "useEarliest": "Utiliser la péremption la plus proche",
+      "rxNeeded": "Cette vente demande une ordonnance.",
+      "rxSummary": "Ordonnance de {{patient}} par {{prescriber}}, {{date}}",
+      "rxAdd": "Ajouter l’ordonnance",
+      "rxEdit": "Modifier l’ordonnance",
+      "rxTitle": "Ordonnance",
+      "rxSave": "Enregistrer l’ordonnance",
+      "patientName": "Nom du patient",
+      "patientPhone": "Téléphone du patient",
+      "prescriberName": "Nom du prescripteur",
+      "prescriberLicence": "Numéro de licence du prescripteur",
+      "facility": "Établissement",
+      "prescribedOn": "Date de prescription",
+      "dateHelp": "Année-mois-jour, par exemple 2026-10-27. Joignez une photo au back-office.",
+      "approvalNeeded": "Un pharmacien doit approuver cette vente.",
+      "approved": "Approuvée par un pharmacien.",
+      "approve": "Demander l’approbation d’un pharmacien"
     }
   },
   "templates": {
