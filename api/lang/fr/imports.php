@@ -262,6 +262,7 @@ return [
         'changed' => 'Modifié depuis l’import',
         'stock_moved' => 'Du stock a bougé depuis',
         'manufacturing_bom' => 'Utilisé dans une nomenclature ou une recette',
+        'restaurant_order' => 'Utilisé dans une commande de table ou d’ardoise',
         'manufacturing_order' => 'Utilisé dans un ordre de fabrication',
         'loyalty_account' => 'A un compte de fidélité ou de crédit',
         'accounting_document' => 'Utilisé dans une facture',

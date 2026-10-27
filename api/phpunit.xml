@@ -51,6 +51,7 @@
             <directory>modules/Ecommerce/tests</directory>
             <directory>modules/CRM/tests</directory>
             <directory>modules/Manufacturing/tests</directory>
+            <directory>modules/Restaurant/tests</directory>
             <directory>modules/Pharmacy/tests</directory>
         </testsuite>
         <!-- TEN-01: the CI isolation job (php artisan test with testsuite Isolation). -->

@@ -1,0 +1,43 @@
+<?php
+
+// Restaurant module (docs/modules/restaurant.md): API messages. Names of
+// tables, areas, stations and items are shown as entered.
+return [
+    'cancelled_by_till' => 'Cancelled at the till.',
+    'errors' => [
+        'override_required' => 'Ask a manager to approve the void with their PIN.',
+        'currency_unknown' => 'The currency is not one this business uses. Switch it on first.',
+        'modifier_currency' => 'The modifier is priced in another currency than the order.',
+        'order_has_payments' => 'Money was already taken for this order, so it cannot be merged. Pay the other order separately.',
+        'no_pending_void' => 'There is no void waiting for review on this item.',
+        'user_unknown' => 'Choose a person who exists.',
+        'tax_code_unknown' => 'Choose a tax code that exists.',
+        'name_taken' => 'This name is already used at this location. Choose another name.',
+        'location_unknown' => 'Choose a location that exists.',
+        'location_archived' => 'This location is archived. Choose an active location.',
+        'area_unknown' => 'Choose an area of this location that is not archived.',
+        'area_not_empty' => 'This area still has tables. Archive or move its tables first.',
+        'table_in_use' => 'An order is open on this table. Close or move it first.',
+        'table_unknown' => 'This table is not on this location’s floor plan. Sync the till and choose another table.',
+        'order_closed' => 'This order is already closed, merged or cancelled. Ring the items as a new order.',
+        'order_unknown' => 'Choose an order of this location that exists.',
+        'order_not_empty' => 'Items were already sent or paid on this order, so it cannot be cancelled. Void the items instead.',
+        'merge_invalid' => 'Choose another open order at the same location to merge into.',
+        'waiter_unknown' => 'Choose a waiter who exists.',
+        'customer_unknown' => 'Choose a customer who exists.',
+        'item_unknown' => 'Choose an item that exists.',
+        'item_must_not_be_stock' => 'Choose an item that is not a stock item for the service charge or the tip.',
+        'modifier_unknown' => 'This modifier is not in this group. Reload the group and try again.',
+        'ticket_status_invalid' => 'Choose a status: new, preparing, ready or served.',
+        'ticket_unknown' => 'This ticket is not at this till’s location.',
+        'ticket_not_permitted' => 'This person cannot change kitchen tickets here. Ask a manager.',
+        'split_invalid' => 'This split does not fit the order. Check the groups, seats or number of parts.',
+        'void_not_permitted' => 'You cannot void an item that was already sent. Ask a manager.',
+        'void_limit_exceeded' => 'This item is above your limit for voids. Ask a manager to void it.',
+        'reason_required' => 'Give a reason to void an item that was already sent.',
+        'line_changed' => 'This item was already sent, so its item, quantity or price cannot change. Void it and add a new line.',
+        'line_conflict' => 'This line belongs to another order that is no longer open. Ring it as a new line.',
+        'id_conflict' => 'This id is already used by another till or location.',
+        'upload_rejected' => 'The server kept none of these orders. Check the errors and send again.',
+    ],
+];

@@ -247,6 +247,14 @@ class TenantIsolationTest extends TestCase
         'mfg_bom' => 'mfg_bom',
         'mfg_bom_version' => 'mfg_bom_version',
         'mfg_order' => 'mfg_order',
+        // Restaurant (docs/modules/restaurant.md): an area with tables, a station, a modifier group, an order of a table sent to the kitchen, its first line and ticket.
+        'rest_area' => 'rest_area',
+        'rest_table' => 'rest_table',
+        'rest_station' => 'rest_station',
+        'rest_modifier_group' => 'rest_modifier_group',
+        'rest_order' => 'rest_order',
+        'rest_order_line' => 'rest_order_line',
+        'rest_ticket' => 'rest_ticket',
         // HR (docs/modules/hr.md): an employee linked to the Owner and what hangs off them.
         // Pharmacy (docs/modules/pharmacy.md): an item with a profile, its lot, a receipt, a pending write-off, a recall, a prescription (with an image) and a dispense.
         'pharmacy_item' => 'pharmacy_item',
@@ -480,6 +488,14 @@ class TenantIsolationTest extends TestCase
         // ECOM-42: a line of an online order coming back in a return.
         'line_id' => 'ecom_order_line',
         'delivery_tax_code_id' => 'tax_code',
+        // Restaurant: the floor, the waiter, the service charge and tip items, and the order a merge names.
+        'area_id' => 'rest_area',
+        'table_id' => 'rest_table',
+        'waiter_id' => 'user',
+        'service_charge_item_id' => 'item',
+        'tip_item_id' => 'item',
+        'into_order_id' => 'rest_order',
+        'merged_into_id' => 'rest_order',
         'scope_id' => null,
     ];
 
@@ -499,6 +515,7 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/ecommerce/orders/{ecom_order}/returns' => ['return_not_allowed', 'ECOM-42: the fixture order is out for delivery (accepted, not delivered), so a return is refused after validation and the permission check'],
         'POST api/v1/ecommerce/orders/{ecom_order}/returns/quote' => ['return_not_allowed', 'ECOM-42: the fixture order is out for delivery (accepted, not delivered), so a return quote is refused after validation and the permission check'],
         'POST api/v1/ecommerce/returns/{ecom_return}/collect' => ['collect_not_due', 'ECOM-43: the fixture return is a plain return (nothing to collect), so collecting is refused after validation and the permission check'],
+        'POST api/v1/restaurant/orders/{rest_order}/merge' => ['merge_invalid', 'REST-15: the control merges the fixture order into itself, which is refused after validation and the permission check'],
         'POST api/v1/fixed-assets/runs' => ['disposals_open', 'FA-12: the fixture\'s disposal dated in February is still open, so February\'s run is refused after validation'],
     ];
 
@@ -656,10 +673,14 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook', 'subject_id' => 'customer', 'item_id' => 'item', 'location_id' => 'location'];
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook', 'subject_id' => 'customer', 'item_id' => 'item', 'location_id' => 'location',
+        // Restaurant: the filters of the orders, tickets, tables and reports.
+        'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
     public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id',
+        // Restaurant: the filters of the orders, tickets, tables and reports.
+        'location_id', 'company_id', 'branch_id', 'station_id', 'table_id', 'waiter_id', 'since', 'archived',
         // Pharmacy: the lots, register, dispenses and reports (PHA-24), the profile list and FEFO (PHA-07).
         'item_id', 'location_id', 'with_empty', 'expires_within', 'class', 'product_kind', 'review', 'with_prescription',
         // MKT-02: the OAuth authorization request of the consent screen (no tenant ids).
@@ -1756,6 +1777,25 @@ class TenantIsolationTest extends TestCase
         return match ($key) {
             'POST api/v1/invitations' => ['name' => 'Invitee', 'email' => 'invitee-hijack@example.com', 'assignments' => [$assignment]],
             'POST api/v1/users/{user}/assignments' => $assignment,
+            // Restaurant (docs/modules/restaurant.md): the floor, stations, modifiers and service charge of the outlet.
+            'POST api/v1/restaurant/areas' => ['location_id' => $tenant->id('location'), 'name' => 'Hijack area'],
+            'POST api/v1/restaurant/tables' => ['location_id' => $tenant->id('location'), 'area_id' => $tenant->id('rest_area'), 'name' => 'Hijack table'],
+            'PUT api/v1/restaurant/tables/{rest_table}' => ['area_id' => $tenant->id('rest_area')],
+            'POST api/v1/restaurant/stations' => ['location_id' => $tenant->id('location'), 'name' => 'Hijack station', 'kind' => 'bar'],
+            'POST api/v1/restaurant/modifier-groups' => ['company_id' => $tenant->id('company'), 'name' => 'Hijack group', 'min_select' => 0, 'max_select' => 1, 'currency' => 'KES'],
+            'PUT api/v1/restaurant/companies/{company}/settings' => ['service_charge_percent' => '5', 'service_charge_item_id' => $tenant->id('rest_service_item'), 'tip_item_id' => $tenant->id('rest_service_item')],
+            'POST api/v1/restaurant/orders/{rest_order}/transfer' => ['waiter_id' => $tenant->id('user')],
+            'POST api/v1/restaurant/orders/{rest_order}/merge' => ['into_order_id' => $tenant->id('rest_order')],
+            'POST api/v1/restaurant/device/tickets/{rest_ticket}/status' => ['status' => 'preparing', 'user_id' => $tenant->id('user')],
+            // REST-17: an order of the fixture's second table, naming the owner as waiter, a customer, an item and a tax code.
+            'POST api/v1/restaurant/orders/sync' => ['orders' => [[
+                'id' => (string) Str::uuid7(), 'kind' => 'table', 'table_id' => $tenant->id('rest_table_other'), 'waiter_id' => $tenant->id('user'), 'customer_id' => $tenant->id('customer'),
+                'covers' => 1, 'currency' => 'KES', 'opened_at' => now()->subMinutes(5)->toIso8601String(), 'updated_at' => now()->subMinutes(5)->toIso8601String(), 'merged_into_id' => $tenant->id('rest_order'),
+                'lines' => [[
+                    'id' => (string) Str::uuid7(), 'item_id' => $tenant->id('item'), 'name' => 'Hijack line', 'qty' => '1', 'unit_price_minor' => '1000', 'tax_code_id' => $tenant->id('tax_code'),
+                    'created_at' => now()->subMinutes(4)->toIso8601String(),
+                ]],
+            ]]],
             // AUTH-11: linking one's own account; JIT provisioning's default role (A's custom role) at A's company.
             'POST api/v1/me/sso/link' => ['connection_id' => $tenant->id('sso_live_connection'), 'origin' => 'https://app.example.test'],
             'PUT api/v1/sso/settings' => ['jit_role_id' => $tenant->id('role'), 'jit_scope_type' => 'company', 'jit_scope_id' => $tenant->id('company')],

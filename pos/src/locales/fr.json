@@ -276,6 +276,7 @@
         "refund": "Ce remboursement demande un responsable. Un responsable l’approuve avec son code PIN.",
         "pay_out": "Une sortie d’espèces demande un responsable. Un responsable l’approuve avec son code PIN.",
         "pay_in": "Une entrée d’espèces demande un responsable. Un responsable l’approuve avec son code PIN.",
+        "void_line": "Annuler un article déjà envoyé demande un responsable. Un responsable l’approuve avec son code PIN.",
         "dispense": "La vente de ce produit demande un pharmacien. Un pharmacien l’approuve avec son code PIN."
       },
       "nobody": "Personne sur cette caisse ne peut approuver ceci. Demandez à un administrateur de donner un rôle ici à un responsable, puis synchronisez.",
@@ -858,6 +859,246 @@
       "blocked": "La position est désactivée pour cette application dans les réglages du téléphone. Vous pouvez toujours livrer.",
       "openSettings": "Ouvrir les réglages",
       "on": "Votre position est partagée pendant qu’une livraison est en cours."
+    }
+  },
+  "restaurant": {
+    "menu": {
+      "tables": "Salle",
+      "quickSale": "Vente rapide"
+    },
+    "quickSale": "Vente rapide",
+    "noPermission": "Vous n’avez pas le droit d’ouvrir des commandes. Demandez à un responsable.",
+    "view": {
+      "label": "Vue",
+      "tables": "Salle",
+      "tabs": "Additions"
+    },
+    "filter": {
+      "label": "Afficher",
+      "mine": "Les miennes",
+      "all": "Toutes"
+    },
+    "tables": {
+      "empty": "Aucune table pour le moment. Un administrateur configure la salle, puis synchronisez cette caisse.",
+      "noneMine": "Aucune de vos tables n’est ouverte. Affichez toutes les tables pour voir la salle."
+    },
+    "table": {
+      "seats_one": "{{count}} place",
+      "seats_other": "{{count}} places",
+      "partsPaid": "Payée en parties : {{paid}}"
+    },
+    "status": {
+      "free": "Libre",
+      "occupied": "Occupée",
+      "bill": "Addition demandée",
+      "reserved": "Réservée",
+      "cleaning": "Nettoyage",
+      "blocked": "Bloquée"
+    },
+    "open": {
+      "tableTitle": "Ouvrir {{name}}",
+      "guests": "Couverts",
+      "fewer": "Moins de couverts",
+      "more": "Plus de couverts",
+      "table": "Ouvrir la table"
+    },
+    "tabs": {
+      "openTitle": "Ouvrir une addition",
+      "open": "Ouvrir l’addition",
+      "new": "Nouvelle addition",
+      "name": "Nom de l’addition",
+      "namePlaceholder": "Par exemple, Joe au comptoir",
+      "customer": "Client (facultatif)",
+      "customerPlaceholder": "Rechercher par nom ou téléphone",
+      "customerChosen": "Client : {{name}}",
+      "search": "Rechercher une addition par nom",
+      "empty": "Aucune addition ouverte. Ouvrez une addition pour commencer un envoi.",
+      "noMatch": "Aucune addition ne correspond à ce nom.",
+      "rounds_one": "{{count}} envoi",
+      "rounds_other": "{{count}} envois"
+    },
+    "order": {
+      "back": "Retour aux tables",
+      "tableTitle": "Table n° {{name}}",
+      "tabTitle": "Addition {{name}}",
+      "empty": "Rien n’est commandé. Touchez un article pour l’ajouter.",
+      "notSent": "Non envoyé",
+      "round": "Envoi {{round}}",
+      "voided": "Annulé",
+      "heldCourses_one": "{{count}} article est retenu pour un service ultérieur.",
+      "heldCourses_other": "{{count}} articles sont retenus pour un service ultérieur.",
+      "cancel": "Annuler la commande",
+      "categories": "Catégories",
+      "view": "Afficher",
+      "items": "Carte",
+      "lines_one": "Commande ({{count}} article)",
+      "lines_other": "Commande ({{count}} articles)"
+    },
+    "line": {
+      "voidPending": "Annulation en attente d’approbation",
+      "course": "Service",
+      "courseN": "Service {{course}}",
+      "seat": "Place",
+      "seatN": "Place {{seat}}",
+      "noSeat": "Aucune",
+      "quantity": "Quantité",
+      "less": "Un de moins",
+      "more": "Un de plus",
+      "note": "Note pour la cuisine",
+      "notePlaceholder": "Par exemple, sans oignons",
+      "options": "Changer les options",
+      "remove": "Retirer la ligne",
+      "save": "Enregistrer la ligne",
+      "voided": "Annulé"
+    },
+    "modifiers": {
+      "exactly": "Choisissez {{count}}",
+      "between": "Choisissez de {{min}} à {{max}}",
+      "upTo": "Choisissez jusqu’à {{count}}",
+      "add": "Ajouter à la commande · {{amount}}"
+    },
+    "send": {
+      "button_one": "Envoyer {{count}} article en cuisine",
+      "button_other": "Envoyer {{count}} articles en cuisine",
+      "fire": "Lancer le service {{course}}",
+      "done_one": "{{count}} article envoyé dans l’envoi {{round}}.",
+      "done_other": "{{count}} articles envoyés dans l’envoi {{round}}.",
+      "fired_one": "Service {{course}} lancé : {{count}} article envoyé.",
+      "fired_other": "Service {{course}} lancé : {{count}} articles envoyés.",
+      "nothing": "Rien n’attend la cuisine. Lancez le service suivant pour envoyer les articles retenus.",
+      "noPrinter": "Aucune imprimante de cuisine n’est connectée : le ticket est sur l’écran de cuisine."
+    },
+    "resend": {
+      "button": "Renvoyer",
+      "title": "Renvoyer en cuisine",
+      "help": "Choisissez l’envoi à renvoyer. La cuisine reçoit un nouveau ticket marqué renvoi ; le premier reste.",
+      "round_one": "Envoi {{round}} · {{count}} article",
+      "round_other": "Envoi {{round}} · {{count}} articles",
+      "line": "Renvoyer cet article",
+      "done_one": "{{count}} article renvoyé.",
+      "done_other": "{{count}} articles renvoyés."
+    },
+    "void": {
+      "title": "Annuler {{name}}",
+      "help": "Cet article est déjà parti en cuisine. L’annulation le garde sur la commande, marqué annulé, et prévient le poste. Un motif est obligatoire.",
+      "reason": "Motif",
+      "reasonPlaceholder": "Par exemple, le client a changé d’avis",
+      "reasonRequired": "Saisissez un motif, puis annulez l’article.",
+      "confirm": "Annuler l’article",
+      "refused": "Non approuvé. L’article reste sur la commande.",
+      "done": "{{name}} annulé."
+    },
+    "transfer": {
+      "button": "Transférer",
+      "title": "Transférer à un autre serveur",
+      "help": "La table ou l’addition passe à la personne choisie. Le changement est enregistré.",
+      "nobody": "Aucun autre membre du personnel à choisir. Synchronisez cette caisse pour actualiser la liste.",
+      "done": "Transférée à {{name}}."
+    },
+    "merge": {
+      "button": "Fusionner",
+      "title": "Fusionner avec une autre table",
+      "help": "Tous les articles passent à la table choisie, et cette table y est regroupée.",
+      "none": "Aucune autre table ouverte pour fusionner."
+    },
+    "tickets": {
+      "title": "Tickets de cuisine et de bar",
+      "markServed": "Marquer servi",
+      "markServedFor": "Marquer le ticket {{number}} comme servi",
+      "kind": {
+        "order": "Commande",
+        "resend": "Renvoi",
+        "void": "Annulation"
+      },
+      "status": {
+        "new": "Nouveau",
+        "preparing": "En préparation",
+        "ready": "Prêt",
+        "served": "Servi"
+      }
+    },
+    "ticket": {
+      "kitchen": "Cuisine",
+      "table": "Table n° {{name}}",
+      "tab": "Addition {{name}}",
+      "covers": "{{count}} couverts",
+      "round": "Envoi {{round}}",
+      "waiter": "Serveur : {{name}}",
+      "course": "Service {{course}}",
+      "seat": "place {{seat}}",
+      "resend": "RENVOI",
+      "void": "ANNULATION"
+    },
+    "flags": {
+      "table_shared": "Cette table est aussi ouverte sur une autre caisse. Vérifiez avec l’autre serveur avant d’envoyer.",
+      "transfer_unauthorised": "Le transfert a été fait sans le droit de transférer. Un responsable le vérifiera."
+    },
+    "rejected": {
+      "title": "Cette commande est fermée",
+      "order_closed": "Elle a été payée sur une autre caisse. Les articles ajoutés ici sont conservés ; saisissez-les de nouveau dans une nouvelle commande.",
+      "table_unknown": "La table n’existe plus. Les articles sont conservés ; saisissez-les de nouveau dans une nouvelle commande.",
+      "waiter_unknown": "Le serveur n’est plus rattaché à ce site. Les articles sont conservés ; saisissez-les de nouveau dans une nouvelle commande.",
+      "other": "Le serveur n’a pas accepté cette commande. Les articles sont conservés ; saisissez-les de nouveau dans une nouvelle commande.",
+      "ringAgain": "Saisir dans une nouvelle commande",
+      "done_one": "{{count}} article déplacé vers une nouvelle commande.",
+      "done_other": "{{count}} articles déplacés vers une nouvelle commande."
+    },
+    "bill": {
+      "open": "Addition et paiement",
+      "request": "Demander l’addition",
+      "back": "Retour à la commande",
+      "title": "Addition de {{name}}",
+      "lines": "Articles",
+      "service": "Service ({{percent}} %)",
+      "tip": "Pourboire",
+      "total": "Total",
+      "split": "Comment payer",
+      "modes": {
+        "full": "Addition entière",
+        "item": "Par article",
+        "seat": "Par place",
+        "equal": "À parts égales"
+      },
+      "howMany": "Nombre de parts",
+      "fewer": "Moins de parts",
+      "more": "Plus de parts",
+      "groups": "Nombre de groupes",
+      "groupOf": "Groupe pour {{name}}",
+      "groupN": "Mettre {{name}} dans le groupe {{group}}",
+      "seatHelp": "Une addition par place ({{count}} places). Les articles sans place sont partagés à parts égales.",
+      "seatNeeds": "Attribuez des articles à au moins deux places pour diviser par place.",
+      "splitInvalid": "Cette division ne fonctionne pas encore. Mettez les articles dans au moins deux groupes, chaque article dans un seul groupe.",
+      "noTip": "Sans pourboire",
+      "customTip": "Autre montant",
+      "tipAmount": "Montant du pourboire en {{currency}}",
+      "parts": "Additions",
+      "wholeBill": "Addition entière",
+      "part": "Part {{part}} sur {{parts}}",
+      "partSeat": "Addition de la place {{part}} sur {{parts}}",
+      "partPaid": "Payée",
+      "charge": "Encaisser {{amount}}",
+      "locked": "Une part est payée : la division ne peut plus changer.",
+      "allPaid": "Toutes les parts sont payées.",
+      "paid": "Commande payée",
+      "paidHelp": "Toutes les parts de cette addition sont payées. La table est de nouveau libre.",
+      "done": "Retour aux tables",
+      "problems": {
+        "order_empty": "Il n’y a encore rien à facturer.",
+        "service_item_missing": "L’article de service n’est pas défini pour cette société. Demandez à un administrateur de le définir, puis synchronisez.",
+        "tip_item_missing": "L’article de pourboire n’est pas défini pour cette société. Demandez à un administrateur de le définir, puis synchronisez.",
+        "item_unknown": "Un article de cette commande n’est plus au catalogue. Synchronisez cette caisse, puis réessayez."
+      }
+    },
+    "errors": {
+      "failed": "Cela n’a pas fonctionné. Réessayez ; si cela échoue encore, synchronisez cette caisse.",
+      "table_blocked": "Cette table est bloquée. Demandez à un responsable.",
+      "order_unknown": "Cette commande n’est plus sur cette caisse. Retournez aux tables et synchronisez.",
+      "tab_name_required": "Saisissez un nom pour l’addition.",
+      "reason_required": "Saisissez un motif.",
+      "line_not_sent": "Cet article n’a pas été envoyé : il peut être retiré sans motif.",
+      "order_has_sent": "Des articles sont déjà partis en cuisine : la commande ne peut pas être annulée. Annulez-les d’abord.",
+      "merge_same": "Choisissez une autre table pour fusionner.",
+      "merge_part_paid": "Une part de cette addition est payée : elle ne peut pas être fusionnée."
     }
   }
 }

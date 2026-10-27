@@ -45,6 +45,8 @@ return [
             'crm.*.view', 'crm.settings.manage', 'crm.scope.branch',
             // E-commerce (docs/modules/ecommerce.md): reads it all, sets up stores and riders.
             'ecommerce.*.view', 'ecommerce.store.manage', 'ecommerce.rider.manage',
+            // Restaurant (docs/modules/restaurant.md): reads it all, sets up the floor, stations, modifiers and service charge.
+            'restaurant.*.view', 'restaurant.floor.manage', 'restaurant.station.manage', 'restaurant.modifier.manage', 'restaurant.settings.edit',
             // PHA-02, PHA-03: sets a company's pharmacy rules and items' pharmacy profiles, and reads the module's records except prescriptions (personal data).
             'pharmacy.settings.edit', 'pharmacy.item.configure', 'pharmacy.*.view',
             // CP-01: exempting the company from a pack component (payroll.statutory.exempt).
@@ -103,11 +105,13 @@ return [
             // E-commerce (docs/modules/ecommerce.md): the branch's online orders, deliveries, riders, cash-ups,
             // WhatsApp inbox and store settings; riding is the Rider's.
             'ecommerce.*',
+            // Restaurant (docs/modules/restaurant.md): the branch's floor, orders, tickets and reports; the service charge is the company's (Admin).
+            'restaurant.*',
             // Pharmacy (docs/modules/pharmacy.md): lots, write-offs (the default approver), recalls, prescriptions, the register
             // and reports at their branch; authorising a restricted dispense is a pharmacist's, and the settings the Admin's.
             'pharmacy.*',
         ],
-        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure'],
+        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'restaurant.settings.edit', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure'],
         // RBAC-06 (owner decision A, 2026-10-16; defaults the owner may change): a Branch Manager discounts quotes
         // up to 10 % without approval (CRM-20), so their own discounted quotes do not all escalate, and refunds up
         // to 10,000 in the company's base currency (POS-05, E-commerce refunds), so a manager can refund at all.
@@ -167,11 +171,44 @@ return [
         'requires_two_factor' => false,
     ],
     [
+        // REST-19 (docs/modules/restaurant.md): takes orders at tables and tabs, sends them, moves tables to a colleague,
+        // and rings the bill of a table or tab at the till (a sale carrying extensions.restaurant; no general pos.sale.create).
+        // Merging tables is a manager's, and only the kitchen starts and finishes tickets (a waiter marks them served); voiding a sent item needs a manager
+        // (no pos.sale.void, no limit); discounts too.
         'key' => 'waiter',
         'permissions' => [
             'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create',
-            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view',
-            'pos.order.*', 'pos.table.*', 'pos.sale.view', 'pos.sale.print',
+            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view', 'core.payment_method.view',
+            'pos.sale.view', 'pos.sale.print', 'pos.till.sign_in',
+            'restaurant.floor.view', 'restaurant.station.view', 'restaurant.modifier.view',
+            'restaurant.order.view', 'restaurant.order.create', 'restaurant.order.edit', 'restaurant.order.send',
+            'restaurant.order.transfer', 'restaurant.order.close',
+            'restaurant.ticket.view', 'restaurant.ticket.serve',
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // REST-19: the kitchen display only: sees and moves tickets, never money or orders.
+        'key' => 'kitchen',
+        'permissions' => [
+            'core.location.view', 'core.item.view', 'core.item_category.view', 'core.uom.view',
+            'restaurant.floor.view', 'restaurant.station.view', 'restaurant.ticket.view', 'restaurant.ticket.update',
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // REST-19: runs the bar: tabs and rounds like a waiter, serves the bar station's tickets and works its own shift.
+        'key' => 'bartender',
+        'permissions' => [
+            'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create',
+            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view', 'core.payment_method.view',
+            'pos.sale.view', 'pos.sale.print', 'pos.till.sign_in', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
+            'restaurant.floor.view', 'restaurant.station.view', 'restaurant.modifier.view',
+            'restaurant.order.view', 'restaurant.order.create', 'restaurant.order.edit', 'restaurant.order.send',
+            'restaurant.order.transfer', 'restaurant.order.close',
+            'restaurant.ticket.view', 'restaurant.ticket.update', 'restaurant.ticket.serve',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

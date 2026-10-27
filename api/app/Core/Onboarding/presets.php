@@ -45,17 +45,17 @@ return [
         [
             'key' => 'restaurant',
             'pos_mode' => 'restaurant',
-            'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'storekeeper'],
+            'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'kitchen', 'storekeeper'],
             'flows' => [],
-            'modules' => ['pos', 'inventory', 'manufacturing'],
+            'modules' => ['pos', 'inventory', 'restaurant', 'manufacturing'],
             'quantities' => ['outlet' => 1, 'device' => 3, 'employee' => 12],
         ],
         [
             'key' => 'bar',
             'pos_mode' => 'bar',
-            'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter'],
+            'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'bartender'],
             'flows' => [],
-            'modules' => ['pos', 'inventory'],
+            'modules' => ['pos', 'inventory', 'restaurant'],
             'quantities' => ['outlet' => 1, 'device' => 2, 'employee' => 8],
         ],
         [
@@ -63,7 +63,7 @@ return [
             'pos_mode' => 'hotel',
             'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'storekeeper', 'accountant'],
             'flows' => [],
-            'modules' => ['pos', 'inventory', 'stores', 'accounting_essentials'],
+            'modules' => ['pos', 'inventory', 'restaurant', 'stores', 'accounting_essentials'],
             'quantities' => ['outlet' => 2, 'device' => 4, 'employee' => 25],
         ],
         [
@@ -119,7 +119,7 @@ return [
     ],
 
     'module_groups' => [
-        'sell' => ['pos', 'inventory', 'pharmacy', 'loyalty', 'ecommerce'],
+        'sell' => ['pos', 'inventory', 'pharmacy', 'restaurant', 'loyalty', 'ecommerce'],
         'operate' => ['stores', 'procurement', 'manufacturing', 'fixed_assets'],
         'finance_people' => ['accounting_essentials', 'accounting_pro', 'crm', 'hr', 'payroll'],
     ],

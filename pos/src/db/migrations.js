@@ -161,5 +161,29 @@ export const migrations = schemaMigrations({
         createTable({ name: 'pharmacy_lots', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
       ],
     },
+    {
+      // Restaurant module (REST-02, REST-17): floor, stations, modifiers, settings, the server's orders
+      // and the open orders kept on this till.
+      toVersion: 12,
+      steps: [
+        createTable({ name: 'restaurant_tables', columns: [data, seenAt] }),
+        createTable({ name: 'restaurant_stations', columns: [data, seenAt] }),
+        createTable({ name: 'restaurant_modifiers', columns: [data, seenAt] }),
+        createTable({ name: 'restaurant_settings', columns: [data, seenAt] }),
+        createTable({ name: 'restaurant_orders', columns: [data, seenAt] }),
+        createTable({
+          name: 'rest_orders',
+          columns: [
+            { name: 'kind', type: 'string' },
+            { name: 'status', type: 'string', isIndexed: true },
+            { name: 'table_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'waiter_id', type: 'string', isIndexed: true },
+            { name: 'dirty', type: 'boolean', isIndexed: true },
+            { name: 'opened_at', type: 'number' },
+            data,
+          ],
+        }),
+      ],
+    },
   ],
 });

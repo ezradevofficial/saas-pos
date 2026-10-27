@@ -12,6 +12,7 @@ import './src/loyalty/register';
 import './src/pharmacy/register';
 import { ChangePinScreen } from './src/screens/ChangePinScreen';
 import { PosProvider } from './src/pos/PosProvider';
+import { RestaurantProvider } from './src/restaurant/RestaurantProvider';
 import { PosScreen } from './src/screens/pos/PosScreen';
 import { PairingScreen } from './src/screens/PairingScreen';
 import { RiderScreen } from './src/screens/rider/RiderScreen';
@@ -86,7 +87,11 @@ function Root() {
   let screen = <PosScreen />;
   if (!user) screen = <StaffSignInScreen location={location} />;
   else if (pinChange && sync.network !== NETWORK.OFFLINE) screen = <ChangePinScreen location={location} />;
-  return <PosProvider>{screen}</PosProvider>;
+  return (
+    <PosProvider>
+      <RestaurantProvider>{screen}</RestaurantProvider>
+    </PosProvider>
+  );
 }
 
 function ThemedStatusBar() {

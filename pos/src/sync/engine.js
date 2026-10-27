@@ -71,7 +71,14 @@ export function retryAfterMs(value, now) {
 
 const hasJsonCode = (response) => typeof response.body?.code === 'string' && response.body.code !== '';
 
-export function createSyncEngine({ api, store, credentials = null, now = () => Date.now(), random = Math.random, options = {}, log = () => {}, afterPull = null }) {
+/**
+ * `pushers` are other uploads the outbox does not model (the Restaurant
+ * module's open orders change after they are saved): each is `{ name,
+ * pendingCount(), push(call) }`; they count in `pending`, run before the
+ * outbox in every push (an open order reaches the server before the sale
+ * that pays it) and their summary is added under their name.
+ */
+export function createSyncEngine({ api, store, credentials = null, now = () => Date.now(), random = Math.random, options = {}, log = () => {}, afterPull = null, pushers = [] }) {
   const settings = { ...DEFAULTS, ...options };
   const listeners = new Set();
   let status = {
@@ -103,8 +110,11 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
 
   async function refreshCounts() {
     const counts = await store.counts();
-    update(counts);
-    return counts;
+    let extra = 0;
+    for (const pusher of pushers) extra += await pusher.pendingCount();
+    const total = { ...counts, pending: counts.pending + extra };
+    update(total);
+    return total;
   }
 
   /** Throws AuthLostError when the device's access is gone; any answer means online. */
@@ -314,6 +324,9 @@ export function createSyncEngine({ api, store, credentials = null, now = () => D
     const summary = { acknowledged: 0, failed: 0, retried: 0, stopped: null };
     // Rows settled in this run are not sent again in it; still pending, they hold their group.
     const seen = new Set();
+
+    // Causes before effects: an open order reaches the server before the sale that pays it.
+    for (const pusher of pushers) summary[pusher.name] = await pusher.push((method, path, callOptions) => call(method, path, callOptions));
 
     for (;;) {
       const time = now();

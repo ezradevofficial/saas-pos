@@ -83,6 +83,8 @@ use Modules\Pharmacy\Stock\Lots;
 use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Tenders\Bidders;
+use Modules\Restaurant\Models\Settlement;
+use Modules\Restaurant\Models\Ticket;
 use PHPUnit\Framework\Assert;
 use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Configuration\TestLayoutKind;
@@ -666,6 +668,10 @@ final class TwoTenants
         // zone, a WhatsApp chat, a signed-in customer, the Owner as rider, orders delivered (one cashed up)
         // and one accepted and assigned.
         $ecommerce = self::ecommerce($test, $owner, $tenantId, $ownerId, $company, $branch, $location, $item, $uoms['EA'], $priceList, $taxCode, $paymentMethod, $key, $upper);
+        // Restaurant (docs/modules/restaurant.md): the module switched on; an area with tables, a station
+        // routing a category, a modifier group, the service charge settings, an order of a table sent to the
+        // kitchen (tickets, a re-send) and a sale that settled part of it.
+        $restaurant = self::restaurant($test, $owner, $tenantId, $ownerId, $company, $location, $item, $uoms['EA'], $deviceToken, $taxCode, $upper);
         // Payroll (docs/modules/payroll.md): the module switched on with the fictional
         // test pack (never the shipped one), settings, a pay group, items, the HR
         // employees copied with their pay setup, an item, a loan, unpaid leave and a
@@ -843,6 +849,7 @@ final class TwoTenants
                 ...$fixedAssets,
                 ...$crm,
                 ...$ecommerce['ids'],
+                ...$restaurant,
                 ...$payroll,
                 ...$accounting,
                 ...$loyalty,
@@ -1282,6 +1289,80 @@ final class TwoTenants
             'stores_issue' => $issue['id'],
             'stores_issue_line' => $issue['lines'][0]['id'],
             'stores_return' => $return,
+        ];
+    }
+
+    /**
+     * The Restaurant fixture of one tenant: every rest_* table has rows. Made through the
+     * back office API as the Owner and the paired till's order upload; the settlement is
+     * a row of the order's sale (the POS sale path is covered by the module's tests).
+     *
+     * @return array<string, string>
+     */
+    private static function restaurant(TestCase $test, array $owner, string $tenantId, string $ownerId, string $company, string $location, string $item, string $each,
+        string $deviceToken, string $taxCode, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('restaurant'));
+        $owner = [...$owner, 'Accept' => 'application/json'];
+        $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
+
+        $newItem = fn (string $code, string $type, array $extra = []) => self::ok($test->postJson('/api/v1/items', [
+            'code' => "{$code}-{$upper}", 'name' => "{$code} {$upper}", 'type' => $type, 'base_uom_id' => $each, ...$extra,
+        ], $owner), 201)->json('data.id');
+        $service = $newItem('REST-SERVICE', 'non_stock');
+        $tip = $newItem('REST-TIP', 'non_stock');
+        $category = self::ok($test->postJson('/api/v1/item-categories', ['name' => "Rest category {$upper}"], $owner), 201)->json('data.id');
+        $dish = $newItem('REST-DISH', 'non_stock', ['category_id' => $category]);
+
+        self::ok($test->putJson("/api/v1/restaurant/companies/{$company}/settings", ['service_charge_percent' => '10', 'service_charge_item_id' => $service, 'tip_item_id' => $tip, 'tip_presets' => [5, 10]], $owner));
+        $area = self::ok($test->postJson('/api/v1/restaurant/areas', ['location_id' => $location, 'name' => "Hall {$upper}"], $owner), 201)->json('data.id');
+        $table = self::ok($test->postJson('/api/v1/restaurant/tables', ['location_id' => $location, 'area_id' => $area, 'name' => "T1 {$upper}", 'seats' => 4], $owner), 201)->json('data.id');
+        $second = self::ok($test->postJson('/api/v1/restaurant/tables', ['location_id' => $location, 'area_id' => $area, 'name' => "T2 {$upper}", 'seats' => 2], $owner), 201)->json('data.id');
+        $station = self::ok($test->postJson('/api/v1/restaurant/stations', ['location_id' => $location, 'name' => "Kitchen {$upper}", 'kind' => 'kitchen', 'is_default' => true, 'category_ids' => [$category]], $owner), 201)->json('data.id');
+        $groupResponse = self::ok($test->postJson('/api/v1/restaurant/modifier-groups', [
+            'company_id' => $company, 'name' => "Extras {$upper}", 'min_select' => 0, 'max_select' => 2, 'currency' => 'KES', 'item_ids' => [$dish],
+            'modifiers' => [['name' => 'Extra shot', 'price_minor' => '5000']],
+        ], $owner), 201);
+        $group = $groupResponse->json('data.id');
+        $modifier = $groupResponse->json('data.modifiers.0.id');
+
+        $line = fn (string $name) => [
+            'id' => (string) Str::uuid7(), 'item_id' => $dish, 'name' => $name, 'qty' => '1', 'unit_price_minor' => '80000', 'tax_code_id' => $taxCode, 'tax_rate' => '16', 'tax_inclusive' => false,
+            'course' => 1, 'modifiers' => [['id' => $modifier, 'name' => 'Extra shot', 'price_minor' => '5000']], 'created_at' => now()->subMinutes(30)->toIso8601String(),
+            'sent_at' => now()->subMinutes(20)->toIso8601String(), 'sent_by' => $ownerId, 'round' => 1,
+        ];
+        $first = $line("Dish {$upper}");
+        $resend = (string) Str::uuid7();
+        $result = self::ok($test->postJson('/api/v1/restaurant/orders/sync', ['orders' => [[
+            'id' => (string) Str::uuid7(), 'kind' => 'table', 'table_id' => $table, 'waiter_id' => $ownerId, 'covers' => 2, 'currency' => 'KES',
+            'opened_at' => now()->subMinutes(40)->toIso8601String(), 'updated_at' => now()->subMinutes(30)->toIso8601String(), 'updated_by' => $ownerId,
+            'lines' => [$first, $line("Side {$upper}")],
+            'resends' => [['id' => $resend, 'line_ids' => [$first['id']], 'at' => now()->subMinutes(10)->toIso8601String(), 'by' => $ownerId]],
+        ]]], $device))->json('results.0');
+        Assert::assertSame('stored', $result['status'], 'TwoTenants: the restaurant order was not stored: '.json_encode($result));
+        $order = $result['id'];
+
+        $ticket = app(TenantContext::class)->run($tenantId, function () use ($order, $location, $first) {
+            Settlement::create([
+                'order_id' => $order, 'location_id' => $location, 'sale_id' => (string) Str::uuid7(), 'mode' => 'equal', 'part' => 1, 'parts' => 2, 'final' => false, 'currency' => 'KES',
+                'total_minor' => '50000', 'tip_minor' => '0', 'service_charge_minor' => '0', 'line_ids' => [$first['id']], 'settled_at' => now(),
+            ]);
+
+            return Ticket::query()->where('order_id', $order)->orderBy('number')->value('id');
+        });
+
+        return [
+            'rest_area' => $area,
+            'rest_table' => $table,
+            'rest_table_other' => $second,
+            'rest_station' => $station,
+            'rest_modifier_group' => $group,
+            'rest_order' => $order,
+            'rest_order_line' => $first['id'],
+            'rest_ticket' => $ticket,
+            'rest_item' => $dish,
+            'rest_service_item' => $service,
+            'rest_category' => $category,
         ];
     }
 
