@@ -16,6 +16,8 @@ import { syncMedia } from '../theme/media';
 import { createPosStore } from '../pos/posStore';
 import { createSelling } from '../pos/selling';
 import { createHousekeeping } from '../hotel/housekeeping';
+import '../fuel/register';
+import { createFuel } from '../fuel/service';
 import { createRider } from '../rider/rider';
 import '../restaurant/register';
 import { createOrderStore } from '../restaurant/orderStore';
@@ -51,6 +53,9 @@ import { createSalonSync } from '../salon/salonSync';
  *
  * Rider (ECOM-28): services.rider keeps the rider's deliveries and their
  * queued status updates.
+ *
+ * Fuel station (FUEL-09, FUEL-10, FUEL-17): services.fuel.shifts keeps the forecourt shift on the
+ * device and queues its open and close; services.fuel.resets queues meter reset requests.
  *
  * Clock-in (HR-22, HR-23): services.clockGate checks clock-in PINs and
  * records punches; services.clockStore reads them back.
@@ -120,7 +125,9 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const rider = createRider({ api: riderApi, store, credentials: riderCredentials, deleteFile: deletePhotoFile });
   // HOT-29: a housekeeper signs in as themselves, the same way (their own token, never the till's).
   const housekeeping = createHousekeeping({ api: riderApi, credentials: riderCredentials });
-  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, vanSales, salon, clockStore, clockGate, riderCredentials, rider, housekeeping };
+  // FUEL-09, FUEL-10, FUEL-17: forecourt shifts and meter reset requests, kept on the device and uploaded by the engine.
+  const fuel = createFuel({ engine, store, database: db });
+  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, vanSales, fuel, salon, clockStore, clockGate, riderCredentials, rider, housekeeping };
 }
 
 export const ServicesContext = createContext(null);

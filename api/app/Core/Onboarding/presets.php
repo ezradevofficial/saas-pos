@@ -107,9 +107,10 @@ return [
         [
             'key' => 'fuel_station',
             'pos_mode' => 'fuel_station',
-            'role_templates' => ['admin', 'branch_manager', 'cashier', 'storekeeper', 'accountant'],
+            // FUEL-32: the fuel module (tanks, pumps, prices, shifts, dips, deliveries) and the forecourt roles; the cashier sells the shop.
+            'role_templates' => ['admin', 'branch_manager', 'station_manager', 'shift_supervisor', 'forecourt_attendant', 'cashier', 'storekeeper', 'accountant'],
             'flows' => [],
-            'modules' => ['pos', 'inventory', 'accounting_essentials'],
+            'modules' => ['pos', 'inventory', 'fuel', 'accounting_essentials'],
             'quantities' => ['outlet' => 1, 'device' => 4, 'employee' => 20],
         ],
         [
@@ -123,7 +124,7 @@ return [
     ],
 
     'module_groups' => [
-        'sell' => ['pos', 'inventory', 'pharmacy', 'restaurant', 'hotel', 'van_sales', 'salon', 'loyalty', 'ecommerce'],
+        'sell' => ['pos', 'inventory', 'pharmacy', 'restaurant', 'hotel', 'van_sales', 'fuel', 'salon', 'loyalty', 'ecommerce'],
         'operate' => ['stores', 'procurement', 'manufacturing', 'fixed_assets'],
         'finance_people' => ['accounting_essentials', 'accounting_pro', 'crm', 'hr', 'payroll'],
     ],

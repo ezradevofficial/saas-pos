@@ -12,6 +12,8 @@ import './src/loyalty/register';
 import './src/pharmacy/register';
 // HOT-22, HOT-35: the Hotel module (room-charge tender) through the same seams.
 import './src/hotel/register';
+// FUEL-18 to FUEL-22: the Fuel station module (nozzle sales, voucher tender) through the same seams.
+import './src/fuel/register';
 import { ChangePinScreen } from './src/screens/ChangePinScreen';
 import { PosProvider } from './src/pos/PosProvider';
 import { RestaurantProvider } from './src/restaurant/RestaurantProvider';

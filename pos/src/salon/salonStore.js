@@ -1,7 +1,7 @@
 import { Q } from '@nozbe/watermelondb';
 
 /**
- * SAL-29, NFR-04: what the salon till keeps (schema v15).
+ * SAL-29, NFR-04: what the salon till keeps (schema v16).
  *
  * - Synced, server wins: `salon_settings`, `salon_staff` (staff and resources), `salon_services`,
  *   `salon_schedule`, `salon_queue`, `salon_packages` (read here).

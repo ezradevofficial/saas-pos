@@ -54,6 +54,7 @@
             <directory>modules/Restaurant/tests</directory>
             <directory>modules/Pharmacy/tests</directory>
             <directory>modules/Hotel/tests</directory>
+            <directory>modules/FuelStation/tests</directory>
             <directory>modules/VanSales/tests</directory>
             <directory>modules/Salon/tests</directory>
         </testsuite>

@@ -130,6 +130,19 @@ import {
   ROOM_VIEW as HOTEL_ROOM_VIEW,
   SETTINGS_VIEW as HOTEL_SETTINGS_VIEW,
 } from './pages/hotel/hotelData'
+import {
+  DELIVERY_VIEW as FUEL_DELIVERY_VIEW,
+  DIP_VIEW as FUEL_DIP_VIEW,
+  PRICE_VIEW as FUEL_PRICE_VIEW,
+  REPORT_VIEW as FUEL_REPORT_VIEW,
+  SALE_VIEW as FUEL_SALE_VIEW,
+  SETTINGS_VIEW as FUEL_SETTINGS_VIEW,
+  SETUP_VIEW as FUEL_SETUP_VIEW,
+  SHIFT_VIEW as FUEL_SHIFT_VIEW,
+  VARIANCE_VIEW as FUEL_VARIANCE_VIEW,
+  VEHICLE_VIEW as FUEL_VEHICLE_VIEW,
+  VOUCHER_VIEW as FUEL_VOUCHER_VIEW,
+} from './pages/fuel/fuelData'
 import { ACTIVITY_VIEW as CRM_ACTIVITY_VIEW, LEAD_VIEW as CRM_LEAD_VIEW, OPPORTUNITY_VIEW as CRM_OPPORTUNITY_VIEW, QUOTE_VIEW as CRM_QUOTE_VIEW, SETTINGS_VIEW as CRM_SETTINGS_VIEW, TARGET_VIEW as CRM_TARGET_VIEW } from './pages/crm/crmData'
 import './pages/crm/register'
 import { CASHUP_VIEW as ECOM_CASHUP_VIEW, DELIVERY_VIEW as ECOM_DELIVERY_VIEW, ORDER_VIEW as ECOM_ORDER_VIEW, REPORT_VIEW as ECOM_REPORT_VIEW, RIDERS_VIEW as ECOM_RIDERS_VIEW, SETTINGS_VIEW as ECOM_SETTINGS_VIEW, WHATSAPP_VIEW as ECOM_WHATSAPP_VIEW } from './pages/ecommerce/ecommerceData'
@@ -372,6 +385,24 @@ const HotelReservationDetail = lazy(() => import('./pages/hotel/ReservationDetai
 const HotelReservations = lazy(() => import('./pages/hotel/Reservations'))
 const HotelRooms = lazy(() => import('./pages/hotel/Rooms'))
 const HotelSettings = lazy(() => import('./pages/hotel/HotelSettings'))
+const FuelDeliveries = lazy(() => import('./pages/fuel/Deliveries'))
+const FuelDeliveryDetail = lazy(() => import('./pages/fuel/DeliveryDetail'))
+const FuelDips = lazy(() => import('./pages/fuel/Dips'))
+const FuelMeterResets = lazy(() => import('./pages/fuel/MeterResets'))
+const FuelPrices = lazy(() => import('./pages/fuel/Prices'))
+const FuelReconciliationDetail = lazy(() => import('./pages/fuel/ReconciliationDetail'))
+const FuelReconciliations = lazy(() => import('./pages/fuel/Reconciliations'))
+const FuelReports = lazy(() => import('./pages/fuel/Reports'))
+const FuelSales = lazy(() => import('./pages/fuel/Sales'))
+const FuelSettlementDetail = lazy(() => import('./pages/fuel/SettlementDetail'))
+const FuelSettlements = lazy(() => import('./pages/fuel/Settlements'))
+const FuelSetup = lazy(() => import('./pages/fuel/Setup'))
+const FuelShiftDetail = lazy(() => import('./pages/fuel/ShiftDetail'))
+const FuelShifts = lazy(() => import('./pages/fuel/Shifts'))
+const FuelTankDetail = lazy(() => import('./pages/fuel/TankDetail'))
+const FuelVehicles = lazy(() => import('./pages/fuel/Vehicles'))
+const FuelVoucherDetail = lazy(() => import('./pages/fuel/VoucherDetail'))
+const FuelVouchers = lazy(() => import('./pages/fuel/Vouchers'))
 const CrmCalendar = lazy(() => import('./pages/crm/Calendar'))
 const CrmSettings = lazy(() => import('./pages/crm/CrmSettings'))
 const Leads = lazy(() => import('./pages/crm/Leads'))
@@ -701,6 +732,27 @@ export const routes = [
         ['/hotel/rates', HOTEL_RATE_VIEW, <HotelRatePlans key="hotel-rates" />],
         ['/hotel/reports/:kind', HOTEL_REPORT_VIEW, <HotelReports key="hotel-reports" />],
         ['/hotel/settings', HOTEL_SETTINGS_VIEW, <HotelSettings key="hotel-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Fuel station (docs/modules/fuel-station.md): the API answers 403 module_inactive without the module.
+      ...[
+        ['/fuel/setup', [FUEL_SETUP_VIEW, ...FUEL_SETTINGS_VIEW], <FuelSetup key="fuel-setup" />],
+        ['/fuel/tanks/:tankId', FUEL_SETUP_VIEW, <FuelTankDetail key="fuel-tank" />],
+        ['/fuel/prices', FUEL_PRICE_VIEW, <FuelPrices key="fuel-prices" />],
+        ['/fuel/shifts', FUEL_SHIFT_VIEW, <FuelShifts key="fuel-shifts" />],
+        ['/fuel/shifts/:shiftId', FUEL_SHIFT_VIEW, <FuelShiftDetail key="fuel-shift" />],
+        ['/fuel/sales', FUEL_SALE_VIEW, <FuelSales key="fuel-sales" />],
+        ['/fuel/settlements', FUEL_VARIANCE_VIEW, <FuelSettlements key="fuel-settlements" />],
+        ['/fuel/settlements/:settlementId', FUEL_VARIANCE_VIEW, <FuelSettlementDetail key="fuel-settlement" />],
+        ['/fuel/reconciliations', FUEL_VARIANCE_VIEW, <FuelReconciliations key="fuel-reconciliations" />],
+        ['/fuel/reconciliations/:reconciliationId', FUEL_VARIANCE_VIEW, <FuelReconciliationDetail key="fuel-reconciliation" />],
+        ['/fuel/meter-resets', FUEL_VARIANCE_VIEW, <FuelMeterResets key="fuel-meter-resets" />],
+        ['/fuel/dips', FUEL_DIP_VIEW, <FuelDips key="fuel-dips" />],
+        ['/fuel/deliveries', FUEL_DELIVERY_VIEW, <FuelDeliveries key="fuel-deliveries" />],
+        ['/fuel/deliveries/:deliveryId', FUEL_DELIVERY_VIEW, <FuelDeliveryDetail key="fuel-delivery" />],
+        ['/fuel/vehicles', FUEL_VEHICLE_VIEW, <FuelVehicles key="fuel-vehicles" />],
+        ['/fuel/vouchers', FUEL_VOUCHER_VIEW, <FuelVouchers key="fuel-vouchers" />],
+        ['/fuel/vouchers/:voucherId', FUEL_VOUCHER_VIEW, <FuelVoucherDetail key="fuel-voucher" />],
+        ['/fuel/reports/:kind', FUEL_REPORT_VIEW, <FuelReports key="fuel-reports" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // CRM and sales (docs/modules/crm.md, Screens): the API answers 403 module_inactive without the module.
       ...[

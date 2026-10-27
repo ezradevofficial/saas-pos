@@ -267,6 +267,7 @@ return [
         'restaurant_order' => 'Used in a table or tab order',
         'salon_service' => 'Used in the salon service menu or a package',
         'salon_client' => 'Has a salon client profile or appointments',
+        'fuel_product' => 'Set up as a fuel product',
         'loyalty_account' => 'Has a loyalty or credit account',
         'accounting_document' => 'Used in an invoice or bill',
         'accounting_payment' => 'Used in a payment',

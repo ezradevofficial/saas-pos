@@ -120,5 +120,12 @@
   "Services",
   "Client",
   "Allergies",
-  "Clients"
+  "Clients",
+  "Station",
+  "Stations",
+  "Litres",
+  "Litres {{n}}",
+  "{{count}} point",
+  "{{count}} points",
+  "Gains"
 ]

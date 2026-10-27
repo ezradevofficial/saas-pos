@@ -7,6 +7,8 @@ import { Button } from '../../components/ds/Button';
 import { Dialog } from '../../components/ds/Dialog';
 import { DISPLAY_QUERY } from '../../pos/customerDisplay';
 import { usePosActions, usePosCart, usePosData } from '../../pos/PosProvider';
+import { FuelHome } from '../../fuel/FuelHome';
+import { isFuelMode } from '../../fuel/permissions';
 import { useRestaurant } from '../../restaurant/context';
 import { BillScreen } from '../restaurant/BillScreen';
 import { OrderScreen } from '../restaurant/OrderScreen';
@@ -109,11 +111,13 @@ export function PosScreen() {
   const { cart } = usePosCart();
   // REST-02: the restaurant and bar modes open on the floor; retail tills open on the sell screen.
   const floor = useRestaurant();
+  // FUEL-31: a fuel station till opens on the forecourt screens; shop items still go through the sell screen.
+  const fuelTill = isFuelMode(catalogue?.settings?.pos_mode) || Boolean(catalogue?.ext?.fuel);
   // VAN-05: a van's till opens on the rep's day.
   const van = useVanSales();
   // SAL-29: a salon's till opens on the day's appointments.
   const salon = useSalon();
-  const home = floor.enabled ? 'tables' : van.enabled ? 'day' : salon.enabled ? 'salon' : 'sell';
+  const home = floor.enabled ? 'tables' : van.enabled ? 'day' : fuelTill ? 'fuel' : salon.enabled ? 'salon' : 'sell';
   const [route, setRoute] = useState(home);
   const [orderId, setOrderId] = useState(null);
   // REST-16: paying a part of a bill goes through the normal payment screens and returns to the bill.
@@ -165,6 +169,7 @@ export function PosScreen() {
     setRoute('salon');
   }, []);
   const toSell = useCallback(() => setRoute('sell'), []);
+  const toFuel = useCallback(() => setRoute('fuel'), []);
   const toBill = useCallback(() => {
     setPayingBill(false);
     setRoute('bill');
@@ -192,8 +197,8 @@ export function PosScreen() {
 
   let screen;
   if (!shift) screen = <OpenShiftScreen onMenu={openMenu} />;
-  else if (route === 'pay') screen = <PaymentScreen tablet={tablet} onBack={payingBill ? toBill : fromSalon && visit ? () => setRoute('salon_checkout') : toSell} onDone={(sale) => { setReceipt(sale); setRoute('receipt'); }} />;
-  else if (route === 'receipt' && receipt) screen = <ReceiptScreen sale={receipt} onNewSale={payingBill ? toBill : fromStop && receipt.extensions?.van_sales?.visit_id ? toStop : fromSalon && receipt.extensions?.salon ? toSalon : toSell} />;
+  else if (route === 'pay') screen = <PaymentScreen tablet={tablet} onBack={payingBill ? toBill : cart.ext?.fuel ? toFuel : fromSalon && visit ? () => setRoute('salon_checkout') : toSell} onDone={(sale) => { setReceipt(sale); setRoute('receipt'); }} />;
+  else if (route === 'receipt' && receipt) screen = <ReceiptScreen sale={receipt} onNewSale={payingBill ? toBill : receipt.extensions?.fuel ? toFuel : fromStop && receipt.extensions?.van_sales?.visit_id ? toStop : fromSalon && receipt.extensions?.salon ? toSalon : toSell} />;
   else if (route === 'salon' && salon.enabled)
     screen = <SalonDayScreen onMenu={openMenu} onQueue={() => setRoute('salon_queue')} onCharge={(id, fee) => { setVisit({ id, fee }); setFromSalon(true); setRoute('salon_checkout'); }} />;
   else if (route === 'salon_queue' && salon.enabled) screen = <QueueScreen onBack={toSalon} />;
@@ -205,6 +210,7 @@ export function PosScreen() {
   else if (route === 'stop' && van.enabled && stopRef)
     screen = <StopScreen stopRef={stopRef} onBack={() => { setFromStop(false); setRoute('day'); }} onSell={() => { setFromStop(true); setRoute('sell'); }} onCollect={() => setRoute('collect')} onReturns={() => { setFromStop(true); setRoute('sales'); }} />;
   else if (route === 'collect' && van.enabled && stopRef) screen = <CollectScreen target={stopRef} onBack={toStop} />;
+  else if (route === 'fuel' && fuelTill) screen = <FuelHome tablet={tablet} onShop={toSell} onPay={toPay} onHeld={openHeld} onCloseTill={() => setRoute('close')} onMenu={openMenu} />;
   else if (route === 'tables' && floor.enabled)
     screen = <TablesScreen tablet={tablet} onOpenOrder={openOrder} onQuickSale={toSell} onHeld={openHeld} onCloseShift={() => setRoute('close')} onMenu={openMenu} />;
   else if (route === 'order' && floor.enabled && orderId)

@@ -42,6 +42,8 @@ class CatalogueApiTest extends TestCase
             'restaurant' => [150000, 1200, null, null],
             // Not in the concept note either: a placeholder equal to Inventory's, for the owner to confirm (docs/modules/hotel.md).
             'hotel' => [150000, 1200, null, null],
+            // Not in the concept note either: a placeholder equal to Inventory's, price to set (docs/modules/fuel-station.md).
+            'fuel' => [150000, 1200, null, null],
             // Same: a placeholder price equal to Inventory's, per device (one van), price to set (docs/modules/van-sales.md).
             'van_sales' => [150000, 1200, null, null],
             // Same: a placeholder price equal to Inventory's, per outlet, price to set (docs/modules/salon.md).

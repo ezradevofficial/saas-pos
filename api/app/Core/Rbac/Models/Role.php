@@ -99,7 +99,7 @@ class Role extends SpatieRole
     {
         return $this->getConnection()->transaction(function () use ($permissions) {
             $before = $this->permissionNames();
-            $this->syncPermissions(collect($permissions)->all());
+            $this->applyPermissions(collect($permissions)->all());
             $this->unsetRelation('permissions');
             $after = $this->permissionNames();
 
@@ -109,6 +109,29 @@ class Role extends SpatieRole
 
             return $this;
         });
+    }
+
+    /**
+     * Make the role's permissions exactly $permissions by attaching what is
+     * missing and detaching what is no longer wanted. Spatie's syncPermissions
+     * revokes every link and grants them all again; a module activation
+     * refreshes all system roles, so inside one transaction that left tens of
+     * thousands of dead row versions in role_has_permissions that nothing can
+     * prune before commit, and every permission-cache rebuild of the
+     * transaction scanned them (statement timeouts in the isolation suite).
+     * Nothing is written when nothing changed.
+     */
+    private function applyPermissions(array $permissions): void
+    {
+        $ids = collect($permissions)->flatten()->filter(fn ($p) => $p !== null && $p !== '')
+            ->map(fn ($p) => $this->getStoredPermission($p)->getKey())->unique()->values()->all();
+
+        $changes = $this->permissions()->sync($ids);
+
+        if ($changes['attached'] !== [] || $changes['detached'] !== []) {
+            $this->forgetCachedPermissions();
+            $this->forgetWildcardPermissionIndex();
+        }
     }
 
     /** RBAC-02: names are unique among the tenant's active roles; an archived role frees its name. */

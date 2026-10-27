@@ -307,6 +307,20 @@ class TenantIsolationTest extends TestCase
         'hotel_task' => 'hotel_task',
         'hotel_audit' => 'hotel_audit',
         'hotel_exception' => 'hotel_exception',
+        // Fuel station (docs/modules/fuel-station.md): a station with its product, tank, pump, nozzle and price, a closed shift with a settlement, a pending meter reset, a reconciliation, a delivery, a vehicle and a voucher.
+        'fuel_station' => 'fuel_station',
+        'fuel_product' => 'fuel_product',
+        'fuel_tank' => 'fuel_tank',
+        'fuel_pump' => 'fuel_pump',
+        'fuel_nozzle' => 'fuel_nozzle',
+        'fuel_price' => 'fuel_price',
+        'fuel_shift' => 'fuel_shift',
+        'fuel_settlement' => 'fuel_settlement',
+        'fuel_reset' => 'fuel_reset',
+        'fuel_reconciliation' => 'fuel_reconciliation',
+        'fuel_delivery' => 'fuel_delivery',
+        'fuel_vehicle' => 'fuel_vehicle',
+        'fuel_voucher' => 'fuel_voucher',
         'hr_employee' => 'hr_employee',
         'hr_pay_account' => 'hr_pay_account',
         'hr_contract' => 'hr_contract',
@@ -493,6 +507,13 @@ class TenantIsolationTest extends TestCase
         'to_folio_id' => 'hotel_folio',
         'room_item_id' => 'item',
         'room_charge_method_id' => 'payment_method',
+        // Fuel station: the tank, pump and nozzle a record names, and the people of a shift upload (the product and the shift are per route, ROUTE_REFERENCE_FIELDS).
+        'tank_id' => 'fuel_tank',
+        'pump_id' => 'fuel_pump',
+        'nozzle_id' => 'fuel_nozzle',
+        'attendant_id' => 'user',
+        'closed_by_id' => 'user',
+        'requested_by_id' => 'user',
         // HR: employees (and line managers, peers), their leave types, positions, rotations, shifts and templates.
         'employee_id' => 'hr_employee',
         'reports_to_id' => 'hr_employee',
@@ -583,10 +604,13 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/ecommerce/orders/{ecom_order}/returns' => ['return_not_allowed', 'ECOM-42: the fixture order is out for delivery (accepted, not delivered), so a return is refused after validation and the permission check'],
         'POST api/v1/ecommerce/orders/{ecom_order}/returns/quote' => ['return_not_allowed', 'ECOM-42: the fixture order is out for delivery (accepted, not delivered), so a return quote is refused after validation and the permission check'],
         'POST api/v1/ecommerce/returns/{ecom_return}/collect' => ['collect_not_due', 'ECOM-43: the fixture return is a plain return (nothing to collect), so collecting is refused after validation and the permission check'],
+        'POST api/v1/fuel/stations' => ['validation_failed', 'FUEL-02: the fixture\'s own location is already a station, so the control is refused by validation (the location is taken)'],
+        'POST api/v1/fuel/products' => ['validation_failed', 'FUEL-04: the fixture\'s fuel item is already a product, so the control is refused by validation (the item is taken)'],
         'POST api/v1/hotel/stays/{hotel_stay}/move-room' => ['stay_not_in_house', 'HOT-37: the check-out route, called before it with A\'s ids, checked the fixture guest out, so moving them is refused after validation'],
         'POST api/v1/restaurant/orders/{rest_order}/merge' => ['merge_invalid', 'REST-15: the control merges the fixture order into itself, which is refused after validation and the permission check'],
         'POST api/v1/van-sales/device/loads/{vs_load}/confirm' => ['actor_unverified', 'VAN-08: a load confirmation needs the rep\'s verified sign-in proof (AUTH-07), which the fixture\'s body does not carry, so it is refused after validation and the permission check'],
         'POST api/v1/van-sales/reconciliations/{vs_count}/unload/receive' => ['unload_not_ready', 'VAN-23: the fixture count is balanced with nothing to unload, so receiving is refused after validation and the permission check'],
+        'POST api/v1/van-sales/loads' => ['count_in_progress', 'INV-09, VAN-07: the cycle count started before it with A\'s ids has frozen the fixture item, so the load transfer is refused after validation and the permission check'],
         'POST api/v1/fixed-assets/runs' => ['disposals_open', 'FA-12: the fixture\'s disposal dated in February is still open, so February\'s run is refused after validation'],
     ];
 
@@ -610,6 +634,10 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/accounting/payments/{acc_payment}/allocate' => ['document_id' => 'acc_invoice'],
         'POST api/v1/accounting/credit-notes/{acc_credit_note}/allocate' => ['document_id' => 'acc_invoice'],
         // HR-18: a planned shift names an HR shift (POS uploads' shift_id is the till's).
+        'POST api/v1/fuel/tanks' => ['product_id' => 'fuel_product'],
+        'POST api/v1/fuel/prices' => ['product_id' => 'fuel_product'],
+        'POST api/v1/fuel/meter-resets' => ['shift_id' => 'fuel_shift'],
+        'POST api/v1/fuel/device/meter-resets' => ['shift_id' => 'fuel_shift'],
         'POST api/v1/hr/roster-shifts' => ['shift_id' => 'hr_shift'],
         'PATCH api/v1/hr/roster-shifts/{hr_roster_shift}' => ['shift_id' => 'hr_shift'],
         // PAY-06: an employee's item names a payroll item (REFERENCE_FIELDS' item_id is a core item).
@@ -747,7 +775,7 @@ class TenantIsolationTest extends TestCase
      */
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook', 'subject_id' => 'customer', 'item_id' => 'item', 'location_id' => 'location',
         // Restaurant: the filters of the orders, tickets, tables and reports.
-        'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user', 'room_type' => 'hotel_room_type', 'rate_plan_id' => 'hotel_rate_plan', 'assigned_to' => 'user', 'folio_id' => 'hotel_folio',
+        'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user', 'tank_id' => 'fuel_tank', 'pump_id' => 'fuel_pump', 'shift_id' => 'fuel_shift', 'attendant_id' => 'user', 'product_id' => 'fuel_product', 'room_type' => 'hotel_room_type', 'rate_plan_id' => 'hotel_rate_plan', 'assigned_to' => 'user', 'folio_id' => 'hotel_folio',
         // Van sales: the filters of the vans, routes, runs, collections, counts and reports.
         'van_id' => 'vs_van', 'route_id' => 'vs_route', 'rep_id' => 'user', 'customer_id' => 'customer',
         // Salon: the filters of the visits, tips, commissions, batches and reports.
@@ -764,6 +792,8 @@ class TenantIsolationTest extends TestCase
         // Pharmacy: the lots, register, dispenses and reports (PHA-24), the profile list and FEFO (PHA-07).
         'item_id', 'location_id', 'with_empty', 'expires_within', 'class', 'product_kind', 'review', 'with_prescription',
         // Hotel: the rooms, rates, availability, reservations, folios, tasks, guests and reports (HOT-04 to HOT-31).
+        // Fuel station: the filters of the set-up, shift, tank, fleet and report lists (FUEL-05 to FUEL-38).
+        'current', 'tank_id', 'pump_id', 'shift_id', 'attendant_id', 'product_id', 'customer_id', 'nozzle_id', 'dip_cm',
         'room_type', 'folio_id', 'floor', 'archived', 'branch_id', 'rate_plan_id', 'arrival_on', 'departure_on', 'adults', 'children', 'reveal', 'arrival_from', 'arrival_to', 'with_balance', 'date', 'assigned_to', 'room', 'amount_minor',
         // MKT-02: the OAuth authorization request of the consent screen (no tenant ids).
         'client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method',
@@ -1215,10 +1245,11 @@ class TenantIsolationTest extends TestCase
             $content .= $zip->getFromIndex($i)."\n";
         }
 
+        $empty = [];
         foreach ($manifest['tables'] as $table) {
             $lines = array_values(array_filter(explode("\n", (string) $zip->getFromName($table['file']))));
-            if (! isset(GlobalTables::OPERATOR[$table['name']])) {
-                $this->assertGreaterThan(0, count($lines), "{$table['name']}: tenant A's rows are exported");
+            if (! isset(GlobalTables::OPERATOR[$table['name']]) && $lines === []) {
+                $empty[] = $table['name'];
             }
 
             foreach ($lines as $line) {
@@ -1226,6 +1257,8 @@ class TenantIsolationTest extends TestCase
                 $this->assertSame($a->tenantId, $row[$table['name'] === 'tenants' ? 'id' : 'tenant_id'], "{$table['name']}: a row that is not tenant A's");
             }
         }
+
+        $this->assertSame([], $empty, 'tables with no exported row of tenant A, so the fixture lacks rows for them: '.implode(', ', $empty));
 
         // A's media (item image, approval attachment, custom form files...) are in files/.
         $this->assertGreaterThan(0, $export->file_count);
@@ -2173,6 +2206,39 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/hotel/charge-exceptions/{hotel_exception}/resolve' => ['resolution' => 'moved', 'folio_id' => $tenant->id('hotel_folio_other')],
             'POST api/v1/hotel/housekeeping/tasks' => ['room_id' => $tenant->id('hotel_room_spare'), 'kind' => 'deep_clean'],
             'POST api/v1/hotel/night-audits' => ['branch_id' => $tenant->id('branch'), 'business_date' => app(TenantContext::class)->run($tenant->tenantId, fn () => CompanyClock::today($tenant->id('company'))), 'close_early' => true],
+            // Fuel station (docs/modules/fuel-station.md): bodies naming A's own location, product, tank, pump, nozzle, customer and people.
+            'POST api/v1/fuel/stations' => ['location_id' => $tenant->id('location'), 'currency' => 'KES'],
+            'POST api/v1/fuel/products' => ['company_id' => $tenant->id('company'), 'item_id' => $tenant->id('fuel_item'), 'fuel_type' => 'diesel'],
+            'POST api/v1/fuel/tanks' => ['location_id' => $tenant->id('location'), 'product_id' => $tenant->id('fuel_product'), 'code' => 'ISO-T', 'name' => 'Isolation tank', 'capacity_litres' => '5000'],
+            'POST api/v1/fuel/pumps' => ['location_id' => $tenant->id('location'), 'code' => 'ISO-P', 'name' => 'Isolation pump'],
+            'POST api/v1/fuel/nozzles' => ['pump_id' => $tenant->id('fuel_pump'), 'tank_id' => $tenant->id('fuel_tank'), 'code' => 'ISO-N'],
+            'PATCH api/v1/fuel/nozzles/{fuel_nozzle}' => ['tank_id' => $tenant->id('fuel_tank')],
+            'POST api/v1/fuel/prices' => ['location_id' => $tenant->id('location'), 'product_id' => $tenant->id('fuel_product'), 'price_minor' => 19000, 'effective_from' => now()->addDays(3)->toIso8601String(), 'reference' => 'Isolation notice'],
+            'POST api/v1/fuel/meter-resets' => ['nozzle_id' => $tenant->id('fuel_nozzle'), 'reading_before' => '1100', 'reading_after' => '0', 'reason' => 'Isolation check'],
+            'POST api/v1/fuel/dips' => ['tank_id' => $tenant->id('fuel_tank'), 'dip_cm' => '49', 'taken_at' => now()->subMinutes(10)->toIso8601String()],
+            'POST api/v1/fuel/deliveries' => [
+                'tank_id' => $tenant->id('fuel_tank'), 'supplier_id' => $tenant->id('party'), 'note_number' => 'ISO-DN', 'note_litres' => '1000', 'before_dip_cm' => '40', 'after_dip_cm' => '50',
+                'unit_cost_minor' => 15000, 'currency' => 'KES',
+            ],
+            'POST api/v1/fuel/vehicles' => ['company_id' => $tenant->id('company'), 'party_id' => $tenant->id('customer'), 'registration' => 'ISOVEH1'],
+            'POST api/v1/fuel/vouchers' => ['company_id' => $tenant->id('company'), 'party_id' => $tenant->id('customer'), 'value_minor' => 100000, 'currency' => 'KES'],
+            'POST api/v1/fuel/device/shifts' => ['shifts' => [[
+                'id' => (string) Str::uuid7(),
+                'opening' => [
+                    'opened_by_id' => $tenant->id('user'), 'opened_at' => now()->subMinutes(30)->toIso8601String(),
+                    'nozzles' => [['nozzle_id' => $tenant->id('fuel_nozzle'), 'attendant_id' => $tenant->id('user'), 'reading' => '1100.000']],
+                    'dips' => [['id' => (string) Str::uuid7(), 'tank_id' => $tenant->id('fuel_tank'), 'dip_cm' => '50', 'taken_at' => now()->subMinutes(20)->toIso8601String()]],
+                ],
+                'closing' => [
+                    'closed_by_id' => $tenant->id('user'), 'closed_at' => now()->subMinutes(5)->toIso8601String(),
+                    'nozzles' => [['nozzle_id' => $tenant->id('fuel_nozzle'), 'reading' => '1150.000']],
+                    'tenders' => [['attendant_id' => $tenant->id('user'), 'tenders' => [['kind' => 'cash', 'amount_minor' => '0']]]],
+                ],
+            ]]],
+            'POST api/v1/fuel/device/meter-resets' => ['resets' => [[
+                'id' => (string) Str::uuid7(), 'nozzle_id' => $tenant->id('fuel_nozzle_other'), 'reading_before' => '500', 'reading_after' => '0', 'reason' => 'Isolation check',
+                'requested_by_id' => $tenant->id('user'), 'requested_at' => now()->toIso8601String(),
+            ]]],
             // HR (docs/modules/hr.md): bodies naming A's own employees, places, dimensions, types, shifts and templates.
             'POST api/v1/hr/employees' => [
                 'company_id' => $tenant->id('company'), 'first_name' => 'Hijack', 'last_name' => 'Check', 'hire_date' => '2026-02-01', 'branch_id' => $tenant->id('branch'),

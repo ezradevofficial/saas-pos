@@ -24,7 +24,7 @@ class PaymentMethod extends Model implements HasScope
 {
     use Archivable, Audited, BelongsToTenant, HasUuids;
 
-    public const TYPES = ['cash', 'mobile_money', 'card', 'credit', 'voucher', 'points', 'bank_transfer', 'room_charge', 'salon_credit'];
+    public const TYPES = ['cash', 'mobile_money', 'card', 'credit', 'voucher', 'points', 'bank_transfer', 'room_charge', 'salon_credit', 'fuel_voucher'];
 
     /** Any of these at, above or beneath the company lets a user read its payment methods. */
     public const PERMISSIONS = ['core.payment_method.view', 'core.payment_method.create', 'core.payment_method.edit', 'core.payment_method.archive', 'core.payment_method.configure'];

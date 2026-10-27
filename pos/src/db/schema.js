@@ -63,14 +63,19 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * `vs_records`: what the rep's device makes (runs, visits, collections, counts), one row
  * each, with `state` pending until the server stored it (or rejected, parked with its code).
  *
- * v15 (Salon module, SAL-29): the synced `salon_settings`, `salon_staff` (staff and resources, with
+ * v15 (Fuel station module, FUEL-22): the synced `fuel_station`, `fuel_nozzles`,
+ * `fuel_prices`, `fuel_tanks` (with their strapping charts), `fuel_vehicles` and
+ * `fuel_vouchers`, server-wins and read-only, and local `fuel_shifts`: the
+ * forecourt shifts kept on this till (open or closed; uploads go through the
+ * outbox).
+ * v16 (Salon module, SAL-29): the synced `salon_settings`, `salon_staff` (staff and resources, with
  * their duty spans), `salon_services`, `salon_schedule` (a week of appointments), `salon_queue` and
  * `salon_packages`, and local `salon_records`: what the till makes (appointments, day steps, queue
  * changes), one row each, pending until the server stored it (or rejected, parked with its code).
  *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -184,6 +189,14 @@ export const schema = appSchema({
     tableSchema({ name: 'pharmacy_lots', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
     // v13: the Hotel module's in-house guests (HOT-35), a snapshot.
     tableSchema({ name: 'hotel_in_house', columns: [{ name: 'room_number', type: 'string', isIndexed: true }, data, seenAt] }),
+    // v14: the Fuel station module's synced entities (FUEL-22): the station, nozzles with their last
+    // readings, prices (current and scheduled), tanks with strapping charts, fleet vehicles and vouchers.
+    tableSchema({ name: 'fuel_station', columns: [data, seenAt] }),
+    tableSchema({ name: 'fuel_nozzles', columns: [data, seenAt] }),
+    tableSchema({ name: 'fuel_prices', columns: [data, seenAt] }),
+    tableSchema({ name: 'fuel_tanks', columns: [data, seenAt] }),
+    tableSchema({ name: 'fuel_vehicles', columns: [{ name: 'registration', type: 'string', isIndexed: true }, { name: 'party_id', type: 'string', isOptional: true, isIndexed: true }, data, seenAt] }),
+    tableSchema({ name: 'fuel_vouchers', columns: [{ name: 'code', type: 'string', isIndexed: true }, data, seenAt] }),
     // v7: stock on hand at this till's location (Inventory, INV-17), read-only.
     tableSchema({ name: 'inventory_stock', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
     // v9: the HR module's clock-in staff (HR-23), a snapshot.
@@ -215,7 +228,7 @@ export const schema = appSchema({
         data,
       ],
     }),
-    // v15: the Salon module's synced entities and what the till makes (SAL-29).
+    // v16: the Salon module's synced entities and what the till makes (SAL-29).
     tableSchema({ name: 'salon_settings', columns: [data, seenAt] }),
     tableSchema({ name: 'salon_staff', columns: [data, seenAt] }),
     tableSchema({ name: 'salon_services', columns: [data, seenAt] }),
@@ -285,6 +298,9 @@ export const schema = appSchema({
         data,
       ],
     }),
+
+    // v14: forecourt shifts kept on this till (FUEL-09, FUEL-10, FUEL-22), local only (uploads go through the outbox).
+    tableSchema({ name: 'fuel_shifts', columns: [{ name: 'status', type: 'string', isIndexed: true }, { name: 'opened_at', type: 'number' }, data] }),
 
     // v9: clock-ins and clock-outs made on this till (HR-22, HR-23), local only (uploads go through the outbox).
     tableSchema({

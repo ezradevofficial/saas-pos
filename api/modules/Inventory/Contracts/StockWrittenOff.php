@@ -20,7 +20,8 @@ use Illuminate\Foundation\Events\Dispatchable;
  * - `lines`: `[{line_id, item_id, qty, batch_number?}]`, `qty` a positive
  *   decimal string in the item's base unit;
  * - `source`: the sender's document type in the stock ledger (Pharmacy's
- *   `pharmacy.write_off` by default; Van sales sends `van_sales.write_off`).
+ *   `pharmacy.write_off` by default; Van sales sends `van_sales.write_off`, Fuel station
+ *   `fuel.tank_loss`, FUEL-30).
  */
 class StockWrittenOff implements ShouldDispatchAfterCommit
 {

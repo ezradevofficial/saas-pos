@@ -29,6 +29,7 @@ use Modules\Ecommerce\Events\OrderFulfilled;
 use Modules\Ecommerce\Events\OrderLinesReturned;
 use Modules\Ecommerce\Events\OrderReturned;
 use Modules\Inventory\Contracts\GoodsReceived;
+use Modules\Inventory\Contracts\StockGained;
 use Modules\Inventory\Contracts\StockWrittenOff;
 use Modules\Inventory\Dashboards\LowStock;
 use Modules\Inventory\Dashboards\StockValue;
@@ -47,6 +48,7 @@ use Modules\Inventory\Listeners\MoveStockForSale;
 use Modules\Inventory\Listeners\MoveStockForStores;
 use Modules\Inventory\Listeners\NotifyLowStock;
 use Modules\Inventory\Listeners\RecordGoodsReceived;
+use Modules\Inventory\Listeners\RecordStockGained;
 use Modules\Inventory\Listeners\RecordStockWrittenOff;
 use Modules\Inventory\Listeners\SettleInventoryDocument;
 use Modules\Inventory\Models\Movement;
@@ -157,6 +159,8 @@ class InventoryServiceProvider extends ServiceProvider
         Event::listen(GoodsReceived::class, [RecordGoodsReceived::class, 'handle']);
         // INV-26: stock another module wrote off on its own approval (Pharmacy, PHA-12) leaves at cost.
         Event::listen(StockWrittenOff::class, [RecordStockWrittenOff::class, 'handle']);
+        // INV-28: stock another module found in excess on its own approval (Fuel station, FUEL-30) comes in at an estimated cost.
+        Event::listen(StockGained::class, [RecordStockGained::class, 'handle']);
         // INV-25: landed costs allocated after a receipt adjust its cost (owner decision 2026-10-14).
         Event::listen(LandedCostAllocated::class, [ApplyLandedCost::class, 'handle']);
 

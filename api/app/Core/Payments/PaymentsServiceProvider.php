@@ -3,6 +3,7 @@
 namespace App\Core\Payments;
 
 use App\Core\Payments\Console\ProcessPaymentTimersCommand;
+use App\Core\Payments\Tenders\SaleExtensionGrants;
 use App\Core\Payments\Tenders\TenderProviders;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -23,6 +24,8 @@ class PaymentsServiceProvider extends ServiceProvider
         $this->app->singleton(PaymentProviderRegistry::class);
         // MD-04: tenders whose value a module keeps (points, gift cards, store credit).
         $this->app->singleton(TenderProviders::class);
+        // FUEL-18: modules that ring their own sales may stand in for `pos.sale.create` on the lines they answer for.
+        $this->app->singleton(SaleExtensionGrants::class);
     }
 
     public function boot(): void

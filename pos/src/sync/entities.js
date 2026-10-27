@@ -146,6 +146,19 @@ registerEntity('van_sales_accounts', { table: 'van_sales_accounts' });
 registerEntity('van_sales_loads', { table: 'van_sales_loads' });
 registerEntity('van_sales_runs', { table: 'van_sales_runs' });
 
+// The Fuel station module's entities (FUEL-22, served only while the tenant has it, RBAC-08, and only at a
+// location that is a station, FUEL-02): the station, its nozzles with their last readings, prices (current and
+// scheduled), tanks with their strapping charts, the company's fleet vehicles and active vouchers. Server wins,
+// read-only; the registration and the voucher code are kept in their normalised form (upper case, letters and
+// digits only) so the till finds them the way the server does.
+const normalised = (text) => String(text ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+registerEntity('fuel_station', { table: 'fuel_station' });
+registerEntity('fuel_nozzles', { table: 'fuel_nozzles' });
+registerEntity('fuel_prices', { table: 'fuel_prices' });
+registerEntity('fuel_tanks', { table: 'fuel_tanks' });
+registerEntity('fuel_vehicles', { table: 'fuel_vehicles', columns: (row) => ({ registration: normalised(row.registration), party_id: row.party_id ?? null }) });
+registerEntity('fuel_vouchers', { table: 'fuel_vouchers', columns: (row) => ({ code: normalised(row.code) }) });
+
 // The Salon module's entities (SAL-29, served only while the tenant has it, RBAC-08): the company's rules, staff and
 // resources with their duty spans, the service menu, a week of the branch's appointments, the walk-in queue and the
 // live packages of the clients on the schedule. Snapshots, server wins, read-only (the till's changes go up as records).

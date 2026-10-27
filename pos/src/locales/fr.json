@@ -527,12 +527,14 @@
       "input": {
         "points": "Points à utiliser",
         "code": "Code de la carte cadeau",
-        "room": "Numéro de chambre"
+        "room": "Numéro de chambre",
+        "fuel_voucher": "Code du bon de carburant"
       },
       "tenderLabel": {
         "points": "{{label}} pts",
         "voucher": "Carte {{label}}",
-        "room_charge": "Chambre {{label}}"
+        "room_charge": "Chambre {{label}}",
+        "fuel_voucher": "Bon {{label}}"
       },
       "errors": {
         "failed": "Ce paiement n’a pas pu être ajouté. Vérifiez-le et réessayez.",
@@ -559,7 +561,14 @@
         "not_in_house": "Aucun client n’est enregistré dans cette chambre. Vérifiez le numéro ou choisissez un autre moyen de paiement.",
         "folio_settled": "Le compte de ce client n’accepte plus de charges. Choisissez un autre moyen de paiement.",
         "currency_mismatch": "Cette chambre est facturée en {{currency}}. Choisissez cette devise.",
-        "limit_exceeded": "Cela dépasserait la limite de charges de la chambre. Il reste {{amount}}."
+        "limit_exceeded": "Cela dépasserait la limite de charges de la chambre. Il reste {{amount}}.",
+        "fuel_voucher_code_required": "Saisissez ou scannez le code du bon.",
+        "fuel_voucher_inactive": "Les bons de carburant ne sont pas disponibles sur cette caisse. Choisissez un autre mode de paiement.",
+        "fuel_voucher_not_permitted": "Vous n’avez pas le droit d’encaisser des bons de carburant. Demandez à un chef de poste.",
+        "fuel_voucher_unknown": "Ce bon est inconnu ici. Vérifiez le code ou choisissez un autre mode de paiement.",
+        "fuel_voucher_expired": "Ce bon a expiré. Choisissez un autre mode de paiement.",
+        "fuel_voucher_currency": "Ce bon est en {{currency}}. Choisissez cette devise.",
+        "fuel_voucher_empty": "Il ne reste rien sur ce bon. Choisissez un autre mode de paiement."
       }
     },
     "pharmacy": {
@@ -1147,6 +1156,182 @@
         "unavailable": "L’entretien des chambres n’est pas disponible. Demandez à votre responsable.",
         "failed": "L’action n’a pas abouti. Actualisez et réessayez."
       }
+    }
+  },
+  "fuel": {
+    "common": {
+      "back": "Retour",
+      "done": "Retour à la piste"
+    },
+    "menu": {
+      "forecourt": "Piste",
+      "shop": "Vente boutique"
+    },
+    "notStation": {
+      "title": "Cette caisse n’est pas dans une station-service",
+      "body": "Le serveur n’a aucune station configurée pour cet emplacement. Demandez à un responsable de la configurer, puis synchronisez la caisse. Les articles de la boutique restent vendables."
+    },
+    "home": {
+      "title": "Piste",
+      "noShift": "Aucun poste n’est ouvert. Ouvrez un poste pour vendre du carburant.",
+      "shiftOpen": "Poste ouvert depuis {{time}} par {{name}}",
+      "open": "Ouvrir le poste",
+      "close": "Clôturer le poste",
+      "sell": "Vendre du carburant",
+      "dip": "Enregistrer un jaugeage",
+      "reset": "Demander une remise à zéro de compteur",
+      "shop": "Vendre des articles de la boutique"
+    },
+    "problems": {
+      "shift": "Le serveur a gardé un poste pour vérification",
+      "reset": "Le serveur a refusé une demande de remise à zéro de compteur"
+    },
+    "shift": {
+      "myNozzles": "Vos pistolets",
+      "allNozzles": "Pistolets de ce poste",
+      "openedAt": "Index d’ouverture {{reading}}",
+      "total": "Vendu sur cette caisse"
+    },
+    "tender": {
+      "cash": "Espèces comptées",
+      "mobile_money": "Paiement mobile",
+      "card": "Carte",
+      "credit": "Crédit et comptes flotte",
+      "voucher": "Bons de carburant"
+    },
+    "open": {
+      "confirmTitleAll": "Confirmer les pompistes",
+      "confirmHelpAll": "Chaque pompiste d’un pistolet confirme avec son propre code PIN avant l’ouverture du poste.",
+      "confirmButton": "Confirmer {{name}}",
+      "confirmTitle": "{{name}}, confirmez avec votre PIN",
+      "confirmHelp": "Saisissez votre PIN pour confirmer que vous travaillez à ces pistolets. Cela fonctionne sans connexion.",
+      "confirmPin": "PIN",
+      "confirmSubmit": "Confirmer {{name}}",
+      "confirmIncorrect": "Ce PIN est incorrect. Il reste {{count}} essais.",
+      "confirmErrors": {"locked": "Ce PIN est verrouillé. Demandez à un responsable de le déverrouiller.", "not_set": "Aucun PIN n’est défini pour cette personne. Demandez à un responsable d’en définir un.", "online_required": "Ce PIN ne peut être vérifié qu’en ligne. Connectez la caisse et réessayez.", "failed": "Le PIN n’a pas pu être vérifié. Réessayez."},
+      "title": "Ouvrir le poste",
+      "intro": "Choisissez les pistolets utilisés, saisissez l’index d’ouverture de chacun et choisissez qui le tient.",
+      "inUse": "Utilisé",
+      "notUsed": "Non utilisé",
+      "reading": "Index d’ouverture du compteur",
+      "lastReading": "Dernier index : {{reading}}",
+      "noLastReading": "Aucun index antérieur n’est connu pour ce pistolet.",
+      "attendant": "Pompiste",
+      "chooseAttendant": "Choisir le pompiste",
+      "dipsTitle": "Jaugeages d’ouverture (facultatif)",
+      "dipsHelp": "Jaugez chaque cuve en cm si vous l’avez mesurée. Les litres viennent du barème de la cuve.",
+      "submit": "Ouvrir le poste"
+    },
+    "close": {
+      "title": "Clôturer le poste",
+      "intro": "Saisissez l’index de fermeture de chaque pistolet, puis ce que remet chaque pompiste.",
+      "readings": "Index de fermeture",
+      "reading": "Index de fermeture du compteur",
+      "openingWas": "Index d’ouverture : {{reading}}",
+      "tests": "Litres d’essai de pompe",
+      "testsHelp": "Litres reversés dans la cuve. Laissez vide s’il n’y en a pas eu.",
+      "metered": "Litres au compteur",
+      "handedIn": "Remis par chaque pompiste",
+      "handedInHelp": "Les espèces comptées sont obligatoires, zéro est permis. Les autres modes partent de ce que cette caisse a enregistré.",
+      "recordedHelp": "D’après les ventes de cette caisse",
+      "expected": "Attendu",
+      "collected": "Encaissé",
+      "variance": "Écart",
+      "serverDecides": "Cet écart est un aperçu calculé sur les ventes de cette caisse. Le serveur recompte et décide.",
+      "dipsTitle": "Jaugeages de fermeture (facultatif)",
+      "dipsHelp": "Jaugez chaque cuve en cm si vous l’avez mesurée.",
+      "dipsTaken": "{{count}} jaugeages faits pendant le poste seront envoyés avec la clôture.",
+      "note": "Note pour le responsable (facultatif)",
+      "amountInvalid": "Le montant {{kind}} de {{name}} n’est pas valide. Saisissez-le de nouveau.",
+      "submit": "Clôturer le poste",
+      "doneTitle": "Poste clôturé",
+      "done": "Retour à la piste"
+    },
+    "sale": {
+      "title": "Vendre du carburant",
+      "pick": "Choisissez un pistolet pour commencer.",
+      "perLitre": "{{price}} le litre",
+      "noPrice": "Pas de prix",
+      "mine": "Votre pistolet",
+      "by": {
+        "litres": "En litres",
+        "amount": "En montant"
+      },
+      "litres": "Litres",
+      "amount": "Montant",
+      "invalid": "Saisissez un nombre valide.",
+      "roundedHelp": "Les litres sont arrondis à la baisse à 3 décimales : le montant encaissé peut être un peu inférieur au montant saisi.",
+      "fleet": "Vente flotte",
+      "fleetChange": "Changer de véhicule",
+      "fleetRemove": "Retirer",
+      "charge": "Encaisser {{total}}",
+      "chargeEmpty": "Encaisser",
+      "cartLocked": "Un paiement mobile attend sur la vente en cours. Terminez d’abord cette vente."
+    },
+    "fleet": {
+      "customerTitle": "Choisir le client",
+      "vehicleTitle": "Véhicule de {{name}}",
+      "searchCustomer": "Rechercher par nom ou téléphone",
+      "searchVehicle": "Rechercher par immatriculation",
+      "noCustomers": "Aucun client trouvé. Vérifiez l’orthographe.",
+      "noVehicles": "Aucun véhicule trouvé pour ce client. Vérifiez l’immatriculation ou demandez à un responsable de l’ajouter.",
+      "otherCustomer": "Choisir un autre client",
+      "odometer": "Kilométrage (facultatif)",
+      "odometerHelp": "Kilomètres au compteur du véhicule.",
+      "blockedTitle": "Ce véhicule est bloqué",
+      "blocked": "Vous pouvez quand même vendre. La vente est envoyée au responsable pour vérification.",
+      "use": "Utiliser ce véhicule"
+    },
+    "dip": {
+      "title": "Jaugeage de cuve",
+      "intro": "Mesurez la cuve et saisissez la jauge en cm. Les litres viennent du barème de la cuve. Le jaugeage est envoyé à la clôture du poste.",
+      "needShift": "Ouvrez d’abord un poste. Les jaugeages sont envoyés avec le poste.",
+      "tank": "Cuve",
+      "capacity": "Capacité {{capacity}}",
+      "cm": "Jauge",
+      "water": "Eau (facultatif)",
+      "submit": "Enregistrer le jaugeage",
+      "saved": "Jaugeage de la cuve {{tank}} enregistré : {{litres}}."
+    },
+    "reset": {
+      "title": "Demande de remise à zéro de compteur",
+      "intro": "À utiliser quand un compteur a été remplacé ou a fait un tour complet. Un responsable approuve la demande au back-office. Rien ne change d’ici là.",
+      "supervisorOnly": "Seul un chef de poste peut demander une remise à zéro de compteur. Demandez à un chef de poste.",
+      "nozzle": "Pistolet",
+      "before": "Index avant la remise à zéro",
+      "after": "Index après la remise à zéro",
+      "afterHelp": "L’index du nouveau compteur, souvent 0.",
+      "reason": "Motif",
+      "submit": "Demander la remise à zéro",
+      "sentTitle": "Demande envoyée",
+      "sent": "Un responsable approuve la remise à zéro au back-office. Elle part dès que la caisse est en ligne."
+    },
+    "errors": {
+      "failed": "Une erreur s’est produite. Vérifiez votre saisie et réessayez.",
+      "not_permitted": "Vous n’avez pas le droit de faire cela. Demandez à un chef de poste.",
+      "shift_open": "Un poste est déjà ouvert sur cette caisse. Clôturez-le avant d’en ouvrir un autre.",
+      "nozzles_required": "Aucun pistolet n’est choisi. Choisissez au moins un pistolet.",
+      "attendant_required": "Un pistolet n’a pas de pompiste. Choisissez qui tient chaque pistolet.",
+      "reading_invalid": "Saisissez l’index du compteur en litres, avec 3 décimales au plus.",
+      "tests_invalid": "Saisissez les litres d’essai de pompe avec 3 décimales au plus, ou laissez vide.",
+      "meter_decreased": "Cet index est inférieur au dernier ({{last}} L). Vérifiez l’index, ou demandez une remise à zéro de compteur à un chef de poste.",
+      "nozzle_duplicate": "Le même pistolet figure deux fois. Indiquez chaque pistolet une seule fois.",
+      "close_incomplete": "Le poste ne peut pas encore être clôturé. Manquant : {{missing}}. Saisissez-le puis clôturez de nouveau.",
+      "test_exceeds_litres": "Les essais de pompe dépassent les litres débités au compteur. Vérifiez l’index de fermeture et les essais.",
+      "no_shift": "Aucun poste carburant n’est ouvert. Ouvrez un poste avant de vendre du carburant.",
+      "dip_invalid": "Saisissez la jauge en cm, avec 2 décimales au plus.",
+      "dip_out_of_range": "Cette jauge est hors du barème d’étalonnage de la cuve. Vérifiez la mesure et jaugez de nouveau.",
+      "chart_missing": "Cette cuve n’a pas encore de barème d’étalonnage. Demandez à un responsable d’en ajouter un.",
+      "price_missing": "Ce carburant n’a pas de prix dans cette station. Demandez à un responsable de fixer le prix.",
+      "item_unknown": "L’article carburant de ce pistolet n’est pas sur la caisse. Synchronisez la caisse et réessayez.",
+      "currency_mismatch": "Le prix du carburant est en {{currency}}, pas dans la devise de la vente. Demandez à un responsable de vérifier le prix.",
+      "nozzle_not_on_shift": "Ce pistolet n’est pas sur le poste ouvert. Choisissez un pistolet du poste.",
+      "litres_invalid": "Saisissez les litres avec 3 décimales au plus.",
+      "litres_zero": "C’est trop peu pour débiter du carburant. Saisissez un nombre plus grand.",
+      "amount_invalid": "Saisissez un montant supérieur à zéro.",
+      "nozzle_required": "Choisissez d’abord le pistolet.",
+      "reset_not_lower": "L’index après une remise à zéro ne peut pas dépasser l’index avant. Vérifiez les deux index.",
+      "reason_required": "Saisissez le motif de la remise à zéro."
     }
   },
   "vansales": {

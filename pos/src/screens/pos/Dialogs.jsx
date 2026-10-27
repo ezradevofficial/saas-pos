@@ -287,15 +287,19 @@ export function MenuDialog({ onClose, onNavigate, compact }) {
   const { t } = useTranslation();
   const { scheduler } = useServices();
   const { switchUser } = useSession();
-  const { held, shift } = usePosData();
+  const { held, shift, catalogue } = usePosData();
   const go = (route) => {
     onClose();
     onNavigate(route);
   };
   const floor = useRestaurant();
+  const fuelOn = Boolean(catalogue?.ext?.fuel);
   const route = useVanSales();
   const salon = useSalon();
   const items = [
+    // FUEL-31: the forecourt is home on a fuel station till; the sell screen stays reachable for shop items.
+    shift && fuelOn && ['fuel', t('fuel.menu.forecourt')],
+    shift && fuelOn && ['sell', t('fuel.menu.shop')],
     // REST-02: the floor is home on restaurant and bar tills; the retail sell screen stays reachable as a quick sale.
     shift && floor.enabled && ['tables', t('restaurant.menu.tables')],
     shift && floor.enabled && ['sell', t('restaurant.menu.quickSale')],
