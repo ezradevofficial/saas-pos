@@ -47,6 +47,8 @@ return [
             'ecommerce.*.view', 'ecommerce.store.manage', 'ecommerce.rider.manage',
             // Restaurant (docs/modules/restaurant.md): reads it all, sets up the floor, stations, modifiers and service charge.
             'restaurant.*.view', 'restaurant.floor.manage', 'restaurant.station.manage', 'restaurant.modifier.manage', 'restaurant.settings.edit',
+            // Van sales (docs/modules/van-sales.md): reads it all, sets up vans, routes and the company's GPS and credit settings.
+            'van_sales.*.view', 'van_sales.van.manage', 'van_sales.route.manage', 'van_sales.settings.edit',
             // PHA-02, PHA-03: sets a company's pharmacy rules and items' pharmacy profiles, and reads the module's records except prescriptions (personal data).
             'pharmacy.settings.edit', 'pharmacy.item.configure', 'pharmacy.*.view',
             // CP-01: exempting the company from a pack component (payroll.statutory.exempt).
@@ -107,11 +109,13 @@ return [
             'ecommerce.*',
             // Restaurant (docs/modules/restaurant.md): the branch's floor, orders, tickets and reports; the service charge is the company's (Admin).
             'restaurant.*',
+            // Van sales (docs/modules/van-sales.md): vans, routes, load-out, credit review and reconciliation at their branch (the default approver after the Route supervisor); the settings are the Admin's.
+            'van_sales.*',
             // Pharmacy (docs/modules/pharmacy.md): lots, write-offs (the default approver), recalls, prescriptions, the register
             // and reports at their branch; authorising a restricted dispense is a pharmacist's, and the settings the Admin's.
             'pharmacy.*',
         ],
-        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'restaurant.settings.edit', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure'],
+        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'restaurant.settings.edit', 'van_sales.settings.edit', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure'],
         // RBAC-06 (owner decision A, 2026-10-16; defaults the owner may change): a Branch Manager discounts quotes
         // up to 10 % without approval (CRM-20), so their own discounted quotes do not all escalate, and refunds up
         // to 10,000 in the company's base currency (POS-05, E-commerce refunds), so a manager can refund at all.
@@ -209,6 +213,40 @@ return [
             'restaurant.order.view', 'restaurant.order.create', 'restaurant.order.edit', 'restaurant.order.send',
             'restaurant.order.transfer', 'restaurant.order.close',
             'restaurant.ticket.view', 'restaurant.ticket.update', 'restaurant.ticket.serve',
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // VAN-26 (docs/modules/van-sales.md): the rep of a van works the day from the van's device: confirms the load,
+        // visits and sells (cash, M-Pesa, credit, returns through POS), collects balances and counts the van. Reaches
+        // only the van's location; no prices, discounts or voids beyond their limits.
+        'key' => 'van_rep',
+        'permissions' => [
+            'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create',
+            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view', 'core.payment_method.view',
+            'pos.sale.view', 'pos.sale.print', 'pos.sale.create', 'pos.sale.refund', 'pos.till.sign_in', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
+            'van_sales.van.view', 'van_sales.route.view', 'van_sales.load.view', 'van_sales.load.confirm',
+            'van_sales.run.view', 'van_sales.run.start', 'van_sales.visit.record',
+            'van_sales.collection.view', 'van_sales.collection.record',
+            'van_sales.reconciliation.view', 'van_sales.reconciliation.submit',
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // VAN-26, VAN-21: sets up the branch's vans and routes, requests and releases loads, reviews flagged credit
+        // and decides reconciliations (never their own count, APR-07), receives unloads and reads the reports.
+        'key' => 'route_supervisor',
+        'permissions' => [
+            'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create', 'core.user.view',
+            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view', 'core.payment_method.view',
+            'pos.sale.view', 'pos.shift.view',
+            'van_sales.van.view', 'van_sales.van.manage', 'van_sales.route.view', 'van_sales.route.manage',
+            'van_sales.load.view', 'van_sales.load.create', 'van_sales.load.release',
+            'van_sales.run.view', 'van_sales.visit.track', 'van_sales.collection.view', 'van_sales.collection.void',
+            'van_sales.credit.view', 'van_sales.credit.review',
+            'van_sales.reconciliation.view', 'van_sales.reconciliation.approve', 'van_sales.unload.receive', 'van_sales.report.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

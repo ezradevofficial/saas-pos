@@ -87,9 +87,11 @@ return [
         [
             'key' => 'van_sales',
             'pos_mode' => 'van_sales',
-            'role_templates' => ['admin', 'branch_manager', 'cashier', 'storekeeper'],
+            // VAN-26: the van sales module (vans, routes, load-out, collections, end-of-day reconciliation) and its roles.
+            'role_templates' => ['admin', 'branch_manager', 'route_supervisor', 'van_rep', 'storekeeper'],
+            // WF-01: customers' credit limits change through a flow (the reconciliation flow is adopted when the first count needs it).
             'flows' => ['core.credit_limit_change'],
-            'modules' => ['pos', 'inventory', 'crm'],
+            'modules' => ['pos', 'inventory', 'crm', 'van_sales'],
             'quantities' => ['outlet' => 1, 'device' => 3, 'employee' => 8],
         ],
         [
@@ -119,7 +121,7 @@ return [
     ],
 
     'module_groups' => [
-        'sell' => ['pos', 'inventory', 'pharmacy', 'restaurant', 'loyalty', 'ecommerce'],
+        'sell' => ['pos', 'inventory', 'pharmacy', 'restaurant', 'van_sales', 'loyalty', 'ecommerce'],
         'operate' => ['stores', 'procurement', 'manufacturing', 'fixed_assets'],
         'finance_people' => ['accounting_essentials', 'accounting_pro', 'crm', 'hr', 'payroll'],
     ],

@@ -31,6 +31,7 @@ return [
             'manufacturing' => 'Production',
             'restaurant' => 'Restaurant et bar',
             'pharmacy' => 'Pharmacie et agrovet',
+            'van_sales' => 'Vente ambulante',
         ],
         'resources' => [
             'accounting' => [
@@ -98,6 +99,19 @@ return [
                 'dispense' => 'Délivrance encadrée',
                 'register' => 'Registre des stupéfiants',
                 'report' => 'Rapports de la pharmacie',
+            ],
+            'van_sales' => [
+                'van' => 'Camionnettes',
+                'route' => 'Tournées et arrêts',
+                'load' => 'Feuilles de chargement',
+                'run' => 'Journées de tournée',
+                'visit' => 'Visites aux arrêts',
+                'collection' => 'Encaissements',
+                'credit' => 'Crédit de tournée',
+                'reconciliation' => 'Rapprochement de fin de journée',
+                'unload' => 'Déchargement',
+                'settings' => 'Paramètres de la vente ambulante',
+                'report' => 'Rapports de la vente ambulante',
             ],
             'manufacturing' => [
                 'bom' => 'Nomenclatures',
@@ -309,6 +323,8 @@ return [
         'waiter' => 'Serveur',
         'kitchen' => 'Personnel de cuisine',
         'bartender' => 'Barman',
+        'van_rep' => 'Vendeur ambulant',
+        'route_supervisor' => 'Superviseur de tournée',
         'storekeeper' => 'Magasinier',
         'pharmacist' => 'Pharmacien',
         'pharmacy_technician' => 'Technicien en pharmacie',
