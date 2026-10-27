@@ -43,7 +43,11 @@ class DeviceController
 
         $person = User::query()->find($request->validated('user_id'));
 
-        if ($person === null || ! $person->isActive() || ! $resolver->can($person, 'restaurant.ticket.update', Scope::location($place->location->id))) {
+        if ($person === null) {
+            throw Errors::make(422, 'user_unknown', field: 'user_id');
+        }
+
+        if (! $person->isActive() || ! $resolver->can($person, 'restaurant.ticket.update', Scope::location($place->location->id))) {
             throw Errors::make(403, 'ticket_not_permitted');
         }
 

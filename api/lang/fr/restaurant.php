@@ -5,6 +5,8 @@
 return [
     'cancelled_by_till' => 'Annulée à la caisse.',
     'errors' => [
+        'user_unknown' => 'Choisissez une personne existante.',
+        'tax_code_unknown' => 'Choisissez un code de taxe existant.',
         'name_taken' => 'Ce nom est déjà utilisé à cet emplacement. Choisissez un autre nom.',
         'location_unknown' => 'Choisissez un emplacement existant.',
         'location_archived' => 'Cet emplacement est archivé. Choisissez un emplacement actif.',

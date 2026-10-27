@@ -94,6 +94,8 @@ class OrderUploads
             throw new Rejection('id_conflict', 'id');
         }
 
+        // Ids the order names must exist in the tenant: an unknown one is a bad record, never half stored.
+        $this->references($data);
         $created = $order === null;
         $changed = $created;
 
@@ -163,6 +165,26 @@ class OrderUploads
             'lines' => $results,
             'order' => $this->view->record($fresh),
         ];
+    }
+
+    private function references(array $data): void
+    {
+        $lines = collect($data['lines'] ?? []);
+        $items = $lines->pluck('item_id')->unique()->values()->all();
+
+        if ($items !== [] && Item::query()->whereKey($items)->count() !== count($items)) {
+            throw new Rejection('item_unknown', 'lines');
+        }
+
+        $codes = $lines->pluck('tax_code_id')->filter()->unique()->values()->all();
+
+        if ($codes !== [] && TaxCode::query()->whereKey($codes)->count() !== count($codes)) {
+            throw new Rejection('tax_code_unknown', 'lines');
+        }
+
+        if (! empty($data['merged_into_id']) && ! Order::query()->whereKey($data['merged_into_id'])->exists()) {
+            throw new Rejection('order_unknown', 'merged_into_id');
+        }
     }
 
     private function create(DevicePlace $place, array $data): Order

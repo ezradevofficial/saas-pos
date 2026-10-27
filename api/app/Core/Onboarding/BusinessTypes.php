@@ -11,7 +11,7 @@ class BusinessTypes
     /** @var array{business_types: list<array<string, mixed>>, module_groups: array<string, list<string>>}|null */
     private ?array $presets = null;
 
-    /** @return list<array{key: string, pos_mode: ?string, role_templates: list<string>, flows: list<string>, modules: list<string>, quantities: array<string, int>}> */
+    /** @return list<array{key: string, pos_mode: ?string, role_templates: list<string>, flows: list<string>, modules: list<string>, quantities: array<string, int>, features: list<string>}> */
     public function all(): array
     {
         return $this->presets()['business_types'];
@@ -51,8 +51,20 @@ class BusinessTypes
         ], $this->all());
     }
 
+    /** @return list<string> every module some business type switches on with it (`features`) */
+    public function featureModules(): array
+    {
+        return array_values(array_unique(array_merge(...array_map(fn (array $type) => $type['features'], $this->all()))));
+    }
+
     private function presets(): array
     {
-        return $this->presets ??= require __DIR__.'/presets.php';
+        if ($this->presets === null) {
+            $presets = require __DIR__.'/presets.php';
+            $presets['business_types'] = array_map(fn (array $type) => $type + ['features' => []], $presets['business_types']);
+            $this->presets = $presets;
+        }
+
+        return $this->presets;
     }
 }

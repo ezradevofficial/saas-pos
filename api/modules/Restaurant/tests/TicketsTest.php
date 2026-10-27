@@ -112,7 +112,7 @@ class TicketsTest extends TestCase
 
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
         $this->postJson($url, ['status' => 'new', 'user_id' => $cashier->id], $this->tillHeaders())->assertForbidden()->assertJsonPath('code', 'ticket_not_permitted');
-        $this->postJson($url, ['status' => 'new', 'user_id' => $this->id()], $this->tillHeaders())->assertForbidden();
+        $this->postJson($url, ['status' => 'new', 'user_id' => $this->id()], $this->tillHeaders())->assertUnprocessable()->assertJsonPath('code', 'user_unknown');
         $this->postJson($url, ['status' => 'served'], $this->tillHeaders())->assertUnprocessable();
         $this->postJson($url, ['status' => 'served', 'user_id' => $this->waiter->id], $this->headersFor())->assertForbidden();
 

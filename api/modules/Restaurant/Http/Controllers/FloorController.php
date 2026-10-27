@@ -104,7 +104,7 @@ class FloorController
             throw Errors::make(422, 'area_unknown', field: 'area_id');
         }
 
-        $table = Errors::named(fn () => Table::create([...$request->validated(), 'company_id' => $place['company_id'], 'branch_id' => $place['branch_id']]));
+        $table = Errors::named(fn () => Table::create([...self::columns($request->validated()), 'company_id' => $place['company_id'], 'branch_id' => $place['branch_id']]));
 
         return response()->json(['data' => Presenters::table($table->refresh())], 201);
     }
@@ -119,7 +119,7 @@ class FloorController
             }
         }
 
-        Errors::named(fn () => $restTable->fill($request->validated())->save());
+        Errors::named(fn () => $restTable->fill(self::columns($request->validated()))->save());
 
         return response()->json(['data' => Presenters::table($restTable)]);
     }
@@ -141,5 +141,18 @@ class FloorController
         $restTable->archive();
 
         return response()->json(['data' => Presenters::table($restTable)]);
+    }
+
+    /** The plan's x, y, width and height are stored as `plan_*` columns. @param array<string, mixed> $data @return array<string, mixed> */
+    private static function columns(array $data): array
+    {
+        foreach (['x', 'y', 'width', 'height'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $data["plan_{$key}"] = $data[$key];
+                unset($data[$key]);
+            }
+        }
+
+        return $data;
     }
 }

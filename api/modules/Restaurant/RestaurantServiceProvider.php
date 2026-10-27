@@ -27,7 +27,8 @@ use Modules\Restaurant\Sync\Sources\TableSource;
  * (403 `module_inactive` otherwise), the `restaurant.*` permissions grant
  * nothing and system roles get them only once the module is active, its
  * sync sources are served only then and its listener does nothing without
- * it. It is sold with POS (catalogue key `pos`, owner to confirm) and works
+ * it. It is not sold on its own: it is switched on with the `restaurant` and
+ * `bar` business types (presets.php `features`, owner to confirm) and works
  * with only the core and POS: orders become normal POS sales, so
  * Manufacturing's recipes and Inventory's stock follow by themselves.
  */
@@ -56,8 +57,6 @@ class RestaurantServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
-        // REST-01: sold with POS, no separate price (owner to confirm).
-        $this->app->make(ModuleRegistry::class)->soldAs(self::MODULE, ['pos']);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
 
         // NFR-04: what the till pulls from the Restaurant module (core's sync API).

@@ -4,6 +4,7 @@ namespace Tests\Feature\Core\Onboarding;
 
 use App\Core\Billing\Catalogue\Models\CatalogueModule;
 use App\Core\Onboarding\BusinessTypes;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\RoleTemplates;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -37,7 +38,9 @@ class PresetsTest extends TestCase
 
         foreach ($types as $type) {
             $key = $type['key'];
-            $this->assertSame(['key', 'pos_mode', 'role_templates', 'flows', 'modules', 'quantities'], array_keys($type), $key);
+            $this->assertSame(['key', 'pos_mode', 'role_templates', 'flows', 'modules', 'quantities', 'features'], array_keys($type), $key);
+            $this->assertSame([], array_diff($type['features'], app(ModuleRegistry::class)->registered()), "{$key}: features are registered modules");
+            $this->assertSame([], array_intersect($type['features'], $modules), "{$key}: a feature is not also sold as a catalogue module");
             $this->assertTrue($type['pos_mode'] === null || in_array($type['pos_mode'], self::POS_MODES, true), "{$key}: pos_mode");
             $this->assertSame($type['pos_mode'] === null, ! in_array('pos', $type['modules'], true), "{$key}: a till mode exactly when POS is suggested");
             $this->assertSame([], array_diff($type['role_templates'], $templates), "{$key}: role templates");

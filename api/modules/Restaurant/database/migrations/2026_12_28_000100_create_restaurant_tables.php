@@ -71,10 +71,11 @@ return new class extends Migration
             $table->foreignUuid('area_id')->constrained('rest_areas')->restrictOnDelete();
             $table->string('name', 60);
             $table->smallInteger('seats')->default(2);
-            $table->smallInteger('x')->default(0);
-            $table->smallInteger('y')->default(0);
-            $table->smallInteger('width')->default(8);
-            $table->smallInteger('height')->default(8);
+            // The plan's grid cells (the API calls them x, y, width and height; `x` and `y` as column names would shadow a table alias in the tenant export).
+            $table->smallInteger('plan_x')->default(0);
+            $table->smallInteger('plan_y')->default(0);
+            $table->smallInteger('plan_width')->default(8);
+            $table->smallInteger('plan_height')->default(8);
             $table->string('shape', 10)->default('square');
             $table->string('manual_status', 10)->default('free');
             $table->integer('sort')->default(0);
@@ -86,7 +87,7 @@ return new class extends Migration
             $table->index('company_id');
             $table->index('branch_id');
         });
-        DB::statement("alter table rest_tables add constraint rest_tables_check check (shape in ('square', 'round', 'rect') and manual_status in ('free', 'reserved', 'cleaning', 'blocked') and seats between 1 and 99 and x between 0 and 99 and y between 0 and 99 and width between 1 and 99 and height between 1 and 99)");
+        DB::statement("alter table rest_tables add constraint rest_tables_check check (shape in ('square', 'round', 'rect') and manual_status in ('free', 'reserved', 'cleaning', 'blocked') and seats between 1 and 99 and plan_x between 0 and 99 and plan_y between 0 and 99 and plan_width between 1 and 99 and plan_height between 1 and 99)");
         DB::statement('create unique index rest_tables_name on rest_tables (tenant_id, location_id, lower(name)) where archived_at is null');
         Rls::enable('rest_tables');
 

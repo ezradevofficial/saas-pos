@@ -261,6 +261,19 @@ class OrderSyncTest extends TestCase
         $this->sync([$bad])->assertStatus(422)->assertJsonPath('code', 'upload_rejected');
     }
 
+    public function test_an_order_naming_an_unknown_item_tax_code_or_merge_target_is_refused_whole(): void
+    {
+        $unknownItem = $this->orderRecord([$this->orderLine(['item_id' => $this->id()])]);
+        $unknownCode = $this->orderRecord([$this->orderLine(['tax_code_id' => $this->id()])], ['table_id' => $this->t2->id]);
+        $unknownTarget = $this->orderRecord([$this->orderLine()], ['table_id' => $this->t3->id, 'merged_into_id' => $this->id()]);
+
+        $response = $this->sync([$unknownItem, $unknownCode, $unknownTarget])->assertStatus(422);
+
+        $this->assertSame(['item_unknown', 'tax_code_unknown', 'order_unknown'], array_column(array_column($response->json('results'), 'error'), 'code'));
+        $this->assertSame(0, Order::query()->count());
+        $this->assertSame(0, OrderLine::query()->count());
+    }
+
     public function test_another_locations_order_id_is_a_conflict(): void
     {
         $record = $this->orderRecord([$this->orderLine()]);

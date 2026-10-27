@@ -14,7 +14,10 @@
  *   version 1, WF-02) when the type is chosen; types not registered are
  *   skipped;
  * - `modules` and `quantities`: the module picker's suggestion (catalogue
- *   keys and units, ONB-03).
+ *   keys and units, ONB-03);
+ * - `features` (optional): modules that are part of the till's mode rather
+ *   than sold on their own (docs/modules/restaurant.md): they are switched
+ *   on when the type is chosen and off when another type replaces it.
  *
  * Names and short descriptions are the translation keys
  * `onboarding.business_types.{key}.name|description` (en, fr).
@@ -49,6 +52,7 @@ return [
             'flows' => [],
             'modules' => ['pos', 'inventory', 'manufacturing'],
             'quantities' => ['outlet' => 1, 'device' => 3, 'employee' => 12],
+            'features' => ['restaurant'],
         ],
         [
             'key' => 'bar',
@@ -57,6 +61,7 @@ return [
             'flows' => [],
             'modules' => ['pos', 'inventory'],
             'quantities' => ['outlet' => 1, 'device' => 2, 'employee' => 8],
+            'features' => ['restaurant'],
         ],
         [
             'key' => 'hotel',

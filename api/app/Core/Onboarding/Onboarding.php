@@ -12,6 +12,7 @@ use App\Core\Onboarding\Trial\TrialSelection;
 use App\Core\Onboarding\Trial\TrialStarter;
 use App\Core\Onboarding\Trial\TrialStatus;
 use App\Core\Onboarding\Trial\TrialStatusProvider;
+use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\RoleTemplates;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
@@ -48,6 +49,7 @@ class Onboarding
         private readonly DocumentTypeRegistry $documentTypes,
         private readonly FlowDefinitions $flows,
         private readonly Auditor $auditor,
+        private readonly ModuleRegistry $modules,
     ) {}
 
     /** The country the tenant signed up in (its first company's). */
@@ -82,6 +84,7 @@ class Onboarding
 
             $roles = $this->roleTemplates->ensure($tenant, $preset['role_templates']);
             $flows = $this->adoptFlows($preset['flows']);
+            $features = $this->applyFeatures($preset['features']);
 
             $quantities = $preset['quantities'];
             if ($outlets !== null && isset($quantities['outlet'])) {
@@ -92,7 +95,7 @@ class Onboarding
 
             $state->fill([
                 'business_type' => $preset['key'],
-                'applied' => ['pos_mode' => $preset['pos_mode'], 'role_templates' => $roles->keys()->values()->all(), 'flows' => $flows],
+                'applied' => ['pos_mode' => $preset['pos_mode'], 'role_templates' => $roles->keys()->values()->all(), 'flows' => $flows, 'features' => $features],
                 // Until the trial starts, the picker opens on the preset's suggestion.
                 'selection' => $state->trial_started_at === null
                     ? ['country' => $this->country(), 'modules' => $preset['modules'], 'quantities' => $quantities, 'cycle' => 'monthly', 'bundle' => null, 'business_type' => $preset['key']]
@@ -102,6 +105,34 @@ class Onboarding
 
             return $state;
         });
+    }
+
+    /**
+     * The modules that belong to a business type's till mode (restaurant and
+     * bar: the Restaurant module) follow the type: this type's are switched
+     * on, those of the other types off (their data is kept, SUB-07).
+     *
+     * @param  list<string>  $wanted
+     * @return list<string> the modules now on for this type
+     */
+    private function applyFeatures(array $wanted): array
+    {
+        $on = [];
+
+        foreach ($this->types->featureModules() as $module) {
+            if (! in_array($module, $this->modules->registered(), true)) {
+                continue;
+            }
+
+            if (in_array($module, $wanted, true)) {
+                $this->modules->isActive($module) || $this->modules->activate($module);
+                $on[] = $module;
+            } elseif ($this->modules->isActive($module)) {
+                $this->modules->deactivate($module);
+            }
+        }
+
+        return $on;
     }
 
     /**

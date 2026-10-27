@@ -31,7 +31,7 @@ final class Presenters
 
         return [
             'id' => $table->id, 'location_id' => $table->location_id, 'area_id' => $table->area_id, 'name' => $table->name, 'seats' => (int) $table->seats,
-            'x' => (int) $table->x, 'y' => (int) $table->y, 'width' => (int) $table->width, 'height' => (int) $table->height, 'shape' => $table->shape,
+            'x' => (int) $table->plan_x, 'y' => (int) $table->plan_y, 'width' => (int) $table->plan_width, 'height' => (int) $table->plan_height, 'shape' => $table->shape,
             'manual_status' => $table->manual_status, 'status' => $status, 'order' => $order, 'archived_at' => $table->archived_at?->toIso8601String(),
         ];
     }

@@ -105,7 +105,10 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame([], array_diff([...$types['restaurant']['role_templates'], ...$types['bar']['role_templates']], $templates));
         $this->assertContains('pos', $types['restaurant']['modules']);
         $this->assertContains('pos', $types['bar']['modules']);
-        $this->assertSame(['pos'], app(ModuleRegistry::class)->catalogueKeys('restaurant'), 'switched on with the POS subscription');
-        $this->assertContains('restaurant', app(ModuleRegistry::class)->coveredBy(['pos']));
+        $this->assertSame(['restaurant'], $types['restaurant']['features']);
+        $this->assertSame(['restaurant'], $types['bar']['features']);
+        $this->assertSame([], $types['retail']['features']);
+        $this->assertSame(['restaurant'], app(BusinessTypes::class)->featureModules());
+        $this->assertNotContains('restaurant', app(ModuleRegistry::class)->coveredBy(['pos']), 'a subscription to POS alone does not switch the Restaurant module on');
     }
 }

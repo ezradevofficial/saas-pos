@@ -8,6 +8,7 @@ use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use Modules\Restaurant\Models\Area;
 use Modules\Restaurant\Models\Modifier;
+use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Station;
 use Modules\Restaurant\Models\StationRoute;
 use Modules\Restaurant\Models\Table;
@@ -122,6 +123,21 @@ class SetupTest extends TestCase
         $this->api('POST', "restaurant/stations/{$cold['id']}/archive")->assertOk();
         $this->assertSame(2, Station::query()->whereNull('archived_at')->count());
         $this->api('POST', 'restaurant/stations', ['location_id' => $this->locationA->id, 'name' => 'Bad', 'kind' => 'spaceship'])->assertUnprocessable();
+    }
+
+    public function test_another_tenants_categories_and_items_cannot_be_named(): void
+    {
+        $other = $this->otherRestaurantTenant();
+        $theirs = $this->asTenant($other['user']->tenant_id, fn () => ItemCategory::create(['name' => 'Theirs']));
+
+        $this->api('POST', 'restaurant/stations', ['location_id' => $this->locationA->id, 'name' => 'Sneaky', 'kind' => 'bar', 'category_ids' => [$theirs->id]])->assertUnprocessable()->assertJsonValidationErrors('category_ids.0');
+        $this->api('PUT', "restaurant/modifier-groups/{$this->inTenant(fn () => $this->makeGroup())}", ['category_ids' => [$theirs->id]])->assertUnprocessable();
+        $this->assertSame(0, $this->inTenant(fn () => Station::query()->where('name', 'Sneaky')->count()));
+    }
+
+    private function makeGroup(): string
+    {
+        return ModifierGroup::create(['company_id' => $this->acme->id, 'name' => 'G', 'min_select' => 0, 'max_select' => 1, 'currency' => 'KES'])->id;
     }
 
     public function test_stations_are_managed_by_the_right_holder_at_the_location(): void

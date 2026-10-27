@@ -33,7 +33,7 @@ class TableSource implements SnapshotSource
             ->get(['rest_tables.*', 'rest_areas.name as area_name'])
             ->map(fn ($t) => [
                 'id' => $t->id, 'area_id' => $t->area_id, 'area_name' => $t->area_name, 'name' => $t->name, 'seats' => (int) $t->seats,
-                'x' => (int) $t->x, 'y' => (int) $t->y, 'width' => (int) $t->width, 'height' => (int) $t->height, 'shape' => $t->shape, 'status' => $t->manual_status,
+                'x' => (int) $t->plan_x, 'y' => (int) $t->plan_y, 'width' => (int) $t->plan_width, 'height' => (int) $t->plan_height, 'shape' => $t->shape, 'status' => $t->manual_status,
             ])->all();
     }
 }

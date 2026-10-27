@@ -10,10 +10,10 @@ spec disagree, the core spec wins.
 
 Restaurant is a module (`api/modules/Restaurant`, permissions `restaurant.*`,
 tables `rest_*`), switched on per tenant (RBAC-08). It is the table, tab,
-course and kitchen layer of the POS `restaurant` and `bar` modes. It is sold
-with POS (registry `soldAs('restaurant', ['pos'])`, no separate price; owner to
-confirm) and shown only to tenants whose `pos_mode` is `restaurant`, `bar` or
-`hotel`.
+course and kitchen layer of the POS `restaurant` and `bar` modes. It is not
+sold on its own: choosing the `restaurant` or `bar` business type switches it
+on (`features` in `app/Core/Onboarding/presets.php`) and choosing another
+type switches it off, keeping its data (owner to confirm).
 
 - **An order is not a sale.** An order (table or tab) is open for hours or
   days, grows in rounds and may be paid in parts. When it is paid it becomes
@@ -89,7 +89,7 @@ strings, times ISO 8601 UTC.
 | `GET restaurant/orders`, `GET restaurant/orders/{id}` | Filters `location_id`, `status`, `kind`, `waiter_id`, `table_id`, `search`; detail has lines, tickets, settlements, bill |
 | `POST restaurant/orders/{id}/transfer` | `{waiter_id}` |
 | `POST restaurant/orders/{id}/merge` | `{into_order_id}` |
-| `POST restaurant/orders/{id}/lines/{line}/void` | `{reason, override?}` |
+| `POST restaurant/orders/{id}/lines/{line}/void` | `{reason}`; a sent line needs `pos.sale.void` within the person's `max_refund_amount` (403 `void_not_permitted` or `void_limit_exceeded`); a manager's override is a till action (the sync record's `removed.override`) |
 | `POST restaurant/orders/{id}/cancel` | `{reason}`; only an order with nothing sent or paid |
 | `POST restaurant/orders/{id}/split` | Preview only: `{mode: full\|item\|seat\|equal, parts?, groups?: [[line_id]], tip_minor?, tip_percent?}` returns the parts |
 | `GET restaurant/tickets?location_id&station_id&status=active\|all&since` | Kitchen display feed |
@@ -119,7 +119,9 @@ An order record: `{id, kind: table|tab, table_id?, tab_name?, customer_id?, wait
 - Report `{data: {from, to, currencies: {KES: {orders, covers, sales_minor, tips_minor, avg_per_cover_minor, avg_per_order_minor}}, avg_turn_minutes, waiters: [{waiter_id, name, currency, orders, covers, sales_minor, tips_minor}], voids: [{user_id, name, currency, count, value_minor}], void_reasons: [{reason, count}]}}`.
 - Sync rows (one object per id): `restaurant_tables` `{id, area_id, area_name, name, seats, x, y, width, height, shape, status}`; `restaurant_stations` `{id, name, kind, printer, is_default, category_ids}`; `restaurant_modifiers` as the modifier group (without archived rows); `restaurant_settings` `{id: company_id, service_charge_percent, service_charge_item_id, tip_item_id, tip_presets}`; `restaurant_orders` the order record above with `tickets: [{id, station_id, status, kind, number}]` and each line's `ticket_status`.
 
-Errors: `table_unknown`, `order_closed`, `waiter_unknown`, `line_changed` (a sent line's item, quantity or price differs), `void_not_permitted`, `void_limit_exceeded`, `override_required`, `station_unknown`, `ticket_status_invalid`, `split_invalid`.
+Errors: `table_unknown`, `order_closed`, `waiter_unknown`, `item_unknown`, `tax_code_unknown`, `order_unknown`, `line_changed` (a sent line's item, quantity or price differs), `line_conflict`, `reason_required`, `void_not_permitted` and `void_limit_exceeded` (back office), `override_required` and `limit_exceeded`/`override_limit_exceeded` (the till's void, POS's own codes), `name_taken`, `ticket_status_invalid`, `user_unknown`, `ticket_not_permitted`, `split_invalid`, `upload_rejected`. An order record naming an unknown item, tax code, table, waiter, customer or merge target is refused whole; one with a bad line keeps its good lines.
+
+**Decisions to confirm.** (1) Restaurant has no catalogue price: the business type switches it on; hotels and an owner-side switch for existing tenants are not built. (2) A void's limit is `max_refund_amount` in the order's currency's major units, not converted to the base currency. (3) A waiter's `pos.sale.create` and `pos.till.sign_in` let the sale be rung on their handheld; the shift is the till's. (4) The service charge line is rung exclusive of tax at its item's rate; a tip line must be an item with an exempt tax category. (5) The tip-percent split preview takes the percentage of the lines' payable amount, before the service charge. (6) `restaurant_settings` carries the tenant's `pos_mode` so the till knows to open on the floor.
 
 ## Closing into a sale (device)
 

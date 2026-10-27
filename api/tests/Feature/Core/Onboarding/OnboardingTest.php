@@ -120,6 +120,24 @@ class OnboardingTest extends TestCase
         $this->assertMatchesRegularExpression('/^admin-[a-z0-9]{4}$/', $slug($reserved));
     }
 
+    public function test_restaurant_and_bar_switch_the_restaurant_module_on_and_other_types_switch_it_off(): void
+    {
+        $owner = $this->signUp();
+        $active = fn () => $this->asTenant($owner['tenant'], fn () => app(ModuleRegistry::class)->isActive('restaurant'));
+        $this->assertFalse($active());
+
+        $this->putJson('/api/v1/onboarding/business', ['business_type' => 'restaurant'], $this->as($owner))
+            ->assertOk()->assertJsonPath('data.pos_mode', 'restaurant')->assertJsonPath('data.applied.features', ['restaurant'])
+            ->assertJsonPath('data.applied.role_templates', ['admin', 'branch_manager', 'cashier', 'waiter', 'kitchen', 'storekeeper']);
+        $this->assertTrue($active());
+
+        $this->putJson('/api/v1/onboarding/business', ['business_type' => 'bar'], $this->as($owner))->assertOk()->assertJsonPath('data.applied.features', ['restaurant']);
+        $this->assertTrue($active());
+
+        $this->putJson('/api/v1/onboarding/business', ['business_type' => 'retail'], $this->as($owner))->assertOk()->assertJsonPath('data.applied.features', []);
+        $this->assertFalse($active(), 'the module is off with the till mode; its data stays');
+    }
+
     public function test_a_business_type_applies_its_pos_mode_role_templates_flows_and_suggestion(): void
     {
         $owner = $this->signUp();
