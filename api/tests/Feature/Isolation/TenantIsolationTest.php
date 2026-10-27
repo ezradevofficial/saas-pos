@@ -557,6 +557,7 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/restaurant/orders/{rest_order}/merge' => ['merge_invalid', 'REST-15: the control merges the fixture order into itself, which is refused after validation and the permission check'],
         'POST api/v1/van-sales/device/loads/{vs_load}/confirm' => ['actor_unverified', 'VAN-08: a load confirmation needs the rep\'s verified sign-in proof (AUTH-07), which the fixture\'s body does not carry, so it is refused after validation and the permission check'],
         'POST api/v1/van-sales/reconciliations/{vs_count}/unload/receive' => ['unload_not_ready', 'VAN-23: the fixture count is balanced with nothing to unload, so receiving is refused after validation and the permission check'],
+        'POST api/v1/van-sales/loads' => ['count_in_progress', 'INV-09, VAN-07: the cycle count started before it with A\'s ids has frozen the fixture item, so the load transfer is refused after validation and the permission check'],
         'POST api/v1/fixed-assets/runs' => ['disposals_open', 'FA-12: the fixture\'s disposal dated in February is still open, so February\'s run is refused after validation'],
     ];
 
@@ -1181,10 +1182,11 @@ class TenantIsolationTest extends TestCase
             $content .= $zip->getFromIndex($i)."\n";
         }
 
+        $empty = [];
         foreach ($manifest['tables'] as $table) {
             $lines = array_values(array_filter(explode("\n", (string) $zip->getFromName($table['file']))));
-            if (! isset(GlobalTables::OPERATOR[$table['name']])) {
-                $this->assertGreaterThan(0, count($lines), "{$table['name']}: tenant A's rows are exported");
+            if (! isset(GlobalTables::OPERATOR[$table['name']]) && $lines === []) {
+                $empty[] = $table['name'];
             }
 
             foreach ($lines as $line) {
@@ -1192,6 +1194,8 @@ class TenantIsolationTest extends TestCase
                 $this->assertSame($a->tenantId, $row[$table['name'] === 'tenants' ? 'id' : 'tenant_id'], "{$table['name']}: a row that is not tenant A's");
             }
         }
+
+        $this->assertSame([], $empty, 'tables with no exported row of tenant A, so the fixture lacks rows for them: '.implode(', ', $empty));
 
         // A's media (item image, approval attachment, custom form files...) are in files/.
         $this->assertGreaterThan(0, $export->file_count);
