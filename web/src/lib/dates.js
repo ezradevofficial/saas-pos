@@ -58,7 +58,9 @@ function zonedParts(date, timeZone) {
 
 /** Today's date ("2026-10-07") in a time zone (the company's), or the browser's. */
 export function todayIn(timeZone, now = new Date()) {
-  if (!timeZone) return now.toISOString().slice(0, 10)
+  // No zone known yet (the company's is still loading): the browser's own calendar day,
+  // never UTC's, which is still yesterday between 00:00 and 03:00 in Nairobi.
+  if (!timeZone) return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const { year, month, day } = zonedParts(now, timeZone)
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }

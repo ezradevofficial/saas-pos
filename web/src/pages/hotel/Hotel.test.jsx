@@ -16,7 +16,8 @@ vi.mock('@/api/client', async (importOriginal) => ({
 const COMPANY = { id: 'c-1', name: 'Lakeside Lodge', country: 'KE', base_currency: 'KES', timezone: 'Africa/Nairobi', archived_at: null }
 const BRANCH = { id: 'br-1', name: 'Main building', company_id: 'c-1', archived_at: null }
 const page = (data) => ({ data, meta: { total: data.length, last_page: 1, from: 1, to: data.length } })
-const TODAY = todayIn('Africa/Nairobi')
+// The pages default to the browser's calendar day (todayIn with no zone), so the test does too.
+const TODAY = todayIn(undefined)
 
 const TYPE = { id: 't-1', company_id: 'c-1', code: 'DBL', name: 'Double', description: null, base_adults: 2, max_adults: 2, max_children: 1, max_occupancy: 3, beds: '1 queen', sort: 0, rooms_count: 2, archived_at: null }
 const ROOM = { id: 'r-1', company_id: 'c-1', branch: { id: 'br-1', name: 'Main building' }, room_type: { id: 't-1', code: 'DBL', name: 'Double' }, number: '101', floor: '1', features: ['balcony'], notes: null, status: 'vacant_clean', out_of_order: null, archived_at: null }
