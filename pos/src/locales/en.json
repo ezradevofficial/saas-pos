@@ -525,11 +525,13 @@
       "remove": "Remove",
       "input": {
         "points": "Points to redeem",
-        "code": "Gift card code"
+        "code": "Gift card code",
+        "room": "Room number"
       },
       "tenderLabel": {
         "points": "{{label}} points",
-        "voucher": "Card {{label}}"
+        "voucher": "Card {{label}}",
+        "room_charge": "Room {{label}}"
       },
       "errors": {
         "failed": "This payment could not be added. Check it and try again.",
@@ -549,7 +551,14 @@
         "credit_no_account": "This customer has no open credit account. Choose another payment method.",
         "credit_currency": "This customer’s credit is in {{currency}}. Choose that currency.",
         "credit_limit_exceeded": "This takes the customer over their credit limit. {{amount}} is left on it.",
-        "amount": "Type an amount above zero."
+        "amount": "Type an amount above zero.",
+        "room_required": "Type the room number.",
+        "module_inactive": "Room charging is not available. Choose another payment method.",
+        "room_unknown": "This room is not known here. Check the room number.",
+        "not_in_house": "No guest is checked in to this room. Check the number or choose another payment method.",
+        "folio_settled": "This guest’s account is closed to charges. Choose another payment method.",
+        "currency_mismatch": "This room is billed in {{currency}}. Choose that currency.",
+        "limit_exceeded": "This takes the room over its charge limit. {{amount}} is left on it."
       }
     },
     "pharmacy": {
@@ -858,6 +867,45 @@
       "blocked": "Location is turned off for this app in the phone’s settings. You can still deliver.",
       "openSettings": "Open settings",
       "on": "Your location is shared while a delivery is in progress."
+    }
+  },
+  "hotel": {
+    "housekeeping": {
+      "title": "Rooms to clean",
+      "room": "Room {{number}}",
+      "floor": "Floor {{floor}}",
+      "noFloor": "No floor",
+      "start": "Start",
+      "finish": "Finish",
+      "markClean": "Mark clean",
+      "markDirty": "Mark dirty",
+      "refresh": "Refresh",
+      "signOut": "Sign out",
+      "empty": "You have no rooms to clean right now.",
+      "tab": "Rooms",
+      "roomStatus": {
+        "vacant_clean": "Clean",
+        "vacant_dirty": "Dirty",
+        "occupied": "Occupied",
+        "out_of_order": "Out of order"
+      },
+      "taskStatus": {
+        "pending": "Not started",
+        "in_progress": "In progress"
+      },
+      "kind": {
+        "checkout_clean": "Check-out clean",
+        "stayover": "Stay-over clean",
+        "inspection": "Inspection",
+        "deep_clean": "Deep clean",
+        "maintenance": "Maintenance"
+      },
+      "errors": {
+        "offline": "You are offline. Showing the last list. Reconnect to start, finish or change a room.",
+        "forbidden": "You are not allowed to update rooms. Ask your manager.",
+        "unavailable": "Housekeeping is not available. Ask your manager.",
+        "failed": "That did not go through. Refresh and try again."
+      }
     }
   }
 }

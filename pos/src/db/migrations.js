@@ -161,5 +161,10 @@ export const migrations = schemaMigrations({
         createTable({ name: 'pharmacy_lots', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
       ],
     },
+    {
+      // Hotel module (HOT-35): who is in house at this till's property (a snapshot).
+      toVersion: 12,
+      steps: [createTable({ name: 'hotel_in_house', columns: [{ name: 'room_number', type: 'string', isIndexed: true }, data, seenAt] })],
+    },
   ],
 });

@@ -169,6 +169,25 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    // Hotel (docs/modules/hotel.md): only while the module is active (RBAC-08).
+    id: 'hotel',
+    label: (t) => t('nav.groups.hotel'),
+    items: [
+      { to: '/hotel/front-desk', icon: 'approvals', label: (t) => t('nav.hotelFrontDesk'), permission: ['hotel.stay.checkin', 'hotel.stay.checkout'], module: 'hotel' },
+      { to: '/hotel/availability', icon: 'calendar', label: (t) => t('nav.hotelAvailability'), permission: 'hotel.reservation.view', module: 'hotel' },
+      { to: '/hotel/reservations', icon: 'orders', label: (t) => t('nav.hotelReservations'), permission: 'hotel.reservation.view', module: 'hotel' },
+      { to: '/hotel/folios', icon: 'receipts', label: (t) => t('nav.hotelFolios'), permission: 'hotel.folio.view', module: 'hotel' },
+      { to: '/hotel/guests', icon: 'customers', label: (t) => t('nav.hotelGuests'), permission: 'hotel.guest.view', module: 'hotel' },
+      { to: '/hotel/housekeeping', icon: 'counts', label: (t) => t('nav.hotelHousekeeping'), permission: 'hotel.housekeeping.view', module: 'hotel' },
+      { to: '/hotel/night-audit', icon: 'history', label: (t) => t('nav.hotelNightAudit'), permission: 'hotel.audit.view', module: 'hotel' },
+      { to: '/hotel/charge-exceptions', icon: 'alert', label: (t) => t('nav.hotelChargeExceptions'), permission: ['hotel.charge.resolve', 'hotel.folio.view'], module: 'hotel' },
+      { to: '/hotel/rooms', icon: 'stock', label: (t) => t('nav.hotelRooms'), permission: 'hotel.room.view', module: 'hotel' },
+      { to: '/hotel/rates', icon: 'promotions', label: (t) => t('nav.hotelRates'), permission: 'hotel.rate.view', module: 'hotel' },
+      { to: '/hotel/reports/occupancy', icon: 'chart', label: (t) => t('nav.hotelReports'), permission: 'hotel.report.view', module: 'hotel' },
+      { to: '/hotel/settings', icon: 'settings', label: (t) => t('nav.hotelSettings'), permission: ['hotel.settings.view', 'hotel.settings.edit'], module: 'hotel' },
+    ],
+  },
+  {
     // CRM and sales (docs/modules/crm.md, Screens): only while the module is active (RBAC-08).
     id: 'crm',
     label: (t) => t('nav.groups.crm'),
