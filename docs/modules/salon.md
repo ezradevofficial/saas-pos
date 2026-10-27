@@ -130,14 +130,14 @@ zone, hours `HH:MM` local. Lists are `{data: [...]}`, whole, unless noted
 | `GET/PUT salon/branches/{branch}/online` | `{enabled, public_name, lead_minutes, max_days_ahead, location_id}`, plus `public_code`, `url`; `POST .../regenerate-code` |
 | `GET salon/availability` | `?branch_id&date&service_ids[]&staff_id?` returns `{data: {slots: [{starts_at, ends_at, lines: [{service_id, staff_id, resource_id, starts_at, ends_at}]}]}}` |
 | `GET salon/calendar?branch_id&date&days?` | Every staff member's and resource's day: appointments, hours, breaks, time off |
-| `GET/POST salon/appointments`, `GET salon/appointments/{id}` | Filters `branch_id`, `staff_id`, `client_id`, `status`, `from`, `to`, `source`; create `{branch_id, client_id?, guest_name?, guest_phone?, guest_email?, notes?, lines: [{service_id, staff_id, resource_id?, starts_at}], override_reason?}` (later lines follow the first) |
+| `GET/POST salon/appointments`, `GET salon/appointments/{id}` | Filters `branch_id`, `staff_id`, `client_id`, `status`, `from`, `to`, `source`; create `{branch_id, salon_client_id?, guest_name?, guest_phone?, guest_email?, notes?, lines: [{service_id, staff_id, resource_id?, starts_at}], override_reason?}` (later lines follow the first) |
 | `POST salon/appointments/{id}/move` | `{starts_at, lines?: [{id, staff_id?, resource_id?}], override_reason?}` (the lines keep their order and lengths after the first) |
 | `POST salon/appointments/{id}/check-in\|start\|finish` | Day flow |
 | `POST salon/appointments/{id}/cancel`, `.../no-show`, `.../waive-fee` | `{reason}` (waive needs a reason) |
 | `PUT salon/appointments/{id}/notes` | `{service_notes}` (formula used, `salon.client.notes`) |
 | `GET salon/appointments/{id}/checkout` | The lines the till rings: `{lines: [{item_id, name, qty, unit_price_minor, currency, staff_id, kind}], fee, deposit_balance_minor, packages}` |
 | `POST salon/appointments/{id}/deposit`, `.../deposit/refund` | `{payment_method_id, amount_minor, mode: direct\|stk, phone?, reference?}`; payments listed in the appointment; `GET salon/payments/{id}/check` polls a push |
-| `GET/POST salon/queue`, `POST salon/queue/{id}/seat\|leave` | `{branch_id, guest_name, guest_phone?, client_id?, service_ids, staff_id?}`; seat `{staff_id, resource_id?}` |
+| `GET/POST salon/queue`, `POST salon/queue/{id}/seat\|leave` | `{branch_id, guest_name, guest_phone?, salon_client_id?, service_ids, staff_id?}`; seat `{staff_id, resource_id?}` |
 | `GET/POST salon/clients`, `GET/PUT salon/clients/{id}`, `GET salon/clients/{id}/visits` | `company_id` is optional on reads (the client's own, else the first company the reader may view); profile `{party_id, name, phone, email, preferred_staff_id, preferences, allergies, formulas, notes}` |
 | `GET salon/packages`, `GET salon/packages/{id}`, `POST salon/packages/{id}/adjust` | `{customer_id, status}`; adjust `{sessions, reason}` |
 | `GET salon/exceptions`, `POST salon/exceptions/{id}/resolve` | `{note}` |
@@ -163,7 +163,7 @@ zone, hours `HH:MM` local. Lists are `{data: [...]}`, whole, unless noted
 | `POST salon/device/sync` | `{appointments: [], events: [], queue: []}`, at most 100 in all; per-record results |
 | Pull (core sync API) | `salon_settings`, `salon_staff`, `salon_services`, `salon_schedule`, `salon_queue`, `salon_packages` |
 
-Device records: appointment (a walk-in or booking made at the till) `{id, user_id, actor_proof, client_id?, guest_name?, guest_phone?, notes?, lines: [{id, service_id, staff_id, resource_id?, starts_at}], source, created_at}`; event `{id, appointment_id, type: check_in\|start\|finish\|no_show\|cancel, user_id, actor_proof, at, reason?}`; queue `{id, user_id, actor_proof, action: join\|seat\|leave, guest_name?, guest_phone?, service_ids?, staff_id?, entry_id?, appointment_id?, at}`. A result is `{id, status: stored, ...}` or `{id, status: rejected, code, field?}`; the same record again answers the same.
+Device records: appointment (a walk-in or booking made at the till) `{id, user_id, actor_proof, salon_client_id?, guest_name?, guest_phone?, notes?, lines: [{id, service_id, staff_id, resource_id?, starts_at}], source, created_at}`; event `{id, appointment_id, type: check_in\|start\|finish\|no_show\|cancel, user_id, actor_proof, at, reason?}`; queue `{id, user_id, actor_proof, action: join\|seat\|leave, guest_name?, guest_phone?, service_ids?, staff_id?, entry_id?, appointment_id?, at}`. A result is `{id, status: stored, ...}` or `{id, status: rejected, code, field?}`; the same record again answers the same.
 
 ## Decisions to confirm
 
@@ -173,3 +173,4 @@ Device records: appointment (a walk-in or booking made at the till) `{id, user_i
 4. Accounting has no salon-specific postings: a deposit or package is a payment of the sale like any other, and deferring its revenue is not done. Package liability is reported by Salon.
 5. Memberships are packages with a validity period; there is no recurring billing.
 6. Commission items in Payroll (taxable or not, contributory or not) are set up by the company in Payroll; Salon only names the item code.
+7. Security review (SAL-28 and others): the front desk is its own `salon_receptionist` role (the Hotel `receptionist` is unchanged); the body field for a client is `salon_client_id`; client profiles are per company and party; online deposits are required by default (`deposit_online_required`), with a hold of `hold_minutes`; public bookings are capped per contact, per email and per page each day; guest names are never put in messages; a device time is held between the booking and the receipt; a payout keeps who it pays and a staff link cannot move while its batch is open; a refunded package line voids unused units and flags used ones; deposit credit comes back at most once.

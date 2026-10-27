@@ -10,6 +10,7 @@ use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Location;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 /**
  * TEN-04, RBAC-04: where a branch or location sits (company, time zone), read under RLS (another tenant's branch is not
@@ -27,7 +28,7 @@ class Places
 
     public function branch(string $id): ?Branch
     {
-        return array_key_exists($id, $this->branches) ? $this->branches[$id] : $this->branches[$id] = Branch::query()->find($id);
+        return array_key_exists($id, $this->branches) ? $this->branches[$id] : $this->branches[$id] = (Str::isUuid($id) ? Branch::query()->find($id) : null);
     }
 
     /** A live branch (422 otherwise, on $field). */

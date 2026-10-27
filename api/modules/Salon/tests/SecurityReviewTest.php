@@ -184,4 +184,11 @@ class SecurityReviewTest extends TestCase
         $old['starts_at'] = $this->at('12:00');
         $this->api('POST', 'salon/appointments', $old, $this->desk)->assertStatus(422);
     }
+
+    public function test_a_list_asked_without_its_branch_is_refused_not_a_server_error(): void
+    {
+        $this->setUpSalon();
+        $this->api('GET', 'salon/availability', [], $this->owner)->assertStatus(422)->assertJsonPath('code', 'branch_unknown');
+        $this->api('GET', 'salon/calendar?branch_id=nope', [], $this->owner)->assertStatus(422);
+    }
 }

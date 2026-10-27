@@ -1679,7 +1679,7 @@ final class TwoTenants
         ], $owner), 201)->json('data.id');
 
         $visit = self::ok($test->postJson('/api/v1/salon/appointments', [
-            'branch_id' => $branch, 'client_id' => $customer, 'starts_at' => $at('10:00', 2), 'lines' => [['service_id' => $haircut, 'staff_id' => $staff]],
+            'branch_id' => $branch, 'salon_client_id' => $customer, 'starts_at' => $at('10:00', 2), 'lines' => [['service_id' => $haircut, 'staff_id' => $staff]],
         ], $owner), 201)->json('data');
         $payment = self::ok($test->postJson("/api/v1/salon/appointments/{$visit['id']}/deposit", ['payment_method_id' => $paymentMethod, 'amount_minor' => '10000', 'mode' => 'direct'], $owner), 201)->json('data.id');
         $queue = self::ok($test->postJson('/api/v1/salon/queue', ['branch_id' => $branch, 'guest_name' => "Walk-in {$upper}", 'service_ids' => [$haircut]], $owner), 201)->json('data.id');
