@@ -230,4 +230,28 @@ class ShiftTest extends TestCase
         });
         $this->getJson('/api/v1/fuel/sales?flagged=1', $this->headersFor($this->supervisor))->assertOk();
     }
+
+    public function test_a_user_of_another_tenant_named_by_the_till_is_a_clean_refusal_never_a_500(): void
+    {
+        $stranger = $this->otherTenant()['user']->id;
+        $body = fn (callable $change) => (function () use ($change) {
+            $shift = $this->fuelShiftBody($this->id());
+            $change($shift);
+
+            return $shift;
+        })();
+
+        // The opener, an attendant, and (on a shift of ours) the closer.
+        $this->uploadShifts([$body(fn (&$s) => $s['opening']['opened_by_id'] = $stranger)])->assertStatus(422)->assertJsonPath('results.0.error.code', 'user_unknown');
+        $this->uploadShifts([$body(fn (&$s) => $s['opening']['nozzles'][0]['attendant_id'] = $stranger)])->assertStatus(422)->assertJsonPath('results.0.error.code', 'user_unknown');
+        $base = $this->fuelShiftBody($this->id());
+        $this->uploadShifts([$base])->assertOk();
+        $closing = $this->fuelClosing(['A' => '1100.000', 'B' => '5000.000'], ['A' => 0, 'B' => 0]);
+        $closing['closed_by_id'] = $stranger;
+        $this->uploadShifts([[...$base, 'closing' => $closing]])->assertStatus(422)->assertJsonPath('results.0.error.code', 'user_unknown');
+
+        // A meter reset requester.
+        $reset = ['id' => $this->id(), 'nozzle_id' => $this->nozzleB->id, 'reading_before' => '5000.000', 'reading_after' => '0.000', 'reason' => 'Meter replaced', 'requested_by_id' => $stranger, 'requested_at' => now()->toIso8601String()];
+        $this->postJson('/api/v1/fuel/device/meter-resets', ['resets' => [$reset]], $this->tillHeaders())->assertStatus(422)->assertJsonPath('results.0.error.code', 'user_unknown');
+    }
 }
