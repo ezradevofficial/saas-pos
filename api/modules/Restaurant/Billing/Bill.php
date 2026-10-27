@@ -189,6 +189,19 @@ final class Bill
     }
 
     /**
+     * A tip as a percentage of the live lines' payable amount (before the
+     * service charge), rounded half up; a convenience of the split preview.
+     *
+     * @param  list<array<string, mixed>>  $lines
+     */
+    public static function tipFromPercent(array $lines, string $percent): string
+    {
+        $payable = self::totals($lines)['lines_minor'];
+
+        return (string) self::roundDiv(BigInteger::of($payable)->multipliedBy(self::rate($percent)), BigInteger::of(self::SCALE));
+    }
+
+    /**
      * REST-14: the quantity of $qty that part $index of $count takes in an
      * equal split: 1/count rounded down to 6 places, the last part taking
      * what is left, so the parts add up to the quantity exactly.

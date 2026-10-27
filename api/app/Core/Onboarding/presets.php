@@ -45,7 +45,7 @@ return [
         [
             'key' => 'restaurant',
             'pos_mode' => 'restaurant',
-            'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'storekeeper'],
+            'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'kitchen', 'storekeeper'],
             'flows' => [],
             'modules' => ['pos', 'inventory', 'manufacturing'],
             'quantities' => ['outlet' => 1, 'device' => 3, 'employee' => 12],
@@ -53,7 +53,7 @@ return [
         [
             'key' => 'bar',
             'pos_mode' => 'bar',
-            'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter'],
+            'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'bartender'],
             'flows' => [],
             'modules' => ['pos', 'inventory'],
             'quantities' => ['outlet' => 1, 'device' => 2, 'employee' => 8],

@@ -29,6 +29,7 @@ return [
             'stores' => 'Stores',
             'fixed_assets' => 'Fixed assets',
             'manufacturing' => 'Manufacturing',
+            'restaurant' => 'Restaurant and bar',
         ],
         'resources' => [
             'accounting' => [
@@ -76,6 +77,15 @@ return [
                 'tax' => 'Tax book',
                 'transfer' => 'Asset transfers',
                 'value' => 'Asset values',
+            ],
+            'restaurant' => [
+                'floor' => 'Floor plan',
+                'station' => 'Kitchen and bar stations',
+                'modifier' => 'Modifiers',
+                'order' => 'Table and tab orders',
+                'ticket' => 'Kitchen tickets',
+                'settings' => 'Restaurant settings',
+                'report' => 'Restaurant reports',
             ],
             'manufacturing' => [
                 'bom' => 'Bills of materials',
@@ -269,6 +279,9 @@ return [
             'post' => 'Post',
             'generate' => 'Generate',
             'exempt' => 'Mark not applicable',
+            'transfer' => 'Transfer',
+            'merge' => 'Merge',
+            'update' => 'Update',
         ],
     ],
 
@@ -281,6 +294,8 @@ return [
         'rider' => 'Rider',
         'cashier' => 'Cashier',
         'waiter' => 'Waiter',
+        'kitchen' => 'Kitchen staff',
+        'bartender' => 'Bartender',
         'storekeeper' => 'Storekeeper',
         'accountant' => 'Accountant',
         'hr_officer' => 'HR Officer',

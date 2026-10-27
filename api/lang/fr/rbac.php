@@ -29,6 +29,7 @@ return [
             'stores' => 'Magasins',
             'fixed_assets' => 'Immobilisations',
             'manufacturing' => 'Production',
+            'restaurant' => 'Restaurant et bar',
         ],
         'resources' => [
             'accounting' => [
@@ -76,6 +77,15 @@ return [
                 'tax' => 'Registre fiscal',
                 'transfer' => 'Transferts d’immobilisations',
                 'value' => 'Valeurs des immobilisations',
+            ],
+            'restaurant' => [
+                'floor' => 'Plan de salle',
+                'station' => 'Postes cuisine et bar',
+                'modifier' => 'Options',
+                'order' => 'Commandes de tables et d’ardoises',
+                'ticket' => 'Bons de cuisine',
+                'settings' => 'Paramètres du restaurant',
+                'report' => 'Rapports du restaurant',
             ],
             'manufacturing' => [
                 'bom' => 'Nomenclatures',
@@ -269,6 +279,9 @@ return [
             'post' => 'Comptabiliser',
             'generate' => 'Générer',
             'exempt' => 'Marquer non applicable',
+            'transfer' => 'Transférer',
+            'merge' => 'Fusionner',
+            'update' => 'Mettre à jour',
         ],
     ],
 
@@ -281,6 +294,8 @@ return [
         'rider' => 'Livreur',
         'cashier' => 'Caissier',
         'waiter' => 'Serveur',
+        'kitchen' => 'Personnel de cuisine',
+        'bartender' => 'Barman',
         'storekeeper' => 'Magasinier',
         'accountant' => 'Comptable',
         'hr_officer' => 'Chargé RH',

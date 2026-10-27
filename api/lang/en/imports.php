@@ -263,6 +263,7 @@ return [
         'stock_moved' => 'Stock moved since',
         'manufacturing_bom' => 'Used in a BOM or recipe',
         'manufacturing_order' => 'Used in a production order',
+        'restaurant_order' => 'Used in a table or tab order',
         'loyalty_account' => 'Has a loyalty or credit account',
         'accounting_document' => 'Used in an invoice or bill',
         'accounting_payment' => 'Used in a payment',
