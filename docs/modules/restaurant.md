@@ -70,7 +70,7 @@ price change is a new catalogue price row.
 | `restaurant.order.send` | Send, fire courses and re-send |
 | `restaurant.order.transfer`, `restaurant.order.merge` | Move to another waiter; merge tables |
 | `restaurant.order.close` | Bill, split and close |
-| `restaurant.ticket.view`, `restaurant.ticket.update` | See tickets on the display; change their status |
+| `restaurant.ticket.view`, `restaurant.ticket.update`, `restaurant.ticket.serve` | See tickets on the display; change their status; only move a ticket to served (a waiter's) |
 | `restaurant.settings.edit` | A company's service charge and tip items |
 | `restaurant.report.view` | Reports |
 
@@ -94,6 +94,8 @@ strings, times ISO 8601 UTC.
 | `POST restaurant/orders/{id}/transfer` | `{waiter_id}` |
 | `POST restaurant/orders/{id}/merge` | `{into_order_id}` |
 | `POST restaurant/orders/{id}/lines/{line}/void` | `{reason}`; a sent line needs `pos.sale.void` within the person's `max_refund_amount` (403 `void_not_permitted` or `void_limit_exceeded`); a manager's override is a till action (the sync record's `removed.override`) |
+| `GET restaurant/pending-voids` | Voids waiting for review at the reader's locations (`pos.sale.void`): `{order_id, order_kind, table_name, tab_name, line_id, name, qty, value_minor, currency, asked_by_name, named_approver_name, reason, asked_at, can_apply}`; `can_apply` is false when the line is over the reader's limit |
+| `POST restaurant/orders/{id}/lines/{line}/void/reject` | Turns a pending void down; `pos.sale.void` at the order's location; audited `restaurant.order.void_rejected` |
 | `POST restaurant/orders/{id}/cancel` | `{reason}`; only an order with nothing sent or paid |
 | `POST restaurant/orders/{id}/split` | Preview only: `{mode: full\|item\|seat\|equal, parts?, groups?: [[line_id]], tip_minor?, tip_percent?}` returns the parts |
 | `GET restaurant/tickets?location_id&station_id&status=active\|all&since` | Kitchen display feed |
@@ -134,3 +136,5 @@ The till builds each part from the order's lines (unit price plus modifier effec
 ## Deferred
 
 Reservations and waiting lists, tablet self-ordering by QR, happy-hour rules (Loyalty promotions apply on the sale), room charges (hotel mode), item availability (86 list), tip pooling and payout, and course timing alerts.
+
+The till shows a line with a pending void as "Void pending approval", keeps it in the bill, and drops the mark when the server's pull shows the line voided (applied) or the mark gone (rejected).

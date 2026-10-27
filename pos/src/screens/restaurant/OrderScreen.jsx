@@ -16,7 +16,7 @@ import { filterTiles } from '../../pos/catalogue';
 import { usePosActions, usePosData } from '../../pos/PosProvider';
 import { lineAmounts } from '../../restaurant/bill';
 import { groupsFor, priceItem } from '../../restaurant/menu';
-import { isRemoved, liveLines, nextCourse, rejectedLines, rounds, sentLines, unsentLines } from '../../restaurant/orderModel';
+import { isRemoved, isVoidPending, liveLines, nextCourse, rejectedLines, rounds, sentLines, unsentLines } from '../../restaurant/orderModel';
 import { can, REST } from '../../restaurant/permissions';
 import { useOrder, useRestaurant } from '../../restaurant/context';
 import { isStubPrinter } from '../../restaurant/tickets';
@@ -68,6 +68,7 @@ export function TicketStrip({ order, stations, onServed }) {
 
 function LineRow({ line, currency, money, onPress, t }) {
   const removed = isRemoved(line);
+  const pending = isVoidPending(line);
   const amounts = lineAmounts(line);
   const meta = [t('restaurant.line.courseN', { course: line.course }), line.seat ? t('restaurant.line.seatN', { seat: line.seat }) : null, line.ticket_status && !removed ? t(`restaurant.tickets.status.${line.ticket_status}`) : null].filter(Boolean).join(' · ');
   return (
@@ -84,6 +85,7 @@ function LineRow({ line, currency, money, onPress, t }) {
         {(line.modifiers ?? []).length ? <Text className="font-sans text-caption text-ink-muted">{line.modifiers.map((modifier) => `+ ${modifier.name}`).join(', ')}</Text> : null}
         {line.note ? <Text className="font-sans text-caption text-ink-muted">{`“${line.note}”`}</Text> : null}
         <Text className="font-sans text-caption text-ink-muted">{removed ? `${t('restaurant.line.voided')}: ${line.removed.reason}` : meta}</Text>
+        {pending ? <Text className="font-sans text-caption font-medium text-warning">{t('restaurant.line.voidPending')}</Text> : null}
       </View>
       <Text className={cn('font-sans text-body font-medium tabular-nums', removed ? 'text-ink-muted' : 'text-ink')}>{money(String(amounts.gross), currency)}</Text>
     </Pressable>
@@ -294,7 +296,7 @@ export function OrderScreen({ orderId, tablet, onBack, onBill }) {
                   money={money}
                   t={t}
                   onPress={() => {
-                    if (isRemoved(line)) return;
+                    if (isRemoved(line) || isVoidPending(line)) return;
                     if (line.sent_at) setVoiding(line.id);
                     else if (!readOnly) setEditing({ lineId: line.id });
                   }}

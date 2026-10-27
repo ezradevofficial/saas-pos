@@ -26,6 +26,7 @@ import {
   MANUFACTURING_ORDER_VIEW,
   MANUFACTURING_REPORT_VIEW,
   MANUFACTURING_SETTINGS_VIEW,
+  POS_SALE_VOID,
   RESTAURANT_FLOOR_VIEW,
   RESTAURANT_MODIFIER_VIEW,
   RESTAURANT_ORDER_VIEW,
@@ -174,6 +175,7 @@ const RestaurantFloor = lazy(() => import('./pages/restaurant/FloorPlan'))
 const RestaurantKitchen = lazy(() => import('./pages/restaurant/KitchenDisplay'))
 const RestaurantModifiers = lazy(() => import('./pages/restaurant/Modifiers'))
 const RestaurantOrders = lazy(() => import('./pages/restaurant/Orders'))
+const RestaurantPendingVoids = lazy(() => import('./pages/restaurant/PendingVoids'))
 const RestaurantReports = lazy(() => import('./pages/restaurant/Reports'))
 const RestaurantSettings = lazy(() => import('./pages/restaurant/RestaurantSettings'))
 const RestaurantStations = lazy(() => import('./pages/restaurant/Stations'))
@@ -739,6 +741,7 @@ export const routes = [
       // Restaurant (docs/modules/restaurant.md): the API answers 403 module_inactive without the module.
       ...[
         ['/restaurant/orders', RESTAURANT_ORDER_VIEW, <RestaurantOrders key="rest-orders" />],
+        ['/restaurant/pending-voids', POS_SALE_VOID, <RestaurantPendingVoids key="rest-pending-voids" />],
         ['/restaurant/floor', RESTAURANT_FLOOR_VIEW, <RestaurantFloor key="rest-floor" />],
         ['/restaurant/stations', RESTAURANT_STATION_VIEW, <RestaurantStations key="rest-stations" />],
         ['/restaurant/modifiers', RESTAURANT_MODIFIER_VIEW, <RestaurantModifiers key="rest-modifiers" />],

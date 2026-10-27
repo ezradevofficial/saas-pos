@@ -4,7 +4,7 @@ import { fakeServer } from '../test/fakeServer';
 import { IDS, menuCatalogue, modifierRows, settingsRow, stationRows, tableRows, waiter } from '../test/restaurantFixtures';
 import { restaurantServer } from '../test/restaurantServer';
 import { testDatabase } from '../test/testDatabase';
-import { addLine, createOrder, mergeServer, wireOrder } from './orderModel';
+import { addLine, applyResult, billLines, createOrder, isVoidPending, mergeServer, wireOrder } from './orderModel';
 import { BATCH } from './orderSync';
 import { stubPrinter } from './tickets';
 
@@ -216,6 +216,34 @@ describe('restaurant orders offline and sync (REST-17)', () => {
     // A removal never comes undone.
     const removed = { ...sent, lines: [{ ...sent.lines[0], removed: { at: 'z', by: 'y', reason: 'r' } }] };
     expect(mergeServer(removed, wireOrder(local)).lines[0].removed).toBeTruthy();
+  });
+
+  it('a void the server holds for review stays on the bill as pending, until it is applied or rejected (REST-11)', () => {
+    const base = createOrder({ kind: 'tab', tabName: 'Joe', waiterId: user.id, currency: 'KES', now: '2026-11-02T10:00:00Z', userId: user.id });
+    const added = addLine(base, { id: 'l1', itemId: IDS.beer, name: 'Tusker', unitPriceMinor: '10000' }, { now: '2026-11-02T10:00:00Z' });
+    const sent = { ...added, lines: [{ ...added.lines[0], sent_at: '2026-11-02T10:01:00Z', round: 1, sent_by: user.id, removed: { at: '2026-11-02T10:05:00Z', by: user.id, reason: 'Guest left' } }] };
+    expect(billLines(sent)[0].void).toBe(true);
+
+    // The server stored the request but could not prove who asked: the line is still sold.
+    const pending = applyResult(sent, { id: sent.id, status: 'stored', rev: 2, lines: [{ id: 'l1', status: 'stored', void: 'pending' }] }).order;
+    expect(pending.lines[0].removed).toBeUndefined();
+    expect(pending.lines[0].void_pending).toMatchObject({ reason: 'Guest left', by: user.id });
+    expect(isVoidPending(pending.lines[0])).toBe(true);
+    expect(billLines(pending)[0].void).toBe(false);
+    expect(wireOrder(pending).lines[0].removed).toBeUndefined();
+
+    // A pull that still shows it pending keeps it; one where the reviewer rejected it clears the mark.
+    const stillPending = mergeServer(pending, { ...wireOrder(pending), lines: [{ ...wireOrder(pending).lines[0], void_pending: { reason: 'Guest left' } }] });
+    expect(isVoidPending(stillPending.lines[0])).toBe(true);
+    const rejected = mergeServer(stillPending, { ...wireOrder(pending), lines: [{ ...wireOrder(pending).lines[0], void_pending: null }] });
+    expect(isVoidPending(rejected.lines[0])).toBe(false);
+    expect(billLines(rejected)[0].void).toBe(false);
+
+    // Applied: the server's line comes back voided, and the pending mark goes.
+    const applied = mergeServer(stillPending, { ...wireOrder(pending), lines: [{ ...wireOrder(pending).lines[0], void_pending: null, void: { at: '2026-11-02T10:09:00Z', by: 'm', reason: 'Guest left', after_send: true } }] });
+    expect(applied.lines[0].removed).toMatchObject({ reason: 'Guest left' });
+    expect(isVoidPending(applied.lines[0])).toBe(false);
+    expect(billLines(applied)[0].void).toBe(true);
   });
 
   it('keeps the lines of an order the server refused as closed, and rings them as a new order', async () => {

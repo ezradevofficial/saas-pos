@@ -294,6 +294,7 @@ return [
             'transfer' => 'Transférer',
             'merge' => 'Fusionner',
             'update' => 'Mettre à jour',
+            'serve' => 'Marquer servi',
         ],
     ],
 

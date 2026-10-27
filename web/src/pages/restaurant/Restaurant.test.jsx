@@ -33,6 +33,9 @@ const UNSENT = { ...ORDER, lines: [{ ...LINE, sent_at: null, ticket_status: null
 
 const ticket = (overrides) => ({ id: 't-1', number: 12, order_id: 'o-1', location_id: 'l-1', station_id: 's-1', station_name: 'Kitchen', kind: 'order', status: 'new', course: 2, round: 1, table_name: '4', tab_name: null, waiter_name: 'Grace Achieng', covers: 3, created_at: new Date(Date.now() - 12 * 60000).toISOString(), preparing_at: null, ready_at: null, served_at: null, lines: [{ id: 'tl-1', order_line_id: 'ln-1', name: 'Burger', qty: '2', modifiers: [{ name: 'Rare' }], note: 'no onions', void: null }, { id: 'tl-2', order_line_id: 'ln-2', name: 'Soup', qty: '1', modifiers: [], note: null, void: { reason: 'Guest left' } }], ...overrides })
 
+const PENDING = { order_id: 'o-1', location_id: 'l-1', order_kind: 'table', table_name: '4', tab_name: null, line_id: 'ln-1', name: 'Steak', qty: '2', value_minor: '281250', currency: 'KES', asked_by_id: 'u-1', asked_by_name: 'Grace Achieng', named_approver_id: 'u-9', named_approver_name: 'Peter Mwangi', reason: 'Guest left', asked_at: '2026-10-27T10:20:00Z', flags: ['override_unverified'], can_apply: true }
+const OVER_LIMIT = { ...PENDING, line_id: 'ln-3', name: 'Lobster', can_apply: false, value_minor: '900000' }
+
 const REPORT = { from: '2026-10-21', to: '2026-10-27', currencies: { KES: { orders: 30, covers: 80, sales_minor: '1245000', tips_minor: '80000', avg_per_cover_minor: '15563', avg_per_order_minor: '41500' } }, avg_turn_minutes: 54.4, waiters: [{ waiter_id: 'u-1', name: 'Grace Achieng', currency: 'KES', orders: 20, covers: 50, sales_minor: '800000', tips_minor: '50000' }], voids: [{ user_id: 'u-1', name: 'Grace Achieng', currency: 'KES', count: 3, value_minor: '270000' }], void_reasons: [{ reason: 'Guest left', count: 2 }] }
 
 const ALL = [
@@ -444,6 +447,58 @@ describe('Restaurant', () => {
       await screen.findByText('Average spend per guest')
       chooseOption(screen.getByLabelText('Location'), 'Westlands restaurant')
       await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/location_id=l-1/)))
+    })
+  })
+
+  describe('voids waiting for approval (REST-11)', () => {
+    it('lists the order, line, value, who asked and why, and applies a void through the void route', async () => {
+      setup({ extra: [['restaurant/pending-voids', { data: [PENDING] }]] })
+      api.post.mockResolvedValue({ data: ORDER })
+      renderApp('/restaurant/pending-voids')
+      const row = (await screen.findByText('2 × Steak')).closest('tr')
+      expect(within(row).getByText('Table 4')).toBeInTheDocument()
+      expect(within(row).getByText('Grace Achieng')).toBeInTheDocument()
+      expect(within(row).getByText('Guest left')).toBeInTheDocument()
+      expect(row.textContent).toContain('KES 2,812.50')
+
+      fireEvent.click(within(row).getByRole('button', { name: 'Apply the void of Steak' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Apply this void' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('restaurant/orders/o-1/lines/ln-1/void', { reason: 'Guest left' }))
+    })
+
+    it('rejects a void through the reject route', async () => {
+      setup({ extra: [['restaurant/pending-voids', { data: [PENDING] }]] })
+      api.post.mockResolvedValue({ data: ORDER })
+      renderApp('/restaurant/pending-voids')
+      const row = (await screen.findByText('2 × Steak')).closest('tr')
+      fireEvent.click(within(row).getByRole('button', { name: 'Reject the void of Steak' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Reject this void' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Reject' }))
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('restaurant/orders/o-1/lines/ln-1/void/reject', {}))
+    })
+
+    it('offers Apply only for lines within the reader\'s limit, and Reject always', async () => {
+      setup({ extra: [['restaurant/pending-voids', { data: [PENDING, OVER_LIMIT] }]] })
+      renderApp('/restaurant/pending-voids')
+      const row = (await screen.findByText('2 × Lobster')).closest('tr')
+      expect(within(row).queryByRole('button', { name: 'Apply the void of Lobster' })).not.toBeInTheDocument()
+      expect(within(row).getByText('Above your limit')).toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: 'Reject the void of Lobster' })).toBeInTheDocument()
+    })
+
+    it('says so when nothing waits, and is not in the menu without pos.sale.void', async () => {
+      setup({ extra: [['restaurant/pending-voids', { data: [] }]] })
+      renderApp('/restaurant/pending-voids')
+      expect(await screen.findByText('No voids are waiting for approval.')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Pending voids' })).toBeInTheDocument()
+    })
+
+    it('keeps the page and the menu entry from someone without pos.sale.void', async () => {
+      setup({ without: ['pos.sale.void'], extra: [['restaurant/pending-voids', { data: [] }]] })
+      renderApp('/restaurant/orders')
+      await screen.findByRole('heading', { name: 'Orders and tabs' })
+      expect(screen.queryByRole('link', { name: 'Pending voids' })).not.toBeInTheDocument()
     })
   })
 

@@ -272,6 +272,13 @@ function mergeLine(local, server) {
   const removed = local.removed ?? removedOf(server);
   const round = Math.max(local.round ?? 0, server.round ?? 0) || undefined;
   const merged = { ...base, ...(round ? { round } : {}), ...(local.sent_at || server.sent_at ? { sent_at: local.sent_at ?? server.sent_at, sent_by: local.sent_by ?? server.sent_by } : {}), ...(removed ? { removed } : {}) };
+  // REST-11: a void the server could not prove waits for review. The line stays as sold and on the bill
+  // until the server applies it (the line comes back voided) or rejects it (the pending mark goes).
+  if (server.void_pending !== undefined) {
+    if (server.void_pending && !removed) merged.void_pending = server.void_pending;
+    else delete merged.void_pending;
+  }
+  if (removed) delete merged.void_pending;
   if (server.ticket_status !== undefined) merged.ticket_status = server.ticket_status;
   else if (local.ticket_status !== undefined) merged.ticket_status = local.ticket_status;
   return merged;
@@ -394,9 +401,11 @@ export function applyResult(order, result) {
   }
   const uploaded = new Set(order.local.uploaded);
   const lines = {};
+  const pending = new Set();
   for (const entry of result.lines ?? []) {
     if (entry.status === 'stored') {
       uploaded.add(entry.id);
+      if (entry.void === 'pending') pending.add(entry.id);
     } else lines[entry.id] = errorCode(entry.error);
   }
   // A stored order with no line results stored every line it was sent.
@@ -408,9 +417,21 @@ export function applyResult(order, result) {
     server_rev: result.rev ?? order.local.server_rev ?? null,
     seen_remote: true,
   });
+  // A void waiting for review: the line is not voided on the till, it shows "pending" and counts in the bill.
+  if (pending.size) {
+    next = {
+      ...next,
+      lines: next.lines.map((line) => (pending.has(line.id) && line.removed ? { ...omitKey(line, 'removed'), void_pending: { at: line.removed.at, by: line.removed.by, reason: line.removed.reason } } : line)),
+    };
+  }
   if (result.order) next = mergeServer(next, result.order);
   return { order: next, retry: false };
 }
+
+const omitKey = (object, key) => Object.fromEntries(Object.entries(object).filter(([name]) => name !== key));
+
+/** Whether a sent line's void waits for a reviewer (REST-11). */
+export const isVoidPending = (line) => Boolean(line.void_pending) && !line.removed;
 
 /** A line as the Bill takes it: removed lines are void. */
 export function billLines(order) {

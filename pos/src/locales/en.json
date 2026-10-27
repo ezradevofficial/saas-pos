@@ -935,6 +935,7 @@
       "lines_other": "Order ({{count}} items)"
     },
     "line": {
+      "voidPending": "Void pending approval",
       "course": "Course",
       "courseN": "Course {{course}}",
       "seat": "Seat",

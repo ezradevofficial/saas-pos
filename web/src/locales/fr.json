@@ -518,7 +518,8 @@
     "pharmacySlow": "Rotation lente",
     "pharmacyLog": "Journal des ordonnances",
     "pharmacyItems": "Profils des articles",
-    "pharmacySettings": "Paramètres de la pharmacie"
+    "pharmacySettings": "Paramètres de la pharmacie",
+    "restaurantPendingVoids": "Annulations en attente"
   },
   "shell": {
     "account": "Menu du compte",
@@ -13912,6 +13913,25 @@
       "voidValue": "Valeur",
       "voidReasons": "Motifs",
       "reason": "Motif"
+    },
+    "pending": {
+      "title": "Annulations en attente d’approbation",
+      "description": "Articles retirés après leur envoi à un poste, demandés à une caisse que le serveur n’a pas pu vérifier. Ils restent sur l’addition tant que vous ne les appliquez pas.",
+      "empty": "Aucune annulation n’attend d’approbation.",
+      "value": "Valeur",
+      "askedBy": "Demandée par",
+      "askedAt": "Demandée",
+      "apply": "Appliquer",
+      "reject": "Rejeter",
+      "applyNamed": "Appliquer l’annulation de {{name}}",
+      "rejectNamed": "Rejeter l’annulation de {{name}}",
+      "overLimit": "Au-dessus de votre limite",
+      "applyTitle": "Appliquer cette annulation",
+      "rejectTitle": "Rejeter cette annulation",
+      "applyAsk": "Retirer {{qty}} × {{name}} de l’addition et prévenir le poste ? Motif donné : {{reason}}.",
+      "rejectAsk": "Garder {{qty}} × {{name}} sur l’addition ? La demande est close.",
+      "applied": "L’annulation a été appliquée.",
+      "rejected": "L’annulation a été rejetée."
     }
   },
   "pharmacy": {

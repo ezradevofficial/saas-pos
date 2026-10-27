@@ -76,6 +76,8 @@ export const STORES_REPORT_VIEW = 'stores.report.view'
 export const MANUFACTURING_BOM_VIEW = 'manufacturing.bom.view'
 export const MANUFACTURING_ORDER_VIEW = 'manufacturing.order.view'
 export const MANUFACTURING_REPORT_VIEW = 'manufacturing.report.view'
+/** REST-11: reviewing the voids a till asked for (core's void permission; the API lists only what the reader may). */
+export const POS_SALE_VOID = 'pos.sale.void'
 export const RESTAURANT_FLOOR_VIEW = 'restaurant.floor.view'
 export const RESTAURANT_STATION_VIEW = 'restaurant.station.view'
 export const RESTAURANT_MODIFIER_VIEW = 'restaurant.modifier.view'
@@ -275,6 +277,7 @@ export const NAV_GROUPS = [
     label: (t) => t('nav.groups.restaurant'),
     items: [
       { to: '/restaurant/orders', icon: 'orders', label: (t) => t('nav.restaurantOrders'), permission: RESTAURANT_ORDER_VIEW, module: 'restaurant' },
+      { to: '/restaurant/pending-voids', icon: 'alert', label: (t) => t('nav.restaurantPendingVoids'), permission: POS_SALE_VOID, module: 'restaurant' },
       { to: '/restaurant/kitchen', icon: 'clock', label: (t) => t('nav.restaurantKitchen'), permission: RESTAURANT_TICKET_VIEW, module: 'restaurant' },
       { to: '/restaurant/floor', icon: 'dimensions', label: (t) => t('nav.restaurantFloor'), permission: RESTAURANT_FLOOR_VIEW, module: 'restaurant' },
       { to: '/restaurant/stations', icon: 'device', label: (t) => t('nav.restaurantStations'), permission: RESTAURANT_STATION_VIEW, module: 'restaurant' },

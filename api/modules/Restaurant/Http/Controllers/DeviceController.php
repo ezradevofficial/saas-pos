@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Modules\POS\Sync\DevicePlace;
 use Modules\Restaurant\Http\Requests\DeviceTicketStatusRequest;
 use Modules\Restaurant\Http\Requests\SyncOrdersRequest;
+use Modules\Restaurant\Http\Requests\TicketPermission;
 use Modules\Restaurant\Models\Ticket;
 use Modules\Restaurant\Orders\OrderView;
 use Modules\Restaurant\Orders\Tickets;
@@ -47,7 +48,7 @@ class DeviceController
             throw Errors::make(422, 'user_unknown', field: 'user_id');
         }
 
-        if (! $person->isActive() || ! $resolver->can($person, 'restaurant.ticket.update', Scope::location($place->location->id))) {
+        if (! $person->isActive() || ! $resolver->can($person, TicketPermission::for($person, $request->validated('status'), Scope::location($place->location->id)), Scope::location($place->location->id))) {
             throw Errors::make(403, 'ticket_not_permitted');
         }
 

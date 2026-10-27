@@ -173,7 +173,7 @@ return [
     [
         // REST-19 (docs/modules/restaurant.md): takes orders at tables and tabs, sends them, moves tables to a colleague,
         // and rings the bill of a table or tab at the till (a sale carrying extensions.restaurant; no general pos.sale.create).
-        // Merging tables and moving tickets along are a manager's and the kitchen's; voiding a sent item needs a manager
+        // Merging tables is a manager's, and only the kitchen starts and finishes tickets (a waiter marks them served); voiding a sent item needs a manager
         // (no pos.sale.void, no limit); discounts too.
         'key' => 'waiter',
         'permissions' => [
@@ -183,7 +183,7 @@ return [
             'restaurant.floor.view', 'restaurant.station.view', 'restaurant.modifier.view',
             'restaurant.order.view', 'restaurant.order.create', 'restaurant.order.edit', 'restaurant.order.send',
             'restaurant.order.transfer', 'restaurant.order.close',
-            'restaurant.ticket.view',
+            'restaurant.ticket.view', 'restaurant.ticket.serve',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -208,7 +208,7 @@ return [
             'restaurant.floor.view', 'restaurant.station.view', 'restaurant.modifier.view',
             'restaurant.order.view', 'restaurant.order.create', 'restaurant.order.edit', 'restaurant.order.send',
             'restaurant.order.transfer', 'restaurant.order.close',
-            'restaurant.ticket.view', 'restaurant.ticket.update',
+            'restaurant.ticket.view', 'restaurant.ticket.update', 'restaurant.ticket.serve',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

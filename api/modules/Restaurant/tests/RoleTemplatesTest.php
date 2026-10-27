@@ -32,7 +32,7 @@ class RoleTemplatesTest extends TestCase
         return $this->inTenant(fn () => $this->roles->get($template)->permissions()->where('module', 'restaurant')->orderBy('name')->pluck('name')->all());
     }
 
-    public function test_the_catalogue_lists_the_modules_seventeen_permissions(): void
+    public function test_the_catalogue_lists_the_modules_eighteen_permissions(): void
     {
         $names = [];
 
@@ -42,7 +42,7 @@ class RoleTemplatesTest extends TestCase
             }
         }
 
-        $this->assertCount(17, $names);
+        $this->assertCount(18, $names);
         $this->assertSame($names, array_values(array_intersect($names, $this->inTenant(fn () => Permission::where('module', 'restaurant')->pluck('name')->all()))));
     }
 
@@ -50,8 +50,8 @@ class RoleTemplatesTest extends TestCase
     {
         $this->assertSame([
             'restaurant.floor.view', 'restaurant.modifier.view', 'restaurant.order.close', 'restaurant.order.create', 'restaurant.order.edit',
-            'restaurant.order.send', 'restaurant.order.transfer', 'restaurant.order.view', 'restaurant.station.view', 'restaurant.ticket.view',
-        ], $this->granted('waiter'), 'no merging tables and no moving tickets along');
+            'restaurant.order.send', 'restaurant.order.transfer', 'restaurant.order.view', 'restaurant.station.view', 'restaurant.ticket.serve', 'restaurant.ticket.view',
+        ], $this->granted('waiter'), 'no merging tables, and tickets only marked served');
 
         $held = $this->inTenant(fn () => $this->roles->get('waiter')->permissions()->pluck('name')->all());
         foreach (['pos.sale.void', 'pos.sale.refund', 'pos.discount.give', 'pos.price.override', 'pos.sale.create'] as $never) {
@@ -75,7 +75,7 @@ class RoleTemplatesTest extends TestCase
     public function test_the_branch_manager_holds_it_all_but_the_service_charge_and_the_admin_sets_up(): void
     {
         $manager = $this->granted('branch_manager');
-        $this->assertCount(16, $manager);
+        $this->assertCount(17, $manager);
         $this->assertNotContains('restaurant.settings.edit', $manager);
 
         $admin = $this->granted('admin');
@@ -83,7 +83,7 @@ class RoleTemplatesTest extends TestCase
         $this->assertContains('restaurant.floor.manage', $admin);
         $this->assertContains('restaurant.report.view', $admin);
         $this->assertNotContains('restaurant.order.create', $admin, 'the Admin reads orders; the floor staff take them');
-        $this->assertCount(17, $this->granted('owner'));
+        $this->assertCount(18, $this->granted('owner'));
     }
 
     public function test_the_system_role_refresh_takes_removed_rights_from_existing_waiters(): void

@@ -518,7 +518,8 @@
     "pharmacySlow": "Slow movers",
     "pharmacyLog": "Prescription log",
     "pharmacyItems": "Item profiles",
-    "pharmacySettings": "Pharmacy settings"
+    "pharmacySettings": "Pharmacy settings",
+    "restaurantPendingVoids": "Pending voids"
   },
   "shell": {
     "account": "Account menu",
@@ -13912,6 +13913,25 @@
       "voidValue": "Value",
       "voidReasons": "Reasons",
       "reason": "Reason"
+    },
+    "pending": {
+      "title": "Voids waiting for approval",
+      "description": "Items removed after they were sent to a station, asked for at a till that the server could not verify. They stay on the bill until you apply them.",
+      "empty": "No voids are waiting for approval.",
+      "value": "Value",
+      "askedBy": "Asked by",
+      "askedAt": "Asked",
+      "apply": "Apply",
+      "reject": "Reject",
+      "applyNamed": "Apply the void of {{name}}",
+      "rejectNamed": "Reject the void of {{name}}",
+      "overLimit": "Above your limit",
+      "applyTitle": "Apply this void",
+      "rejectTitle": "Reject this void",
+      "applyAsk": "Remove {{qty}} × {{name}} from the bill and tell the station? Reason given: {{reason}}.",
+      "rejectAsk": "Keep {{qty}} × {{name}} on the bill? The request is closed.",
+      "applied": "The void was applied.",
+      "rejected": "The void was rejected."
     }
   },
   "pharmacy": {

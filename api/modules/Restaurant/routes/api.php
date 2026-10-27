@@ -9,6 +9,7 @@ use Modules\Restaurant\Http\Controllers\DeviceController;
 use Modules\Restaurant\Http\Controllers\FloorController;
 use Modules\Restaurant\Http\Controllers\ModifierController;
 use Modules\Restaurant\Http\Controllers\OrderController;
+use Modules\Restaurant\Http\Controllers\PendingVoidController;
 use Modules\Restaurant\Http\Controllers\ReportController;
 use Modules\Restaurant\Http\Controllers\SettingsController;
 use Modules\Restaurant\Http\Controllers\StationController;
@@ -77,6 +78,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // REST-03 to REST-06, REST-11, REST-14, REST-15: orders.
     Route::get('restaurant/orders', [OrderController::class, 'index'])->defaults('permission', 'restaurant.order.view');
+    Route::get('restaurant/pending-voids', [PendingVoidController::class, 'index'])->defaults('permission', 'pos.sale.void');
     Route::get('restaurant/orders/{rest_order}', [OrderController::class, 'show'])->defaults('permission', 'restaurant.order.view');
     Route::post('restaurant/orders/{rest_order}/transfer', [OrderController::class, 'transfer'])->defaults('permission', 'restaurant.order.transfer');
     Route::post('restaurant/orders/{rest_order}/merge', [OrderController::class, 'merge'])->defaults('permission', 'restaurant.order.merge');

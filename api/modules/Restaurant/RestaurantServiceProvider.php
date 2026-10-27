@@ -46,8 +46,8 @@ class RestaurantServiceProvider extends ServiceProvider
         'modifier' => ['view', 'manage'],
         // REST-03 to REST-06, REST-10, REST-14, REST-15.
         'order' => ['view', 'create', 'edit', 'send', 'transfer', 'merge', 'close'],
-        // REST-09, REST-12: the kitchen display and ticket status.
-        'ticket' => ['view', 'update'],
+        // REST-09, REST-12: the kitchen display and ticket status; `serve` is only the move to served (a waiter's).
+        'ticket' => ['view', 'update', 'serve'],
         // REST-13: a company's service charge and tip items.
         'settings' => ['edit'],
         // REST-18.

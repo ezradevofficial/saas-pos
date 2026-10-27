@@ -935,6 +935,7 @@
       "lines_other": "Commande ({{count}} articles)"
     },
     "line": {
+      "voidPending": "Annulation en attente d’approbation",
       "course": "Service",
       "courseN": "Service {{course}}",
       "seat": "Place",

@@ -71,8 +71,7 @@ class TicketsTest extends TestCase
         $recalled = $status('preparing')->assertOk()->json('data');
         $this->assertNull($recalled['ready_at'], 'a recalled ticket is not ready any more');
         $status('ready');
-        $status('served', $this->waiter)->assertForbidden();
-        $served = $status('served')->assertOk()->json('data');
+        $served = $status('served', $this->waiter)->assertOk()->json('data');
         $this->assertNotNull($served['served_at']);
         $status('flying')->assertUnprocessable();
 
@@ -82,6 +81,33 @@ class TicketsTest extends TestCase
         $this->api('GET', $url, [], $this->cook)->assertJsonCount(1, 'data');
         $this->api('GET', "{$url}&status=all", [], $this->cook)->assertJsonCount(2, 'data');
         $this->api('GET', "{$url}&status=served", [], $this->cook)->assertJsonCount(1, 'data');
+    }
+
+    public function test_a_waiter_marks_served_and_only_served(): void
+    {
+        $this->sendOne();
+        $ticket = Ticket::query()->where('station_id', $this->kitchen->id)->sole();
+        $status = fn (string $to, $user) => $this->api('POST', "restaurant/tickets/{$ticket->id}/status", ['status' => $to], $user);
+
+        foreach (['preparing', 'ready', 'new'] as $other) {
+            $status($other, $this->waiter)->assertForbidden();
+        }
+        $this->assertSame('new', Ticket::query()->find($ticket->id)->status);
+        $status('served', $this->waiter)->assertOk()->assertJsonPath('data.status', 'served');
+        // The kitchen keeps every move, and the serve right of a person elsewhere does not reach this location.
+        $status('preparing', $this->cook)->assertOk();
+        $managerB = $this->userWith('waiter', Scope::location($this->locationB->id));
+        $status('served', $managerB)->assertForbidden();
+    }
+
+    public function test_a_till_lets_a_waiter_mark_served_only(): void
+    {
+        $this->sendOne();
+        $ticket = Ticket::query()->where('station_id', $this->kitchen->id)->sole();
+        $url = "/api/v1/restaurant/device/tickets/{$ticket->id}/status";
+
+        $this->postJson($url, ['status' => 'ready', 'user_id' => $this->waiter->id], $this->tillHeaders())->assertForbidden()->assertJsonPath('code', 'ticket_not_permitted');
+        $this->postJson($url, ['status' => 'served', 'user_id' => $this->waiter->id], $this->tillHeaders())->assertOk()->assertJsonPath('data.status', 'served');
     }
 
     public function test_the_feed_can_be_read_from_a_moment_on(): void
@@ -119,7 +145,6 @@ class TicketsTest extends TestCase
         $ticket = Ticket::query()->where('station_id', $this->kitchen->id)->sole();
         $url = "/api/v1/restaurant/device/tickets/{$ticket->id}/status";
 
-        $this->postJson($url, ['status' => 'served', 'user_id' => $this->waiter->id], $this->tillHeaders())->assertForbidden()->assertJsonPath('code', 'ticket_not_permitted');
         $this->postJson($url, ['status' => 'served', 'user_id' => $this->cook->id], $this->tillHeaders())->assertOk()->assertJsonPath('data.status', 'served');
 
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));

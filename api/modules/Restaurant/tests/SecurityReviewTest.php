@@ -6,6 +6,7 @@ use App\Core\Audit\AuditEntry;
 use App\Core\MasterData\Items\Item;
 use App\Core\MasterData\Items\Uom;
 use App\Core\Rbac\Models\LimitRule;
+use App\Core\Rbac\Scope;
 use Modules\Restaurant\Models\Order;
 use Modules\Restaurant\Models\OrderLine;
 use Modules\Restaurant\Models\Settlement;
@@ -96,6 +97,47 @@ class SecurityReviewTest extends TestCase
         $this->api('POST', $url, [], $this->manager)->assertOk()->assertJsonPath('data.lines.0.void_pending', null);
         $this->assertNull(OrderLine::query()->find($sent['id'])->voided_at);
         $this->api('POST', $url, [], $this->manager)->assertConflict()->assertJsonPath('code', 'no_pending_void');
+    }
+
+    public function test_pending_voids_are_listed_for_those_who_may_void_with_what_they_may_apply(): void
+    {
+        $this->rate('USD', 'KES', '130');
+        [$record, $sent] = $this->table(['currency' => 'USD'], ['unit_price_minor' => '5000', 'name' => 'Steak']);
+        $this->remove($record, $sent, $this->removed($this->waiter, 'Guest left', ['override' => ['manager_user_id' => $this->manager->id, 'signature' => 'unverifiable']]));
+        $this->inTenant(fn () => LimitRule::where('role_id', $this->roles->get('branch_manager')->id)->where('key', 'max_refund_amount')->update(['value' => '5000']));
+
+        $row = $this->api('GET', 'restaurant/pending-voids', [], $this->manager)->assertOk()->assertJsonCount(1, 'data')->json('data.0');
+        // USD 56.25 at 130 is KES 7,312.50: over the manager's limit of KES 5,000.
+        $this->assertSame([$record['id'], $sent['id'], 'Steak', '5625', 'USD', $this->waiter->id, $this->waiter->name, $this->manager->id, 'Guest left', 'T1', false],
+            [$row['order_id'], $row['line_id'], $row['name'], $row['value_minor'], $row['currency'], $row['asked_by_id'], $row['asked_by_name'], $row['named_approver_id'], $row['reason'], $row['table_name'], $row['can_apply']]);
+        $this->assertTrue($this->api('GET', 'restaurant/pending-voids')->assertOk()->json('data.0.can_apply'), 'the Owner has no limit');
+
+        $this->api('GET', 'restaurant/pending-voids', [], $this->waiter)->assertForbidden();
+        $this->api('GET', 'restaurant/pending-voids', [], $this->cook)->assertForbidden();
+        $managerB = $this->userWith('branch_manager', Scope::branch($this->branchB->id));
+        $this->api('GET', 'restaurant/pending-voids', [], $managerB)->assertOk()->assertJsonCount(0, 'data');
+        $this->api('GET', "restaurant/pending-voids?location_id={$this->locationA->id}", [], $managerB)->assertForbidden();
+
+        // Once rejected (or applied) it leaves the list.
+        $this->api('POST', "restaurant/orders/{$record['id']}/lines/{$sent['id']}/void/reject", [], $this->manager)->assertOk();
+        $this->api('GET', 'restaurant/pending-voids', [], $this->manager)->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    public function test_rejecting_a_void_is_audited_and_scoped_to_the_orders_place(): void
+    {
+        [$record, $sent] = $this->table();
+        $this->remove($record, $sent, $this->removed($this->manager, extra: ['actor_proof' => null]));
+        $url = "restaurant/orders/{$record['id']}/lines/{$sent['id']}/void/reject";
+        $managerB = $this->userWith('branch_manager', Scope::branch($this->branchB->id));
+        $other = $this->otherRestaurantTenant();
+
+        $this->api('POST', $url, [], $managerB)->assertForbidden();
+        $this->json('POST', "/api/v1/{$url}", [], $this->headersFor($other['user']))->assertNotFound();
+        $this->assertSame(0, AuditEntry::query()->where('action', 'restaurant.order.void_rejected')->count());
+
+        $this->api('POST', $url, [], $this->manager)->assertOk();
+        $entry = AuditEntry::query()->where('action', 'restaurant.order.void_rejected')->sole();
+        $this->assertSame([$this->manager->id, $sent['id']], [$entry->user_id, $entry->after['line_id']]);
     }
 
     // ---- 2. the void limit is in the base currency ----
