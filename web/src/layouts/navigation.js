@@ -151,6 +151,24 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    // Pharmacy (docs/modules/pharmacy.md): only while the module is active (RBAC-08).
+    id: 'pharmacy',
+    label: (t) => t('nav.groups.pharmacy'),
+    items: [
+      { to: '/pharmacy/lots', icon: 'stock', label: (t) => t('nav.pharmacyLots'), permission: 'pharmacy.lot.view', module: 'pharmacy' },
+      { to: '/pharmacy/reports/expiry', icon: 'alert', label: (t) => t('nav.pharmacyExpiry'), permission: 'pharmacy.report.view', module: 'pharmacy' },
+      { to: '/pharmacy/write-offs', icon: 'adjustments', label: (t) => t('nav.pharmacyWriteOffs'), permission: 'pharmacy.writeoff.view', module: 'pharmacy' },
+      { to: '/pharmacy/recalls', icon: 'history', label: (t) => t('nav.pharmacyRecalls'), permission: 'pharmacy.recall.view', module: 'pharmacy' },
+      { to: '/pharmacy/prescriptions', icon: 'attach', label: (t) => t('nav.pharmacyPrescriptions'), permission: 'pharmacy.prescription.view', module: 'pharmacy' },
+      { to: '/pharmacy/register', icon: 'lock', label: (t) => t('nav.pharmacyRegister'), permission: 'pharmacy.register.view', module: 'pharmacy' },
+      { to: '/pharmacy/dispenses', icon: 'approvals', label: (t) => t('nav.pharmacyDispenses'), permission: 'pharmacy.dispense.review', module: 'pharmacy' },
+      { to: '/pharmacy/reports/slow-movers', icon: 'chart', label: (t) => t('nav.pharmacySlow'), permission: 'pharmacy.report.view', module: 'pharmacy' },
+      { to: '/pharmacy/reports/prescriptions', icon: 'receipts', label: (t) => t('nav.pharmacyLog'), permission: 'pharmacy.report.view', module: 'pharmacy' },
+      { to: '/pharmacy/items', icon: 'items', label: (t) => t('nav.pharmacyItems'), permission: ['pharmacy.item.view', 'pharmacy.item.configure'], module: 'pharmacy' },
+      { to: '/pharmacy/settings', icon: 'settings', label: (t) => t('nav.pharmacySettings'), permission: ['pharmacy.settings.view', 'pharmacy.settings.edit'], module: 'pharmacy' },
+    ],
+  },
+  {
     // CRM and sales (docs/modules/crm.md, Screens): only while the module is active (RBAC-08).
     id: 'crm',
     label: (t) => t('nav.groups.crm'),
