@@ -22,7 +22,7 @@ class RoleTemplatesTest extends TestCase
         'pharmacy.item.configure', 'pharmacy.item.view',
         'pharmacy.lot.quarantine', 'pharmacy.lot.receive', 'pharmacy.lot.transfer', 'pharmacy.lot.view',
         'pharmacy.prescription.cancel', 'pharmacy.prescription.create', 'pharmacy.prescription.image', 'pharmacy.prescription.view',
-        'pharmacy.recall.issue', 'pharmacy.recall.lift', 'pharmacy.recall.view',
+        'pharmacy.recall.customers', 'pharmacy.recall.issue', 'pharmacy.recall.lift', 'pharmacy.recall.view',
         'pharmacy.register.adjust', 'pharmacy.register.print', 'pharmacy.register.view',
         'pharmacy.report.view',
         'pharmacy.settings.edit', 'pharmacy.settings.view',

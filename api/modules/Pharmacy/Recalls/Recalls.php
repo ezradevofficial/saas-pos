@@ -7,6 +7,7 @@ use App\Core\Identity\Models\User;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Closure;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\Pharmacy\Events\LotBlocked;
@@ -93,13 +94,20 @@ class Recalls
      * still with the customer (sold less voided and refunded); sales whose
      * customer was not named are counted apart.
      *
+     * Only the sales at $locations are listed (null: every place), and a row
+     * names its customer only where $mayName(locationId) holds (PHA-28:
+     * names and phones are personal data).
+     *
+     * @param  list<string>|null  $locations
+     * @param  Closure(string): bool  $mayName
      * @return array{customers: list<array<string, mixed>>, unattributed: array{sales: int, qty: string}}
      */
-    public function customers(Recall $recall): array
+    public function customers(Recall $recall, ?array $locations = null, ?Closure $mayName = null): array
     {
         $lotIds = Lot::query()->where('item_id', $recall->item_id)->whereRaw('lower(batch_number) = lower(?)', [$recall->batch_number])->pluck('id')->all();
         $rows = LotMovement::query()->whereIn('lot_id', $lotIds)->whereNotNull('sale_id')
             ->whereIn('kind', [LotMovement::SALE, LotMovement::SALE_VOID, LotMovement::SALE_RETURN])
+            ->when($locations !== null, fn ($q) => $q->whereIn('location_id', $locations))
             ->get(['sale_id', 'customer_id', 'location_id', 'reference', 'kind', 'qty', 'occurred_at']);
         $parties = Party::query()->whereKey($rows->pluck('customer_id')->filter()->unique()->all())->get()->keyBy('id');
         $customers = [];
@@ -124,7 +132,7 @@ class Recalls
             }
 
             $customers[] = [
-                'customer' => ['id' => $party->id, 'name' => $party->name, 'phone' => $party->phoneNumbers()[0] ?? null],
+                'customer' => $mayName === null || $mayName((string) $sold->location_id) ? ['id' => $party->id, 'name' => $party->name, 'phone' => $party->phoneNumbers()[0] ?? null] : null,
                 'sale_id' => $saleId,
                 'receipt_number' => $sold->reference,
                 'location_id' => $sold->location_id,
@@ -133,7 +141,7 @@ class Recalls
             ];
         }
 
-        usort($customers, fn (array $a, array $b) => [$a['customer']['name'], $a['sold_at']] <=> [$b['customer']['name'], $b['sold_at']]);
+        usort($customers, fn (array $a, array $b) => [$a['customer']['name'] ?? '', $a['sold_at']] <=> [$b['customer']['name'] ?? '', $b['sold_at']]);
 
         return ['customers' => $customers, 'unattributed' => ['sales' => $unattributed['sales'], 'qty' => Qty::show($unattributed['qty'])]];
     }

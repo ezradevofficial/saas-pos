@@ -11,6 +11,8 @@ use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Closure;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -85,8 +87,10 @@ class Prescriptions
 
         $existing = Prescription::query()->find($data['id']);
 
+        // Only this sale's own prescription (a re-upload) is accepted by id: another sale's, an office record
+        // or one at another place is never attached, so a patient's record cannot be borrowed (PHA-28).
         if ($existing !== null) {
-            return $existing;
+            return $this->isOwn($existing, $sale) ? $existing : null;
         }
 
         foreach (['prescriber_name', 'prescriber_licence', 'facility', 'patient_name', 'prescribed_on'] as $required) {
@@ -95,7 +99,10 @@ class Prescriptions
             }
         }
 
-        if (! $this->isDate($data['prescribed_on']) || (isset($data['patient_birth_date']) && ! $this->isDate((string) $data['patient_birth_date']))) {
+        // A prescription cannot be written tomorrow: one day is allowed for time zones.
+        $soldOn = CarbonImmutable::parse((string) ($sale['sold_at'] ?? 'now'))->utc()->addDay()->toDateString();
+
+        if (! $this->isDate($data['prescribed_on']) || $data['prescribed_on'] > $soldOn || (isset($data['patient_birth_date']) && ! $this->isDate((string) $data['patient_birth_date']))) {
             return null;
         }
 
@@ -120,12 +127,59 @@ class Prescriptions
                 return $made;
             });
         } catch (UniqueConstraintViolationException) {
-            return Prescription::query()->find($data['id']);
+            $existing = Prescription::query()->find($data['id']);
+
+            return $existing !== null && $this->isOwn($existing, $sale) ? $existing : null;
         }
 
         $this->auditor->record('pharmacy.prescription.create', $prescription, null, ['source' => Prescription::TILL, 'sale_id' => $sale['id']], ['user_id' => Str::isUuid($cashier) ? $cashier : null]);
 
         return $prescription;
+    }
+
+    /** Whether $prescription was made by the till for this very sale, at this company and place. @param array<string, mixed> $sale */
+    private function isOwn(Prescription $prescription, array $sale): bool
+    {
+        return $prescription->sale_id !== null && $prescription->sale_id === (string) $sale['id']
+            && $prescription->company_id === (string) $sale['company_id'] && $prescription->location_id === (string) $sale['location_id'];
+    }
+
+    /**
+     * NFR-08, PHA-28: a patient's erasure deletes the stored images of their
+     * prescriptions (the records stay, TEN-06). Returns the note for the
+     * erasure report.
+     *
+     * @param  Closure(Builder, string): void  $patientRows
+     * @return list<string>
+     */
+    public static function eraseImagesOf(string $subjectId, Closure $patientRows): array
+    {
+        $table = DB::connection(TenantContext::CONNECTION)->table('pharmacy_prescriptions');
+        $patientRows($table, $subjectId);
+        $rows = $table->whereNotNull('image_path')->get(['id', 'image_disk', 'image_path']);
+
+        foreach ($rows as $row) {
+            Storage::disk($row->image_disk)->delete($row->image_path);
+        }
+
+        if ($rows->isNotEmpty()) {
+            DB::connection(TenantContext::CONNECTION)->table('pharmacy_prescriptions')->whereIn('id', $rows->pluck('id')->all())
+                ->update(['image_disk' => null, 'image_path' => null, 'image_name' => null, 'image_mime' => null]);
+        }
+
+        return $rows->isEmpty() ? [] : [__('pharmacy.privacy.images_removed', ['count' => $rows->count()])];
+    }
+
+    /** Whether the till named a prescription id that exists but is not this sale's (it is flagged, never used). @param array<string, mixed> $sale @param array<string, mixed>|null $data */
+    public function isReused(array $sale, ?array $data): bool
+    {
+        if (! is_array($data) || ! Str::isUuid((string) ($data['id'] ?? ''))) {
+            return false;
+        }
+
+        $existing = Prescription::query()->find($data['id']);
+
+        return $existing !== null && ! $this->isOwn($existing, $sale);
     }
 
     /** @param array<string, mixed> $data @return array<string, mixed> */

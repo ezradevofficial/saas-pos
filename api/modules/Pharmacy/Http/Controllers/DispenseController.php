@@ -4,6 +4,8 @@ namespace Modules\Pharmacy\Http\Controllers;
 
 use App\Core\Audit\Auditor;
 use App\Core\Exports\ListExport;
+use App\Core\Rbac\Scope;
+use App\Core\Rbac\ScopeResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -45,7 +47,11 @@ class DispenseController
 
         if ($search !== '') {
             $like = '%'.addcslashes($search, '\\%_').'%';
-            $query->where(fn (Builder $q) => $q->where('receipt_number', 'ilike', $like)->orWhereHas('prescription', fn (Builder $p) => $p->where('patient_name', 'ilike', $like)->orWhere('prescriber_name', 'ilike', $like)));
+            // PHA-28: patient and prescriber names are searched only where the reader may see prescriptions.
+            $readable = app(ScopeResolver::class)->visibleIds($request->user(), 'pharmacy.prescription.view');
+            $query->where(fn (Builder $q) => $q->where('receipt_number', 'ilike', $like)->orWhere(fn (Builder $r) => $r
+                ->when(! $readable->all, fn (Builder $w) => $w->whereIn('pharmacy_dispenses.location_id', $readable->idsFor(Scope::LOCATION)))
+                ->whereHas('prescription', fn (Builder $p) => $p->where('patient_name', 'ilike', $like)->orWhere('prescriber_name', 'ilike', $like))));
         }
 
         $request->applySort($query);

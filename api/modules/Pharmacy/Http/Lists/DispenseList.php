@@ -54,7 +54,7 @@ class DispenseList extends PharmacyList
             self::col('class', ['class'], fn (array $row) => __('pharmacy.classes.'.$row['class'])),
             self::qty('qty', 'qty'),
             self::col('patient_name', ['prescription'], fn (array $row) => $row['prescription']['patient_name'] ?? null),
-            self::col('prescriber', ['prescription'], fn (array $row) => isset($row['prescription']) ? trim($row['prescription']['prescriber_name'].' '.$row['prescription']['prescriber_licence']) : null),
+            self::col('prescriber', ['prescription'], fn (array $row) => isset($row['prescription']['prescriber_name']) ? trim($row['prescription']['prescriber_name'].' '.$row['prescription']['prescriber_licence']) : null),
             self::named('pharmacist', 'pharmacist'),
             self::col('approval_mode', ['approval_mode'], fn (array $row) => __('pharmacy.approvals.'.$row['approval_mode'])),
             self::col('flags', ['flags'], fn (array $row) => implode(', ', array_map(fn (string $flag) => __('pharmacy.flags.'.$flag), $row['flags']))),

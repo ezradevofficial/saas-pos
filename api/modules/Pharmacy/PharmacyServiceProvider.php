@@ -8,14 +8,17 @@ use App\Core\MasterData\RecordUsage;
 use App\Core\Notifications\EventTypes;
 use App\Core\Numbering\DocumentNumberTypes;
 use App\Core\Privacy\PrivacySubjects;
+use App\Core\Privacy\Retention;
 use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Sync\SyncSources;
+use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
 use App\Core\Workflow\Events\WorkflowCompleted;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +30,7 @@ use Modules\Pharmacy\Alerts\PharmacyNotices;
 use Modules\Pharmacy\Console\ExpiryAlertsCommand;
 use Modules\Pharmacy\Events\DispenseFlagged;
 use Modules\Pharmacy\Events\RecallIssued;
+use Modules\Pharmacy\Prescriptions\Prescriptions;
 use Modules\Pharmacy\Sales\HandlePosEvents;
 use Modules\Pharmacy\Stock\MoveLotsForTransfer;
 use Modules\Pharmacy\Stock\RecordGoodsReceived;
@@ -64,7 +68,8 @@ class PharmacyServiceProvider extends ServiceProvider
         'lot' => ['view', 'receive', 'quarantine', 'transfer'],
         // PHA-12: `approve` acts on the write-off flow (WF-08).
         'writeoff' => ['view', 'create', 'approve', 'cancel'],
-        'recall' => ['view', 'issue', 'lift'],
+        // `customers`: the names and phones of who bought the batch (personal data).
+        'recall' => ['view', 'customers', 'issue', 'lift'],
         // PHA-14, PHA-15, PHA-28: personal data; `image` downloads the image.
         'prescription' => ['view', 'create', 'cancel', 'image'],
         // PHA-17, PHA-26: a pharmacist authorises a restricted dispense (named so that no `*.approve` pattern grants it by accident); reviewers close flagged ones.
@@ -81,9 +86,33 @@ class PharmacyServiceProvider extends ServiceProvider
         $this->app->scoped(Places::class);
         $this->app->scoped(CompanyDays::class);
 
-        // NFR-08: patients and customers named in the module's records (the patient's free-text name is kept as written).
+        // NFR-08, PHA-28: patients and customers named in the module's records. A patient is the customer a prescription is for
+        // (`patient_party_id`) or the customer of the sale it was taken down for; the free-text name is erased with them.
         $this->callAfterResolving(PrivacySubjects::class, function (PrivacySubjects $subjects) {
-            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'pharmacy_prescriptions', match: 'patient_party_id', related: true));
+            $patientOf = fn (string $column) => function (QueryBuilder $query, string $subjectId) use ($column) {
+                $query->whereIn($column, fn (QueryBuilder $q) => $q->from('pharmacy_prescriptions')->select('id')->where(fn (QueryBuilder $w) => $w
+                    ->where('patient_party_id', $subjectId)
+                    ->orWhereIn('id', fn (QueryBuilder $d) => $d->from('pharmacy_dispenses')->select('prescription_id')->where('customer_id', $subjectId)->whereNotNull('prescription_id'))));
+            };
+
+            // Prescriptions are kept (TEN-06; the period is to confirm) but stop naming the patient; the image is deleted.
+            $subjects->register(new SubjectSource(
+                subjectType: 'customer',
+                table: 'pharmacy_prescriptions',
+                match: 'patient_party_id',
+                personal: ['patient_name' => 'label', 'patient_phone' => 'null', 'patient_birth_date' => 'null', 'notes' => 'null'],
+                after: fn (string $subjectId) => Prescriptions::eraseImagesOf($subjectId, $patientOf('id')),
+                related: true,
+                matcher: $patientOf('id'),
+            ));
+            // The register is append-only and a regulator may require it: its rows are listed and kept (retention to confirm).
+            $subjects->register(new SubjectSource(subjectType: 'customer', table: 'pharmacy_register_entries', match: 'prescription_id', personal: ['patient_name' => 'label'], related: true, matcher: $patientOf('prescription_id')));
+            $subjects->retain('customer', function (string $subjectId) use ($patientOf) {
+                $rows = DB::connection(TenantContext::CONNECTION)->table('pharmacy_register_entries');
+                $patientOf('prescription_id')($rows, $subjectId);
+
+                return $rows->exists() ? new Retention(keep: ['pharmacy_register_entries' => ['patient_name' => 'keep']], reason: 'controlled_drug_register') : null;
+            });
 
             foreach (['pharmacy_dispenses', 'pharmacy_lot_movements'] as $table) {
                 $subjects->register(new SubjectSource(subjectType: 'customer', table: $table, match: 'customer_id', related: true));

@@ -14,7 +14,10 @@ class ReviewDispenseRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        abort_unless(app(ScopeResolver::class)->can($this->user(), 'pharmacy.dispense.review', Scope::location($this->route('pharmacy_dispense')->location_id)), 404);
+        $dispense = $this->route('pharmacy_dispense');
+        abort_unless(app(ScopeResolver::class)->can($this->user(), 'pharmacy.dispense.review', Scope::location($dispense->location_id)), 404);
+        // Four eyes: nobody closes a flag on a sale they made or approved.
+        abort_if(in_array($this->user()->id, [$dispense->cashier_id, $dispense->pharmacist_id], true), 403);
 
         return true;
     }

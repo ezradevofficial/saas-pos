@@ -3,6 +3,10 @@
 // Module Pharmacie et agrovet (docs/modules/pharmacy.md). Les seuils et règles
 // cités ici sont des paramètres du client, jamais des chiffres d’un régulateur.
 return [
+    'privacy' => [
+        'images_removed' => ':count images d’ordonnance ont été supprimées.',
+    ],
+
     'errors' => [
         'place_forbidden' => 'Vous n’avez pas la permission d’agir sur cet emplacement. Demandez l’accès à un administrateur.',
         'location_unknown' => 'Cet emplacement n’existe pas. Choisissez-en un autre.',
@@ -104,6 +108,8 @@ return [
         'pharmacist_missing' => 'Pas d’approbation du pharmacien',
         'pharmacist_unverified' => 'Approbation du pharmacien non prouvée',
         'approval_offline' => 'Approuvée hors ligne',
+        'prescription_reused' => 'Ordonnance d’une autre vente',
+        'lot_company_mismatch' => 'Lot d’une autre société',
     ],
 
     'lists' => [

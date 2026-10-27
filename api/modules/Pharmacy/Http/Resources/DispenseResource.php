@@ -5,6 +5,7 @@ namespace Modules\Pharmacy\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Pharmacy\Models\Dispense;
+use Modules\Pharmacy\Support\Access;
 use Modules\Pharmacy\Support\Qty;
 
 /**
@@ -31,11 +32,14 @@ class DispenseResource extends JsonResource
             'qty' => Qty::show($dispense->qty),
             'location' => Refs::place($dispense->location),
             'customer' => Refs::place($dispense->customer),
+            // PHA-28: patients and prescribers are personal data, shown only to those who may read prescriptions where it was dispensed.
             'prescription' => $prescription === null ? null : [
                 'id' => $prescription->id,
-                'patient_name' => $prescription->patient_name,
-                'prescriber_name' => $prescription->prescriber_name,
-                'prescriber_licence' => $prescription->prescriber_licence,
+                ...(app(Access::class)->can($request->user(), 'pharmacy.prescription.view', $dispense->location_id) ? [
+                    'patient_name' => $prescription->patient_name,
+                    'prescriber_name' => $prescription->prescriber_name,
+                    'prescriber_licence' => $prescription->prescriber_licence,
+                ] : []),
                 'prescribed_on' => $prescription->prescribed_on->toDateString(),
             ],
             'pharmacist' => Refs::user($dispense->pharmacist),

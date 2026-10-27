@@ -13728,7 +13728,9 @@
       "prescription_stale": "Ordonnance ancienne",
       "pharmacist_missing": "Pas d’approbation du pharmacien",
       "pharmacist_unverified": "Approbation du pharmacien non prouvée",
-      "approval_offline": "Approuvée hors ligne"
+      "approval_offline": "Approuvée hors ligne",
+      "prescription_reused": "Ordonnance d’une autre vente",
+      "lot_company_mismatch": "Lot d’une autre société"
     },
     "errors": {
       "insufficient_stock": "Il ne reste pas assez de stock pour cette mise au rebut."

@@ -60,7 +60,8 @@ class Dispensing
     /** Flags that put a dispense in the review list (PHA-26). */
     public const REVIEW_FLAGS = [
         'lot_expired', 'lot_quarantined', 'lot_recalled', 'lot_too_close', 'negative_stock', 'buyer_missing',
-        'prescription_missing', 'prescription_stale', 'pharmacist_missing', 'pharmacist_unverified',
+        'prescription_missing', 'prescription_stale', 'prescription_reused', 'pharmacist_missing', 'pharmacist_unverified',
+        'approval_offline', 'lot_company_mismatch',
     ];
 
     public function __construct(
@@ -154,7 +155,10 @@ class Dispensing
         $at = CarbonImmutable::parse($sale['sold_at']);
         $today = $at->setTimezone(CompanyClock::timezone($company, $sale['branch_id'] ?? null))->toDateString();
         $extension = is_array($sale['extensions']['pharmacy'] ?? null) ? $sale['extensions']['pharmacy'] : [];
-        $prescription = $this->prescriptions->fromTill($sale, is_array($extension['prescription'] ?? null) ? $extension['prescription'] : null);
+        $rxData = is_array($extension['prescription'] ?? null) ? $extension['prescription'] : null;
+        $prescription = $this->prescriptions->fromTill($sale, $rxData);
+        // PHA-28: a prescription id that is another sale's is never attached; the dispense is flagged instead.
+        $reused = $prescription === null && $this->prescriptions->isReused($sale, $rxData);
         $chosen = collect($extension['lines'] ?? [])->filter(fn ($row) => is_array($row))->keyBy(fn (array $row) => (string) ($row['line_id'] ?? ''));
         $approval = null;
         $flaggedAll = [];
@@ -175,13 +179,17 @@ class Dispensing
             $taken = [];
 
             if ($profile->batch_tracked) {
-                [$taken, $lotFlags] = $this->allocate($profile, $location, $settings, $today, $qty, $chosen->get((string) $line['id'])['lots'] ?? null);
+                [$taken, $lotFlags] = $this->allocate($profile, $company, $location, $settings, $today, $qty, $chosen->get((string) $line['id'])['lots'] ?? null);
                 $flags = [...$flags, ...$lotFlags];
             }
 
             if ($needsRx) {
                 if ($prescription === null || $prescription->status !== Prescription::VALID) {
                     $flags[] = 'prescription_missing';
+
+                    if ($reused) {
+                        $flags[] = 'prescription_reused';
+                    }
                 } elseif (Prescriptions::isStale($prescription, $settings->prescription_valid_days, $today)) {
                     $flags[] = 'prescription_stale';
                 }
@@ -259,7 +267,7 @@ class Dispensing
      * @param  list<array<string, mixed>>|null  $choice
      * @return array{0: list<array{lot: Lot, qty: BigDecimal, flags: list<string>}>, 1: list<string>}
      */
-    private function allocate(ItemProfile $profile, string $location, Settings $settings, string $today, BigDecimal $qty, ?array $choice): array
+    private function allocate(ItemProfile $profile, string $company, string $location, Settings $settings, string $today, BigDecimal $qty, ?array $choice): array
     {
         $taken = [];
         $line = [];
@@ -271,6 +279,13 @@ class Dispensing
             $want = is_array($pick) && is_numeric($pick['qty'] ?? null) ? Qty::of((string) $pick['qty']) : Qty::zero();
 
             if ($lot === null || $lot->item_id !== $profile->item_id || ! $want->isPositive() || ! $left->isPositive()) {
+                continue;
+            }
+
+            // A lot of another company is never taken from (the rest falls back to first-expiry-first-out).
+            if ($lot->company_id !== $company) {
+                $line[] = 'lot_company_mismatch';
+
                 continue;
             }
 
@@ -374,12 +389,18 @@ class Dispensing
         $cashier = Str::isUuid((string) ($sale['cashier_id'] ?? '')) ? User::query()->find($sale['cashier_id']) : null;
         $place = Scope::location((string) $sale['location_id']);
 
-        if ($cashier !== null && $this->scopes->can($cashier, 'pharmacy.dispense.authorise', $place)) {
+        $entitled = $cashier !== null && $this->scopes->can($cashier, 'pharmacy.dispense.authorise', $place);
+        // AUTH-07: the cashier's right counts only when the till proved who was signed in (POS flags `actor_unverified` otherwise).
+        $unproven = in_array('actor_unverified', array_map(fn ($flag) => is_array($flag) ? ($flag['code'] ?? null) : $flag, (array) ($sale['flags'] ?? [])), true);
+
+        if ($entitled && ! $unproven) {
             return ['mode' => Dispense::SELF, 'pharmacist' => $cashier->id, 'flags' => []];
         }
 
         if (! is_array($override) || $override === []) {
-            return ['mode' => Dispense::NONE, 'pharmacist' => null, 'flags' => ['pharmacist_missing']];
+            return $entitled
+                ? ['mode' => Dispense::NONE, 'pharmacist' => null, 'flags' => ['pharmacist_unverified']]
+                : ['mode' => Dispense::NONE, 'pharmacist' => null, 'flags' => ['pharmacist_missing']];
         }
 
         $device = Str::isUuid((string) ($sale['device_id'] ?? '')) ? Device::query()->find($sale['device_id']) : null;

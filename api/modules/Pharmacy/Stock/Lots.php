@@ -106,6 +106,7 @@ class Lots
         ?string $userId = null,
         ?string $note = null,
         ?string $reference = null,
+        bool $refuseShortage = false,
     ): ?LotMovement {
         $qty = Qty::of($qty);
 
@@ -113,7 +114,7 @@ class Lots
             return null;
         }
 
-        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($lot, $locationId, $kind, $qty, $sourceType, $sourceId, $sourceLineId, $at, $flags, $saleId, $customerId, $prescriptionId, $userId, $note, $reference) {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($lot, $locationId, $kind, $qty, $sourceType, $sourceId, $sourceLineId, $at, $flags, $saleId, $customerId, $prescriptionId, $userId, $note, $reference, $refuseShortage) {
             $balance = $this->lockedBalance($lot, $locationId);
 
             if ($sourceId !== null) {
@@ -128,6 +129,11 @@ class Lots
             }
 
             $after = Qty::of((string) $balance->qty)->plus($qty);
+
+            // A user-driven move re-checks the stock under the balance lock: the earlier check may be stale.
+            if ($refuseShortage && $after->isNegative()) {
+                throw PharmacyError::make(422, 'insufficient_stock', ['batch' => $lot->batch_number]);
+            }
 
             if ($after->isNegative() && $qty->isNegative()) {
                 $flags[] = 'negative_stock';

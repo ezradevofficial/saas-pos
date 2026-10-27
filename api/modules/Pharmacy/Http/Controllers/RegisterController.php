@@ -113,6 +113,10 @@ class RegisterController
         }
 
         $lot = $request->filled('lot_id') ? Lot::query()->find($request->validated('lot_id')) : null;
+
+        if ($request->filled('lot_id') && ($lot === null || $lot->item_id !== $request->validated('item_id') || $lot->company_id !== $place['company_id'])) {
+            throw PharmacyError::make(422, 'lot_unknown', field: 'lot_id');
+        }
         $entry = $this->register->append(
             $place['company_id'], $request->validated('location_id'), $request->validated('item_id'), RegisterEntry::ADJUSTMENT, Qty::of($request->validated('qty')),
             'pharmacy.register', (string) Str::uuid7(), null, $lot, null, null, $request->user()->id, $request->validated('reason'),

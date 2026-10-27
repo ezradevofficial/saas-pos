@@ -3,6 +3,10 @@
 // Pharmacy and agrovet module (docs/modules/pharmacy.md). Thresholds and
 // rules named here are settings of the tenant, never a regulator's numbers.
 return [
+    'privacy' => [
+        'images_removed' => ':count prescription images were deleted.',
+    ],
+
     'errors' => [
         'place_forbidden' => 'You don’t have permission to do this at this location. Ask an administrator for access.',
         'location_unknown' => 'This location doesn’t exist. Choose another one.',
@@ -104,6 +108,8 @@ return [
         'pharmacist_missing' => 'No pharmacist approval',
         'pharmacist_unverified' => 'Pharmacist approval not proven',
         'approval_offline' => 'Approved offline',
+        'prescription_reused' => 'Prescription belongs to another sale',
+        'lot_company_mismatch' => 'Batch from another company',
     ],
 
     'lists' => [

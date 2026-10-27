@@ -30,7 +30,8 @@ class RecallsTest extends TestCase
         $this->freezeTime();
 
         $this->setUpPharmacy();
-        $this->pharmacist = $this->userWith('pharmacist', Scope::branch($this->branchA->id));
+        // A recall reaches the whole company, so the pharmacist who issues it holds the role company-wide.
+        $this->pharmacist = $this->userWith('pharmacist', Scope::company($this->acme->id));
         $this->technician = $this->userWith('pharmacy_technician', Scope::location($this->locationA->id));
         $this->ranges()->assertOk();
         $this->shift = $this->openShift();
@@ -87,7 +88,7 @@ class RecallsTest extends TestCase
         $recall = $this->postJson('/api/v1/pharmacy/recalls', ['item_id' => $this->para->id, 'batch_number' => 'BAD-2', 'reason' => 'Mislabelled'], $this->headersFor($this->pharmacist))->assertCreated()->json('data.id');
         $this->assertSame('15', $this->lotQty($lot));
 
-        $this->getJson("/api/v1/pharmacy/recalls/{$recall}/customers", $this->headersFor($this->technician))->assertOk()
+        $this->getJson("/api/v1/pharmacy/recalls/{$recall}/customers", $this->headersFor($this->pharmacist))->assertOk()
             ->assertJsonCount(1, 'data.customers')
             ->assertJsonPath('data.customers.0.customer.name', 'Amina')
             ->assertJsonPath('data.customers.0.qty', '3')
@@ -101,6 +102,7 @@ class RecallsTest extends TestCase
         $this->postJson('/api/v1/pharmacy/recalls', ['item_id' => $this->para->id, 'batch_number' => 'X', 'reason' => 'x'], $this->headersFor($this->technician))->assertForbidden();
         $this->postJson('/api/v1/pharmacy/recalls', ['item_id' => $this->para->id, 'batch_number' => '', 'reason' => ''], $this->headersFor($this->pharmacist))->assertUnprocessable()->assertJsonValidationErrors(['batch_number', 'reason']);
 
+        $this->lot($this->para, 'X', 100, '1');
         $recall = $this->postJson('/api/v1/pharmacy/recalls', ['item_id' => $this->para->id, 'batch_number' => 'X', 'reason' => 'x'], $this->headersFor($this->pharmacist))->assertCreated()->json('data.id');
         $other = $this->otherTenant();
         $this->asTenant($other['user']->tenant_id, fn () => app(ModuleRegistry::class)->activate('pharmacy'));
@@ -108,5 +110,40 @@ class RecallsTest extends TestCase
         $this->getJson("/api/v1/pharmacy/recalls/{$recall}/customers", $this->headersFor($other['user']))->assertNotFound();
         $this->postJson("/api/v1/pharmacy/recalls/{$recall}/lift", ['reason' => 'x'], $this->headersFor($other['user']))->assertNotFound();
         $this->postJson('/api/v1/pharmacy/recalls', ['item_id' => $this->para->id, 'batch_number' => 'X', 'reason' => 'x'], $this->headersFor($other['user']))->assertUnprocessable()->assertJsonValidationErrors('item_id');
+    }
+
+    // PHA-22, RBAC-04: a recall blocks the batch in every company that has it, so the right must reach them all.
+    public function test_issuing_and_lifting_need_the_right_for_every_company_the_recall_reaches(): void
+    {
+        $this->lot($this->para, 'WIDE-1', 100, '5');
+        $atBranch = $this->userWith('pharmacist', Scope::branch($this->branchA->id));
+        $body = ['item_id' => $this->para->id, 'batch_number' => 'WIDE-1', 'reason' => 'Contamination'];
+
+        $this->postJson('/api/v1/pharmacy/recalls', $body, $this->headersFor($atBranch))->assertForbidden();
+        // Nothing to name the company by: tenant-wide only.
+        $this->postJson('/api/v1/pharmacy/recalls', [...$body, 'batch_number' => 'NOBODY-HAS-IT'], $this->headersFor($this->pharmacist))->assertForbidden();
+        $recall = $this->postJson('/api/v1/pharmacy/recalls', $body, $this->headersFor($this->pharmacist))->assertCreated()->json('data.id');
+
+        $this->postJson("/api/v1/pharmacy/recalls/{$recall}/lift", ['reason' => 'Withdrawn'], $this->headersFor($atBranch))->assertForbidden();
+        $this->postJson("/api/v1/pharmacy/recalls/{$recall}/lift", ['reason' => 'Withdrawn'], $this->headersFor($this->pharmacist))->assertOk();
+    }
+
+    // PHA-23, PHA-28: who bought the batch is personal data, and read only for the places the reader sees recalls at.
+    public function test_the_customer_list_follows_the_readers_places_and_the_customer_data_right(): void
+    {
+        $this->lot($this->para, 'BAD-3', 100, '20');
+        $this->lot($this->para, 'BAD-3', 100, '10', $this->locationB->id);
+        $amina = $this->customer();
+        $this->sellDrugs($this->shift, 1, [$this->drugLine($this->para, '3')], [], ['customer_id' => $amina->id]);
+        $recall = $this->postJson('/api/v1/pharmacy/recalls', ['item_id' => $this->para->id, 'batch_number' => 'BAD-3', 'reason' => 'Mislabelled'], $this->headersFor($this->pharmacist))->assertCreated()->json('data.id');
+        $url = "/api/v1/pharmacy/recalls/{$recall}/customers";
+
+        // Seeing recalls is not seeing customers: the sale is listed, the person is not.
+        $this->getJson($url, $this->headersFor($this->technician))->assertOk()
+            ->assertJsonCount(1, 'data.customers')->assertJsonPath('data.customers.0.customer', null)->assertJsonPath('data.customers.0.qty', '3');
+        // A reader at another place sees none of this place's sales.
+        $elsewhere = $this->userWith('pharmacist', Scope::location($this->locationB->id));
+        $this->getJson($url, $this->headersFor($elsewhere))->assertOk()->assertJsonCount(0, 'data.customers')->assertJsonPath('data.unattributed.sales', 0);
+        $this->getJson($url, $this->headersFor($this->pharmacist))->assertOk()->assertJsonPath('data.customers.0.customer.name', 'Amina');
     }
 }

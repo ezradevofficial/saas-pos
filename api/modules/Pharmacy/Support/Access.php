@@ -32,6 +32,24 @@ class Access
         }
     }
 
+    /**
+     * 403 unless $user holds $permission for every one of $companyIds (at the
+     * company or above), or tenant-wide when there are none: for acts that
+     * reach those companies' records whatever the user's own place (recalls).
+     *
+     * @param  list<string>  $companyIds
+     */
+    public function requireCompanies(User $user, string $permission, array $companyIds): void
+    {
+        $allowed = $companyIds === []
+            ? $this->resolver->can($user, $permission, Scope::tenant())
+            : collect($companyIds)->every(fn (string $id) => $this->resolver->can($user, $permission, Scope::company($id)));
+
+        if (! $allowed) {
+            throw new ApiException(403, 'forbidden', __('pharmacy.errors.place_forbidden'));
+        }
+    }
+
     /** The companies where $user holds $permission (null: every company, a tenant-wide role). @return list<string>|null */
     public function companies(User $user, string $permission): ?array
     {

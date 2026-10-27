@@ -101,6 +101,8 @@ final class SaleSnapshot
             ])->values()->all(),
             'payments' => $sale->payments->map(fn (SalePayment $payment) => self::payment($payment))->values()->all(),
             'extensions' => $sale->extensions,
+            // What the server noticed on upload (`actor_unverified`...), for modules that rely on the sign-in proof.
+            'flags' => array_values((array) $sale->flags),
         ];
     }
 

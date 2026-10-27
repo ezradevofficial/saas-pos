@@ -2,6 +2,8 @@
 
 namespace Modules\Pharmacy\Http\Controllers;
 
+use App\Core\Rbac\Scope;
+use App\Core\Rbac\ScopeResolver;
 use App\Core\Tenancy\Http\Requests\ListRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -12,6 +14,7 @@ use Modules\Pharmacy\Http\Requests\ShowRecallRequest;
 use Modules\Pharmacy\Http\Resources\RecallResource;
 use Modules\Pharmacy\Models\Recall;
 use Modules\Pharmacy\Recalls\Recalls;
+use Modules\Pharmacy\Support\Access;
 
 /** PHA-22, PHA-23: recalls and the customers who bought the recalled batch. */
 class RecallController
@@ -62,8 +65,14 @@ class RecallController
     }
 
     /** PHA-23: who bought the recalled batch. */
-    public function customers(ShowRecallRequest $request, Recall $pharmacyRecall): JsonResponse
+    public function customers(ShowRecallRequest $request, Recall $pharmacyRecall, Access $access): JsonResponse
     {
-        return new JsonResponse(['data' => $this->recalls->customers($pharmacyRecall)]);
+        $visible = app(ScopeResolver::class)->visibleIds($request->user(), 'pharmacy.recall.view');
+
+        return new JsonResponse(['data' => $this->recalls->customers(
+            $pharmacyRecall,
+            $visible->all ? null : $visible->idsFor(Scope::LOCATION),
+            fn (string $locationId) => $access->can($request->user(), 'pharmacy.recall.customers', $locationId),
+        )]);
     }
 }

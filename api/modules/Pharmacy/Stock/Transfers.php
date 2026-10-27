@@ -84,7 +84,7 @@ class Transfers
                 $lineId = (string) Str::uuid7();
 
                 foreach ($picks as $pick) {
-                    $out = $this->lots->move($pick['lot'], $data['from_location_id'], LotMovement::TRANSFER_OUT, $pick['qty']->negated(), 'pharmacy.transfer', $id, $lineId, $at, userId: $by->id, note: $data['note'] ?? null);
+                    $out = $this->lots->move($pick['lot'], $data['from_location_id'], LotMovement::TRANSFER_OUT, $pick['qty']->negated(), 'pharmacy.transfer', $id, $lineId, $at, userId: $by->id, note: $data['note'] ?? null, refuseShortage: true);
                     $this->lots->move($pick['lot'], $data['to_location_id'], LotMovement::TRANSFER_IN, $pick['qty'], 'pharmacy.transfer', $id, $lineId, $at, userId: $by->id, note: $data['note'] ?? null);
 
                     if ($out !== null && $profiles->get($item->id)->isControlled()) {

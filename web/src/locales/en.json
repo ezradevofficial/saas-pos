@@ -13728,7 +13728,9 @@
       "prescription_stale": "Old prescription",
       "pharmacist_missing": "No pharmacist approval",
       "pharmacist_unverified": "Pharmacist approval not proven",
-      "approval_offline": "Approved offline"
+      "approval_offline": "Approved offline",
+      "prescription_reused": "Prescription belongs to another sale",
+      "lot_company_mismatch": "Batch from another company"
     },
     "errors": {
       "insufficient_stock": "There is not enough stock left to write off."

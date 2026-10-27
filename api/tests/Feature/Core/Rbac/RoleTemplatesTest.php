@@ -121,10 +121,10 @@ class RoleTemplatesTest extends TestCase
         // Payroll (docs/modules/payroll.md): 16 payroll.* permissions (payroll.pay.view, decision 36; payroll.statutory.exempt, CP-01).
         // Fixed assets (docs/modules/fixed-assets.md): 17 fixed_assets.* permissions.
         // E-commerce (docs/modules/ecommerce.md): 18 ecommerce.* permissions (ecommerce.delivery.track, ECOM-29).
-        // Pharmacy (docs/modules/pharmacy.md): 25 pharmacy.* permissions (pharmacy.dispense.authorise, PHA-17).
+        // Pharmacy (docs/modules/pharmacy.md): 26 pharmacy.* permissions (pharmacy.dispense.authorise, PHA-17).
         // API-02: core.api_key.manage. HOOK-01: core.webhook.manage. RBAC-13: core.support_access.view|manage. AUTH-11: core.sso.manage. NFR-08: core.privacy_request.* and core.consent.*.
         // MKT-01, MKT-02: core.marketplace.view|install, core.developer.manage (126 core permissions).
-        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 37 + 27 + 16 + 17 + 14 + 18 + 25, count($names));
+        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 37 + 27 + 16 + 17 + 14 + 18 + 26, count($names));
     }
 
     public function test_sign_up_provisions_seventeen_system_roles_and_an_owner_assignment(): void
