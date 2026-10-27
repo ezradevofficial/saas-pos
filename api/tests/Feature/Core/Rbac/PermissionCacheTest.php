@@ -172,4 +172,27 @@ class PermissionCacheTest extends TestCase
 
         $this->assertSame(1, $loads);
     }
+
+    // RBAC-03, RBAC-12: re-applying the same permissions writes nothing (a module activation
+    // refreshes every system role; revoking and granting all again left dead row versions that
+    // slowed every permission-cache rebuild of the transaction), and a real change is minimal.
+    public function test_setting_the_same_permissions_writes_nothing_and_a_change_only_touches_the_difference(): void
+    {
+        $this->asTenant($this->cashierA->tenant_id, function () {
+            $this->roleA->setPermissions(['core.company.view', 'core.company.edit']);
+            $versions = fn () => DB::select('select permission_id, xmin::text as x from role_has_permissions where role_id = ? order by permission_id', [$this->roleA->id]);
+            $before = $versions();
+
+            $this->roleA->setPermissions(['core.company.edit', 'core.company.view']);
+            $this->assertEquals($before, $versions());
+
+            $this->roleA->setPermissions(['core.company.view']);
+            $after = $versions();
+            $this->assertSame(['core.company.view'], $this->roleA->permissionNames());
+            $this->assertEquals(collect($before)->firstWhere('permission_id', $after[0]->permission_id), $after[0]);
+        });
+
+        $this->assertTrue($this->can($this->cashierA, 'core.company.view'));
+        $this->assertFalse($this->can($this->cashierA, 'core.company.edit'));
+    }
 }

@@ -1630,6 +1630,8 @@ final class TwoTenants
         $plan = self::ok($test->postJson('/api/v1/hotel/rate-plans', [
             'room_type_id' => $type, 'code' => "BB-{$upper}", 'name' => "Bed and breakfast {$upper}", 'board' => 'bed_breakfast', 'currency' => 'KES',
             'weekday_rate_minor' => 1000000, 'weekend_rate_minor' => 1200000, 'tax_inclusive' => false,
+            // HOT-06: a season far outside the dates the fixture books, so hotel_rate_seasons has rows without changing any quote.
+            'seasons' => [['name' => "High season {$upper}", 'starts_on' => now()->addDays(400)->toDateString(), 'ends_on' => now()->addDays(430)->toDateString(), 'weekday_rate_minor' => 1500000, 'weekend_rate_minor' => 1800000, 'priority' => 10]],
         ], $owner), 201)->json('data.id');
         $guest = self::ok($test->postJson('/api/v1/hotel/guests', ['company_id' => $company, 'name' => "Hotel guest {$upper}", 'id_type' => 'national_id', 'id_number' => "IDNO{$upper}0001"], $owner), 201)->json('data.id');
         $book = fn (int $from, int $nights) => self::ok($test->postJson('/api/v1/hotel/reservations', [
