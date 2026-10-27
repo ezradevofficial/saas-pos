@@ -527,12 +527,14 @@
       "input": {
         "points": "Points to redeem",
         "code": "Gift card code",
-        "room": "Room number"
+        "room": "Room number",
+        "fuel_voucher": "Fuel voucher code"
       },
       "tenderLabel": {
         "points": "{{label}} points",
         "voucher": "Card {{label}}",
-        "room_charge": "Room {{label}}"
+        "room_charge": "Room {{label}}",
+        "fuel_voucher": "Voucher {{label}}"
       },
       "errors": {
         "failed": "This payment could not be added. Check it and try again.",
@@ -559,7 +561,14 @@
         "not_in_house": "No guest is checked in to this room. Check the number or choose another payment method.",
         "folio_settled": "This guest’s account is closed to charges. Choose another payment method.",
         "currency_mismatch": "This room is billed in {{currency}}. Choose that currency.",
-        "limit_exceeded": "This takes the room over its charge limit. {{amount}} is left on it."
+        "limit_exceeded": "This takes the room over its charge limit. {{amount}} is left on it.",
+        "fuel_voucher_code_required": "Type or scan the voucher code.",
+        "fuel_voucher_inactive": "Fuel vouchers are not available on this till. Choose another payment method.",
+        "fuel_voucher_not_permitted": "You are not allowed to redeem fuel vouchers. Ask a supervisor.",
+        "fuel_voucher_unknown": "This voucher is not known here. Check the code or choose another payment method.",
+        "fuel_voucher_expired": "This voucher has expired. Choose another payment method.",
+        "fuel_voucher_currency": "This voucher is in {{currency}}. Choose that currency.",
+        "fuel_voucher_empty": "This voucher has nothing left on it. Choose another payment method."
       }
     },
     "pharmacy": {
@@ -1147,6 +1156,182 @@
         "unavailable": "Housekeeping is not available. Ask your manager.",
         "failed": "That did not go through. Refresh and try again."
       }
+    }
+  },
+  "fuel": {
+    "common": {
+      "back": "Back",
+      "done": "Back to forecourt"
+    },
+    "menu": {
+      "forecourt": "Forecourt",
+      "shop": "Shop sale"
+    },
+    "notStation": {
+      "title": "This till is not at a fuel station",
+      "body": "The server has no station set up for this location. Ask a manager to set it up, then sync the till. Shop items can still be sold."
+    },
+    "home": {
+      "title": "Forecourt",
+      "noShift": "No shift is open. Open a shift to start selling fuel.",
+      "shiftOpen": "Shift open since {{time}}, opened by {{name}}",
+      "open": "Open shift",
+      "close": "Close shift",
+      "sell": "Sell fuel",
+      "dip": "Record a dip",
+      "reset": "Request a meter reset",
+      "shop": "Sell shop items"
+    },
+    "problems": {
+      "shift": "The server kept a shift for review",
+      "reset": "The server refused a meter reset request"
+    },
+    "shift": {
+      "myNozzles": "Your nozzles",
+      "allNozzles": "Nozzles on this shift",
+      "openedAt": "Opening reading {{reading}}",
+      "total": "Sold on this till"
+    },
+    "tender": {
+      "cash": "Cash counted",
+      "mobile_money": "Mobile money",
+      "card": "Card",
+      "credit": "Credit and fleet accounts",
+      "voucher": "Fuel vouchers"
+    },
+    "open": {
+      "confirmTitleAll": "Confirm the attendants",
+      "confirmHelpAll": "Each attendant on a nozzle confirms with their own PIN before the shift opens.",
+      "confirmButton": "Confirm {{name}}",
+      "confirmTitle": "{{name}}, confirm with your PIN",
+      "confirmHelp": "Enter your PIN to confirm you are working these nozzles. It works without a connection.",
+      "confirmPin": "PIN",
+      "confirmSubmit": "Confirm {{name}}",
+      "confirmIncorrect": "That PIN is not right. {{count}} attempts left.",
+      "confirmErrors": {"locked": "This PIN is locked. Ask a manager to unlock it.", "not_set": "No PIN is set for this person. Ask a manager to set one.", "online_required": "This PIN can only be checked online. Connect the till and try again.", "failed": "The PIN could not be checked. Try again."},
+      "title": "Open shift",
+      "intro": "Choose the nozzles in use, type each opening meter reading and choose who works each nozzle.",
+      "inUse": "In use",
+      "notUsed": "Not used",
+      "reading": "Opening meter reading",
+      "lastReading": "Last reading: {{reading}}",
+      "noLastReading": "No earlier reading is known for this nozzle.",
+      "attendant": "Attendant",
+      "chooseAttendant": "Choose the attendant",
+      "dipsTitle": "Opening dips (optional)",
+      "dipsHelp": "Dip each tank in cm if you measured it. The litres come from the tank’s chart.",
+      "submit": "Open shift"
+    },
+    "close": {
+      "title": "Close shift",
+      "intro": "Type the closing meter reading of every nozzle, then what each attendant hands in.",
+      "readings": "Closing readings",
+      "reading": "Closing meter reading",
+      "openingWas": "Opening reading: {{reading}}",
+      "tests": "Pump test litres",
+      "testsHelp": "Litres poured back into the tank. Leave empty if there were none.",
+      "metered": "Litres on the meter",
+      "handedIn": "Handed in by each attendant",
+      "handedInHelp": "Cash counted is required, zero is allowed. Other tenders start from what this till recorded.",
+      "recordedHelp": "From the sales on this till",
+      "expected": "Expected",
+      "collected": "Collected",
+      "variance": "Variance",
+      "serverDecides": "This variance is a preview from this till’s sales. The server recounts and decides.",
+      "dipsTitle": "Closing dips (optional)",
+      "dipsHelp": "Dip each tank in cm if you measured it.",
+      "dipsTaken": "{{count}} dips taken during the shift will be sent with the close.",
+      "note": "Note for the manager (optional)",
+      "amountInvalid": "The {{kind}} amount of {{name}} is not a valid amount. Type it again.",
+      "submit": "Close shift",
+      "doneTitle": "Shift closed",
+      "done": "Back to forecourt"
+    },
+    "sale": {
+      "title": "Sell fuel",
+      "pick": "Choose a nozzle to start.",
+      "perLitre": "{{price}} per litre",
+      "noPrice": "No price",
+      "mine": "Your nozzle",
+      "by": {
+        "litres": "By litres",
+        "amount": "By amount"
+      },
+      "litres": "Litres",
+      "amount": "Amount",
+      "invalid": "Type a valid number.",
+      "roundedHelp": "The litres are rounded down to 3 decimals, so the charge can be a little below the amount typed.",
+      "fleet": "Fleet sale",
+      "fleetChange": "Change vehicle",
+      "fleetRemove": "Remove",
+      "charge": "Charge {{total}}",
+      "chargeEmpty": "Charge",
+      "cartLocked": "A mobile money payment is waiting on the current sale. Complete that sale first."
+    },
+    "fleet": {
+      "customerTitle": "Choose the customer",
+      "vehicleTitle": "Vehicle of {{name}}",
+      "searchCustomer": "Search by name or phone",
+      "searchVehicle": "Search by registration",
+      "noCustomers": "No customer found. Check the spelling.",
+      "noVehicles": "No vehicle found for this customer. Check the registration or ask a manager to add it.",
+      "otherCustomer": "Choose another customer",
+      "odometer": "Odometer (optional)",
+      "odometerHelp": "Kilometres on the dashboard.",
+      "blockedTitle": "This vehicle is blocked",
+      "blocked": "You can still sell. The sale is sent to the manager for review.",
+      "use": "Use this vehicle"
+    },
+    "dip": {
+      "title": "Tank dip",
+      "intro": "Measure the tank and type the dip in cm. The litres come from the tank’s chart. The dip is sent when the shift closes.",
+      "needShift": "Open a shift first. Dips are sent with the shift.",
+      "tank": "Tank",
+      "capacity": "Capacity {{capacity}}",
+      "cm": "Dip",
+      "water": "Water (optional)",
+      "submit": "Record dip",
+      "saved": "Dip of tank {{tank}} recorded: {{litres}}."
+    },
+    "reset": {
+      "title": "Meter reset request",
+      "intro": "Use this when a meter was replaced or rolled over. A manager approves the request in the back office. Nothing changes until then.",
+      "supervisorOnly": "Only a supervisor can ask for a meter reset. Ask a supervisor.",
+      "nozzle": "Nozzle",
+      "before": "Reading before the reset",
+      "after": "Reading after the reset",
+      "afterHelp": "The new meter’s reading, usually 0.",
+      "reason": "Reason",
+      "submit": "Request reset",
+      "sentTitle": "Request sent",
+      "sent": "A manager approves the reset in the back office. It goes up as soon as the till is online."
+    },
+    "errors": {
+      "failed": "Something went wrong. Check what you typed and try again.",
+      "not_permitted": "You are not allowed to do this. Ask a supervisor.",
+      "shift_open": "A shift is already open on this till. Close it before opening another.",
+      "nozzles_required": "No nozzle is selected. Choose at least one nozzle.",
+      "attendant_required": "A nozzle has no attendant. Choose who works each nozzle.",
+      "reading_invalid": "Type the meter reading in litres, with up to 3 decimals.",
+      "tests_invalid": "Type the pump test litres with up to 3 decimals, or leave it empty.",
+      "meter_decreased": "This reading is lower than the last one ({{last}} L). Check the reading, or ask a supervisor for a meter reset.",
+      "nozzle_duplicate": "The same nozzle is listed twice. List each nozzle once.",
+      "close_incomplete": "The shift can’t close yet. Missing: {{missing}}. Enter these and close again.",
+      "test_exceeds_litres": "The pump tests are more than the litres the meter moved. Check the closing reading and the tests.",
+      "no_shift": "No fuel shift is open. Open a shift before selling fuel.",
+      "dip_invalid": "Type the dip in cm, with up to 2 decimals.",
+      "dip_out_of_range": "This dip is outside the tank’s calibration chart. Check the reading and measure again.",
+      "chart_missing": "This tank has no calibration chart yet. Ask a manager to add one.",
+      "price_missing": "This fuel has no price at this station. Ask a manager to set the price.",
+      "item_unknown": "The fuel item of this nozzle is not on the till. Sync the till and try again.",
+      "currency_mismatch": "The fuel price is in {{currency}}, not in the sale currency. Ask a manager to check the price.",
+      "nozzle_not_on_shift": "This nozzle is not on the open shift. Choose a nozzle of the shift.",
+      "litres_invalid": "Type the litres with up to 3 decimals.",
+      "litres_zero": "This is too small to pump any fuel. Type a larger number.",
+      "amount_invalid": "Type an amount above zero.",
+      "nozzle_required": "Choose the nozzle first.",
+      "reset_not_lower": "The reading after a reset cannot be above the reading before it. Check both readings.",
+      "reason_required": "Type the reason for the reset."
     }
   },
   "vansales": {

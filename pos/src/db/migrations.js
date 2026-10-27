@@ -213,5 +213,18 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      // Fuel station module (FUEL-22): the station, nozzles, prices, tanks, vehicles and vouchers, and the shifts kept here.
+      toVersion: 15,
+      steps: [
+        createTable({ name: 'fuel_station', columns: [data, seenAt] }),
+        createTable({ name: 'fuel_nozzles', columns: [data, seenAt] }),
+        createTable({ name: 'fuel_prices', columns: [data, seenAt] }),
+        createTable({ name: 'fuel_tanks', columns: [data, seenAt] }),
+        createTable({ name: 'fuel_vehicles', columns: [{ name: 'registration', type: 'string', isIndexed: true }, { name: 'party_id', type: 'string', isOptional: true, isIndexed: true }, data, seenAt] }),
+        createTable({ name: 'fuel_vouchers', columns: [{ name: 'code', type: 'string', isIndexed: true }, data, seenAt] }),
+        createTable({ name: 'fuel_shifts', columns: [{ name: 'status', type: 'string', isIndexed: true }, { name: 'opened_at', type: 'number' }, data] }),
+      ],
+    },
   ],
 });

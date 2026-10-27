@@ -32,7 +32,7 @@ use Modules\Inventory\Stock\StockLedger;
 class RecordStockWrittenOff implements ShouldQueue
 {
     /** The document types that may name themselves as the source of a write-off in the stock ledger. */
-    public const SOURCES = ['pharmacy.write_off', 'van_sales.write_off'];
+    public const SOURCES = ['pharmacy.write_off', 'van_sales.write_off', 'fuel.tank_loss'];
 
     public bool $afterCommit = true;
 

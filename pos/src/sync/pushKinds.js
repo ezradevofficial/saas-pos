@@ -63,3 +63,12 @@ export function readClockAttemptResults(body, payloads = []) {
 }
 
 registerPushKind('hr.clock_attempts', { path: 'hr/till/clock-attempts', bodyKey: 'reports', batchSize: 100, module: 'hr', readResults: readClockAttemptResults });
+
+/**
+ * FUEL-22: shifts opened and closed on this till (POST fuel/device/shifts, at most 10 a request) and
+ * meter reset requests (POST fuel/device/meter-resets). Both answer the standard results; `meter_decreased`,
+ * `close_incomplete` and the like are final (kept for review with the server's message), `nozzle_in_use` is
+ * retryable. A shift goes up before the sales that name it and its close after them (grouped by shift id).
+ */
+registerPushKind('fuel.shifts', { path: 'fuel/device/shifts', bodyKey: 'shifts', batchSize: 10, module: 'fuel' });
+registerPushKind('fuel.meter_resets', { path: 'fuel/device/meter-resets', bodyKey: 'resets', batchSize: 10, module: 'fuel' });

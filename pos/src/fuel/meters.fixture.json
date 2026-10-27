@@ -1,0 +1,50 @@
+{
+  "_note": "Expected values were produced by the PHP classes of api/modules/FuelStation (Shifts/Meters.php, Support/Litres.php, Tanks/Strapping.php) with brick/math. Amounts and prices are minor units; litres have 3 decimals; a dip is in cm.",
+  "rounding": {
+    "litres_from_amount": "amount / price per litre, rounded DOWN to 3 decimals",
+    "line_total": "price per litre x litres, rounded HALF UP to the minor unit",
+    "strapping": "linear interpolation, the division at 9 decimals half up, the result at 3 decimals half up"
+  },
+  "meter": [
+    { "opening": "1000.000", "closing": "1250.500", "tests": "5", "resets": "0", "litres": "245.500" },
+    { "opening": "0", "closing": "100.004", "tests": "0", "resets": "0", "litres": "100.004" },
+    { "opening": "999990.500", "closing": "1000010.250", "tests": "0.250", "resets": "0", "litres": "19.500" },
+    { "opening": "500.000", "closing": "120.000", "tests": "0", "resets": "400.000", "litres": "20.000" },
+    { "opening": "1200.123", "closing": "1200.123", "tests": "0", "resets": "0", "litres": "0.000" }
+  ],
+  "value": [
+    { "price_minor": "18050", "litres": "5.540", "total_minor": "99997" },
+    { "price_minor": "18050", "litres": "0.001", "total_minor": "18" },
+    { "price_minor": "17575", "litres": "1.000", "total_minor": "17575" },
+    { "price_minor": "15333", "litres": "2.500", "total_minor": "38333" },
+    { "price_minor": "15333", "litres": "0.003", "total_minor": "46" },
+    { "price_minor": "100", "litres": "0.005", "total_minor": "1" },
+    { "price_minor": "14500", "litres": "12.345", "total_minor": "179003" },
+    { "price_minor": "1", "litres": "0.500", "total_minor": "1" }
+  ],
+  "amount": [
+    { "amount_minor": "100000", "price_minor": "18050", "litres": "5.540", "total_minor": "99997" },
+    { "amount_minor": "50000", "price_minor": "17575", "litres": "2.844", "total_minor": "49983" },
+    { "amount_minor": "100", "price_minor": "18050", "litres": "0.005", "total_minor": "90" },
+    { "amount_minor": "18050", "price_minor": "18050", "litres": "1.000", "total_minor": "18050" },
+    { "amount_minor": "1000000", "price_minor": "15333", "litres": "65.218", "total_minor": "999988" },
+    { "amount_minor": "135000", "price_minor": "2850", "litres": "47.368", "total_minor": "134999" },
+    { "amount_minor": "999999", "price_minor": "14500", "litres": "68.965", "total_minor": "999993" }
+  ],
+  "strapping": {
+    "points": [["0", "0.000"], ["50", "1000.000"], ["100", "3000.000"], ["150.5", "5001.500"]],
+    "cases": [
+      { "dip_cm": "0", "litres": "0.000" },
+      { "dip_cm": "75", "litres": "2000.000" },
+      { "dip_cm": "33.33", "litres": "666.600" },
+      { "dip_cm": "50", "litres": "1000.000" },
+      { "dip_cm": "100", "litres": "3000.000" },
+      { "dip_cm": "12.5", "litres": "250.000" },
+      { "dip_cm": "149.99", "litres": "4981.287" },
+      { "dip_cm": "150.5", "litres": "5001.500" },
+      { "dip_cm": "0.01", "litres": "0.200" },
+      { "dip_cm": "99.99", "litres": "2999.600" }
+    ],
+    "refused": ["150.51", "200"]
+  }
+}

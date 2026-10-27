@@ -5,6 +5,7 @@
         "https://trykintsugi.com/fr-ca/sales-tax-guides/africa/democratic-republic-of-congo"
     ],
     "todo": [
+        "Fuel (Fuel station module): which excise duty, road maintenance levy and other charges apply to petrol, diesel, kerosene and LPG, whether they are itemised on the receipt or part of the pump price, and the regulator's maximum retail prices. A specific amount per litre is not a percentage tax code, so none is built in; the fuel item's tax category carries only the VAT code.",
         "Tourism and catering levies (Hotel module): whether they apply to room and food charges, their rates, base and legal reference, and whether they are tax codes of this pack. Hotel applies only the tax codes a company lists in its settings; no rate is built in.",
         "VAT_STD: confirm the researched 16% standard TVA rate (Code de la TVA) with its legal reference; it is used now, marked researched.",
         "VAT_ZERO: confirm the researched 0% rate on exports and its official name.",

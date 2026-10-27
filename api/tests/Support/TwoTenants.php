@@ -26,6 +26,8 @@ use App\Core\Limits\UsageLimits;
 use App\Core\Marketplace\Connectors\FirstParty;
 use App\Core\Marketplace\Models\MarketplacePayable;
 use App\Core\MasterData\Items\Item;
+use App\Core\MasterData\Items\Uom;
+use App\Core\MasterData\Parties\Party;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\NotificationEvent;
@@ -71,6 +73,22 @@ use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\OrderLine;
 use Modules\Ecommerce\WhatsApp\FakeWhatsAppProvider;
+use Modules\FuelStation\Models\Dip;
+use Modules\FuelStation\Models\MeterReset;
+use Modules\FuelStation\Models\Nozzle;
+use Modules\FuelStation\Models\Price;
+use Modules\FuelStation\Models\Product;
+use Modules\FuelStation\Models\Pump;
+use Modules\FuelStation\Models\Reconciliation;
+use Modules\FuelStation\Models\SettlementTender;
+use Modules\FuelStation\Models\Shift;
+use Modules\FuelStation\Models\ShiftNozzle;
+use Modules\FuelStation\Models\Station;
+use Modules\FuelStation\Models\StrappingChart;
+use Modules\FuelStation\Models\StrappingPoint;
+use Modules\FuelStation\Models\Tank;
+use Modules\FuelStation\Models\Vehicle;
+use Modules\FuelStation\Models\Voucher;
 use Modules\Hotel\Models\ChargeException;
 use Modules\Hotel\Models\HousekeepingTask;
 use Modules\Hotel\Models\NightAuditRun;
@@ -664,6 +682,10 @@ final class TwoTenants
         // Hotel (docs/modules/hotel.md): the module switched on; settings, a room type, rooms, a rate plan, a guest, three reservations
         // (one for the front-desk routes), a charge and a payment on a folio, a charge exception, a task and an audit.
         $hotel = self::hotel($test, $owner, $tenantId, $company, $branch, $paymentMethod, $uoms['EA'], $taxCategory, $upper);
+        // Fuel station (docs/modules/fuel-station.md): the module switched on; a station at the location with a product, tank and chart,
+        // a pump with nozzles, a price, a closed shift with a pending settlement, a dip with its reconciliation, a delivery, a pending
+        // meter reset, a vehicle and a voucher.
+        $fuel = self::fuel($tenantId, $ownerId, $company, $branch, $location, $taxCategory, $upper);
         // Van sales (docs/modules/van-sales.md): the module switched on; settings, a van at the till's outlet, a route with
         // a stop, an open run (a visit with a check-in, a flagged credit sale with its stock, tender and ledger rows, a
         // collection), a load sheet requested from the store, and a closed run with a counted reconciliation.
@@ -865,6 +887,7 @@ final class TwoTenants
                 ...$manufacturing,
                 ...$pharmacy,
                 ...$hotel,
+                ...$fuel,
                 ...$vanSales,
                 ...$hr,
                 ...$fixedAssets,
@@ -1678,6 +1701,72 @@ final class TwoTenants
             'hotel_room_item' => $roomItem,
             'hotel_charge_method' => $chargeMethod,
         ];
+    }
+
+    /**
+     * The Fuel station fixture of one tenant (docs/modules/fuel-station.md), made through the models in the tenant's context: one row
+     * of each kind the routes name.
+     *
+     * @return array<string, string> fuel_station, fuel_product, fuel_tank, fuel_pump, fuel_nozzle, fuel_nozzle_other, fuel_price, fuel_shift, fuel_settlement,
+     *                               fuel_reset, fuel_reconciliation, fuel_dip, fuel_delivery, fuel_vehicle, fuel_voucher, fuel_item
+     */
+    private static function fuel(string $tenantId, string $ownerId, string $company, string $branch, string $location, string $taxCategory, string $upper): array
+    {
+        return app(TenantContext::class)->run($tenantId, function () use ($ownerId, $company, $branch, $location, $taxCategory, $upper) {
+            app(ModuleRegistry::class)->activate('fuel');
+            $at = CarbonImmutable::now()->subHours(5);
+            $litre = Uom::create(['code' => "L{$upper}", 'name' => "Litre {$upper}", 'kind' => 'volume']);
+            $item = Item::create(['code' => "PMS-{$upper}", 'name' => "Petrol {$upper}", 'type' => 'stock', 'base_uom_id' => $litre->id, 'tax_category_id' => $taxCategory]);
+            $place = ['company_id' => $company, 'branch_id' => $branch, 'location_id' => $location];
+            $station = Station::create([...$place, 'currency' => 'KES']);
+            $product = Product::create(['company_id' => $company, 'item_id' => $item->id, 'fuel_type' => 'petrol', 'grade' => "Super {$upper}"]);
+            $tank = Tank::create([...$place, 'station_id' => $station->id, 'product_id' => $product->id, 'code' => "T{$upper}", 'name' => "Tank {$upper}", 'capacity_litres' => '10000', 'baseline_litres' => '5000', 'baseline_at' => $at]);
+            $chart = StrappingChart::create(['company_id' => $company, 'tank_id' => $tank->id, 'effective_from' => CarbonImmutable::parse('2020-01-01'), 'created_by' => $ownerId]);
+
+            foreach ([['0', '0'], ['100', '10000']] as [$cm, $litres]) {
+                StrappingPoint::create(['chart_id' => $chart->id, 'dip_cm' => $cm, 'litres' => $litres]);
+            }
+
+            $pump = Pump::create([...$place, 'station_id' => $station->id, 'code' => "P{$upper}", 'name' => "Pump {$upper}"]);
+            $nozzle = Nozzle::create([...$place, 'station_id' => $station->id, 'pump_id' => $pump->id, 'tank_id' => $tank->id, 'code' => 'A', 'last_reading_litres' => '1100', 'last_reading_at' => $at]);
+            $other = Nozzle::create([...$place, 'station_id' => $station->id, 'pump_id' => $pump->id, 'tank_id' => $tank->id, 'code' => 'B', 'last_reading_litres' => '500', 'last_reading_at' => $at]);
+            $price = Price::create(['company_id' => $company, 'station_id' => $station->id, 'product_id' => $product->id, 'price_minor' => 18050, 'currency' => 'KES', 'effective_from' => CarbonImmutable::parse('2020-01-01'), 'entered_by' => $ownerId, 'reference' => "Notice {$upper}"]);
+            $shift = Shift::create([
+                ...$place, 'station_id' => $station->id, 'status' => 'closed', 'opened_by' => $ownerId, 'opened_at' => $at, 'opened_received_at' => $at, 'closed_by' => $ownerId, 'closed_at' => $at->addHours(2),
+                'closed_received_at' => $at->addHours(2), 'opening_fingerprint' => str_repeat('a', 64), 'closing_fingerprint' => str_repeat('b', 64), 'flags' => [],
+            ]);
+            ShiftNozzle::create(['shift_id' => $shift->id, 'nozzle_id' => $nozzle->id, 'attendant_id' => $ownerId, 'is_open' => false, 'opening_litres' => '1000', 'closing_litres' => '1100', 'meter_litres' => '100', 'expected_minor' => 1805000]);
+            $settlement = \Modules\FuelStation\Models\Settlement::create([
+                ...$place, 'shift_id' => $shift->id, 'attendant_id' => $ownerId, 'number' => "FS-{$upper}-0001", 'status' => 'pending_approval', 'currency' => 'KES', 'expected_minor' => 1805000, 'collected_minor' => 1700000, 'variance_minor' => -105000,
+                'meter_litres' => '100', 'recorded_litres' => '90', 'litres_variance' => '10',
+            ]);
+            SettlementTender::create(['settlement_id' => $settlement->id, 'kind' => 'cash', 'declared_minor' => 1700000, 'recorded_minor' => 0, 'collected_minor' => 1700000]);
+            $dip = fn (string $kind, string $cm, string $litres, int $minutes) => Dip::create([
+                ...$place, 'tank_id' => $tank->id, 'chart_id' => $chart->id, 'kind' => $kind, 'source' => 'web', 'dip_cm' => $cm, 'litres' => $litres, 'taken_at' => $at->addMinutes($minutes), 'received_at' => $at->addMinutes($minutes), 'taken_by' => $ownerId,
+            ]);
+            $routine = $dip('routine', '49.5', '4950', 10);
+            $reconciliation = Reconciliation::create([
+                ...$place, 'tank_id' => $tank->id, 'dip_id' => $routine->id, 'number' => "FR-{$upper}-0001", 'status' => 'pending_approval', 'previous_litres' => '5000', 'baseline_at' => $at, 'expected_litres' => '5000',
+                'dip_litres' => '4950', 'variance_litres' => '-50', 'tolerance_litres' => '0', 'flags' => [],
+            ]);
+            $delivery = \Modules\FuelStation\Models\Delivery::create([
+                ...$place, 'tank_id' => $tank->id, 'before_dip_id' => $dip('delivery_before', '40', '4000', 20)->id, 'after_dip_id' => $dip('delivery_after', '50', '5000', 30)->id, 'number' => "FD-{$upper}-0001", 'note_number' => "DN-{$upper}",
+                'note_litres' => '1000', 'before_litres' => '4000', 'after_litres' => '5000', 'received_litres' => '1000', 'shortage_litres' => '0', 'unit_cost_minor' => 15000, 'cost_minor' => 15000000, 'currency' => 'KES',
+                'received_at' => $at->addMinutes(30), 'flags' => [], 'recorded_by' => $ownerId,
+            ]);
+            $reset = MeterReset::create([
+                ...$place, 'nozzle_id' => $other->id, 'reading_before' => '500', 'reading_after' => '0', 'reason' => "Meter replaced {$upper}", 'status' => 'pending', 'requested_by' => $ownerId, 'requested_at' => $at,
+            ]);
+            $customer = Party::create(['kind' => 'person', 'name' => "Fleet customer {$upper}", 'roles' => ['customer'], 'company_id' => $company]);
+            $vehicle = Vehicle::create(['company_id' => $company, 'party_id' => $customer->id, 'registration' => "KFL{$upper}123", 'label' => "Truck {$upper}", 'fuel_type' => 'diesel']);
+            $voucher = Voucher::create(['company_id' => $company, 'code' => "VOUCH{$upper}0001", 'currency' => 'KES', 'value_minor' => 500000, 'balance_minor' => 500000, 'issued_by' => $ownerId]);
+
+            return [
+                'fuel_station' => $station->id, 'fuel_product' => $product->id, 'fuel_tank' => $tank->id, 'fuel_pump' => $pump->id, 'fuel_nozzle' => $nozzle->id, 'fuel_nozzle_other' => $other->id,
+                'fuel_price' => $price->id, 'fuel_shift' => $shift->id, 'fuel_settlement' => $settlement->id, 'fuel_reset' => $reset->id, 'fuel_reconciliation' => $reconciliation->id, 'fuel_dip' => $routine->id,
+                'fuel_delivery' => $delivery->id, 'fuel_vehicle' => $vehicle->id, 'fuel_voucher' => $voucher->id, 'fuel_item' => $item->id,
+            ];
+        });
     }
 
     /**

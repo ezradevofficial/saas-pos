@@ -12,7 +12,7 @@ return [
         'wholesale' => ['name' => 'Grossiste ou distributeur', 'description' => 'Listes de prix, crédit, livraisons'],
         'van_sales' => ['name' => 'Vente itinérante', 'description' => 'Vendre et encaisser sur le terrain'],
         'salon' => ['name' => 'Salon, spa ou services', 'description' => 'Rendez-vous, commissions du personnel'],
-        'fuel_station' => ['name' => 'Station-service', 'description' => 'Pompes, équipes, boutique de piste'],
+        'fuel_station' => ['name' => 'Station-service', 'description' => 'Cuves, pompes, équipes, jaugeages, boutique de piste'],
         'non_pos' => ['name' => 'Pas besoin de caisse', 'description' => 'RH, paie ou comptabilité seulement'],
     ],
 
