@@ -7,7 +7,7 @@ return [
         'supermarket' => ['name' => 'Supermarket or mini-mart', 'description' => 'Barcodes, scales, several tills'],
         'restaurant' => ['name' => 'Restaurant or café', 'description' => 'Tables, kitchen orders, split bills'],
         'bar' => ['name' => 'Bar or lounge', 'description' => 'Open tabs, fast rounds'],
-        'hotel' => ['name' => 'Hotel or lodge', 'description' => 'Room charges, guest folios'],
+        'hotel' => ['name' => 'Hotel or lodge', 'description' => 'Rooms, bookings, guest folios, housekeeping'],
         'pharmacy' => ['name' => 'Pharmacy or agrovet', 'description' => 'Batches, expiry dates, prescriptions'],
         'wholesale' => ['name' => 'Wholesale or distributor', 'description' => 'Price lists, credit, deliveries'],
         'van_sales' => ['name' => 'Route or van sales', 'description' => 'Sell and collect in the field'],

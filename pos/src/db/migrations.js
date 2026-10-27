@@ -186,8 +186,13 @@ export const migrations = schemaMigrations({
       ],
     },
     {
-      // Van sales module (VAN-27): the synced route data and what the rep's device makes.
+      // Hotel module (HOT-35): who is in house at this till's property (a snapshot).
       toVersion: 13,
+      steps: [createTable({ name: 'hotel_in_house', columns: [{ name: 'room_number', type: 'string', isIndexed: true }, data, seenAt] })],
+    },
+    {
+      // Van sales module (VAN-27): the synced route data and what the rep's device makes.
+      toVersion: 14,
       steps: [
         createTable({ name: 'van_sales_van', columns: [data, seenAt] }),
         createTable({ name: 'van_sales_routes', columns: [data, seenAt] }),

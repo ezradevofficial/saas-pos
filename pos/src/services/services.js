@@ -15,6 +15,7 @@ import { createSyncStore } from '../sync/store';
 import { syncMedia } from '../theme/media';
 import { createPosStore } from '../pos/posStore';
 import { createSelling } from '../pos/selling';
+import { createHousekeeping } from '../hotel/housekeeping';
 import { createRider } from '../rider/rider';
 import '../restaurant/register';
 import { createOrderStore } from '../restaurant/orderStore';
@@ -101,7 +102,9 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const riderCredentials = createRiderCredentials(credentialsBackend);
   const riderApi = riderApiOverride ?? createApiClient({ baseUrl, getToken: () => riderCredentials.token(), getLocale: () => i18n.language, fetchImpl });
   const rider = createRider({ api: riderApi, store, credentials: riderCredentials, deleteFile: deletePhotoFile });
-  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, vanSales, clockStore, clockGate, riderCredentials, rider };
+  // HOT-29: a housekeeper signs in as themselves, the same way (their own token, never the till's).
+  const housekeeping = createHousekeeping({ api: riderApi, credentials: riderCredentials });
+  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, vanSales, clockStore, clockGate, riderCredentials, rider, housekeeping };
 }
 
 export const ServicesContext = createContext(null);

@@ -18,6 +18,8 @@ return [
         'crm.quote_invoice',
         // ECOM-32: E-commerce (docs/modules/ecommerce.md): delivered orders, returns and rider cash-ups.
         'ecommerce.order', 'ecommerce.return', 'ecommerce.cod_cashup',
+        // HOT-27: Hotel (docs/modules/hotel.md): charges (negative for a void), payments (negative for a refund), deposits and deposits applied.
+        'hotel.charge', 'hotel.payment', 'hotel.deposit', 'hotel.deposit_applied',
     ],
 
     // ACC-24 (stage 7D closing review): rules that only name accounts another posting uses, never a

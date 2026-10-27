@@ -108,5 +108,12 @@
   "Poison",
   "Patient",
   "Lot {{number}}",
-  "Image"
+  "Image",
+  "Folios",
+  "Notes",
+  "Charges",
+  "Folio",
+  "Charge",
+  "RevPAR {{currency}}",
+  "RevPAR"
 ]

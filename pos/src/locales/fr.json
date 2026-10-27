@@ -526,11 +526,13 @@
       "remove": "Retirer",
       "input": {
         "points": "Points à utiliser",
-        "code": "Code de la carte cadeau"
+        "code": "Code de la carte cadeau",
+        "room": "Numéro de chambre"
       },
       "tenderLabel": {
         "points": "{{label}} pts",
-        "voucher": "Carte {{label}}"
+        "voucher": "Carte {{label}}",
+        "room_charge": "Chambre {{label}}"
       },
       "errors": {
         "failed": "Ce paiement n’a pas pu être ajouté. Vérifiez-le et réessayez.",
@@ -550,7 +552,14 @@
         "credit_no_account": "Ce client n’a pas de compte crédit ouvert. Choisissez un autre moyen de paiement.",
         "credit_currency": "Le crédit de ce client est en {{currency}}. Choisissez cette devise.",
         "credit_limit_exceeded": "Le client dépasserait sa limite de crédit. Il y reste {{amount}}.",
-        "amount": "Saisissez un montant supérieur à zéro."
+        "amount": "Saisissez un montant supérieur à zéro.",
+        "room_required": "Saisissez le numéro de chambre.",
+        "module_inactive": "Le paiement sur chambre n’est pas disponible. Choisissez un autre moyen de paiement.",
+        "room_unknown": "Cette chambre est inconnue ici. Vérifiez le numéro.",
+        "not_in_house": "Aucun client n’est enregistré dans cette chambre. Vérifiez le numéro ou choisissez un autre moyen de paiement.",
+        "folio_settled": "Le compte de ce client n’accepte plus de charges. Choisissez un autre moyen de paiement.",
+        "currency_mismatch": "Cette chambre est facturée en {{currency}}. Choisissez cette devise.",
+        "limit_exceeded": "Cela dépasserait la limite de charges de la chambre. Il reste {{amount}}."
       }
     },
     "pharmacy": {
@@ -1099,6 +1108,45 @@
       "order_has_sent": "Des articles sont déjà partis en cuisine : la commande ne peut pas être annulée. Annulez-les d’abord.",
       "merge_same": "Choisissez une autre table pour fusionner.",
       "merge_part_paid": "Une part de cette addition est payée : elle ne peut pas être fusionnée."
+    }
+  },
+  "hotel": {
+    "housekeeping": {
+      "title": "Chambres à nettoyer",
+      "room": "Chambre {{number}}",
+      "floor": "Étage {{floor}}",
+      "noFloor": "Sans étage",
+      "start": "Commencer",
+      "finish": "Terminer",
+      "markClean": "Marquer propre",
+      "markDirty": "Marquer sale",
+      "refresh": "Actualiser",
+      "signOut": "Se déconnecter",
+      "empty": "Vous n’avez aucune chambre à nettoyer pour le moment.",
+      "tab": "Chambres",
+      "roomStatus": {
+        "vacant_clean": "Propre",
+        "vacant_dirty": "Sale",
+        "occupied": "Occupée",
+        "out_of_order": "Hors service"
+      },
+      "taskStatus": {
+        "pending": "Pas commencée",
+        "in_progress": "En cours"
+      },
+      "kind": {
+        "checkout_clean": "Nettoyage après départ",
+        "stayover": "Nettoyage en cours de séjour",
+        "inspection": "Contrôle",
+        "deep_clean": "Nettoyage en profondeur",
+        "maintenance": "Maintenance"
+      },
+      "errors": {
+        "offline": "Vous êtes hors ligne. Dernière liste affichée. Reconnectez-vous pour commencer, terminer ou modifier une chambre.",
+        "forbidden": "Vous n’avez pas le droit de mettre à jour les chambres. Demandez à votre responsable.",
+        "unavailable": "L’entretien des chambres n’est pas disponible. Demandez à votre responsable.",
+        "failed": "L’action n’a pas abouti. Actualisez et réessayez."
+      }
     }
   },
   "vansales": {

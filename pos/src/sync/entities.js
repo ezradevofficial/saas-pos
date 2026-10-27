@@ -115,6 +115,9 @@ registerEntity('loyalty_gift_cards', { table: 'loyalty_gift_cards', columns: (ro
 registerEntity('pharmacy_settings', { table: 'pharmacy_settings' });
 registerEntity('pharmacy_items', { table: 'pharmacy_items', columns: (row) => ({ item_id: row.item_id }) });
 registerEntity('pharmacy_lots', { table: 'pharmacy_lots', columns: (row) => ({ item_id: row.item_id }) });
+// The Hotel module's in-house guests (HOT-35, served only while the tenant has Hotel, RBAC-08): a snapshot
+// of room, guest name, folio and charge limit for the room-charge tender offline. Server wins, read-only.
+registerEntity('hotel_in_house', { table: 'hotel_in_house', columns: (row) => ({ room_number: row.room_number ?? '' }) });
 // The Inventory module's stock on hand at this till's location (INV-17,
 // served only while the tenant has Inventory): shown on the tiles, never
 // used to refuse a sale.

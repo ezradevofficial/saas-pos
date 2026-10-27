@@ -12,6 +12,7 @@ import { TextField } from '../../components/ds/TextField';
 import { decimalsOf, formatAmount, toMinor } from '../../lib/money';
 import { parseAmount } from '../../pos/input';
 import { createLocationTracker } from '../../rider/locationTracker';
+import { HousekeepingScreen } from '../../hotel/HousekeepingScreen';
 import { ACTIVE } from '../../rider/rider';
 import { useServices } from '../../services/services';
 import { DeliveryPhoto, PHOTO_PROOF } from './DeliveryPhoto';
@@ -438,6 +439,44 @@ function RiderDeliveries({ onSignedOut }) {
 }
 
 /**
+ * HOT-29: a signed-in user who holds hotel.housekeeping.update (asked of the
+ * server, GET me/permissions) also gets their rooms: the rooms list opens
+ * first and a switch moves between it and the deliveries. Everyone else sees
+ * the deliveries only, as before.
+ */
+function SignedInHome({ onSignedOut }) {
+  const { t } = useTranslation();
+  const { housekeeping } = useServices();
+  const [hotel, setHotel] = useState(false);
+  const [section, setSection] = useState('rooms');
+
+  useEffect(() => {
+    let active = true;
+    housekeeping.allowed().then((allowed) => active && setHotel(allowed)).catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [housekeeping]);
+
+  if (!hotel) return <RiderDeliveries onSignedOut={onSignedOut} />;
+  return (
+    <View className="flex-1">
+      <View accessibilityRole="tablist" className="flex-row gap-3 border-b border-border bg-surface-200 px-4 py-2 md:px-6">
+        {[
+          ['rooms', t('hotel.housekeeping.tab')],
+          ['deliveries', t('rider.title')],
+        ].map(([key, label]) => (
+          <Button key={key} variant={section === key ? 'secondary' : 'ghost'} accessibilityRole="tab" aria-selected={section === key} className="flex-1" onPress={() => setSection(key)}>
+            {label}
+          </Button>
+        ))}
+      </View>
+      {section === 'rooms' ? <HousekeepingScreen onSignedOut={onSignedOut} /> : <RiderDeliveries onSignedOut={onSignedOut} />}
+    </View>
+  );
+}
+
+/**
  * ECOM-28, ECOM-29, NFR-04: the rider's screen. Their open deliveries stay on
  * the phone; picked up, delivered (with the customer's code and the cash
  * collected) and could not deliver are queued on the phone first and upload
@@ -460,7 +499,7 @@ export function RiderScreen({ onExit }) {
   return (
     <SafeAreaView className="flex-1 bg-surface-100">
       {signedIn === null ? null : signedIn ? (
-        <RiderDeliveries onSignedOut={() => setSignedIn(false)} />
+        <SignedInHome onSignedOut={() => setSignedIn(false)} />
       ) : (
         <RiderSignIn onSignedIn={() => setSignedIn(true)} onBack={onExit} />
       )}

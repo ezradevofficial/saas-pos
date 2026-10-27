@@ -17,6 +17,7 @@ use Modules\Accounting\Posting\PostingService;
 use Modules\Accounting\Posting\SourceDocument;
 use Modules\Ecommerce\Events\EcommercePosting;
 use Modules\FixedAssets\Events\FixedAssetPosting;
+use Modules\Hotel\Events\HotelPosting;
 use Modules\Inventory\Events\StockMoved;
 use Modules\Loyalty\Events\LoyaltyLedgerEvent;
 use Modules\Manufacturing\Events\ProductionValued;
@@ -62,6 +63,7 @@ class Integrations
         private readonly FixedAssetSources $fixedAssets,
         private readonly PayrollSources $payroll,
         private readonly EcommerceSources $ecommerce,
+        private readonly HotelSources $hotel,
     ) {}
 
     /** Post what $event says (live or replayed by the backfill); null when nothing posts. */
@@ -93,6 +95,8 @@ class Integrations
             $event instanceof PayrollPosted => $this->payrollRun($event),
             // ECOM-32: E-commerce's delivered orders, returns and rider cash-ups.
             $event instanceof EcommercePosting => $this->post($this->ecommerce->source($event)),
+            // HOT-27: Hotel's folio charges, payments, deposits and deposits applied.
+            $event instanceof HotelPosting => $this->post($this->hotel->source($event)),
             default => null,
         };
     }
