@@ -1308,6 +1308,7 @@
       "method_invalid": "Choisissez espèces ou mobile money.",
       "amount": "Saisissez un montant supérieur à zéro.",
       "confirm_failed": "Le chargement n'a pas pu être confirmé. Réessayez.",
+      "actor_unverified": "Votre connexion n'a pas pu être vérifiée. Reconnectez-vous en ligne, puis réessayez.",
       "load_not_released": "Ce chargement n'est pas encore libéré.",
       "load_confirmed": "Ce chargement est déjà confirmé.",
       "load_not_open": "Ce chargement ne peut plus être confirmé.",

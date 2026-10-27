@@ -37,7 +37,7 @@ function Outcome({ outcome }) {
 export function CountScreen({ onBack }) {
   const { t } = useTranslation();
   const money = useMoneyText();
-  const { user } = useSession();
+  const { user, actorProof } = useSession();
   const van = useVanSales();
   const run = van.run ?? van.runs.find((view) => view.status === 'counting') ?? van.runs[0] ?? null;
   const editable = van.run != null;
@@ -80,6 +80,7 @@ export function CountScreen({ onBack }) {
         id: countId.current,
         run,
         user,
+        actorProof,
         lines: rows.map((row) => ({ item_id: row.item.item_id, returned_qty: row.r, damaged_qty: row.d })),
         tenders: parsedTenders.map((row) => ({ kind: row.kind, currency: row.currency, counted_minor: row.minor })),
         note: note.trim(),

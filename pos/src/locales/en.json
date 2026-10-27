@@ -1308,6 +1308,7 @@
       "method_invalid": "Choose cash or mobile money.",
       "amount": "Enter an amount above zero.",
       "confirm_failed": "The load could not be confirmed. Try again.",
+      "actor_unverified": "Your sign-in could not be checked. Sign in again while online, then try again.",
       "load_not_released": "This load is not released yet.",
       "load_confirmed": "This load is already confirmed.",
       "load_not_open": "This load can no longer be confirmed.",

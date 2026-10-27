@@ -47,10 +47,10 @@ export function createVanSales({ records, selling, engine = null, api = null, no
     },
 
     /** VAN-06: start the day on a route (or none). One open run: a second start is refused. */
-    async startDay({ user, routeId = null, timeZone }) {
+    async startDay({ user, actorProof = null, routeId = null, timeZone }) {
       if (await service.currentRun()) throw new VanSalesError('run_open');
       const startedAt = iso();
-      const run = { id: uuidv7(now()), kind: 'run', run_id: '', route_id: routeId ?? undefined, user_id: user.id, started_at: startedAt, local: { date: startedAt.slice(0, 10), time_zone: timeZone ?? null } };
+      const run = { id: uuidv7(now()), kind: 'run', run_id: '', route_id: routeId ?? undefined, user_id: user.id, actor_proof: actorProof ?? undefined, started_at: startedAt, local: { date: startedAt.slice(0, 10), time_zone: timeZone ?? null } };
       run.run_id = run.id;
       return records.add(run);
     },
@@ -66,7 +66,7 @@ export function createVanSales({ records, selling, engine = null, api = null, no
     // -- Visits ------------------------------------------------------------------
 
     /** VAN-09: the rep arrives at a stop (or a customer off the route): the visit of this run is opened once. */
-    async openVisit({ run, customer, stop = null, user }) {
+    async openVisit({ run, customer, stop = null, user, actorProof = null }) {
       const existing = (await service.visits(run.id)).find((visit) => (stop && visit.stop_id === stop.id) || visit.customer_id === customer.id);
       if (existing) return existing;
       const at = iso();
@@ -77,6 +77,7 @@ export function createVanSales({ records, selling, engine = null, api = null, no
         stop_id: stop?.id,
         customer_id: customer.id,
         user_id: user.id,
+        actor_proof: actorProof ?? undefined,
         status: 'visited',
         arrived_at: at,
         updated_at: at,
@@ -134,7 +135,7 @@ export function createVanSales({ records, selling, engine = null, api = null, no
      * number of the device's receipt range (never reused: the number and the record commit in one write).
      * An amount above the balance is stored too (flagged by the server), the screen having confirmed it.
      */
-    collect({ run, visit = null, customer, method, currency, amountMinor, reference, user, timeZone }) {
+    collect({ run, visit = null, customer, method, currency, amountMinor, reference, user, actorProof = null, timeZone }) {
       if (!['cash', 'mobile_money'].includes(method?.type)) throw new VanSalesError('method_invalid');
       if (!/^[1-9]\d{0,17}$/.test(String(amountMinor ?? ''))) throw new VanSalesError('amount');
       return selling
@@ -148,6 +149,7 @@ export function createVanSales({ records, selling, engine = null, api = null, no
             visit_id: visit?.id,
             customer_id: customer.id,
             user_id: user.id,
+            actor_proof: actorProof ?? undefined,
             payment_method_id: method.id,
             currency,
             amount_minor: String(amountMinor),
@@ -174,12 +176,12 @@ export function createVanSales({ records, selling, engine = null, api = null, no
      * VAN-08: the rep counts each line and confirms (an online action). Offline, it says so and
      * the sheet stays as it is. `received` maps line id → quantity received (decimal string).
      */
-    async confirmLoad({ load, received, user }) {
+    async confirmLoad({ load, received, user, actorProof = null }) {
       if (offline()) throw new VanSalesError('offline');
       const lines = load.lines.map((line) => ({ id: line.id, qty_received: String(received[line.id] ?? line.qty) }));
       let response;
       try {
-        response = await api.post(`van-sales/device/loads/${load.id}/confirm`, { user_id: user.id, lines });
+        response = await api.post(`van-sales/device/loads/${load.id}/confirm`, { user_id: user.id, actor_proof: actorProof ?? undefined, lines });
       } catch (error) {
         if (error instanceof NetworkError) throw new VanSalesError('offline');
         throw error;
@@ -207,13 +209,14 @@ export function createVanSales({ records, selling, engine = null, api = null, no
      * VAN-18: queue the count. `id` is made once by the screen, so a double press stores one count;
      * a recount after a rejection is a new attempt with a new id.
      */
-    async submitCount({ id, run, user, lines, tenders, note }) {
+    async submitCount({ id, run, user, actorProof = null, lines, tenders, note }) {
       const countId = id ?? uuidv7(now());
       const count = {
         id: countId,
         kind: 'count',
         run_id: run.id,
         user_id: user.id,
+        actor_proof: actorProof ?? undefined,
         submitted_at: iso(),
         note: note || undefined,
         lines,

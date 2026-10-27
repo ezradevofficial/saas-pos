@@ -25,7 +25,7 @@ import { Choice, VanHeader } from './parts';
 export function CollectScreen({ target, onBack }) {
   const { t } = useTranslation();
   const money = useMoneyText();
-  const { user } = useSession();
+  const { user, actorProof } = useSession();
   const { database } = useServices();
   const { catalogue } = usePosData();
   const van = useVanSales();
@@ -79,6 +79,7 @@ export function CollectScreen({ target, onBack }) {
         amountMinor: amount,
         reference: reference.trim().toUpperCase(),
         user,
+        actorProof,
         timeZone: catalogue.timeZone,
       });
       setAmountText('');

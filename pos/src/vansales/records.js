@@ -15,7 +15,7 @@ export const KINDS = ['run', 'visit', 'collection', 'count'];
 export const BODY_KEYS = { run: 'runs', visit: 'visits', collection: 'collections', count: 'counts' };
 
 export function wireRun(run) {
-  return clean({ id: run.id, route_id: run.route_id, user_id: run.user_id, started_at: run.started_at });
+  return clean({ id: run.id, route_id: run.route_id, user_id: run.user_id, actor_proof: run.actor_proof, started_at: run.started_at });
 }
 
 export function wireVisit(visit) {
@@ -25,6 +25,7 @@ export function wireVisit(visit) {
     stop_id: visit.stop_id,
     customer_id: visit.customer_id,
     user_id: visit.user_id,
+    actor_proof: visit.actor_proof,
     status: visit.status,
     no_sale_reason: visit.status === 'no_sale' ? visit.no_sale_reason : undefined,
     note: visit.note,
@@ -42,6 +43,7 @@ export function wireCollection(collection) {
     visit_id: collection.visit_id,
     customer_id: collection.customer_id,
     user_id: collection.user_id,
+    actor_proof: collection.actor_proof,
     payment_method_id: collection.payment_method_id,
     currency: collection.currency,
     amount_minor: String(collection.amount_minor),
@@ -58,6 +60,7 @@ export function wireCount(count) {
     id: count.id,
     run_id: count.run_id,
     user_id: count.user_id,
+    actor_proof: count.actor_proof,
     submitted_at: count.submitted_at,
     note: count.note,
     lines: count.lines.map((line) => ({ item_id: line.item_id, returned_qty: String(line.returned_qty), damaged_qty: String(line.damaged_qty) })),

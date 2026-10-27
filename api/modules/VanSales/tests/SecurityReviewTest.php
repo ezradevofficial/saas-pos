@@ -4,6 +4,7 @@ namespace Modules\VanSales\Tests;
 
 use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\Models\FieldRule;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
@@ -13,7 +14,6 @@ use Illuminate\Support\Facades\Log;
 use Modules\Inventory\Contracts\StockWrittenOff;
 use Modules\Inventory\Models\Movement;
 use Modules\VanSales\Credit\Ledger;
-use Modules\VanSales\Models\Collection;
 use Modules\VanSales\Models\Count;
 use Modules\VanSales\Models\CreditEntry;
 use Modules\VanSales\Models\Run;
@@ -254,8 +254,8 @@ class SecurityReviewTest extends TestCase
             $other = $this->company('Other Co');
 
             return [
-                \App\Core\MasterData\Parties\Party::create(['kind' => 'organisation', 'name' => 'Supplier only', 'roles' => ['supplier'], 'company_id' => $this->acme->id]),
-                \App\Core\MasterData\Parties\Party::create(['kind' => 'organisation', 'name' => 'Foreign customer', 'roles' => ['customer'], 'company_id' => $other->id]),
+                Party::create(['kind' => 'organisation', 'name' => 'Supplier only', 'roles' => ['supplier'], 'company_id' => $this->acme->id]),
+                Party::create(['kind' => 'organisation', 'name' => 'Foreign customer', 'roles' => ['customer'], 'company_id' => $other->id]),
             ];
         });
 

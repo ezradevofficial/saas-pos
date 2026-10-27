@@ -48,7 +48,7 @@ function OtherCustomerDialog({ onClose, onPick }) {
 /** VAN-06: choose the route (the ones due today first) and start the day. Works offline. */
 function StartDay({ onStarted }) {
   const { t } = useTranslation();
-  const { user } = useSession();
+  const { user, actorProof } = useSession();
   const { catalogue } = usePosData();
   const van = useVanSales();
   const timeZone = catalogue?.timeZone;
@@ -63,7 +63,7 @@ function StartDay({ onStarted }) {
     setBusy(true);
     setError(null);
     try {
-      await van.service.startDay({ user, routeId: chosen && chosen !== 'none' ? chosen : null, timeZone });
+      await van.service.startDay({ user, actorProof, routeId: chosen && chosen !== 'none' ? chosen : null, timeZone });
       onStarted?.();
     } catch (problem) {
       setError(t(`vansales.errors.${problem?.code ?? 'failed'}`, { defaultValue: t('vansales.errors.failed') }));
@@ -92,7 +92,7 @@ function StartDay({ onStarted }) {
  */
 export function DayScreen({ onStop, onLoad, onCount, onMenu }) {
   const { t } = useTranslation();
-  const { user } = useSession();
+  const { user, actorProof } = useSession();
   const { catalogue } = usePosData();
   const van = useVanSales();
   const [other, setOther] = useState(false);
@@ -108,7 +108,7 @@ export function DayScreen({ onStop, onLoad, onCount, onMenu }) {
 
   async function pickOther(customer) {
     setOther(false);
-    const visit = await van.service.openVisit({ run, customer, user });
+    const visit = await van.service.openVisit({ run, customer, user, actorProof });
     onStop({ customerId: customer.id, visitId: visit.id, stop: null });
   }
 
@@ -171,7 +171,7 @@ export function DayScreen({ onStop, onLoad, onCount, onMenu }) {
             <Row
               label={`${item.stop.customer_name}, ${t(`vansales.status.${item.status}`)}`}
               onPress={async () => {
-                const visit = item.visit ?? (await van.service.openVisit({ run, customer: { id: item.stop.customer_id, name: item.stop.customer_name }, stop: item.stop, user }));
+                const visit = item.visit ?? (await van.service.openVisit({ run, customer: { id: item.stop.customer_id, name: item.stop.customer_name }, stop: item.stop, user, actorProof }));
                 onStop({ customerId: item.stop.customer_id, visitId: visit.id, stop: item.stop });
               }}
               className="border-b-0"

@@ -217,7 +217,10 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame(['max_quote_discount_percent' => '0'], $rep->limits());
         $manager = Role::where('template_key', 'branch_manager')->sole();
         $this->assertSame(['max_quote_discount_percent' => '10', 'max_refund_amount' => '10000'], $manager->limits(), 'a Branch Manager discounts quotes up to 10 % without approval and refunds up to 10,000');
-        $this->assertSame(0, LimitRule::whereNotIn('role_id', [$rep->id, $manager->id])->count(), 'other templates seed no limits');
+        // VAN-17, RBAC-06: a Route supervisor gives collected money back up to 10,000 (a void of a collection).
+        $supervisor = Role::where('template_key', 'route_supervisor')->sole();
+        $this->assertSame(['max_refund_amount' => '10000'], $supervisor->limits());
+        $this->assertSame(0, LimitRule::whereNotIn('role_id', [$rep->id, $manager->id, $supervisor->id])->count(), 'other templates seed no limits');
     }
 
     public function test_the_rider_template_holds_only_its_own_deliveries_and_tracking_is_the_managers(): void

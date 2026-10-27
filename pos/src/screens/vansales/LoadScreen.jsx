@@ -17,7 +17,7 @@ const TONE = { released: 'warning', confirmed: 'success', approved: 'info', awai
 /** VAN-08: the rep counts each line of a released load sheet and confirms what arrived. */
 function LoadSheet({ load }) {
   const { t } = useTranslation();
-  const { user } = useSession();
+  const { user, actorProof } = useSession();
   const van = useVanSales();
   const sync = useSyncStatus();
   const [received, setReceived] = useState({});
@@ -37,7 +37,7 @@ function LoadSheet({ load }) {
     setMessage(null);
     try {
       const counted = Object.fromEntries(load.lines.map((line) => [line.id, parseCountQty(valueOf(line))]));
-      await van.service.confirmLoad({ load, received: counted, user });
+      await van.service.confirmLoad({ load, received: counted, user, actorProof });
       setMessage({ tone: 'success', text: t('vansales.load.confirmed', { number: load.number }) });
       van.reload();
     } catch (problem) {

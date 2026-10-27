@@ -15,6 +15,7 @@ use Modules\Inventory\Stock\Qty;
 use Modules\Inventory\Stock\StockLedger;
 use Modules\VanSales\Models\Count;
 use Modules\VanSales\Models\Load;
+use Modules\VanSales\Models\Run;
 use Modules\VanSales\Tests\Concerns\BuildsVanSales;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -43,7 +44,7 @@ class InventoryLoadOutTest extends TestCase
         return $this->inTenant(fn () => app(StockLevels::class)->onHand($locationId, [$this->soap->id])[$this->soap->id]);
     }
 
-    private function confirm(string $load, \App\Core\Identity\Models\User $by, array $lines, bool $proof = true)
+    private function confirm(string $load, User $by, array $lines, bool $proof = true)
     {
         return $this->postJson("/api/v1/van-sales/device/loads/{$load}/confirm", [
             'user_id' => $by->id, 'lines' => $lines, ...($proof ? ['actor_proof' => $this->actorProof($by->id, $this->vanDevice)] : []),
@@ -175,7 +176,7 @@ class InventoryLoadOutTest extends TestCase
         $count = $this->countAndSync($run, '4', [['kind' => 'cash', 'currency' => 'KES', 'counted_minor' => '337500']]);
 
         $this->inTenant(function () use ($count) {
-            $saved = \Modules\VanSales\Models\Count::findOrFail($count['id']);
+            $saved = Count::findOrFail($count['id']);
             $line = $saved->lines()->sole();
             $this->assertSame(['pending', ['returns_capped'], 2.0, 4.0, 2.0], [$saved->status, $saved->flags, (float) $line->returned_qty, (float) $line->returned_claimed_qty, (float) $line->variance_qty]);
         });
@@ -189,7 +190,7 @@ class InventoryLoadOutTest extends TestCase
         $count = $this->countAndSync($run, '11');
 
         $this->inTenant(function () use ($count) {
-            $saved = \Modules\VanSales\Models\Count::findOrFail($count['id']);
+            $saved = Count::findOrFail($count['id']);
             $this->assertSame(['pending', 12.0, 1.0], [$saved->status, (float) $saved->lines()->sole()->load_qty, (float) $saved->lines()->sole()->variance_qty]);
         });
     }
@@ -201,13 +202,13 @@ class InventoryLoadOutTest extends TestCase
         $this->sellOnVan($this->vanSale($run, 1, null, [$this->pay('cash_kes', '337500')], '6'))->assertOk();
         $count = $this->countAndSync($run, '4', [['kind' => 'cash', 'currency' => 'KES', 'counted_minor' => '337500']]);
 
-        $this->inTenant(fn () => $this->assertSame(['balanced', 'counting'], [\Modules\VanSales\Models\Count::findOrFail($count['id'])->status, \Modules\VanSales\Models\Run::findOrFail($run)->status]));
+        $this->inTenant(fn () => $this->assertSame(['balanced', 'counting'], [Count::findOrFail($count['id'])->status, Run::findOrFail($run)->status]));
 
-        $unload = $this->inTenant(fn () => \Modules\VanSales\Models\Count::findOrFail($count['id'])->unload_transfer_id);
+        $unload = $this->inTenant(fn () => Count::findOrFail($count['id'])->unload_transfer_id);
         $this->approveDocument($unload, $this->manager);
-        $this->inTenant(fn () => $this->assertSame('counting', \Modules\VanSales\Models\Run::findOrFail($run)->status));
+        $this->inTenant(fn () => $this->assertSame('counting', Run::findOrFail($run)->status));
         $this->api('POST', "van-sales/reconciliations/{$count['id']}/unload/receive", [], $this->storekeeper)->assertOk();
-        $this->inTenant(fn () => $this->assertSame('closed', \Modules\VanSales\Models\Run::findOrFail($run)->status));
+        $this->inTenant(fn () => $this->assertSame('closed', Run::findOrFail($run)->status));
     }
 
     public function test_an_unload_found_short_goes_into_the_reconciliation_flow(): void
@@ -216,16 +217,16 @@ class InventoryLoadOutTest extends TestCase
         $this->loadThroughInventory($run, '10');
         $this->sellOnVan($this->vanSale($run, 1, null, [$this->pay('cash_kes', '337500')], '6'))->assertOk();
         $count = $this->countAndSync($run, '4', [['kind' => 'cash', 'currency' => 'KES', 'counted_minor' => '337500']]);
-        $unload = $this->inTenant(fn () => \Modules\VanSales\Models\Count::findOrFail($count['id'])->unload_transfer_id);
+        $unload = $this->inTenant(fn () => Count::findOrFail($count['id'])->unload_transfer_id);
         $this->approveDocument($unload, $this->manager);
 
         $this->api('POST', "van-sales/reconciliations/{$count['id']}/unload/receive", ['lines' => [['item_id' => $this->soap->id, 'qty_received' => '3']]], $this->storekeeper)->assertOk();
 
-        $shortfall = $this->inTenant(fn () => \Modules\VanSales\Models\Count::query()->where('run_id', $run)->where('kind', 'unload_shortfall')->sole());
+        $shortfall = $this->inTenant(fn () => Count::query()->where('run_id', $run)->where('kind', 'unload_shortfall')->sole());
         $this->assertSame(['pending', 1.0], [$shortfall->status, (float) $shortfall->lines()->sole()->variance_qty]);
-        $this->inTenant(fn () => $this->assertSame('counting', \Modules\VanSales\Models\Run::findOrFail($run)->status));
+        $this->inTenant(fn () => $this->assertSame('counting', Run::findOrFail($run)->status));
 
         $this->approveDocument($shortfall->id, $this->supervisor);
-        $this->inTenant(fn () => $this->assertSame(['approved', 'closed'], [\Modules\VanSales\Models\Count::findOrFail($shortfall->id)->status, \Modules\VanSales\Models\Run::findOrFail($run)->status]));
+        $this->inTenant(fn () => $this->assertSame(['approved', 'closed'], [Count::findOrFail($shortfall->id)->status, Run::findOrFail($run)->status]));
     }
 }
