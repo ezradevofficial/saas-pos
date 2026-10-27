@@ -29,6 +29,7 @@ return [
             'stores' => 'Magasins',
             'fixed_assets' => 'Immobilisations',
             'manufacturing' => 'Production',
+            'pharmacy' => 'Pharmacie et agrovet',
         ],
         'resources' => [
             'accounting' => [
@@ -76,6 +77,17 @@ return [
                 'tax' => 'Registre fiscal',
                 'transfer' => 'Transferts d’immobilisations',
                 'value' => 'Valeurs des immobilisations',
+            ],
+            'pharmacy' => [
+                'settings' => 'Paramètres de la pharmacie',
+                'item' => 'Profils pharmacie des articles',
+                'lot' => 'Lots et péremption',
+                'writeoff' => 'Mises au rebut',
+                'recall' => 'Rappels',
+                'prescription' => 'Ordonnances',
+                'dispense' => 'Délivrance encadrée',
+                'register' => 'Registre des stupéfiants',
+                'report' => 'Rapports de la pharmacie',
             ],
             'manufacturing' => [
                 'bom' => 'Nomenclatures',
@@ -282,6 +294,8 @@ return [
         'cashier' => 'Caissier',
         'waiter' => 'Serveur',
         'storekeeper' => 'Magasinier',
+        'pharmacist' => 'Pharmacien',
+        'pharmacy_technician' => 'Technicien en pharmacie',
         'accountant' => 'Comptable',
         'hr_officer' => 'Chargé RH',
         'payroll_officer' => 'Gestionnaire de paie',

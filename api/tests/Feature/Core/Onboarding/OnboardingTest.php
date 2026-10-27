@@ -129,8 +129,8 @@ class OnboardingTest extends TestCase
             ->assertJsonPath('data.stage', 'modules')
             ->assertJsonPath('data.business_type', 'pharmacy')
             ->assertJsonPath('data.pos_mode', 'pharmacy')
-            ->assertJsonPath('data.applied.role_templates', ['admin', 'branch_manager', 'cashier', 'storekeeper'])
-            ->assertJsonPath('data.selection.modules', ['pos', 'inventory', 'loyalty'])
+            ->assertJsonPath('data.applied.role_templates', ['admin', 'branch_manager', 'cashier', 'storekeeper', 'pharmacist', 'pharmacy_technician'])
+            ->assertJsonPath('data.selection.modules', ['pos', 'inventory', 'pharmacy', 'loyalty'])
             ->assertJsonPath('data.selection.quantities.outlet', 2)
             ->assertJsonPath('data.selection.quantities.device', 4)
             ->assertJsonPath('data.business_types.5.name', 'Pharmacie ou agro-vétérinaire');
@@ -197,7 +197,7 @@ class OnboardingTest extends TestCase
         $this->pickModules($owner)->assertOk()->assertJsonPath('data.trial.state', 'trial')->assertJsonPath('data.trial.days_left', 14);
 
         $this->asTenant($owner['tenant'], function () {
-            // POS, Inventory and Loyalty are installed and now active.
+            // POS, Inventory and Loyalty are what was picked (the modules step sends them) and now active.
             $this->assertTrue(app(ModuleRegistry::class)->isActive('pos'));
             $this->assertSame(['inventory', 'loyalty', 'pos'], TenantModule::where('status', 'active')->orderBy('module')->pluck('module')->all());
             $state = OnboardingState::sole();

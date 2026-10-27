@@ -36,6 +36,8 @@ class CatalogueApiTest extends TestCase
             'accounting_essentials' => [350000, 2800, null, null], 'accounting_pro' => [700000, 5500, null, null],
             'procurement' => [300000, 2500, null, null], 'crm' => [200000, 1500, null, null],
             'fixed_assets' => [150000, 1200, null, null], 'manufacturing' => [400000, 3000, null, null],
+            // Not in the concept note: a placeholder price equal to Inventory's, for the owner to confirm (docs/modules/pharmacy.md).
+            'pharmacy' => [150000, 1200, null, null],
             'hr' => [10000, 100, 150000, 1200], 'payroll' => [15000, 150, 200000, 1500],
             'brand_pack' => [150000, 1200, null, null],
         ];

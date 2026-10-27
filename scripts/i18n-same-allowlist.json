@@ -103,5 +103,10 @@
   "{{ms}} ms",
   "Microsoft Entra ID",
   "Google Workspace",
-  "SAML 2.0"
+  "SAML 2.0",
+  "Correction",
+  "Poison",
+  "Patient",
+  "Lot {{number}}",
+  "Image"
 ]

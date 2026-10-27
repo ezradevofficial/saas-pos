@@ -152,5 +152,14 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      // Pharmacy module (PHA-25): rules, item profiles and the lots with stock at this location.
+      toVersion: 11,
+      steps: [
+        createTable({ name: 'pharmacy_settings', columns: [data, seenAt] }),
+        createTable({ name: 'pharmacy_items', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
+        createTable({ name: 'pharmacy_lots', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
+      ],
+    },
   ],
 });

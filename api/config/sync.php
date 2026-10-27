@@ -23,8 +23,8 @@ return [
     'override_ttl_seconds' => 120,
 
     // AUTH-08: permissions that approve overrides at the till. Their holders
-    // need a 6-digit PIN.
-    'override_permissions' => ['pos.sale.void', 'pos.sale.refund', 'pos.price.override', 'pos.discount.give'],
+    // need a 6-digit PIN. PHA-17: a pharmacist who authorises a restricted dispense at the till is one.
+    'override_permissions' => ['pos.sale.void', 'pos.sale.refund', 'pos.price.override', 'pos.discount.give', 'pharmacy.dispense.authorise'],
 
     // AUTH-06: the permission that lets a user sign in at a till (StaffDirectory).
     'sign_in_permission' => 'pos.till.sign_in',

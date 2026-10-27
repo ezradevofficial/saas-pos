@@ -50,6 +50,7 @@ use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentScope;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Runtime\WorkflowEngine;
+use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -77,6 +78,8 @@ use Modules\Payroll\Models\PayrollEmployee;
 use Modules\Payroll\Models\Payslip;
 use Modules\Payroll\Statutory\PayrollPack;
 use Modules\Payroll\Tests\Concerns\FixturePacks;
+use Modules\Pharmacy\Models\Dispense;
+use Modules\Pharmacy\Stock\Lots;
 use Modules\Procurement\Models\Bidder;
 use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Tenders\Bidders;
@@ -639,6 +642,11 @@ final class TwoTenants
         // Inventory); a POS sale of the menu item backflushed.
         $manufacturing = self::manufacturing($test, $owner, $tenantId, $ownerId, $company, $location, $item, $uoms['EA'], $deviceToken, $pos,
             $priceList, $paymentMethod, $taxCode, $taxCategory, $upper);
+        // Pharmacy (docs/modules/pharmacy.md): the module switched on; settings, a controlled item with its
+        // profile, a received lot, an expired lot with stock (quarantined and announced by the nightly sweep), a
+        // pending write-off, a prescription with its image, a recall and a till sale dispensed against the
+        // prescription (a dispense, register entries and lot movements).
+        $pharmacy = self::pharmacy($test, $owner, $tenantId, $ownerId, $company, $location, $deviceToken, $pos, $priceList, $paymentMethod, $taxCode, $taxCategory, $uoms['EA'], $customer, $upper);
         // HR (docs/modules/hr.md): the module switched on; a position, a default
         // onboarding template, an employee linked to the Owner (self-service)
         // and a peer reporting to them, with identifiers, a pay account, a
@@ -830,6 +838,7 @@ final class TwoTenants
                 ...$procurement,
                 ...$stores,
                 ...$manufacturing,
+                ...$pharmacy,
                 ...$hr,
                 ...$fixedAssets,
                 ...$crm,
@@ -1335,6 +1344,72 @@ final class TwoTenants
             'mfg_issue' => $issue['id'],
             'mfg_issue_line' => $issue['lines'][0]['id'],
             'mfg_backflush' => $backflush,
+        ];
+    }
+
+    /**
+     * The Pharmacy fixture of one tenant (docs/modules/pharmacy.md), made
+     * through its API as the Owner and the device: see the call in build().
+     *
+     * @return array<string, string> pharmacy_item, pharmacy_lot, pharmacy_receipt, pharmacy_write_off, pharmacy_recall, pharmacy_prescription, pharmacy_dispense
+     */
+    private static function pharmacy(TestCase $test, array $owner, string $tenantId, string $ownerId, string $company, string $location, string $deviceToken, array $pos,
+        string $priceList, string $paymentMethod, string $taxCode, string $taxCategory, string $each, string $customer, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('pharmacy'));
+        $owner = [...$owner, 'Accept' => 'application/json'];
+
+        self::ok($test->putJson("/api/v1/companies/{$company}/pharmacy-settings", ['near_expiry_days' => 60, 'prescription_valid_days' => 180], $owner));
+        $item = self::ok($test->postJson('/api/v1/items', [
+            'code' => "PHARM-{$upper}", 'name' => "Pharmacy item {$upper}", 'type' => 'stock', 'base_uom_id' => $each, 'tax_category_id' => $taxCategory,
+        ], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/pharmacy/items/{$item}/profile", ['class' => 'controlled', 'batch_tracked' => true, 'usage_notes' => "Usage notes {$upper}"], $owner));
+
+        $receipt = self::ok($test->postJson('/api/v1/pharmacy/receipts', ['location_id' => $location, 'reference' => "GRN-{$upper}", 'lines' => [[
+            'item_id' => $item, 'qty' => '20', 'batch_number' => "LOT-{$upper}", 'expires_on' => now()->addDays(200)->toDateString(), 'unit_cost_minor' => '1000', 'currency' => 'KES',
+        ]]], $owner), 201)->json('data');
+        $lot = $receipt['lines'][0]['lot']['id'];
+
+        // An expired lot with stock, as a late delivery or a long shelf leaves it; the nightly sweep quarantines and announces it.
+        app(TenantContext::class)->run($tenantId, function () use ($company, $item, $location, $upper) {
+            $lots = app(Lots::class);
+            $old = $lots->ensure($company, $item, "OLD-{$upper}", now()->subDays(5)->toDateString());
+            $lots->move($old, $location, 'receipt', BigDecimal::of('3'), 'fixture', (string) Str::uuid7());
+        });
+        $test->artisan('pharmacy:expiry-alerts')->assertSuccessful();
+
+        $old = app(TenantContext::class)->run($tenantId, fn () => app(Lots::class)->find($company, $item, "OLD-{$upper}")->id);
+        $writeOff = self::ok($test->postJson('/api/v1/pharmacy/write-offs', ['location_id' => $location, 'reason' => 'expired', 'note' => "Shelf clearance {$upper}", 'lines' => [['lot_id' => $old, 'qty' => '1']]], $owner), 201)->json('data.id');
+        $prescription = self::ok($test->postJson('/api/v1/pharmacy/prescriptions', [
+            'location_id' => $location, 'prescriber_name' => "Dr Prescriber {$upper}", 'prescriber_licence' => "LIC-{$upper}", 'facility' => "Clinic {$upper}",
+            'patient_name' => "Patient {$upper}", 'patient_party_id' => $customer, 'prescribed_on' => now()->subDay()->toDateString(),
+        ], $owner), 201)->json('data.id');
+        self::ok($test->post("/api/v1/pharmacy/prescriptions/{$prescription}/image", ['file' => UploadedFile::fake()->image("rx-{$upper}.jpg")], $owner));
+        $recall = self::ok($test->postJson('/api/v1/pharmacy/recalls', ['item_id' => $item, 'batch_number' => "RECALLED-{$upper}", 'reason' => "Recall reason {$upper}", 'reference' => "REF-{$upper}"], $owner), 201)->json('data.id');
+
+        // A till sale of the controlled item against a prescription of the till's own: a dispense, lot movements and register entries.
+        $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
+        $sale = self::posSale(fn () => (string) Str::uuid7(), $pos['pos_shift'], $ownerId, 9, str_replace('{000001}', '000009', $pos['pos_receipt_pattern']), $item, $each, $priceList, $paymentMethod, $taxCode);
+        $sale['customer_id'] = $customer;
+        $sale['extensions'] = ['pharmacy' => [
+            'lines' => [['line_id' => $sale['lines'][0]['id'], 'lots' => [['lot_id' => $lot, 'qty' => '2']]]],
+            'prescription' => [
+                'id' => (string) Str::uuid7(), 'prescriber_name' => "Dr Till {$upper}", 'prescriber_licence' => "TLIC-{$upper}", 'facility' => "Till clinic {$upper}",
+                'patient_name' => "Till patient {$upper}", 'prescribed_on' => now()->subDay()->toDateString(),
+            ],
+        ]];
+        self::ok($test->postJson('/api/v1/pos/sales', ['sales' => [$sale]], $device))->assertJsonPath('results.0.status', 'stored');
+        $dispense = app(TenantContext::class)->run($tenantId, fn () => Dispense::query()->where('sale_id', $sale['id'])->value('id'));
+        Assert::assertNotNull($dispense, 'TwoTenants: the controlled item sale was not dispensed');
+
+        return [
+            'pharmacy_item' => $item,
+            'pharmacy_lot' => $lot,
+            'pharmacy_receipt' => $receipt['id'],
+            'pharmacy_write_off' => $writeOff,
+            'pharmacy_recall' => $recall,
+            'pharmacy_prescription' => $prescription,
+            'pharmacy_dispense' => $dispense,
         ];
     }
 

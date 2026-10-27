@@ -69,9 +69,10 @@ return [
         [
             'key' => 'pharmacy',
             'pos_mode' => 'pharmacy',
-            'role_templates' => ['admin', 'branch_manager', 'cashier', 'storekeeper'],
+            // PHA-29: the pharmacy module (batches, expiry, prescriptions, the controlled-drug register) and its roles.
+            'role_templates' => ['admin', 'branch_manager', 'pharmacist', 'pharmacy_technician', 'cashier', 'storekeeper'],
             'flows' => [],
-            'modules' => ['pos', 'inventory', 'loyalty'],
+            'modules' => ['pos', 'inventory', 'pharmacy', 'loyalty'],
             'quantities' => ['outlet' => 1, 'device' => 2, 'employee' => 6],
         ],
         [
@@ -118,7 +119,7 @@ return [
     ],
 
     'module_groups' => [
-        'sell' => ['pos', 'inventory', 'loyalty', 'ecommerce'],
+        'sell' => ['pos', 'inventory', 'pharmacy', 'loyalty', 'ecommerce'],
         'operate' => ['stores', 'procurement', 'manufacturing', 'fixed_assets'],
         'finance_people' => ['accounting_essentials', 'accounting_pro', 'crm', 'hr', 'payroll'],
     ],

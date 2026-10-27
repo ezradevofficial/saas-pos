@@ -8,6 +8,8 @@ import { SessionProvider, useSession } from './src/auth/session';
 import './src/i18n';
 // LOY-27: the Loyalty module through the till's generic seams (served only while the tenant has it).
 import './src/loyalty/register';
+// PHA-25: the Pharmacy module through the same seams (served only while the tenant has it).
+import './src/pharmacy/register';
 import { ChangePinScreen } from './src/screens/ChangePinScreen';
 import { PosProvider } from './src/pos/PosProvider';
 import { PosScreen } from './src/screens/pos/PosScreen';

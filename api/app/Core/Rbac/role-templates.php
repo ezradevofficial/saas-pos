@@ -45,12 +45,14 @@ return [
             'crm.*.view', 'crm.settings.manage', 'crm.scope.branch',
             // E-commerce (docs/modules/ecommerce.md): reads it all, sets up stores and riders.
             'ecommerce.*.view', 'ecommerce.store.manage', 'ecommerce.rider.manage',
+            // PHA-02, PHA-03: sets a company's pharmacy rules and items' pharmacy profiles, and reads the module's records except prescriptions (personal data).
+            'pharmacy.settings.edit', 'pharmacy.item.configure', 'pharmacy.*.view',
             // CP-01: exempting the company from a pack component (payroll.statutory.exempt).
             'payroll.statutory.exempt'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
         // so are the business type and the modules (what the tenant pays for).
         // AUTH-11: and single sign-on (whoever controls the IdP signs in as anyone linked).
-        'except' => ['core.tenant.export', 'core.onboarding.modules', 'core.sso.manage', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view'],
+        'except' => ['core.tenant.export', 'core.onboarding.modules', 'core.sso.manage', 'hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view', 'pharmacy.prescription.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -101,8 +103,11 @@ return [
             // E-commerce (docs/modules/ecommerce.md): the branch's online orders, deliveries, riders, cash-ups,
             // WhatsApp inbox and store settings; riding is the Rider's.
             'ecommerce.*',
+            // Pharmacy (docs/modules/pharmacy.md): lots, write-offs (the default approver), recalls, prescriptions, the register
+            // and reports at their branch; authorising a restricted dispense is a pharmacist's, and the settings the Admin's.
+            'pharmacy.*',
         ],
-        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver'],
+        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure'],
         // RBAC-06 (owner decision A, 2026-10-16; defaults the owner may change): a Branch Manager discounts quotes
         // up to 10 % without approval (CRM-20), so their own discounted quotes do not all escalate, and refunds up
         // to 10,000 in the company's base currency (POS-05, E-commerce refunds), so a manager can refund at all.
@@ -146,6 +151,8 @@ return [
             'loyalty.points.view', 'loyalty.gift_card.view',
             // ECOM-22, ECOM-25: packs online orders at the outlet, takes phone orders, answers WhatsApp.
             'ecommerce.order.view', 'ecommerce.order.create', 'ecommerce.order.manage', 'ecommerce.whatsapp.view', 'ecommerce.whatsapp.reply',
+            // PHA-14: takes down a prescription with the sale; reading them is the pharmacy team's.
+            'pharmacy.prescription.create',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -183,12 +190,50 @@ return [
             'stores.*',
             // MFG-12: issues materials to production orders and takes back what is unused; quantities only (RBAC-05).
             'manufacturing.bom.view', 'manufacturing.order.view', 'manufacturing.material.*',
+            // PHA-06, PHA-12, PHA-13: receives and moves lots and asks for write-offs; never quarantines, recalls or approves.
+            'pharmacy.item.view', 'pharmacy.lot.view', 'pharmacy.lot.receive', 'pharmacy.lot.transfer', 'pharmacy.writeoff.view', 'pharmacy.writeoff.create', 'pharmacy.report.view',
         ],
         // INV-08 to INV-10, INV-12: storekeepers request; managers and approvers decide.
         // Costs belong to Accountants and Admins: storekeepers see quantities only (RBAC-05).
         // STR-03, STR-05: departments approve and acknowledge what the store issues, not the storekeeper.
         'except' => ['inventory.transfer.approve', 'inventory.adjustment.approve', 'inventory.count.approve', 'inventory.settings.edit', 'inventory.valuation.view',
             'stores.requisition.approve', 'stores.issue.acknowledge', 'stores.value.view', 'stores.stock.approve'],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // PHA-17, PHA-29: the pharmacist sells and authorises restricted dispensing at their place; everything in
+        // the module except the company's settings. A 6-digit PIN is needed (config sync.override_permissions).
+        'key' => 'pharmacist',
+        'permissions' => [
+            'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
+            'core.party.view', 'core.party.create',
+            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view', 'core.price.view',
+            'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
+            'pos.till.sign_in',
+            'inventory.stock.view', 'loyalty.points.view', 'loyalty.gift_card.view',
+            'pharmacy.*',
+        ],
+        'except' => ['pharmacy.settings.edit'],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // PHA-29: the technician sells, receives and moves stock and takes down prescriptions; they do not authorise
+        // restricted dispensing, quarantine, issue recalls or correct the register.
+        'key' => 'pharmacy_technician',
+        'permissions' => [
+            'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
+            'core.party.view', 'core.party.create',
+            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view', 'core.price.view',
+            'pos.sale.view', 'pos.sale.create', 'pos.sale.print', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
+            'pos.till.sign_in',
+            'inventory.stock.view', 'loyalty.points.view', 'loyalty.gift_card.view',
+            'pharmacy.item.view', 'pharmacy.lot.view', 'pharmacy.lot.receive', 'pharmacy.lot.transfer',
+            'pharmacy.writeoff.view', 'pharmacy.writeoff.create',
+            'pharmacy.prescription.view', 'pharmacy.prescription.create',
+            'pharmacy.recall.view', 'pharmacy.register.view', 'pharmacy.report.view',
+        ],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
@@ -223,6 +268,8 @@ return [
             'fixed_assets.*',
             // ECOM-30, ECOM-32, ECOM-36: online orders, rider cash-ups and reports.
             'ecommerce.order.view', 'ecommerce.cashup.view', 'ecommerce.cashup.manage', 'ecommerce.report.view',
+            // PHA-12, PHA-24: lots, write-offs and the expiry and slow-mover reports.
+            'pharmacy.item.view', 'pharmacy.lot.view', 'pharmacy.writeoff.view', 'pharmacy.report.view',
         ],
         // FA-14, FA-17: transfers and disposals are approved by others.
         'except' => ['fixed_assets.transfer.approve', 'fixed_assets.disposal.approve'],
@@ -309,6 +356,8 @@ return [
             // PAY-16: the payroll runs they approve, by their totals, department totals and variances
             // (payroll.md decision 36: per-employee lines need payroll.pay.view; field rules may hide the totals, PAY-23).
             'payroll.run.view',
+            // PHA-12: the write-offs they approve.
+            'pharmacy.writeoff.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -325,7 +374,9 @@ return [
         'permissions' => ['*.view', 'core.audit.*', 'core.access_review.*', 'crm.scope.branch'],
         // HR-09: personal data is not an auditor's to read; nor is pay (PAY-23: payroll settings only).
         'except' => ['hr.identity.view', 'hr.bank.view', 'hr.pay.view', 'hr.medical.view', 'hr.disciplinary.view',
-            'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.pay.view', 'payroll.payslip.view', 'payroll.return.view'],
+            'payroll.employee.view', 'payroll.loan.view', 'payroll.run.view', 'payroll.pay.view', 'payroll.payslip.view', 'payroll.return.view',
+            // PHA-28: patients' prescriptions are personal data.
+            'pharmacy.prescription.view'],
         'is_owner' => false,
         'requires_two_factor' => false,
     ],
