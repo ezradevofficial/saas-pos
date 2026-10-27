@@ -149,8 +149,10 @@ class OrdersApiTest extends TestCase
         ]));
 
         $this->api('POST', "restaurant/orders/{$table['id']}/merge", ['into_order_id' => $elsewhere->id])->assertUnprocessable()->assertJsonPath('code', 'merge_invalid');
-        // The waiter may merge at their own location; the target must also be one they reach.
-        $this->api('POST', "restaurant/orders/{$table['id']}/merge", ['into_order_id' => $elsewhere->id], $this->waiter)->assertNotFound();
+        // The manager of branch A merges at A; the target must also be one they reach.
+        $this->api('POST', "restaurant/orders/{$table['id']}/merge", ['into_order_id' => $elsewhere->id], $this->manager)->assertNotFound();
+        // A waiter does not merge tables at all.
+        $this->api('POST', "restaurant/orders/{$table['id']}/merge", ['into_order_id' => $elsewhere->id], $this->waiter)->assertForbidden();
     }
 
     public function test_an_order_with_nothing_sent_or_paid_can_be_cancelled(): void

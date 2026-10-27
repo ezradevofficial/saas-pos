@@ -170,7 +170,10 @@ class SaleUploads
         $shift = $this->shift($place, $data['shift_id'], $data['cashier_id'], $at, $flags);
         $cashier = $this->authority->user($data['cashier_id'], 'cashier_id');
 
-        if (! $this->authority->can($cashier, 'pos.sale.create', $place->scope())) {
+        // REST-19: a waiter or bartender may ring the bill of a table or tab (a sale carrying `extensions.restaurant`), not any sale.
+        $restaurantBill = is_array($data['extensions']['restaurant'] ?? null) && $this->authority->can($cashier, 'restaurant.order.close', $place->scope());
+
+        if (! $restaurantBill && ! $this->authority->can($cashier, 'pos.sale.create', $place->scope())) {
             $flags->add('cashier_not_permitted');
         }
 

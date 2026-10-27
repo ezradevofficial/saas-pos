@@ -101,14 +101,19 @@ class VoidAfterSendTest extends TestCase
         $this->assertSame([], $line->flags);
     }
 
-    public function test_what_cannot_be_proven_is_applied_and_flagged_for_review(): void
+    public function test_what_cannot_be_proven_waits_for_review_and_stays_on_the_bill(): void
     {
         [$record, $sent] = $this->table();
 
         $result = $this->void($record, $sent, $this->removed($this->manager, extra: ['actor_proof' => null]));
 
-        $this->assertSame('stored', $result['status']);
-        $this->assertSame([['code' => 'actor_unverified']], OrderLine::query()->find($sent['id'])->flags);
+        $this->assertSame(['stored', 'pending'], [$result['status'], $result['void']]);
+        $line = OrderLine::query()->find($sent['id']);
+        $this->assertNull($line->voided_at, 'the line stays on the bill');
+        $this->assertSame($this->manager->id, $line->pending_void['by']);
+        $this->assertEqualsCanonicalizing(['actor_unverified', 'void_pending'], array_column($line->flags, 'code'));
+        $this->assertSame(0, Ticket::query()->where('kind', 'void')->count(), 'the station is not told yet');
+        $this->api('GET', "restaurant/orders/{$record['id']}")->assertOk()->assertJsonPath('data.lines.0.void_pending.by', $this->manager->id)->assertJsonPath('data.lines.0.void', null);
     }
 
     public function test_a_void_above_the_persons_limit_needs_a_manager_with_a_higher_one(): void

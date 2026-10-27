@@ -161,6 +161,7 @@ class OrderView
             'sent_by' => $line->sent_by,
             'ticket_status' => $ticketStatus,
             'flags' => $line->flags ?? [],
+            'void_pending' => $line->pending_void === null ? null : ['at' => $line->pending_void['at'] ?? null, 'by' => $line->pending_void['by'] ?? null, 'reason' => $line->pending_void['reason'] ?? null, 'approver_id' => $line->pending_void['approver_id'] ?? null],
             'void' => $line->voided_at === null ? null : [
                 'at' => $line->voided_at->toIso8601String(),
                 'by' => $line->voided_by,
@@ -171,7 +172,7 @@ class OrderView
     }
 
     /** @return array<string, mixed> */
-    private function ticketSummary(Ticket $ticket, ?string $station, Order $order, ?string $waiter, ?string $table): array
+    private function ticketSummary(Ticket $ticket, ?string $station, Order $order, ?string $waiter, ?string $table, bool $mask = false): array
     {
         return [
             'id' => $ticket->id,
@@ -185,7 +186,7 @@ class OrderView
             'course' => (int) $ticket->course,
             'round' => $ticket->round,
             'table_name' => $table,
-            'tab_name' => $order->tab_name,
+            'tab_name' => $mask ? self::initials($order->tab_name) : $order->tab_name,
             'waiter_name' => $waiter,
             'covers' => (int) $order->covers,
             'created_at' => $ticket->created_at->toIso8601String(),
@@ -213,6 +214,16 @@ class OrderView
         $waiter = $order->waiter_id === null ? null : User::query()->whereKey($order->waiter_id)->value('name');
         $table = $order->table_id === null ? null : Table::query()->whereKey($order->table_id)->value('name');
 
-        return $this->ticketSummary($ticket, $ticket->station?->name, $order, $waiter, $table);
+        // The kitchen display shows a tab by its initials: the name of a guest is not the kitchen's to read.
+        return $this->ticketSummary($ticket, $ticket->station?->name, $order, $waiter, $table, mask: true);
+    }
+
+    private static function initials(?string $name): ?string
+    {
+        if ($name === null || trim($name) === '') {
+            return null;
+        }
+
+        return collect(preg_split('/\\s+/u', trim($name)))->map(fn (string $part) => mb_strtoupper(mb_substr($part, 0, 1)).'.')->implode('');
     }
 }

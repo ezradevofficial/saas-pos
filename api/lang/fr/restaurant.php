@@ -5,6 +5,11 @@
 return [
     'cancelled_by_till' => 'Annulée à la caisse.',
     'errors' => [
+        'override_required' => 'Demandez à un responsable d’approuver l’annulation avec son code.',
+        'currency_unknown' => 'Cette devise n’est pas utilisée par cette entreprise. Activez-la d’abord.',
+        'modifier_currency' => 'Cette option est tarifée dans une autre devise que la commande.',
+        'order_has_payments' => 'De l’argent a déjà été encaissé pour cette commande, elle ne peut donc pas être fusionnée. Encaissez l’autre commande séparément.',
+        'no_pending_void' => 'Aucune annulation n’attend de validation pour cet article.',
         'user_unknown' => 'Choisissez une personne existante.',
         'tax_code_unknown' => 'Choisissez un code de taxe existant.',
         'name_taken' => 'Ce nom est déjà utilisé à cet emplacement. Choisissez un autre nom.',

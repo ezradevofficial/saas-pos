@@ -248,6 +248,8 @@ return new class extends Migration
             $userRef($table, 'void_approved_by');
             $table->string('void_reason', 255)->nullable();
             $table->boolean('void_after_send')->default(false);
+            // REST-11: a void of a sent line asked for but not yet approved by someone provable; the line stays on the bill.
+            $table->jsonb('pending_void')->nullable();
             $table->jsonb('flags')->default('[]');
             $table->timestampsTz();
 

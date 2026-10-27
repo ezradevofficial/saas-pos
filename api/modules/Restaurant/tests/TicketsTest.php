@@ -24,8 +24,9 @@ class TicketsTest extends TestCase
 
     private function sendOne(): array
     {
+        [$cheese] = $this->modifier('Extra cheese');
         $record = $this->orderRecord([
-            $this->sent($this->orderLine(['note' => 'no onions', 'modifiers' => [['id' => 'm1', 'name' => 'Extra cheese', 'price_minor' => '5000']]])),
+            $this->sent($this->orderLine(['note' => 'no onions', 'modifiers' => [['id' => $cheese, 'name' => 'Extra cheese', 'price_minor' => '5000']]])),
             $this->sent($this->orderLine(['item_id' => $this->beer->id, 'name' => 'Beer', 'qty' => '2', 'unit_price_minor' => '35000'])),
         ]);
         $this->store($record);
@@ -49,6 +50,15 @@ class TicketsTest extends TestCase
         $this->assertSame($this->waiter->name, $kitchen['waiter_name']);
     }
 
+    public function test_the_display_shows_a_tab_by_its_initials_only(): void
+    {
+        $tab = $this->orderRecord([$this->sent($this->orderLine(['item_id' => $this->beer->id, 'name' => 'Beer']))], ['kind' => 'tab', 'table_id' => null, 'tab_name' => 'Otieno kamau']);
+        $this->store($tab);
+
+        $this->api('GET', "restaurant/tickets?location_id={$this->locationA->id}", [], $this->cook)->assertOk()->assertJsonPath('data.0.tab_name', 'O.K.');
+        $this->api('GET', "restaurant/orders/{$tab['id']}")->assertOk()->assertJsonPath('data.tab_name', 'Otieno kamau')->assertJsonPath('data.tickets.0.tab_name', 'Otieno kamau');
+    }
+
     public function test_a_ticket_moves_through_its_statuses_and_back(): void
     {
         $this->sendOne();
@@ -61,7 +71,8 @@ class TicketsTest extends TestCase
         $recalled = $status('preparing')->assertOk()->json('data');
         $this->assertNull($recalled['ready_at'], 'a recalled ticket is not ready any more');
         $status('ready');
-        $served = $status('served', $this->waiter)->assertOk()->json('data');
+        $status('served', $this->waiter)->assertForbidden();
+        $served = $status('served')->assertOk()->json('data');
         $this->assertNotNull($served['served_at']);
         $status('flying')->assertUnprocessable();
 
@@ -108,7 +119,8 @@ class TicketsTest extends TestCase
         $ticket = Ticket::query()->where('station_id', $this->kitchen->id)->sole();
         $url = "/api/v1/restaurant/device/tickets/{$ticket->id}/status";
 
-        $this->postJson($url, ['status' => 'served', 'user_id' => $this->waiter->id], $this->tillHeaders())->assertOk()->assertJsonPath('data.status', 'served');
+        $this->postJson($url, ['status' => 'served', 'user_id' => $this->waiter->id], $this->tillHeaders())->assertForbidden()->assertJsonPath('code', 'ticket_not_permitted');
+        $this->postJson($url, ['status' => 'served', 'user_id' => $this->cook->id], $this->tillHeaders())->assertOk()->assertJsonPath('data.status', 'served');
 
         $cashier = $this->userWith('cashier', Scope::location($this->locationA->id));
         $this->postJson($url, ['status' => 'new', 'user_id' => $cashier->id], $this->tillHeaders())->assertForbidden()->assertJsonPath('code', 'ticket_not_permitted');

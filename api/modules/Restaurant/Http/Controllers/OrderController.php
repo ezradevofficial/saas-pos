@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use InvalidArgumentException;
 use Modules\Restaurant\Billing\Bill;
 use Modules\Restaurant\Billing\Charges;
+use Modules\Restaurant\Http\Requests\ArchiveRequest;
 use Modules\Restaurant\Http\Requests\BoundRequest;
 use Modules\Restaurant\Http\Requests\CancelOrderRequest;
 use Modules\Restaurant\Http\Requests\MergeRequest;
@@ -89,12 +90,12 @@ class OrderController
     {
         abort_unless($restOrderLine->order_id === $restOrder->id, 404);
 
-        if ($restOrderLine->sent_at !== null) {
+        if ($restOrderLine->isSent()) {
             $payable = Bill::line([
                 'qty' => (string) $restOrderLine->qty, 'unit_price_minor' => (string) $restOrderLine->unit_price_minor, 'modifiers' => $restOrderLine->modifiers ?? [],
                 'tax_rate' => $restOrderLine->tax_rate === null ? null : (string) $restOrderLine->tax_rate, 'tax_inclusive' => (bool) $restOrderLine->tax_inclusive,
             ])['payable'];
-            $refusal = $this->actions->voidRefusal($request->user(), $restOrder->location_id, (string) $payable, $restOrder->currency);
+            $refusal = $this->actions->voidRefusal($request->user(), $restOrder, (string) $payable);
 
             if ($refusal !== null) {
                 throw Errors::make(403, $refusal);
@@ -102,6 +103,15 @@ class OrderController
         }
 
         $this->actions->voidLine($restOrder, $restOrderLine, (string) $request->validated('reason'), $request->user());
+
+        return response()->json(['data' => $this->view->record($restOrder->refresh())]);
+    }
+
+    /** REST-11: a reviewer turns down a void a till asked for and the server could not prove. */
+    public function rejectVoid(ArchiveRequest $request, Order $restOrder, OrderLine $restOrderLine): JsonResponse
+    {
+        abort_unless($restOrderLine->order_id === $restOrder->id, 404);
+        $this->actions->rejectVoid($restOrder, $restOrderLine, $request->user());
 
         return response()->json(['data' => $this->view->record($restOrder->refresh())]);
     }

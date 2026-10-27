@@ -1319,14 +1319,16 @@ final class TwoTenants
         $table = self::ok($test->postJson('/api/v1/restaurant/tables', ['location_id' => $location, 'area_id' => $area, 'name' => "T1 {$upper}", 'seats' => 4], $owner), 201)->json('data.id');
         $second = self::ok($test->postJson('/api/v1/restaurant/tables', ['location_id' => $location, 'area_id' => $area, 'name' => "T2 {$upper}", 'seats' => 2], $owner), 201)->json('data.id');
         $station = self::ok($test->postJson('/api/v1/restaurant/stations', ['location_id' => $location, 'name' => "Kitchen {$upper}", 'kind' => 'kitchen', 'is_default' => true, 'category_ids' => [$category]], $owner), 201)->json('data.id');
-        $group = self::ok($test->postJson('/api/v1/restaurant/modifier-groups', [
+        $groupResponse = self::ok($test->postJson('/api/v1/restaurant/modifier-groups', [
             'company_id' => $company, 'name' => "Extras {$upper}", 'min_select' => 0, 'max_select' => 2, 'currency' => 'KES', 'item_ids' => [$dish],
             'modifiers' => [['name' => 'Extra shot', 'price_minor' => '5000']],
-        ], $owner), 201)->json('data.id');
+        ], $owner), 201);
+        $group = $groupResponse->json('data.id');
+        $modifier = $groupResponse->json('data.modifiers.0.id');
 
         $line = fn (string $name) => [
             'id' => (string) Str::uuid7(), 'item_id' => $dish, 'name' => $name, 'qty' => '1', 'unit_price_minor' => '80000', 'tax_code_id' => $taxCode, 'tax_rate' => '16', 'tax_inclusive' => false,
-            'course' => 1, 'modifiers' => [['id' => 'extra', 'name' => 'Extra shot', 'price_minor' => '5000']], 'created_at' => now()->subMinutes(30)->toIso8601String(),
+            'course' => 1, 'modifiers' => [['id' => $modifier, 'name' => 'Extra shot', 'price_minor' => '5000']], 'created_at' => now()->subMinutes(30)->toIso8601String(),
             'sent_at' => now()->subMinutes(20)->toIso8601String(), 'sent_by' => $ownerId, 'round' => 1,
         ];
         $first = $line("Dish {$upper}");

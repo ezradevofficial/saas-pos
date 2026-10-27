@@ -216,7 +216,7 @@ class OrderSyncTest extends TestCase
         $this->assertSame(2, Ticket::query()->where('order_id', $a['id'])->count(), 'tickets follow the lines');
     }
 
-    public function test_a_line_adopted_from_another_open_order_moves_to_the_new_one(): void
+    public function test_a_line_of_another_order_is_never_taken_over(): void
     {
         $line = $this->orderLine();
         $a = $this->orderRecord([$line]);
@@ -225,9 +225,10 @@ class OrderSyncTest extends TestCase
         $this->store($b);
 
         $b['lines'] = [$line];
-        $this->store($b);
+        $result = $this->store($b);
 
-        $this->assertSame($b['id'], OrderLine::query()->find($line['id'])->order_id);
+        $this->assertSame('line_conflict', $result['lines'][0]['error']['code']);
+        $this->assertSame($a['id'], OrderLine::query()->find($line['id'])->order_id);
     }
 
     public function test_a_transfer_by_someone_without_the_right_is_kept_and_flagged(): void

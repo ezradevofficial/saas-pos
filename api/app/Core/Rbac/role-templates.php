@@ -171,18 +171,19 @@ return [
         'requires_two_factor' => false,
     ],
     [
-        // REST-19 (docs/modules/restaurant.md): takes orders at tables and tabs, sends them, moves and merges tables,
-        // bills and closes them into sales at the till, and marks tickets served. Voiding a sent item needs a manager
+        // REST-19 (docs/modules/restaurant.md): takes orders at tables and tabs, sends them, moves tables to a colleague,
+        // and rings the bill of a table or tab at the till (a sale carrying extensions.restaurant; no general pos.sale.create).
+        // Merging tables and moving tickets along are a manager's and the kitchen's; voiding a sent item needs a manager
         // (no pos.sale.void, no limit); discounts too.
         'key' => 'waiter',
         'permissions' => [
             'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create',
             'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view', 'core.payment_method.view',
-            'pos.sale.view', 'pos.sale.print', 'pos.sale.create', 'pos.till.sign_in',
+            'pos.sale.view', 'pos.sale.print', 'pos.till.sign_in',
             'restaurant.floor.view', 'restaurant.station.view', 'restaurant.modifier.view',
             'restaurant.order.view', 'restaurant.order.create', 'restaurant.order.edit', 'restaurant.order.send',
-            'restaurant.order.transfer', 'restaurant.order.merge', 'restaurant.order.close',
-            'restaurant.ticket.view', 'restaurant.ticket.update',
+            'restaurant.order.transfer', 'restaurant.order.close',
+            'restaurant.ticket.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,
@@ -203,10 +204,10 @@ return [
         'permissions' => [
             'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create',
             'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view', 'core.payment_method.view',
-            'pos.sale.view', 'pos.sale.print', 'pos.sale.create', 'pos.till.sign_in', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
+            'pos.sale.view', 'pos.sale.print', 'pos.till.sign_in', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
             'restaurant.floor.view', 'restaurant.station.view', 'restaurant.modifier.view',
             'restaurant.order.view', 'restaurant.order.create', 'restaurant.order.edit', 'restaurant.order.send',
-            'restaurant.order.transfer', 'restaurant.order.merge', 'restaurant.order.close',
+            'restaurant.order.transfer', 'restaurant.order.close',
             'restaurant.ticket.view', 'restaurant.ticket.update',
         ],
         'is_owner' => false,

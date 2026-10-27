@@ -3,6 +3,7 @@
 namespace Modules\Restaurant\Sync;
 
 use App\Core\Audit\Auditor;
+use App\Core\Currency\Models\TenantCurrency;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\Items\Item;
@@ -15,10 +16,12 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Modules\POS\Sync\Authority;
 use Modules\POS\Sync\DevicePlace;
 use Modules\POS\Sync\Rejection as PosRejection;
 use Modules\Restaurant\Billing\Bill;
+use Modules\Restaurant\Models\Modifier;
 use Modules\Restaurant\Models\Order;
 use Modules\Restaurant\Models\OrderLine;
 use Modules\Restaurant\Models\Resend;
@@ -79,8 +82,14 @@ class OrderUploads
         } catch (PosRejection|Rejection $rejection) {
             return ['id' => $data['id'], 'status' => 'rejected', 'error' => $this->error($rejection)];
         } catch (UniqueConstraintViolationException) {
-            // Two uploads of one new order at once: the second finds the first.
-            return DB::connection(TenantContext::CONNECTION)->transaction(fn () => $this->store($place, $data));
+            // Two uploads of one new order at once: the second finds the first. An id another tenant holds stays a refusal of this record.
+            try {
+                return DB::connection(TenantContext::CONNECTION)->transaction(fn () => $this->store($place, $data));
+            } catch (PosRejection|Rejection $rejection) {
+                return ['id' => $data['id'], 'status' => 'rejected', 'error' => $this->error($rejection)];
+            } catch (UniqueConstraintViolationException) {
+                return ['id' => $data['id'], 'status' => 'rejected', 'error' => (new Rejection('id_conflict', 'id'))->toArray()];
+            }
         }
     }
 
@@ -139,8 +148,16 @@ class OrderUploads
             $into = Order::query()->whereKey($target)->lockForUpdate()->first();
 
             if ($into !== null && $into->status === 'open' && $into->location_id === $order->location_id) {
-                $this->actions->merge($order, $into, null);
-                $changed = true;
+                $by = $this->knownUserModel($data['updated_by'] ?? null);
+                $allowed = $by !== null && $this->authority->can($by, 'restaurant.order.merge', $place->scope());
+
+                try {
+                    $this->actions->merge($order, $into, $by, unauthorised: ! $allowed);
+                    $changed = true;
+                } catch (ApiException) {
+                    // Money already taken for the source order: it stays an order of its own.
+                    $flags[] = 'merge_refused';
+                }
             } else {
                 $flags[] = 'merge_pending';
             }
@@ -169,6 +186,11 @@ class OrderUploads
 
     private function references(array $data): void
     {
+        // CUR-01: the order's currency is one the tenant has switched on.
+        if (! TenantCurrency::query()->where('code', $data['currency'])->exists()) {
+            throw new Rejection('currency_unknown', 'currency');
+        }
+
         $lines = collect($data['lines'] ?? []);
         $items = $lines->pluck('item_id')->unique()->values()->all();
 
@@ -225,8 +247,8 @@ class OrderUploads
             'note' => $data['note'] ?? null,
             'flags' => $flags,
             'rev' => 1,
-            'opened_at' => CarbonImmutable::parse($data['opened_at'])->utc(),
-            'header_at' => CarbonImmutable::parse($data['updated_at'])->utc(),
+            'opened_at' => self::clamp(CarbonImmutable::parse($data['opened_at'])->utc()),
+            'header_at' => self::clamp(CarbonImmutable::parse($data['updated_at'])->utc()),
             'bill_requested_at' => isset($data['bill_requested_at']) ? CarbonImmutable::parse($data['bill_requested_at'])->utc() : null,
         ]);
         $order->save();
@@ -237,7 +259,7 @@ class OrderUploads
     /** Last writer wins; true when something changed. */
     private function header(DevicePlace $place, Order $order, array $data): bool
     {
-        $at = CarbonImmutable::parse($data['updated_at'])->utc();
+        $at = self::clamp(CarbonImmutable::parse($data['updated_at'])->utc());
 
         if ($order->status !== 'open' || ! $at->greaterThan($order->header_at)) {
             return false;
@@ -300,9 +322,9 @@ class OrderUploads
         $stored = OrderLine::query()->whereKey($data['id'])->lockForUpdate()->first();
 
         try {
+            // A line id belongs to one order: another order's line (or another tenant's id) is never taken over.
             if ($stored !== null && $stored->order_id !== $order->id) {
-                $this->adopt($place, $order, $stored);
-                $changed = true;
+                throw new Rejection('line_conflict', 'lines');
             }
 
             if ($stored === null) {
@@ -312,9 +334,9 @@ class OrderUploads
 
                 $stored = $this->createLine($place, $order, $data);
                 $changed = true;
-            } elseif ($stored->sent_at === null && ! $orderLocked && $stored->voided_at === null) {
-                $changed = $this->editLine($stored, $data) || $changed;
-            } elseif ($this->differs($stored, $data) && $stored->voided_at === null) {
+            } elseif (! $orderLocked && $stored->voided_at === null && ! $stored->isSent()) {
+                $changed = $this->editLine($order, $stored, $data) || $changed;
+            } elseif ($stored->voided_at === null && $this->differs($order, $stored, $data)) {
                 throw new Rejection('line_changed', 'lines');
             }
 
@@ -327,35 +349,75 @@ class OrderUploads
                 $changed = true;
             }
 
+            $pending = false;
+
             if (! empty($data['removed']) && $stored->voided_at === null && ! $orderLocked) {
-                $this->remove($place, $order, $stored, $data['removed']);
-                $voided->push($stored);
+                $pending = ! $this->remove($place, $order, $stored, $data['removed']);
                 $changed = true;
+
+                if (! $pending) {
+                    $voided->push($stored);
+                }
             }
 
-            return ['id' => $stored->id, 'status' => 'stored'];
+            return ['id' => $stored->id, 'status' => 'stored'] + ($pending ? ['void' => 'pending'] : []);
         } catch (PosRejection|Rejection $rejection) {
             return ['id' => $data['id'], 'status' => 'rejected', 'error' => $this->error($rejection)];
         }
     }
 
-    /** A line sent under another open order of the place (a merge done at the till) moves here. */
-    private function adopt(DevicePlace $place, Order $order, OrderLine $line): void
+    /**
+     * REST-07: the modifiers of a line as the server prices them. Each must be a modifier of the tenant whose group is
+     * in the order's currency; the server's name and price win over the till's.
+     *
+     * @param  list<array<string, mixed>>  $mods
+     * @return list<array{id: string, name: string, price_minor: string}>
+     */
+    private function modifiers(Order $order, array $mods): array
     {
-        $from = Order::query()->whereKey($line->order_id)->lockForUpdate()->first();
-
-        if ($from === null || $from->location_id !== $place->location->id || $from->status !== 'open' || $order->status !== 'open') {
-            throw new Rejection('line_conflict', 'lines');
+        if ($mods === []) {
+            return [];
         }
 
-        $line->order_id = $order->id;
-        $line->save();
+        $ids = array_map(fn (array $m) => (string) ($m['id'] ?? ''), $mods);
+
+        if (array_filter($ids, fn (string $id) => ! Str::isUuid($id)) !== []) {
+            throw new Rejection('modifier_unknown', 'modifiers');
+        }
+
+        $rows = Modifier::query()->join('rest_modifier_groups', 'rest_modifier_groups.id', '=', 'rest_modifiers.group_id')
+            ->whereIn('rest_modifiers.id', $ids)->get(['rest_modifiers.id', 'rest_modifiers.name', 'rest_modifiers.price_minor', 'rest_modifier_groups.currency'])->keyBy('id');
+        $out = [];
+
+        foreach ($ids as $id) {
+            $row = $rows->get($id) ?? throw new Rejection('modifier_unknown', 'modifiers');
+
+            if ($row->currency !== $order->currency) {
+                throw new Rejection('modifier_currency', 'modifiers');
+            }
+
+            $out[] = ['id' => $id, 'name' => $row->name, 'price_minor' => (string) $row->price_minor];
+        }
+
+        return $out;
     }
 
     private function createLine(DevicePlace $place, Order $order, array $data): OrderLine
     {
         $item = Item::query()->whereKey($data['item_id'])->first() ?? throw new Rejection('item_unknown', 'item_id');
+        $modifiers = $this->modifiers($order, $data['modifiers'] ?? []);
 
+        // A savepoint: an id another tenant already holds fails this line, not the order or the batch.
+        try {
+            return DB::connection(TenantContext::CONNECTION)->transaction(fn () => $this->insertLine($place, $order, $data, $item, $modifiers));
+        } catch (UniqueConstraintViolationException) {
+            throw new Rejection('id_conflict', 'id');
+        }
+    }
+
+    /** @param list<array{id: string, name: string, price_minor: string}> $modifiers */
+    private function insertLine(DevicePlace $place, Order $order, array $data, Item $item, array $modifiers): OrderLine
+    {
         return OrderLine::create([
             'id' => $data['id'],
             'order_id' => $order->id,
@@ -370,15 +432,15 @@ class OrderUploads
             'course' => $data['course'] ?? 1,
             'seat' => $data['seat'] ?? null,
             'note' => $data['note'] ?? null,
-            'modifiers' => $data['modifiers'] ?? [],
+            'modifiers' => $modifiers,
             'round' => $data['round'] ?? null,
-            'created_at_device' => CarbonImmutable::parse($data['created_at'])->utc(),
+            'created_at_device' => self::clamp(CarbonImmutable::parse($data['created_at'])->utc()),
             'flags' => [],
         ]);
     }
 
     /** An unsent line follows the till. @return bool whether something changed */
-    private function editLine(OrderLine $line, array $data): bool
+    private function editLine(Order $order, OrderLine $line, array $data): bool
     {
         $before = $line->getAttributes();
         $line->fill(array_filter([
@@ -388,7 +450,7 @@ class OrderUploads
             'tax_rate' => isset($data['tax_rate']) ? self::dec($data['tax_rate'], 4) : null,
             'course' => $data['course'] ?? null,
             'note' => $data['note'] ?? null,
-            'modifiers' => $data['modifiers'] ?? null,
+            'modifiers' => isset($data['modifiers']) ? $this->modifiers($order, $data['modifiers']) : null,
         ], fn ($v) => $v !== null));
 
         if (array_key_exists('seat', $data)) {
@@ -405,18 +467,32 @@ class OrderUploads
         return $dirty && $before !== $line->getAttributes();
     }
 
+    /** A till's clock ahead of the server's is held to now plus 5 minutes, so a future time cannot win every later header conflict. */
+    private static function clamp(CarbonImmutable $at): CarbonImmutable
+    {
+        $limit = CarbonImmutable::now()->addMinutes(5);
+
+        return $at->greaterThan($limit) ? $limit : $at;
+    }
+
     private static function dec(string|int|float $value, int $scale): string
     {
         return (string) BigDecimal::of((string) $value)->toScale($scale, RoundingMode::HalfUp);
     }
 
     /** Whether a sent line's content differs from what the till now says. */
-    private function differs(OrderLine $line, array $data): bool
+    private function differs(Order $order, OrderLine $line, array $data): bool
     {
+        try {
+            $mods = $this->modifiers($order, $data['modifiers'] ?? []);
+        } catch (Rejection) {
+            return true;
+        }
+
         return $data['item_id'] !== $line->item_id
             || ! BigDecimal::of((string) $data['qty'])->isEqualTo((string) $line->qty)
             || (string) $data['unit_price_minor'] !== (string) $line->unit_price_minor
-            || $this->mods($data['modifiers'] ?? []) !== $this->mods($line->modifiers ?? []);
+            || $this->mods($mods) !== $this->mods($line->modifiers ?? []);
     }
 
     /** @return list<string> */
@@ -428,8 +504,15 @@ class OrderUploads
         return $out;
     }
 
-    /** REST-11: removes a line; a sent one needs the right or a manager. */
-    private function remove(DevicePlace $place, Order $order, OrderLine $line, array $removed): void
+    /**
+     * REST-11: removes a line. A sent one needs the right (within the person's limit, in the base currency at the
+     * current rate; with no rate, a manager) or a manager's override. An override that names no manager the
+     * server can read is refused (`override_required`); a named manager or a person whose sign-in the server
+     * cannot prove only asks: the line stays on the bill, flagged, until a reviewer approves.
+     *
+     * @return bool whether the line was voided (false: the void waits for review)
+     */
+    private function remove(DevicePlace $place, Order $order, OrderLine $line, array $removed): bool
     {
         $actor = $this->authority->user($removed['by'], 'removed.by');
         $at = CarbonImmutable::parse($removed['at'])->utc();
@@ -437,7 +520,7 @@ class OrderUploads
         $flags = [];
         $approver = null;
 
-        if ($line->sent_at !== null) {
+        if ($line->isSent()) {
             if ($reason === '') {
                 throw new Rejection('reason_required', 'removed.reason');
             }
@@ -447,10 +530,12 @@ class OrderUploads
                 'tax_rate' => $line->tax_rate === null ? null : (string) $line->tax_rate, 'tax_inclusive' => (bool) $line->tax_inclusive,
             ])['payable'];
 
+            $base = $this->actions->baseMajor($order, (string) $payable);
+
             try {
                 $approval = $this->authority->approve(
                     $actor, $removed['override'] ?? null, $removed['actor_proof'] ?? null, 'pos.sale.void', $place->scope(),
-                    fn (User $user) => $this->authority->within($user, 'max_refund_amount', $place->scope(), $this->actions->major((string) $payable, $order->currency)),
+                    fn (User $user) => ($base === null && $user->id !== $actor->id) || $this->actions->withinVoidLimit($user, $place->scope(), $base),
                     $place->device, $line->id, 'removed.override',
                 );
             } catch (PosRejection $e) {
@@ -460,15 +545,27 @@ class OrderUploads
             $approver = $approval->approverId();
 
             if ($approval->held()) {
+                if (Authority::hasOverride($removed['override'] ?? null) && $approver === null) {
+                    throw new Rejection('override_required', 'removed.override');
+                }
+
                 $flags[] = $approval->flag();
             }
 
             foreach ($approval->reviewFlags() as $code) {
                 $flags[] = $code;
             }
+
+            if ($approval->held()) {
+                $this->actions->requestVoid($order, $line, $reason, $actor, $approver, $flags, $at);
+
+                return false;
+            }
         }
 
         $this->actions->voidLine($order, $line, $reason, $actor, $approver, $flags, $at, offline: true);
+
+        return true;
     }
 
     /** REST-10: a re-send of sent lines, once by its id. */
@@ -489,6 +586,11 @@ class OrderUploads
         if (! Party::query()->whereKey($id)->exists()) {
             throw new Rejection('customer_unknown', 'customer_id');
         }
+    }
+
+    private function knownUserModel(?string $id): ?User
+    {
+        return $id === null ? null : User::query()->whereKey($id)->first();
     }
 
     private function knownUser(?string $id): ?string

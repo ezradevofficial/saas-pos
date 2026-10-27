@@ -8,12 +8,16 @@ use App\Core\MasterData\Taxes\TaxCategoryCode;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Rbac\ModuleRegistry;
 use Illuminate\Support\Facades\Event;
+use Modules\POS\Events\SaleCompleted;
+use Modules\POS\Events\SaleVoided;
 use Modules\POS\Models\Sale;
 use Modules\Restaurant\Events\OrderClosed;
 use Modules\Restaurant\Models\Order;
 use Modules\Restaurant\Models\Setting;
 use Modules\Restaurant\Models\Settlement;
+use Modules\Restaurant\Orders\OrderActions;
 use Modules\Restaurant\Tests\Concerns\BuildsRestaurant;
+use RuntimeException;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
 
@@ -57,7 +61,7 @@ class SettlementTest extends TestCase
             $this->line(['item_id' => $this->tipItem->id, 'qty' => '1', 'unit_price_minor' => '2000', 'list_price_minor' => '2000', 'total_minor' => '2000', 'tax_minor' => '0', 'tax_inclusive' => false, 'tax_code_id' => $this->exemptId, 'tax_rate' => null, 'price_list_id' => null]),
         ];
 
-        return $this->saleBody($this->shift, $seq, array_replace(['lines' => $lines, 'extensions' => ['restaurant' => array_replace(['order_id' => $this->order['id'], 'mode' => 'full', 'part' => 1, 'parts' => 1, 'final' => true, 'line_ids' => []], $extension)]], $overrides));
+        return $this->saleBody($this->shift, $seq, array_replace(['lines' => $lines, 'extensions' => ['restaurant' => array_replace(['order_id' => $this->order['id'], 'mode' => 'full', 'part' => 1, 'parts' => 1, 'final' => true, 'line_ids' => array_column($this->order['lines'], 'id')], $extension)]], $overrides));
     }
 
     private function stored(array $sale): string
@@ -156,6 +160,79 @@ class SettlementTest extends TestCase
         $this->stored($this->sale(1, []));
 
         $this->assertSame(0, Settlement::query()->count());
+    }
+
+    public function test_the_till_saying_final_does_not_close_an_underpaid_order(): void
+    {
+        $ids = array_column($this->order['lines'], 'id');
+        // A sale of KES 1,010.00 against a bill of KES 1,485.00, naming only the first line, called final.
+        $this->stored($this->sale(1, ['mode' => 'item', 'part' => 1, 'parts' => 2, 'final' => true, 'line_ids' => [$ids[0]]]));
+
+        $order = Order::query()->find($this->order['id']);
+        $this->assertSame('open', $order->status);
+        $this->assertSame([['code' => 'underpaid']], $order->flags);
+        $this->assertSame(1, AuditEntry::query()->where('action', 'restaurant.order.underpaid')->count());
+
+        // The rest is paid by a later sale: every live line is now covered, so the order closes and the flag goes.
+        $this->stored($this->sale(2, ['mode' => 'item', 'part' => 2, 'parts' => 2, 'final' => true, 'line_ids' => [$ids[1]]]));
+        $order = Order::query()->find($this->order['id']);
+        $this->assertSame(['closed', []], [$order->status, $order->flags]);
+    }
+
+    public function test_the_tills_line_ids_count_only_when_they_are_lines_of_the_order(): void
+    {
+        $other = $this->orderRecord([$this->orderLine(['name' => 'Elsewhere'])], ['table_id' => $this->t2->id]);
+        $this->store($other);
+        $own = array_column($this->order['lines'], 'id');
+        $foreign = $other['lines'][0]['id'];
+
+        $this->stored($this->sale(1, ['mode' => 'item', 'part' => 1, 'parts' => 1, 'final' => true, 'line_ids' => [$own[0], $foreign, 'not-a-line']]));
+
+        $this->assertSame([$own[0]], Settlement::query()->sole()->line_ids);
+        $this->assertSame('open', Order::query()->find($this->order['id'])->status, 'a line of another order does not cover this one');
+    }
+
+    public function test_a_void_that_arrives_before_its_sale_makes_the_late_sale_settle_nothing(): void
+    {
+        $saleId = $this->id();
+        $snapshot = fn () => [
+            'location_id' => $this->locationA->id, 'currency' => 'KES', 'sold_at' => now()->toIso8601String(), 'totals' => ['total_minor' => '148500'], 'lines' => [],
+            'extensions' => ['restaurant' => ['order_id' => $this->order['id'], 'mode' => 'full', 'final' => true, 'line_ids' => array_column($this->order['lines'], 'id')]],
+        ];
+        $tenant = $this->owner->tenant_id;
+
+        event(new SaleVoided($tenant, $saleId, $this->id(), $snapshot(), now()->toIso8601String()));
+        event(new SaleCompleted($tenant, $saleId, $this->acme->id, $this->locationA->id, $snapshot()));
+
+        $settlement = Settlement::query()->sole();
+        $this->assertNotNull($settlement->voided_at, 'remembered as voided');
+        $this->assertSame('open', Order::query()->find($this->order['id'])->status);
+    }
+
+    public function test_a_failure_while_closing_leaves_no_settlement_behind(): void
+    {
+        $this->partialMock(OrderActions::class, fn ($mock) => $mock->shouldReceive('close')->andThrow(new RuntimeException('boom')));
+        $sale = $this->sale(1, []);
+
+        try {
+            $this->upload([$sale]);
+        } catch (RuntimeException) {
+            // A queued listener fails and is retried; the upload itself is not the test.
+        }
+
+        $this->assertSame(0, Settlement::query()->count(), 'the settlement and the closing commit together or not at all');
+        $this->assertSame('open', Order::query()->find($this->order['id'])->status);
+    }
+
+    public function test_a_waiter_rings_the_bill_of_a_table_but_not_any_sale(): void
+    {
+        $bill = $this->saleBody($this->shift, 1, ['cashier_id' => $this->waiter->id, 'lines' => [$this->line()], 'extensions' => ['restaurant' => ['order_id' => $this->order['id'], 'mode' => 'full', 'final' => false, 'line_ids' => []]]]);
+        $plain = $this->saleBody($this->shift, 2, ['cashier_id' => $this->waiter->id]);
+
+        $response = $this->upload([$bill, $plain])->assertOk();
+
+        $this->assertNotContains('cashier_not_permitted', array_column($response->json('results.0.flags') ?? [], 'code'));
+        $this->assertContains('cashier_not_permitted', array_column($response->json('results.1.flags') ?? [], 'code'), 'a sale with no table or tab behind it needs pos.sale.create');
     }
 
     public function test_the_order_is_one_with_the_extension_in_the_sale_snapshot_only(): void

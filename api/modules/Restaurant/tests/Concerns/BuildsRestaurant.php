@@ -11,6 +11,8 @@ use Carbon\CarbonImmutable;
 use Illuminate\Testing\TestResponse;
 use Modules\POS\Tests\Concerns\BuildsPos;
 use Modules\Restaurant\Models\Area;
+use Modules\Restaurant\Models\Modifier;
+use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Station;
 use Modules\Restaurant\Models\StationRoute;
 use Modules\Restaurant\Models\Table;
@@ -101,6 +103,17 @@ trait BuildsRestaurant
         $this->asTenant($other['user']->tenant_id, fn () => app(ModuleRegistry::class)->activate('restaurant'));
 
         return $other;
+    }
+
+    /** A modifier of the company in KES (a group of its own); returns [id, price_minor]. @return array{0: string, 1: string} */
+    protected function modifier(string $name = 'Extra cheese', string $price = '5000', string $currency = 'KES'): array
+    {
+        return $this->inTenant(function () use ($name, $price, $currency) {
+            $group = ModifierGroup::create(['company_id' => $this->acme->id, 'name' => "Group {$name}", 'min_select' => 0, 'max_select' => 2, 'currency' => $currency]);
+            $modifier = Modifier::create(['group_id' => $group->id, 'name' => $name, 'price_minor' => $price]);
+
+            return [$modifier->id, $price];
+        });
     }
 
     /** One order line as the till sends it (a burger of KES 800.00, test tax 12.5 % exclusive). */

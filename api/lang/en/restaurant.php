@@ -5,6 +5,11 @@
 return [
     'cancelled_by_till' => 'Cancelled at the till.',
     'errors' => [
+        'override_required' => 'Ask a manager to approve the void with their PIN.',
+        'currency_unknown' => 'The currency is not one this business uses. Switch it on first.',
+        'modifier_currency' => 'The modifier is priced in another currency than the order.',
+        'order_has_payments' => 'Money was already taken for this order, so it cannot be merged. Pay the other order separately.',
+        'no_pending_void' => 'There is no void waiting for review on this item.',
         'user_unknown' => 'Choose a person who exists.',
         'tax_code_unknown' => 'Choose a tax code that exists.',
         'name_taken' => 'This name is already used at this location. Choose another name.',

@@ -49,12 +49,12 @@ class RoleTemplatesTest extends TestCase
     public function test_the_waiter_works_tables_and_tabs_but_never_sets_up_voids_or_discounts(): void
     {
         $this->assertSame([
-            'restaurant.floor.view', 'restaurant.modifier.view', 'restaurant.order.close', 'restaurant.order.create', 'restaurant.order.edit', 'restaurant.order.merge',
-            'restaurant.order.send', 'restaurant.order.transfer', 'restaurant.order.view', 'restaurant.station.view', 'restaurant.ticket.update', 'restaurant.ticket.view',
-        ], $this->granted('waiter'));
+            'restaurant.floor.view', 'restaurant.modifier.view', 'restaurant.order.close', 'restaurant.order.create', 'restaurant.order.edit',
+            'restaurant.order.send', 'restaurant.order.transfer', 'restaurant.order.view', 'restaurant.station.view', 'restaurant.ticket.view',
+        ], $this->granted('waiter'), 'no merging tables and no moving tickets along');
 
         $held = $this->inTenant(fn () => $this->roles->get('waiter')->permissions()->pluck('name')->all());
-        foreach (['pos.sale.void', 'pos.sale.refund', 'pos.discount.give', 'pos.price.override'] as $never) {
+        foreach (['pos.sale.void', 'pos.sale.refund', 'pos.discount.give', 'pos.price.override', 'pos.sale.create'] as $never) {
             $this->assertNotContains($never, $held);
         }
     }
@@ -67,8 +67,8 @@ class RoleTemplatesTest extends TestCase
 
     public function test_the_bartender_is_a_waiter_with_a_shift_of_their_own(): void
     {
-        $this->assertSame($this->granted('waiter'), $this->granted('bartender'));
-        $this->assertSame(['pos.sale.create', 'pos.sale.print', 'pos.sale.view', 'pos.shift.close', 'pos.shift.open', 'pos.shift.view', 'pos.till.sign_in'],
+        $this->assertSame(collect([...$this->granted('waiter'), 'restaurant.ticket.update'])->sort()->values()->all(), $this->granted('bartender'), 'a waiter\'s rights and the bar station\'s tickets');
+        $this->assertSame(['pos.sale.print', 'pos.sale.view', 'pos.shift.close', 'pos.shift.open', 'pos.shift.view', 'pos.till.sign_in'],
             $this->inTenant(fn () => $this->roles->get('bartender')->permissions()->where('module', 'pos')->orderBy('name')->pluck('name')->all()));
     }
 
@@ -84,6 +84,23 @@ class RoleTemplatesTest extends TestCase
         $this->assertContains('restaurant.report.view', $admin);
         $this->assertNotContains('restaurant.order.create', $admin, 'the Admin reads orders; the floor staff take them');
         $this->assertCount(17, $this->granted('owner'));
+    }
+
+    public function test_the_system_role_refresh_takes_removed_rights_from_existing_waiters(): void
+    {
+        // A tenant provisioned before the narrowing: its Waiter still holds the old rights.
+        $this->inTenant(function () {
+            $waiter = $this->roles->get('waiter');
+            $waiter->givePermissionTo(['restaurant.order.merge', 'restaurant.ticket.update', 'pos.sale.create']);
+            $this->assertContains('restaurant.order.merge', $waiter->fresh()->permissions->pluck('name')->all());
+            app(RoleTemplates::class)->refresh();
+        });
+
+        $held = $this->inTenant(fn () => $this->roles->get('waiter')->fresh()->permissions->pluck('name')->all());
+        foreach (['restaurant.order.merge', 'restaurant.ticket.update', 'pos.sale.create'] as $removed) {
+            $this->assertNotContains($removed, $held);
+        }
+        $this->assertContains('restaurant.order.transfer', $held);
     }
 
     public function test_a_permission_grants_nothing_while_the_module_is_off(): void

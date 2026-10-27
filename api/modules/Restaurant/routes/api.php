@@ -81,6 +81,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('restaurant/orders/{rest_order}/transfer', [OrderController::class, 'transfer'])->defaults('permission', 'restaurant.order.transfer');
     Route::post('restaurant/orders/{rest_order}/merge', [OrderController::class, 'merge'])->defaults('permission', 'restaurant.order.merge');
     Route::post('restaurant/orders/{rest_order}/lines/{rest_order_line}/void', [OrderController::class, 'voidLine'])->defaults('permission', 'restaurant.order.edit');
+    Route::post('restaurant/orders/{rest_order}/lines/{rest_order_line}/void/reject', [OrderController::class, 'rejectVoid'])->defaults('permission', 'pos.sale.void');
     Route::post('restaurant/orders/{rest_order}/cancel', [OrderController::class, 'cancel'])->defaults('permission', 'restaurant.order.edit');
     Route::post('restaurant/orders/{rest_order}/split', [OrderController::class, 'split'])->defaults('permission', 'restaurant.order.close');
 
