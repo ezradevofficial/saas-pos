@@ -78,7 +78,9 @@ trait BuildsPharmacy
     /** $days from today (negative: past) as a Y-m-d date. */
     protected function inDays(int $days): string
     {
-        return CarbonImmutable::now()->addDays($days)->toDateString();
+        // The company's calendar day, as CompanyDays counts it: after 21:00 UTC Nairobi
+        // is already on the next day, and a UTC-based date drifts days_left by one.
+        return CarbonImmutable::now($this->acme->timezone ?: 'UTC')->addDays($days)->toDateString();
     }
 
     /** A lot of $item received at a location (A by default), through the ledger. */
