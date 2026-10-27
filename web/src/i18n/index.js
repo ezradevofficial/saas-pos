@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { appName } from '../config'
@@ -13,6 +14,16 @@ const catalogues = {
   en: () => import('../locales/en.json'),
   fr: () => import('../locales/fr.json'),
 }
+
+// NFR-02: the strings of the newer vertical modules are chunks of their own
+// (src/locales/modules/<locale>/<module>.json, each holding one top-level key),
+// loaded when one of the module's routes first loads (lazyModule below) and
+// again for a language switched to later. scripts/check-i18n.mjs reads them
+// together with the main catalogues, so the missing-key check sees every key.
+export const moduleNames = ['restaurant', 'pharmacy', 'hotel', 'fuel', 'vansales', 'salon']
+const moduleCatalogues = import.meta.glob('../locales/modules/*/*.json')
+const activeModules = new Set()
+const loadedModules = new Set()
 
 /** First supported language among the candidates ("fr-CD" counts as "fr"), else "en". */
 export function resolveLocale(...candidates) {
@@ -46,21 +57,50 @@ function setDocumentLanguage(locale) {
   if (typeof document !== 'undefined') document.documentElement.lang = locale
 }
 
-export const isLocaleLoaded = (locale) => i18n.hasResourceBundle(locale, 'translation')
+const hasMain = (locale) => i18n.hasResourceBundle(locale, 'translation')
+const missingModules = (locale) => [...activeModules].filter((name) => !loadedModules.has(`${locale}:${name}`))
+
+export const isLocaleLoaded = (locale) => hasMain(locale) && missingModules(locale).length === 0
 
 const pending = {}
 
-/** Loads a language's catalogue once; a failed load (offline) can be retried. */
-export function loadLocale(locale) {
-  if (isLocaleLoaded(locale)) return Promise.resolve()
-  pending[locale] ??= catalogues[locale]()
-    .then((module) => {
-      i18n.addResourceBundle(locale, 'translation', module.default, true, true)
-    })
+/** Fetches one catalogue chunk once; a failed load (offline) can be retried. */
+function fetchOnce(key, load, add) {
+  pending[key] ??= load()
+    .then((module) => add(module.default))
     .finally(() => {
-      delete pending[locale]
+      delete pending[key]
     })
-  return pending[locale]
+  return pending[key]
+}
+
+/** Loads a language's catalogue, and the strings of the modules already in use, once. */
+export function loadLocale(locale) {
+  const work = []
+  if (!hasMain(locale)) {
+    work.push(fetchOnce(locale, catalogues[locale], (tree) => i18n.addResourceBundle(locale, 'translation', tree, true, true)))
+  }
+  for (const name of missingModules(locale)) {
+    const load = moduleCatalogues[`../locales/modules/${locale}/${name}.json`]
+    work.push(
+      fetchOnce(`${locale}:${name}`, load, (tree) => {
+        i18n.addResourceBundle(locale, 'translation', tree, true, true)
+        loadedModules.add(`${locale}:${name}`)
+      }),
+    )
+  }
+  return Promise.all(work).then(() => undefined)
+}
+
+/** The strings of a module, in the current language and in any language switched to later. */
+export function loadModule(name) {
+  activeModules.add(name)
+  return loadLocale(i18n.language ?? 'en')
+}
+
+/** A lazy route page that renders only once its module's strings have arrived. */
+export function lazyModule(name, importer) {
+  return lazy(() => Promise.all([importer(), loadModule(name)]).then(([page]) => page))
 }
 
 // The language last asked for: a slower load of an earlier choice never wins over it.

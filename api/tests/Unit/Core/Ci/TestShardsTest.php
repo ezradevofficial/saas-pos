@@ -5,8 +5,8 @@ namespace Tests\Unit\Core\Ci;
 use PHPUnit\Framework\TestCase;
 
 /**
- * CI runs the module tests in two shards (phpunit.xml ShardModulesA and
- * ShardModulesB). Every module's tests folder is in exactly one of them,
+ * CI runs the module tests in three shards (phpunit.xml ShardModulesA, ShardModulesB and
+ * ShardModulesC). Every module's tests folder is in exactly one of them,
  * so a new module's tests can never be left out of CI.
  */
 class TestShardsTest extends TestCase
@@ -17,7 +17,7 @@ class TestShardsTest extends TestCase
         $xml = simplexml_load_file($root.'/phpunit.xml');
         $listed = [];
 
-        foreach (['ShardModulesA', 'ShardModulesB'] as $shard) {
+        foreach (['ShardModulesA', 'ShardModulesB', 'ShardModulesC'] as $shard) {
             foreach ($xml->xpath("//testsuite[@name='{$shard}']/directory") as $directory) {
                 $listed[] = (string) $directory;
             }
@@ -28,7 +28,7 @@ class TestShardsTest extends TestCase
         $unique = array_unique($listed);
         sort($unique);
 
-        $this->assertSame(count($listed), count($unique), 'a module is in both shards');
+        $this->assertSame(count($listed), count($unique), 'a module is in two shards');
         $this->assertSame($modules, $unique);
     }
 }

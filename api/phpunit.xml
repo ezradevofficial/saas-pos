@@ -42,19 +42,21 @@
             <directory>modules/Payroll/tests</directory>
             <directory>modules/Loyalty/tests</directory>
             <directory>modules/Stores/tests</directory>
+            <directory>modules/FuelStation/tests</directory>
         </testsuite>
         <testsuite name="ShardModulesB">
             <directory>modules/FixedAssets/tests</directory>
             <directory>modules/HR/tests</directory>
             <directory>modules/Procurement/tests</directory>
             <directory>modules/Inventory/tests</directory>
-            <directory>modules/Ecommerce/tests</directory>
             <directory>modules/CRM/tests</directory>
             <directory>modules/Manufacturing/tests</directory>
-            <directory>modules/Restaurant/tests</directory>
             <directory>modules/Pharmacy/tests</directory>
+        </testsuite>
+        <testsuite name="ShardModulesC">
+            <directory>modules/Ecommerce/tests</directory>
+            <directory>modules/Restaurant/tests</directory>
             <directory>modules/Hotel/tests</directory>
-            <directory>modules/FuelStation/tests</directory>
             <directory>modules/VanSales/tests</directory>
             <directory>modules/Salon/tests</directory>
         </testsuite>
