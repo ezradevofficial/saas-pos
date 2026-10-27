@@ -26,7 +26,9 @@ class PerformanceBudgetTest extends TestCase
     use BuildsLoyalty, RefreshTenantDatabase;
 
     /** Measured 2026-10-14: one sale with a promotion check, a gift card tender and a customer. */
-    private const UPLOAD_BUDGET = 68; // measured 62
+    // Measured 62; 69 once Pharmacy listened to SaleCompleted (each module listener sets the
+    // tenant and checks it is active). Restaurant adds one more listener of the same kind.
+    private const UPLOAD_BUDGET = 76;
 
     /** Measured 2026-10-14: a full pull of every entity, Inventory's stock and Loyalty's four included. */
     private const PULL_BUDGET = 88; // measured 80
