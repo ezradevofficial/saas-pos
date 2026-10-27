@@ -1956,7 +1956,7 @@ class TenantIsolationTest extends TestCase
                 'company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'period_start' => now()->subDays(30)->toDateString(), 'period_end' => now()->toDateString(), 'currency' => 'KES',
             ],
             'POST api/v1/salon/device/sync' => ['appointments' => [[
-                'id' => (string) Str::uuid7(), 'user_id' => $tenant->id('user'), 'actor_proof' => TwoTenants::actorProof($tenant, $tenant->id('user')), 'starts_at' => $salonAt('11:00', 4),
+                'id' => (string) Str::uuid7(), 'user_id' => $tenant->id('user'), 'actor_proof' => TwoTenants::actorProof($tenant, $tenant->id('user')), 'guest_name' => 'Control client', 'starts_at' => $salonAt('11:00', 4),
                 'lines' => [['service_id' => $tenant->id('salon_service'), 'staff_id' => $tenant->id('salon_staff_other')]],
             ]]],
             // Van sales (docs/modules/van-sales.md): a van, a route, its stops, a load and a device's records, each naming A's own rows.
@@ -2193,7 +2193,7 @@ class TenantIsolationTest extends TestCase
                 'branch_id' => $tenant->id('branch'), 'guest_id' => $tenant->id('hotel_guest'),
                 'stays' => [['room_type_id' => $tenant->id('hotel_room_type'), 'rate_plan_id' => $tenant->id('hotel_rate_plan'), 'guest_id' => $tenant->id('hotel_guest'), 'arrival_on' => now()->addDays(60)->toDateString(), 'departure_on' => now()->addDays(62)->toDateString(), 'adults' => 2]],
             ],
-            'POST api/v1/hotel/walk-ins' => ['branch_id' => $tenant->id('branch'), 'guest_id' => $tenant->id('hotel_guest'), 'room_id' => $tenant->id('hotel_room_walkin'), 'rate_plan_id' => $tenant->id('hotel_rate_plan'), 'departure_on' => now()->addDay()->toDateString()],
+            'POST api/v1/hotel/walk-ins' => ['branch_id' => $tenant->id('branch'), 'guest_id' => $tenant->id('hotel_guest'), 'room_id' => $tenant->id('hotel_room_walkin'), 'rate_plan_id' => $tenant->id('hotel_rate_plan'), 'departure_on' => app(TenantContext::class)->run($tenant->tenantId, fn () => CarbonImmutable::parse(CompanyClock::today($tenant->id('company'), $tenant->id('branch')))->addDay()->toDateString())],
             'PATCH api/v1/hotel/stays/{hotel_stay}' => ['room_type_id' => $tenant->id('hotel_room_type'), 'rate_plan_id' => $tenant->id('hotel_rate_plan'), 'notes' => 'Isolation check'],
             'POST api/v1/hotel/stays/{hotel_stay}/assign-room' => ['room_id' => $tenant->id('hotel_room')],
             'POST api/v1/hotel/stays/{hotel_stay}/check-in' => ['room_id' => $tenant->id('hotel_room')],

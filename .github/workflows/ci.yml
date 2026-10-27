@@ -29,8 +29,8 @@ jobs:
       fail-fast: false
       matrix:
         suite:
-          # Unit + Feature in four shards (phpunit.xml ShardCoreA, ShardCoreB,
-          # ShardModulesA, ShardModulesB) so no job nears the time limit as
+          # Unit + Feature in five shards (phpunit.xml ShardCoreA, ShardCoreB,
+          # ShardModulesA, ShardModulesB, ShardModulesC) so no job nears the time limit as
           # modules are added. A new module's tests go in one of the module shards.
           - name: core a
             pint: true
@@ -44,6 +44,9 @@ jobs:
           - name: modules b
             pint: false
             command: php artisan test --testsuite=ShardModulesB --exclude-group=slow
+          - name: modules c
+            pint: false
+            command: php artisan test --testsuite=ShardModulesC --exclude-group=slow
           # TEN-01 in seven shards: every isolation test builds the full
           # two-tenant fixture, and the export, ID-probe, list and table tests
           # walk every table, route or export, so together they outgrow one

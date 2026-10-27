@@ -189,9 +189,27 @@ for (const locale of ['en', 'fr']) {
   }
 }
 
+// A catalogue: <locales>/<locale>.json plus the per-module chunks in
+// <locales>/modules/<locale>/<module>.json (web, NFR-02), each holding one
+// top-level key named after its file and not repeated in the main file.
+function readCatalogue(app, locale) {
+  const tree = JSON.parse(readFileSync(join(root, app.locales, `${locale}.json`), 'utf8'))
+  const dir = join(root, app.locales, 'modules', locale)
+  for (const entry of (existsSync(dir) ? readdirSync(dir) : []).filter((name) => name.endsWith('.json')).sort()) {
+    const module = JSON.parse(readFileSync(join(dir, entry), 'utf8'))
+    const name = entry.replace(/\.json$/, '')
+    if (Object.keys(module).join() !== name) errors.push(`${app.name}: modules/${locale}/${entry} must hold the single top-level key "${name}"`)
+    for (const key of Object.keys(module)) {
+      if (key in tree) errors.push(`${app.name}: "${key}" is in both ${locale}.json and modules/${locale}/${entry}`)
+    }
+    Object.assign(tree, module)
+  }
+  return tree
+}
+
 for (const app of apps) {
-  const enTree = JSON.parse(readFileSync(join(root, app.locales, 'en.json'), 'utf8'))
-  const frTree = JSON.parse(readFileSync(join(root, app.locales, 'fr.json'), 'utf8'))
+  const enTree = readCatalogue(app, 'en')
+  const frTree = readCatalogue(app, 'fr')
   for (const [locale, tree] of [['en', enTree], ['fr', frTree]]) {
     for (const key of dottedKeys(tree)) errors.push(`${app.name}: ${locale}.json has a dotted key name "${key}"`)
   }

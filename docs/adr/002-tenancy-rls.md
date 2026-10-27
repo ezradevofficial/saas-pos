@@ -172,6 +172,7 @@ The test pins each one's result type. `app_tenants_with_app_installed` returns t
 | `crm_lead_form_tenant(p_token_hash text)` | `uuid` | a public CRM lead form (CRM-06) |
 | `ecom_store_tenant(p_slug text, p_host text, p_handle text)` | `uuid` | the public storefront, by host and store handle (ECOM-06) |
 | `ecom_whatsapp_tenant(p_token_hash text)` | `uuid` | a store's inbound WhatsApp webhook (ECOM-24) |
+| `salon_booking_tenant(p_code text)` | `uuid` | the tenant of a branch's public booking page, by its code; nothing but the id (SAL-15) |
 | `payment_tenant_for_callback_token(p_token_hash text)` | `uuid` | a payment provider's callback (M-Pesa) |
 | `procurement_portal_tenant(p_kind text, p_token_hash text)` | `uuid` | the supplier portal's link, session or notice token (PRC-07, PRC-08) |
 | `sso_tenant_for_email_domain(p_domain text)` | `setof uuid` | single sign-on by email domain (AUTH-11) |
