@@ -52,6 +52,7 @@ use Modules\POS\PosServiceProvider;
 use Modules\Procurement\ProcurementServiceProvider;
 use Modules\Restaurant\RestaurantServiceProvider;
 use Modules\Stores\StoresServiceProvider;
+use Modules\VanSales\VanSalesServiceProvider;
 
 return [
     AppServiceProvider::class,
@@ -104,6 +105,7 @@ return [
     PharmacyServiceProvider::class,
     HotelServiceProvider::class,
     FuelStationServiceProvider::class,
+    VanSalesServiceProvider::class,
     // MKT-01..MKT-04 (ADR 024): the marketplace, OAuth for apps.
     MarketplaceServiceProvider::class,
     // API-01..API-05: last, so the sandbox's set-up runs after every other sign-up listener.

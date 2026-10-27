@@ -22,7 +22,7 @@ class StoreTaskRequest extends HotelRequest
             'room_id' => HotelRules::id('hotel_rooms'),
             'kind' => ['required', 'string', Rule::in(HousekeepingTask::KINDS)],
             'business_date' => HotelRules::day(false),
-            'assigned_to' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')],
+            'assigned_to' => ['sometimes', 'nullable', 'uuid', Rule::exists('users', 'id')->where('status', 'active')],
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ];
     }

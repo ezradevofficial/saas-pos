@@ -19,8 +19,9 @@ use Illuminate\Foundation\Events\Dispatchable;
  * - `reference`: the document's number, for people;
  * - `lines`: `[{line_id, item_id, qty, batch_number?}]`, `qty` a positive
  *   decimal string in the item's base unit;
- * - `source`: the ledger source of the movements (`pharmacy.write_off` when
- *   null; Fuel station sends `fuel.tank_loss`, FUEL-30).
+ * - `source`: the sender's document type in the stock ledger (Pharmacy's
+ *   `pharmacy.write_off` by default; Van sales sends `van_sales.write_off`, Fuel station
+ *   `fuel.tank_loss`, FUEL-30).
  */
 class StockWrittenOff implements ShouldDispatchAfterCommit
 {
@@ -36,6 +37,6 @@ class StockWrittenOff implements ShouldDispatchAfterCommit
         public readonly ?string $reference,
         public readonly array $lines,
         public readonly ?string $userId = null,
-        public readonly ?string $source = null,
+        public readonly string $source = 'pharmacy.write_off',
     ) {}
 }

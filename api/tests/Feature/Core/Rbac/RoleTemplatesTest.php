@@ -30,7 +30,8 @@ class RoleTemplatesTest extends TestCase
     private const TEMPLATE_KEYS = [
         'owner', 'admin', 'branch_manager', 'sales_rep', 'cashier', 'rider', 'waiter', 'storekeeper', 'accountant',
         'hr_officer', 'payroll_officer', 'procurement_officer', 'approver', 'employee_self_service',
-        'read_only_auditor', 'kitchen', 'bartender', 'pharmacist', 'pharmacy_technician', 'receptionist', 'housekeeping', 'night_auditor', 'forecourt_attendant', 'shift_supervisor', 'station_manager',
+        'read_only_auditor', 'kitchen', 'bartender', 'pharmacist', 'pharmacy_technician', 'receptionist', 'housekeeping', 'night_auditor', 'van_rep', 'route_supervisor',
+        'forecourt_attendant', 'shift_supervisor', 'station_manager',
     ];
 
     protected function setUp(): void
@@ -127,15 +128,16 @@ class RoleTemplatesTest extends TestCase
         // API-02: core.api_key.manage. HOOK-01: core.webhook.manage. RBAC-13: core.support_access.view|manage. AUTH-11: core.sso.manage. NFR-08: core.privacy_request.* and core.consent.*.
         // MKT-01, MKT-02: core.marketplace.view|install, core.developer.manage (126 core permissions).
         // Restaurant (docs/modules/restaurant.md): 18 restaurant.* permissions (restaurant.ticket.serve among them).
-        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 37 + 27 + 16 + 17 + 14 + 18 + 26 + 18 + 33 + 25, count($names));
+        // Van sales (docs/modules/van-sales.md): 23 van_sales.* permissions.
+        $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 37 + 27 + 16 + 17 + 14 + 18 + 26 + 18 + 33 + 23 + 25, count($names));
     }
 
-    public function test_sign_up_provisions_twenty_five_system_roles_and_an_owner_assignment(): void
+    public function test_sign_up_provisions_twenty_seven_system_roles_and_an_owner_assignment(): void
     {
         $tenantId = $this->enter($this->signUp()->json('challenge_id'));
 
         $roles = Role::orderBy('template_key')->get();
-        $this->assertCount(25, $roles);
+        $this->assertCount(27, $roles);
         $this->assertEqualsCanonicalizing(self::TEMPLATE_KEYS, $roles->pluck('template_key')->all());
         $this->assertTrue($roles->every(fn (Role $r) => $r->is_system && $r->tenant_id === $tenantId));
 
@@ -164,8 +166,9 @@ class RoleTemplatesTest extends TestCase
         // Restaurant: the 6 views and the floor, stations, modifiers and service charge set-up (10).
         // Pharmacy: the settings, item profiles and the 7 views without prescriptions (9), PHA-02, PHA-03, PHA-28.
         // Hotel: the settings, room types and rate plans and the 9 views (HOT-02, HOT-03, HOT-06); never the guest identity permission.
+        // Van sales: the 8 views, vans, routes and the company's settings (11), VAN-26.
         // Fuel station: the settings, set-up and prices (3) and the 11 views (FUEL-03); never approving a variance.
-        $this->assertSame(Permission::where('module', 'core')->count() - 3 + 4 + 10 + 6 + 10 + 6 + 10 + 7 + 9 + 6 + 9 + 1 + 9 + 10 + 12 + 14, $admin->permissions()->count());
+        $this->assertSame(Permission::where('module', 'core')->count() - 3 + 4 + 10 + 6 + 10 + 6 + 10 + 7 + 9 + 6 + 9 + 1 + 9 + 10 + 12 + 11 + 14, $admin->permissions()->count());
         $this->assertTrue($admin->hasPermissionTo('payroll.statutory.exempt'));
         $this->assertFalse(Role::where('template_key', 'payroll_officer')->sole()->hasPermissionTo('payroll.statutory.exempt'));
         $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));
@@ -195,7 +198,7 @@ class RoleTemplatesTest extends TestCase
             $assignment->user_id, $assignment->role_id, $assignment->scope_type, $assignment->scope_id,
         ]);
 
-        $this->assertSame(25, AuditEntry::where('action', 'rbac.role.create')->count());
+        $this->assertSame(27, AuditEntry::where('action', 'rbac.role.create')->count());
         $this->assertSame(1, AuditEntry::where('action', 'rbac.assignment.create')->count());
     }
 
@@ -217,7 +220,10 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame(['max_quote_discount_percent' => '0'], $rep->limits());
         $manager = Role::where('template_key', 'branch_manager')->sole();
         $this->assertSame(['max_quote_discount_percent' => '10', 'max_refund_amount' => '10000'], $manager->limits(), 'a Branch Manager discounts quotes up to 10 % without approval and refunds up to 10,000');
-        $this->assertSame(0, LimitRule::whereNotIn('role_id', [$rep->id, $manager->id])->count(), 'other templates seed no limits');
+        // VAN-17, RBAC-06: a Route supervisor gives collected money back up to 10,000 (a void of a collection).
+        $supervisor = Role::where('template_key', 'route_supervisor')->sole();
+        $this->assertSame(['max_refund_amount' => '10000'], $supervisor->limits());
+        $this->assertSame(0, LimitRule::whereNotIn('role_id', [$rep->id, $manager->id, $supervisor->id])->count(), 'other templates seed no limits');
     }
 
     public function test_the_rider_template_holds_only_its_own_deliveries_and_tracking_is_the_managers(): void

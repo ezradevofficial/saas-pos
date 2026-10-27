@@ -85,6 +85,17 @@ export const RESTAURANT_ORDER_VIEW = 'restaurant.order.view'
 export const RESTAURANT_TICKET_VIEW = 'restaurant.ticket.view'
 export const RESTAURANT_REPORT_VIEW = 'restaurant.report.view'
 export const RESTAURANT_SETTINGS_EDIT = 'restaurant.settings.edit'
+// Van sales module (docs/modules/van-sales.md, VAN-26): who may open each page (the API checks again at each van's location).
+export const VAN_SALES_VAN_VIEW = 'van_sales.van.view'
+export const VAN_SALES_ROUTE_VIEW = 'van_sales.route.view'
+export const VAN_SALES_LOAD_VIEW = 'van_sales.load.view'
+export const VAN_SALES_RUN_VIEW = 'van_sales.run.view'
+export const VAN_SALES_RECONCILIATION_VIEW = 'van_sales.reconciliation.view'
+export const VAN_SALES_CREDIT_VIEW = 'van_sales.credit.view'
+export const VAN_SALES_CREDIT_REVIEW = 'van_sales.credit.review'
+export const VAN_SALES_COLLECTION_VIEW = 'van_sales.collection.view'
+export const VAN_SALES_REPORT_VIEW = 'van_sales.report.view'
+export const VAN_SALES_SETTINGS_EDIT = 'van_sales.settings.edit'
 export const MANUFACTURING_SETTINGS_VIEW = ['manufacturing.settings.edit', 'manufacturing.bom.view', 'manufacturing.order.view']
 // HR module (docs/modules/hr.md, Screens; RBAC-09): who may open each page (the API checks again at the employee's place).
 export const HR_EMPLOYEE_VIEW = 'hr.employee.view'
@@ -322,6 +333,24 @@ export const NAV_GROUPS = [
       { to: '/restaurant/modifiers', icon: 'categories', label: (t) => t('nav.restaurantModifiers'), permission: RESTAURANT_MODIFIER_VIEW, module: 'restaurant' },
       { to: '/restaurant/reports', icon: 'chart', label: (t) => t('nav.restaurantReports'), permission: RESTAURANT_REPORT_VIEW, module: 'restaurant' },
       { to: '/restaurant/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.restaurantSettings'), permission: RESTAURANT_SETTINGS_EDIT, module: 'restaurant' },
+    ],
+  },
+  {
+    // Van sales (docs/modules/van-sales.md): only while the Van sales module is active (VAN-01, RBAC-08).
+    id: 'vanSales',
+    label: (t) => t('nav.groups.vanSales'),
+    items: [
+      { to: '/van-sales/vans', icon: 'device', label: (t) => t('nav.vanSalesVans'), permission: VAN_SALES_VAN_VIEW, module: 'van_sales' },
+      { to: '/van-sales/routes', icon: 'dimensions', label: (t) => t('nav.vanSalesRoutes'), permission: VAN_SALES_ROUTE_VIEW, module: 'van_sales' },
+      { to: '/van-sales/plan', icon: 'clock', label: (t) => t('nav.vanSalesPlan'), permission: VAN_SALES_ROUTE_VIEW, module: 'van_sales' },
+      { to: '/van-sales/loads', icon: 'movements', label: (t) => t('nav.vanSalesLoads'), permission: VAN_SALES_LOAD_VIEW, module: 'van_sales' },
+      { to: '/van-sales/runs', icon: 'shifts', label: (t) => t('nav.vanSalesRuns'), permission: VAN_SALES_RUN_VIEW, module: 'van_sales' },
+      { to: '/van-sales/reconciliations', icon: 'approvals', label: (t) => t('nav.vanSalesReconciliations'), permission: VAN_SALES_RECONCILIATION_VIEW, module: 'van_sales' },
+      { to: '/van-sales/accounts', icon: 'customers', label: (t) => t('nav.vanSalesAccounts'), permission: VAN_SALES_CREDIT_VIEW, module: 'van_sales' },
+      { to: '/van-sales/credit-reviews', icon: 'alert', label: (t) => t('nav.vanSalesCreditReviews'), permission: VAN_SALES_CREDIT_REVIEW, module: 'van_sales' },
+      { to: '/van-sales/collections', icon: 'payments', label: (t) => t('nav.vanSalesCollections'), permission: VAN_SALES_COLLECTION_VIEW, module: 'van_sales' },
+      { to: '/van-sales/reports', icon: 'chart', label: (t) => t('nav.vanSalesReports'), permission: VAN_SALES_REPORT_VIEW, module: 'van_sales' },
+      { to: '/van-sales/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.vanSalesSettings'), permission: VAN_SALES_SETTINGS_EDIT, module: 'van_sales' },
     ],
   },
   {

@@ -12,7 +12,9 @@
  *   they are fixed, PHA-08, PHA-16, PHA-17). It also gets the signed-in user;
  * - a tender provider per payment method type: what the payment screen asks
  *   for (`input`), the currencies it pays in, and `prepare()`, which checks
- *   the tender (offline rules included) and gives the payment's `tender`;
+ *   the tender (offline rules included) and gives the payment's `tender`, and
+ *   may give an `extension` ({ key: value }) that is merged into the sale's
+ *   `extensions` when the sale is completed (Van sales: the credit decision);
  * - a cart panel: a component under the customer on the sale panel.
  *
  * Adjusters and providers are pure or read the local database only, so the
@@ -65,8 +67,15 @@ export function runCartAdjusters({ lines, cart, catalogue, at, user }) {
   return { adjustments, extensions, blocked };
 }
 
-export function registerTenderProvider(type, provider) {
-  tenderProviders.set(type, provider);
+/**
+ * A type may have several providers (Loyalty and Van sales both take `credit`
+ * tenders, each only while its own data is on the till): the first registered
+ * whose `active(catalogue)` holds serves it. `{ first: true }` puts a provider
+ * before the others (a module whose tender is more specific).
+ */
+export function registerTenderProvider(type, provider, { first = false } = {}) {
+  const list = tenderProviders.get(type) ?? [];
+  tenderProviders.set(type, first ? [provider, ...list] : [...list, provider]);
 }
 
 /**
@@ -75,14 +84,12 @@ export function registerTenderProvider(type, provider) {
  * that holds (H3: its module's data is on the till); otherwise null too.
  */
 export function tenderProvider(type, catalogue) {
-  const provider = tenderProviders.get(type) ?? null;
-  if (provider?.active && !provider.active(catalogue)) return null;
-  return provider;
+  return (tenderProviders.get(type) ?? []).find((provider) => !provider.active || provider.active(catalogue)) ?? null;
 }
 
 /** Whether a payment method type belongs to a registered provider that is switched off (its option is hidden). */
 export function tenderUnavailable(type, catalogue) {
-  return tenderProviders.has(type) && !tenderProvider(type, catalogue);
+  return (tenderProviders.get(type) ?? []).length > 0 && !tenderProvider(type, catalogue);
 }
 
 /** listener({ sale, catalogue }): after a sale is saved on the till (a module counts its own uses). */

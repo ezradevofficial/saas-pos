@@ -138,6 +138,14 @@ registerEntity('restaurant_modifiers', { table: 'restaurant_modifiers' });
 registerEntity('restaurant_settings', { table: 'restaurant_settings' });
 registerEntity('restaurant_orders', { table: 'restaurant_orders' });
 
+// The Van sales module's entities (VAN-27, served only while the tenant has it, RBAC-08): the van (one row), the
+// routes with their stops, the customers' credit limits and route balances, the load sheets and the runs.
+registerEntity('van_sales_van', { table: 'van_sales_van' });
+registerEntity('van_sales_routes', { table: 'van_sales_routes' });
+registerEntity('van_sales_accounts', { table: 'van_sales_accounts' });
+registerEntity('van_sales_loads', { table: 'van_sales_loads' });
+registerEntity('van_sales_runs', { table: 'van_sales_runs' });
+
 // The Fuel station module's entities (FUEL-22, served only while the tenant has it, RBAC-08, and only at a
 // location that is a station, FUEL-02): the station, its nozzles with their last readings, prices (current and
 // scheduled), tanks with their strapping charts, the company's fleet vehicles and active vouchers. Server wins,

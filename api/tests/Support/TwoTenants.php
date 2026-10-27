@@ -107,6 +107,14 @@ use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Tenders\Bidders;
 use Modules\Restaurant\Models\Settlement;
 use Modules\Restaurant\Models\Ticket;
+use Modules\VanSales\Models\Collection;
+use Modules\VanSales\Models\Count;
+use Modules\VanSales\Models\CountLine;
+use Modules\VanSales\Models\CountTender;
+use Modules\VanSales\Models\CreditEntry;
+use Modules\VanSales\Models\Run;
+use Modules\VanSales\Models\StockLine;
+use Modules\VanSales\Models\VanSale;
 use PHPUnit\Framework\Assert;
 use Tests\Support\Automation\FakeHostResolver;
 use Tests\Support\Configuration\TestLayoutKind;
@@ -678,6 +686,10 @@ final class TwoTenants
         // a pump with nozzles, a price, a closed shift with a pending settlement, a dip with its reconciliation, a delivery, a pending
         // meter reset, a vehicle and a voucher.
         $fuel = self::fuel($tenantId, $ownerId, $company, $branch, $location, $taxCategory, $upper);
+        // Van sales (docs/modules/van-sales.md): the module switched on; settings, a van at the till's outlet, a route with
+        // a stop, an open run (a visit with a check-in, a flagged credit sale with its stock, tender and ledger rows, a
+        // collection), a load sheet requested from the store, and a closed run with a counted reconciliation.
+        $vanSales = self::vanSales($test, $owner, $tenantId, $ownerId, $company, $branch, $location, $device, $deviceToken, $inventory['inventory_location'], $item, $customer, $party, $paymentMethod, $upper);
         // HR (docs/modules/hr.md): the module switched on; a position, a default
         // onboarding template, an employee linked to the Owner (self-service)
         // and a peer reporting to them, with identifiers, a pay account, a
@@ -876,6 +888,7 @@ final class TwoTenants
                 ...$pharmacy,
                 ...$hotel,
                 ...$fuel,
+                ...$vanSales,
                 ...$hr,
                 ...$fixedAssets,
                 ...$crm,
@@ -1522,6 +1535,86 @@ final class TwoTenants
             'pharmacy_recall' => $recall,
             'pharmacy_prescription' => $prescription,
             'pharmacy_dispense' => $dispense,
+        ];
+    }
+
+    /**
+     * The Van sales fixture of one tenant: every vs_* table has rows. Made through the back office
+     * API as the Owner and the paired device's sync; the sale link, its stock, tender and ledger rows,
+     * the collection and the counted reconciliation are rows the POS and workflow paths make (those
+     * paths are covered by the module's tests). The van stands at the device's own outlet, so the
+     * device is the van's.
+     *
+     * @return array<string, string>
+     */
+    private static function vanSales(TestCase $test, array $owner, string $tenantId, string $ownerId, string $company, string $branch, string $location, string $deviceId,
+        string $deviceToken, string $warehouse, string $item, string $customer, string $party, string $paymentMethod, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('van_sales'));
+        $owner = [...$owner, 'Accept' => 'application/json'];
+        $device = ['Authorization' => 'Bearer '.$deviceToken, 'Accept' => 'application/json'];
+
+        self::ok($test->putJson("/api/v1/van-sales/companies/{$company}/settings", ['gps_checkin' => 'optional', 'gps_retention_days' => 14], $owner));
+        $van = self::ok($test->postJson('/api/v1/van-sales/vans', ['branch_id' => $branch, 'location_id' => $location, 'name' => "Van {$upper}", 'rep_id' => $ownerId], $owner), 201)->json('data.id');
+        $route = self::ok($test->postJson('/api/v1/van-sales/routes', ['branch_id' => $branch, 'name' => "Route {$upper}", 'visit_days' => [1, 2, 3, 4, 5, 6, 7], 'van_id' => $van], $owner), 201)->json('data.id');
+        $stop = self::ok($test->putJson("/api/v1/van-sales/routes/{$route}/stops", ['stops' => [['customer_id' => $customer]]], $owner))->json('data.stops.0.id');
+
+        $run = (string) Str::uuid7();
+        $visit = (string) Str::uuid7();
+        $synced = self::ok($test->postJson('/api/v1/van-sales/device/sync', [
+            'runs' => [['id' => $run, 'route_id' => $route, 'user_id' => $ownerId, 'started_at' => now()->subHours(3)->toIso8601String()]],
+            'visits' => [['id' => $visit, 'run_id' => $run, 'stop_id' => $stop, 'customer_id' => $customer, 'user_id' => $ownerId, 'status' => 'visited',
+                'arrived_at' => now()->subHours(2)->toIso8601String(), 'updated_at' => now()->subHours(2)->toIso8601String(),
+                'check_in' => ['lat' => -1.2864, 'lng' => 36.8172, 'accuracy_m' => 10, 'at' => now()->subHours(2)->toIso8601String()]]],
+        ], $device));
+        Assert::assertSame(['stored', 'stored'], [$synced->json('results.runs.0.status'), $synced->json('results.visits.0.status')], 'TwoTenants: the van sales run was not stored: '.$synced->getContent());
+
+        $load = self::ok($test->postJson('/api/v1/van-sales/loads', [
+            'van_id' => $van, 'from_location_id' => $warehouse, 'run_id' => $run, 'note' => "Morning load {$upper}", 'lines' => [['item_id' => $item, 'qty' => '5']],
+        ], $owner), 201)->json('data.id');
+
+        $ids = app(TenantContext::class)->run($tenantId, function () use ($company, $branch, $location, $deviceId, $ownerId, $route, $van, $run, $visit, $customer, $party, $item, $paymentMethod, $upper) {
+            $sale = (string) Str::uuid7();
+            $vanSale = VanSale::create([
+                'company_id' => $company, 'run_id' => $run, 'visit_id' => $visit, 'sale_id' => $sale, 'customer_id' => $customer, 'currency' => 'KES',
+                'total_minor' => '112500', 'credit_minor' => '112500', 'status' => 'completed', 'flags' => ['over_limit'], 'credit_decision' => 'offline',
+                'limit_minor' => '100000', 'balance_before_minor' => '0', 'review_status' => 'pending', 'sold_at' => now()->subHour(),
+            ]);
+            StockLine::create(['run_id' => $run, 'kind' => 'sold', 'source_type' => 'sale', 'source_id' => $sale, 'item_id' => $item, 'qty' => '2']);
+            \Modules\VanSales\Models\Tender::create(['run_id' => $run, 'source_type' => 'sale', 'source_id' => $sale, 'kind' => 'cash', 'currency' => 'KES', 'amount_minor' => '50000']);
+            // The credit ledger of the shared customer and of the second party the account route reads (an entry is once per source, so each has its own).
+            foreach ([$customer, $party] as $holder) {
+                CreditEntry::create(['company_id' => $company, 'customer_id' => $holder, 'run_id' => $run, 'kind' => 'sale', 'source_id' => $holder === $customer ? $sale : (string) Str::uuid7(), 'currency' => 'KES', 'amount_minor' => '112500', 'occurred_at' => now()->subHour()]);
+            }
+            $collection = Collection::create([
+                'company_id' => $company, 'branch_id' => $branch, 'location_id' => $location, 'device_id' => $deviceId, 'run_id' => $run, 'visit_id' => $visit, 'customer_id' => $customer,
+                'payment_method_id' => $paymentMethod, 'method_type' => 'cash', 'currency' => 'KES', 'amount_minor' => '20000', 'receipt_number' => "R-VAN-{$upper}", 'receipt_seq' => 1,
+                'status' => 'recorded', 'flags' => [], 'user_id' => $ownerId, 'content_digest' => hash('sha256', "collection-{$upper}"), 'collected_at' => now()->subMinutes(30), 'received_at' => now(),
+            ]);
+
+            // A day already counted: a closed run with a balanced reconciliation.
+            $closed = Run::create([
+                'company_id' => $company, 'branch_id' => $branch, 'van_id' => $van, 'location_id' => $location, 'route_id' => $route, 'device_id' => $deviceId, 'rep_id' => $ownerId,
+                'run_date' => now()->subDay()->toDateString(), 'status' => 'closed', 'started_at' => now()->subDay()->subHours(8), 'closed_at' => now()->subDay(),
+            ]);
+            $count = Count::create([
+                'company_id' => $company, 'branch_id' => $branch, 'van_id' => $van, 'run_id' => $closed->id, 'attempt' => 1, 'status' => 'balanced', 'submitted_by' => $ownerId,
+                'submitted_at' => now()->subDay(), 'decided_at' => now()->subDay(), 'content_digest' => hash('sha256', "count-{$upper}"),
+            ]);
+            CountLine::create(['count_id' => $count->id, 'item_id' => $item, 'load_qty' => '5', 'sold_qty' => '2', 'returned_qty' => '3', 'damaged_qty' => '0', 'variance_qty' => '0']);
+            CountTender::create(['count_id' => $count->id, 'kind' => 'cash', 'currency' => 'KES', 'expected_minor' => '50000', 'counted_minor' => '50000', 'variance_minor' => '0']);
+
+            return ['vs_sale' => $vanSale->id, 'vs_collection' => $collection->id, 'vs_count' => $count->id];
+        });
+
+        return [
+            'vs_van' => $van,
+            'vs_route' => $route,
+            'vs_stop' => $stop,
+            'vs_run' => $run,
+            'vs_visit' => $visit,
+            'vs_load' => $load,
+            ...$ids,
         ];
     }
 

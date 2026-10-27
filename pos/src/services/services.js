@@ -24,6 +24,10 @@ import { createOrderStore } from '../restaurant/orderStore';
 import { createOrderSync } from '../restaurant/orderSync';
 import { createRestaurant } from '../restaurant/restaurant';
 import { registerAfterSale } from '../pos/extensions';
+import '../vansales/register';
+import { createVanSales } from '../vansales/vansales';
+import { createVsStore } from '../vansales/vsStore';
+import { createVsSync } from '../vansales/vsSync';
 
 /**
  * Everything the screens use, built once: the database, the keystore
@@ -36,6 +40,9 @@ import { registerAfterSale } from '../pos/extensions';
  *
  * Restaurant (REST-03..REST-17): services.restaurant keeps open orders and tabs on
  * the device; the engine uploads them.
+ *
+ * Van sales (VAN-27): services.vanSales keeps the rep's runs, visits, collections and counts on the
+ * device; the engine uploads them through POST van-sales/device/sync.
  *
  * Rider (ECOM-28): services.rider keeps the rider's deliveries and their
  * queued status updates.
@@ -55,6 +62,9 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   // (before the sales that pay them); each pull folds the server's orders back in.
   const orders = createOrderStore(db);
   const orderSync = createOrderSync({ orders });
+  // VAN-27: the rep's runs, visits, collections and counts, uploaded before the sales they belong to.
+  const vsRecords = createVsStore(db);
+  const vsSync = createVsSync({ records: vsRecords });
   // BR-02, LAY-05, NFR-04: after each pull, the logos and layout images go into the media cache.
   const engine = createSyncEngine({
     api,
@@ -64,7 +74,10 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
       await syncMedia({ api, store });
       if (counts?.restaurant_orders) await orderSync.reconcile();
     },
-    pushers: [{ name: 'restaurant', pendingCount: orders.dirtyCount, push: orderSync.push }],
+    pushers: [
+      { name: 'restaurant', pendingCount: orders.dirtyCount, push: orderSync.push },
+      { name: 'van_sales', pendingCount: vsSync.pendingCount, push: vsSync.push },
+    ],
   });
   const scheduler = createSyncScheduler({ engine, netInfo });
   const pinGate = createPinGate({
@@ -83,6 +96,11 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   registerAfterSale('restaurant', ({ sale }) => {
     if (sale?.extensions?.restaurant) restaurant.recordPart(sale).catch(() => {});
   });
+  // VAN-09, VAN-14: the rep's day; a sale completed in a visit marks the visit sold.
+  const vanSales = createVanSales({ records: vsRecords, selling, engine, api });
+  registerAfterSale('van_sales', ({ sale }) => {
+    if (sale?.extensions?.van_sales) vanSales.recordSale(sale).catch(() => {});
+  });
   const clockStore = createClockStore(db);
   const clockGate = createClockGate({ clockStore, engine, credentials });
   // ECOM-28: the rider screen, signed in with the rider's own token (never the device's).
@@ -93,7 +111,7 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const housekeeping = createHousekeeping({ api: riderApi, credentials: riderCredentials });
   // FUEL-09, FUEL-10, FUEL-17: forecourt shifts and meter reset requests, kept on the device and uploaded by the engine.
   const fuel = createFuel({ engine, store, database: db });
-  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, fuel, clockStore, clockGate, riderCredentials, rider, housekeeping };
+    return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, vanSales, fuel, clockStore, clockGate, riderCredentials, rider, housekeeping };
 }
 
 export const ServicesContext = createContext(null);

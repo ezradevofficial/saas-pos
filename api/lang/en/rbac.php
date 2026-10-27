@@ -33,6 +33,7 @@ return [
             'pharmacy' => 'Pharmacy and agrovet',
             'hotel' => 'Hotel and lodging',
             'fuel' => 'Fuel station',
+            'van_sales' => 'Van sales',
         ],
         'resources' => [
             'accounting' => [
@@ -128,6 +129,19 @@ return [
                 'dispense' => 'Restricted dispensing',
                 'register' => 'Controlled-drug register',
                 'report' => 'Pharmacy reports',
+            ],
+            'van_sales' => [
+                'van' => 'Vans',
+                'route' => 'Routes and stops',
+                'load' => 'Load sheets',
+                'run' => 'Route days',
+                'visit' => 'Stop visits',
+                'collection' => 'Collections',
+                'credit' => 'Route credit',
+                'reconciliation' => 'End-of-day reconciliation',
+                'unload' => 'Unloading',
+                'settings' => 'Van sales settings',
+                'report' => 'Van sales reports',
             ],
             'manufacturing' => [
                 'bom' => 'Bills of materials',
@@ -343,6 +357,8 @@ return [
         'waiter' => 'Waiter',
         'kitchen' => 'Kitchen staff',
         'bartender' => 'Bartender',
+        'van_rep' => 'Van rep',
+        'route_supervisor' => 'Route supervisor',
         'storekeeper' => 'Storekeeper',
         'pharmacist' => 'Pharmacist',
         'pharmacy_technician' => 'Pharmacy technician',
