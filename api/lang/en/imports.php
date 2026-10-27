@@ -245,6 +245,7 @@ return [
     ],
     'usage' => [
         'fixed_assets_asset' => 'Used in a fixed asset',
+        'pharmacy_lot' => 'Has pharmacy batches',
         'fixed_assets_item' => 'Flagged as a fixed asset item',
         'fixed_assets_disposal' => 'The buyer of a fixed asset disposal',
         'fixed_assets_work_order' => 'The vendor of an asset work order',
