@@ -15,6 +15,9 @@ return [
     ],
 
     'kinds' => [
+        'direct' => 'Réservation directe',
+        'walk_in' => 'Client de passage',
+        'group' => 'Groupe',
         'guest' => 'Folio du client',
         'master' => 'Folio principal',
     ],

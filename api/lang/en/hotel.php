@@ -15,6 +15,9 @@ return [
     ],
 
     'kinds' => [
+        'direct' => 'Direct booking',
+        'walk_in' => 'Walk-in',
+        'group' => 'Group booking',
         'guest' => 'Guest folio',
         'master' => 'Master folio',
     ],

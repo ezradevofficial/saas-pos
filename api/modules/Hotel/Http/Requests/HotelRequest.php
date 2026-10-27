@@ -34,6 +34,12 @@ abstract class HotelRequest extends FormRequest
         return null;
     }
 
+    /** Whether the company records this request changes are company-wide: the permission must be held for the whole company, not one branch. */
+    protected function wide(): bool
+    {
+        return false;
+    }
+
     /** @return array<string, string> request field (a branch id) => permission needed there */
     protected function branches(): array
     {
@@ -53,7 +59,7 @@ abstract class HotelRequest extends FormRequest
 
         return match (true) {
             $this->branchId() !== null => $access->can($user, $this->permission(), $this->branchId()),
-            $this->companyId() !== null => $access->canCompany($user, $this->permission(), $this->companyId()),
+            $this->companyId() !== null => $this->wide() ? $access->canCompanyWide($user, $this->permission(), $this->companyId()) : $access->canCompany($user, $this->permission(), $this->companyId()),
             default => app(ScopeResolver::class)->can($user, $this->permission()),
         };
     }
@@ -73,7 +79,7 @@ abstract class HotelRequest extends FormRequest
 
             foreach ($this->companies() as $field => $permission) {
                 if ($this->filled($field)) {
-                    app(Access::class)->requireCompany($this->user(), $permission, (string) $this->input($field));
+                    $this->wide() ? app(Access::class)->requireCompanyWide($this->user(), $permission, (string) $this->input($field)) : app(Access::class)->requireCompany($this->user(), $permission, (string) $this->input($field));
                 }
             }
         }];

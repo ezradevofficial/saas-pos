@@ -31,7 +31,8 @@ class HotelSettingsRequest extends FormRequest
         abort_unless($resolver->can($this->user(), 'hotel.settings.view', $scope) || $resolver->can($this->user(), 'hotel.settings.edit', $scope)
             || $access->canCompany($this->user(), 'hotel.settings.view', $company->id) || $access->canCompany($this->user(), 'hotel.settings.edit', $company->id), 404);
 
-        return $access->canCompany($this->user(), $permission, $company->id);
+        // Settings are the whole company's: changing them needs the permission for the company, not one branch.
+        return $this->isMethod('GET') ? $access->canCompany($this->user(), $permission, $company->id) : $access->canCompanyWide($this->user(), $permission, $company->id);
     }
 
     public function rules(): array

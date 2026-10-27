@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 use Modules\Hotel\HotelServiceProvider;
 use Modules\Hotel\Models\Room;
 use Modules\Hotel\NightAudit\NightAudits;
+use Modules\Hotel\Support\Properties;
 use Throwable;
 
 /**
@@ -42,7 +43,8 @@ class NightAuditCommand extends Command
                 foreach ($branches as $branchId) {
                     for ($i = 0; $i < self::MAX_CATCH_UP && $audits->due($branchId); $i++) {
                         try {
-                            $result = $audits->run($branchId);
+                            // The date is named, so a second scheduler running at once finds this audit done instead of auditing the next day.
+                            $result = $audits->run($branchId, null, app(Properties::class)->businessDate($branchId));
                             $this->line("{$tenantId}: {$branchId} {$result['run']->business_date->toDateString()} ".($result['created'] ? 'audited' : 'already done'));
 
                             if (! $result['created']) {

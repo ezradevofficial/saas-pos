@@ -8,6 +8,11 @@ namespace Modules\Hotel\Http\Requests;
  */
 class StoreRoomTypeRequest extends HotelRequest
 {
+    protected function wide(): bool
+    {
+        return true;
+    }
+
     protected function permission(): string
     {
         return 'hotel.room.manage';

@@ -325,7 +325,7 @@ describe('Hotel back office', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run night audit' }))
     const dialog = await screen.findByRole('dialog', { name: 'Run the night audit now' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Run audit' }))
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hotel/night-audits', { branch_id: 'br-1' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hotel/night-audits', { branch_id: 'br-1', business_date: TODAY }))
   })
 
   it('resolves a room charge that could not be posted by moving it to a folio (HOT-22)', async () => {

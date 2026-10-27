@@ -45,6 +45,9 @@ return new class extends Migration
             $table->bigInteger('charge_limit_minor')->nullable();
             $table->foreignUuid('room_charge_method_id')->nullable()->constrained('payment_methods')->restrictOnDelete();
             $table->timestampsTz();
+
+            $table->index('room_item_id');
+            $table->index('room_charge_method_id');
         });
 
         DB::statement("alter table hotel_settings add constraint hotel_settings_values_check check (
@@ -431,6 +434,7 @@ return new class extends Migration
             $table->timestampsTz();
 
             $table->index(['branch_id', 'business_date', 'status']);
+            $table->index(['tenant_id', 'assigned_to']);
             $table->index('room_id');
             $table->index('company_id');
         });

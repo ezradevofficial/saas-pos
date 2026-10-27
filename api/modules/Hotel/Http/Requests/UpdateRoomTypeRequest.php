@@ -7,6 +7,11 @@ use Illuminate\Validation\Validator;
 /** PATCH hotel/room-types/{hotel_room_type} (HOT-03): `hotel.room.manage` at the type's company. */
 class UpdateRoomTypeRequest extends HotelRequest
 {
+    protected function wide(): bool
+    {
+        return true;
+    }
+
     protected function permission(): string
     {
         return 'hotel.room.manage';

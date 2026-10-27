@@ -37,6 +37,19 @@ class Access
         return $this->resolver->can($user, $permission, Scope::company($companyId)) || $this->allowsCompany($user, $permission, $companyId);
     }
 
+    /** Whether $user holds $permission for the whole company (at it or above): company-wide records (room types, rates, settings) are not for one branch's staff. */
+    public function canCompanyWide(User $user, string $permission, string $companyId): bool
+    {
+        return $this->resolver->can($user, $permission, Scope::company($companyId));
+    }
+
+    public function requireCompanyWide(User $user, string $permission, string $companyId): void
+    {
+        if (! $this->canCompanyWide($user, $permission, $companyId)) {
+            throw new ApiException(403, 'forbidden', __('hotel.errors.place_forbidden'));
+        }
+    }
+
     /** 403 unless $user holds $permission for the company (at it, or at a branch under it). */
     public function requireCompany(User $user, string $permission, string $companyId): void
     {

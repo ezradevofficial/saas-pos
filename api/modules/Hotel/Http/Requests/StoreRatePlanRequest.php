@@ -39,7 +39,7 @@ class StoreRatePlanRequest extends HotelRequest
             }
 
             $type = RoomType::query()->find($this->input('room_type_id'));
-            app(Access::class)->requireCompany($this->user(), 'hotel.rate.manage', $type->company_id);
+            app(Access::class)->requireCompanyWide($this->user(), 'hotel.rate.manage', $type->company_id);
 
             if ($type->archived_at !== null) {
                 $validator->errors()->add('room_type_id', __('hotel.errors.room_type_archived'));
