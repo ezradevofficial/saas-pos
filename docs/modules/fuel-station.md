@@ -83,6 +83,33 @@ book stock follows the till and the deliveries.
 | FUEL-37 | **Archive, not delete** (TEN-06): stations, products, tanks, pumps, nozzles, vehicles are archived; prices, charts, shifts, dips, reconciliations, deliveries and sales are append-only records. | Must |
 | FUEL-38 | **Fleet statement.** Per customer and vehicle: sales (date, station, product, litres, price, total, odometer) and totals per currency in a period. Reads only `fuel_sales`. | Must |
 
+## Review rules (security review, 2026-10-27)
+
+These tighten the requirements above; where they differ, they win.
+
+- **Gap, tests, flags force approval (FUEL-11, FUEL-13).** An opening reading above the nozzle's last close is a `meter_gap`: its litres are
+  charged to the new shift as unrecorded, at the server price at close. A `meter_gap`, pump tests above the company's per-nozzle
+  `test_tolerance_litres` (default 0), a missing price, or **any live sale of the shift carrying a review flag** (voucher invalid, `vehicle_*`,
+  `outside_shift`, `price_differs`, a discount, a POS flag such as `actor_unverified` or `tender_flagged`) makes every settlement of the shift
+  `pending_approval`, whatever the amounts.
+- **Server prices (FUEL-28).** Recorded sales are valued at the station price in force at each sale's time, never the till's.
+- **Late changes (FUEL-15).** A reopened settlement is always `pending_approval` with a new flow, never `auto_accepted`.
+- **Named actors (FUEL-14, FUEL-17).** Attendants are attested with `attendant_proof` (AUTH-07). When the opener, the closer or an attendant is
+  unverified, everyone signed in on that till from a session before the shift to its close is excluded from approving; the exclusion covers
+  approve, move and cancel. The same applies to a meter reset requested from an unproved till.
+- **Stale resets (FUEL-17).** An approval is refused `reset_stale` unless the nozzle's last reading and open shift still match the request; a
+  shift cannot open on a nozzle with a pending reset (`reset_pending`, retryable).
+- **Vouchers (FUEL-21).** A redemption stores `applied_minor` (0 for a void, expired or other-currency voucher; the balance at most): the
+  shift counts and a void or refund gives back that, once per refund. `POST` refunds of a voucher payment return value (`refund_ids`).
+- **POS hook (FUEL-18).** `fuel.sale.create` is a core `SaleExtensionGrants` entry: it stands in for `pos.sale.create` only on lines that are
+  fuel products, only with a non-empty `extensions.fuel`, only while the module is on. Other lines still need `pos.sale.create`.
+- **Tanks (FUEL-23, FUEL-25, FUEL-26).** Accepted variances of the previous 24 hours use up the tolerance (and add their throughput), so
+  splitting a loss over several dips cannot avoid approval. The fuel in a dip is the level less the water's litres by the same chart
+  (`water_above_dip`). Litres sold while offloading come from the fuel sales between the two dips; a typed figure is ignored.
+- **Cancelled approvals (FUEL-14, FUEL-26).** A cancelled flow sets the settlement or reconciliation to `cancelled`;
+  `POST fuel/settlements/{id}/resubmit` and `POST fuel/reconciliations/{id}/resubmit` (`fuel.variance.view`) start a new flow. The Admin template
+  holds `fuel.variance.approve` so the default flow's escalation works.
+
 ## Data model
 
 Every table has `tenant_id` under forced RLS (TEN-01), UUID v7 keys, money as

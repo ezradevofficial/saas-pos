@@ -9,7 +9,7 @@ import { Alert, Button, Card, DecimalInput, MoneyInput, PercentInput, Select } f
 import { usePharmacyCompanyChoice } from '../pharmacy/pharmacyData'
 import { fuelKey, SETTINGS_EDIT } from './fuelData'
 
-const FIELDS = ['cash_variance_tolerance_minor', 'litre_tolerance', 'loss_tolerance_percent', 'loss_tolerance_litres', 'delivery_tolerance_percent']
+const FIELDS = ['cash_variance_tolerance_minor', 'litre_tolerance', 'loss_tolerance_percent', 'loss_tolerance_litres', 'test_tolerance_litres', 'delivery_tolerance_percent']
 
 /** FUEL-03: the company's tolerances. All start at 0 (every difference needs approval); none is built in. */
 export default function SetupSettings() {
@@ -32,6 +32,7 @@ export default function SetupSettings() {
         litre_tolerance: form.litre_tolerance,
         loss_tolerance_percent: form.loss_tolerance_percent,
         loss_tolerance_litres: form.loss_tolerance_litres,
+        test_tolerance_litres: form.test_tolerance_litres,
         delivery_tolerance_percent: form.delivery_tolerance_percent,
       }),
     onSuccess: async (response) => {
@@ -120,6 +121,18 @@ export default function SetupSettings() {
               error={errors.fields.loss_tolerance_litres}
               disabled={!editable}
               onChange={set('loss_tolerance_litres')}
+            />
+            <DecimalInput
+              label={t('fuel.settings.testLitres')}
+              help={t('fuel.settings.testLitresHelp')}
+              suffix={t('fuel.units.litres')}
+              value={form.test_tolerance_litres}
+              maxDecimals={3}
+              positive={false}
+              showErrors={shown}
+              error={errors.fields.test_tolerance_litres}
+              disabled={!editable}
+              onChange={set('test_tolerance_litres')}
             />
             <PercentInput label={t('fuel.settings.deliveryPercent')} help={t('fuel.settings.deliveryPercentHelp')} value={form.delivery_tolerance_percent} showErrors={shown} error={errors.fields.delivery_tolerance_percent} disabled={!editable} onChange={set('delivery_tolerance_percent')} />
           </div>

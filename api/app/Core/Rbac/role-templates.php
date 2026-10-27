@@ -53,8 +53,8 @@ return [
             'pharmacy.settings.edit', 'pharmacy.item.configure', 'pharmacy.*.view',
             // HOT-02, HOT-03, HOT-06: sets a company's hotel rules, room types, rooms and rate plans, and reads the module's records (guest ID numbers are `hotel.guest.identity`, not a view).
             'hotel.settings.edit', 'hotel.room.manage', 'hotel.rate.manage', 'hotel.*.view',
-            // FUEL-03, FUEL-32: sets a company's fuel rules, the forecourt set-up (tanks, charts, pumps, nozzles) and prices, and reads the module's records; approving variances is the station manager's.
-            'fuel.settings.edit', 'fuel.setup.manage', 'fuel.price.manage', 'fuel.*.view',
+            // FUEL-03, FUEL-32: sets a company's fuel rules, the forecourt set-up (tanks, charts, pumps, nozzles) and prices, and reads the module's records; approving a variance is the station manager's job; the Admin holds the right only as the escalation of the default flow (never on their own shift).
+            'fuel.settings.edit', 'fuel.setup.manage', 'fuel.price.manage', 'fuel.*.view', 'fuel.variance.approve',
             // CP-01: exempting the company from a pack component (payroll.statutory.exempt).
             'payroll.statutory.exempt'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:

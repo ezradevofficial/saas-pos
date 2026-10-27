@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\FuelStation\Events\DeliveryRecorded;
 use Modules\FuelStation\Models\Delivery;
+use Modules\FuelStation\Models\FuelSale;
 use Modules\FuelStation\Models\Product;
 use Modules\FuelStation\Models\Settings;
 use Modules\FuelStation\Models\Tank;
@@ -44,7 +45,7 @@ class Deliveries
     ) {}
 
     /**
-     * @param  array{tank_id: string, supplier_id?: ?string, note_number: string, note_litres: string|int, before_dip_cm: string|int, after_dip_cm: string|int, before_taken_at?: ?string, after_taken_at: string, sold_during_litres?: string|int|null, unit_cost_minor: string|int, currency: string}  $data
+     * @param  array{tank_id: string, supplier_id?: ?string, note_number: string, note_litres: string|int, before_dip_cm: string|int, after_dip_cm: string|int, before_taken_at?: ?string, after_taken_at: string, unit_cost_minor: string|int, currency: string}  $data
      */
     public function record(array $data, User $by): Delivery
     {
@@ -74,7 +75,9 @@ class Deliveries
 
         $before = $this->dips->record($tank, ['id' => (string) Str::uuid7(), 'kind' => 'delivery_before', 'dip_cm' => $data['before_dip_cm'], 'taken_at' => $beforeAt->toIso8601String()], $by, 'web');
         $after = $this->dips->record($tank, ['id' => (string) Str::uuid7(), 'kind' => 'delivery_after', 'dip_cm' => $data['after_dip_cm'], 'taken_at' => $afterAt->toIso8601String()], $by, 'web');
-        $sold = Litres::of($data['sold_during_litres'] ?? '0');
+        // FUEL-25: what was sold from the tank while it was offloading is what the sales between the two dips say, never a typed figure.
+        $sold = Litres::of((string) (FuelSale::query()->where('tank_id', $tank->id)->whereNull('voided_at')->where('sold_at', '>=', $beforeAt)->where('sold_at', '<=', $afterAt)
+            ->selectRaw('coalesce(sum(litres), 0) as total')->value('total') ?? '0'));
         $received = Litres::of($after->litres)->minus(Litres::of($before->litres))->plus($sold);
 
         if (! $received->isPositive()) {

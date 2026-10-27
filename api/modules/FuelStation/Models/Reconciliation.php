@@ -22,6 +22,9 @@ class Reconciliation extends Model
 
     public const REJECTED = 'rejected';
 
+    /** Its approval was cancelled: it can be submitted again (FUEL-26). */
+    public const CANCELLED = 'cancelled';
+
     protected $table = 'fuel_reconciliations';
 
     protected $guarded = ['id', 'tenant_id'];

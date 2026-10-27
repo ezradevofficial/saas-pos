@@ -167,8 +167,8 @@ class RoleTemplatesTest extends TestCase
         // Pharmacy: the settings, item profiles and the 7 views without prescriptions (9), PHA-02, PHA-03, PHA-28.
         // Hotel: the settings, room types and rate plans and the 9 views (HOT-02, HOT-03, HOT-06); never the guest identity permission.
         // Van sales: the 8 views, vans, routes and the company's settings (11), VAN-26.
-        // Fuel station: the settings, set-up and prices (3) and the 11 views (FUEL-03); never approving a variance.
-        $this->assertSame(Permission::where('module', 'core')->count() - 3 + 4 + 10 + 6 + 10 + 6 + 10 + 7 + 9 + 6 + 9 + 1 + 9 + 10 + 12 + 11 + 14, $admin->permissions()->count());
+        // Fuel station: the settings, set-up and prices (3) and the 11 views (FUEL-03); approving a variance only as the escalation of the default flow (FUEL-14).
+        $this->assertSame(Permission::where('module', 'core')->count() - 3 + 4 + 10 + 6 + 10 + 6 + 10 + 7 + 9 + 6 + 9 + 1 + 9 + 10 + 12 + 11 + 15, $admin->permissions()->count());
         $this->assertTrue($admin->hasPermissionTo('payroll.statutory.exempt'));
         $this->assertFalse(Role::where('template_key', 'payroll_officer')->sole()->hasPermissionTo('payroll.statutory.exempt'));
         $this->assertFalse($admin->hasPermissionTo('core.tenant.export'));

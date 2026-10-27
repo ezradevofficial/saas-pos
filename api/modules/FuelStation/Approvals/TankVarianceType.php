@@ -91,7 +91,7 @@ class TankVarianceType extends DocumentType
             return false;
         }
 
-        return $action !== 'approve' || $user->id !== Dip::query()->whereKey($reconciliation->dip_id)->value('taken_by');
+        return $user->id !== Dip::query()->whereKey($reconciliation->dip_id)->value('taken_by');
     }
 
     public function documentLink(string $documentId): string

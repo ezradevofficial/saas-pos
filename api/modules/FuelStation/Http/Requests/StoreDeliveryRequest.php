@@ -4,7 +4,7 @@ namespace Modules\FuelStation\Http\Requests;
 
 use Illuminate\Validation\Rule;
 
-/** POST fuel/deliveries (FUEL-25): `fuel.delivery.record` at the station. `{tank_id, supplier_id?, note_number, note_litres, before_dip_cm, after_dip_cm, before_taken_at?, after_taken_at?, sold_during_litres?, unit_cost_minor, currency}`. */
+/** POST fuel/deliveries (FUEL-25): `fuel.delivery.record` at the station. `{tank_id, supplier_id?, note_number, note_litres, before_dip_cm, after_dip_cm, before_taken_at?, after_taken_at?, unit_cost_minor, currency}`. */
 class StoreDeliveryRequest extends FuelRequest
 {
     protected function permission(): string
@@ -28,7 +28,6 @@ class StoreDeliveryRequest extends FuelRequest
             'after_dip_cm' => FuelRules::cm(),
             'before_taken_at' => ['sometimes', 'nullable', 'date'],
             'after_taken_at' => ['sometimes', 'nullable', 'date'],
-            'sold_during_litres' => FuelRules::litres(false, true),
             'unit_cost_minor' => FuelRules::minor(),
             'currency' => FuelRules::currency(),
         ];

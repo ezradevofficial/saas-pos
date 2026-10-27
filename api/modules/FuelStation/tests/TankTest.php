@@ -136,8 +136,8 @@ class TankTest extends TestCase
     {
         Event::fake([GoodsReceived::class]);
         $this->postJson('/api/v1/fuel/deliveries', [
-            'tank_id' => $this->tank->id, 'note_number' => 'DN-9', 'note_litres' => '2000.000', 'before_dip_cm' => '10', 'after_dip_cm' => '30', 'sold_during_litres' => '3.5', 'unit_cost_minor' => 14000, 'currency' => 'KES',
-        ], $this->headersFor($this->supervisor))->assertCreated()->assertJsonPath('data.received_litres', '2003.500');
-        Event::assertDispatched(GoodsReceived::class, fn ($e) => $e->lines[0]['qty'] === '2003.500' && $e->lines[0]['item_id'] === $this->petrol->id && $e->locationId === $this->locationA->id);
+            'tank_id' => $this->tank->id, 'note_number' => 'DN-9', 'note_litres' => '2000.000', 'before_dip_cm' => '10', 'after_dip_cm' => '30', 'sold_during_litres' => '500', 'unit_cost_minor' => 14000, 'currency' => 'KES',
+        ], $this->headersFor($this->supervisor))->assertCreated()->assertJsonPath('data.received_litres', '2000.000')->assertJsonPath('data.sold_during_litres', '0.000');
+        Event::assertDispatched(GoodsReceived::class, fn ($e) => $e->lines[0]['qty'] === '2000.000' && $e->lines[0]['item_id'] === $this->petrol->id && $e->locationId === $this->locationA->id);
     }
 }

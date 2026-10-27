@@ -178,7 +178,17 @@ class ShiftUploads
                 $rowFlags[] = ['code' => 'attendant_not_permitted'];
             }
 
+            // AUTH-07: the till's attestation that the attendant was signed in; without it the name is a claim (and the shift's approvers are narrowed, ShiftVarianceType).
+            if ($this->authority->proven($place->device, $attendant, $n['attendant_proof'] ?? null) === null) {
+                $rowFlags[] = ['code' => 'attendant_unverified'];
+            }
+
             $rows[] = [$nozzle, $attendant, $reading, $rowFlags, $gap];
+        }
+
+        // FUEL-17: a meter waiting for a reset decision is not read until it is decided, so the shift cannot start on a baseline about to move.
+        if (MeterReset::query()->whereIn('nozzle_id', $ids)->where('status', MeterReset::PENDING)->exists()) {
+            throw new Rejection('reset_pending', 'opening.nozzles', retryable: true);
         }
 
         if (ShiftNozzle::query()->whereIn('nozzle_id', $ids)->where('is_open', true)->exists()) {

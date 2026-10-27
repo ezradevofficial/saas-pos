@@ -33,7 +33,7 @@ final class FuelRules
     /** @return list<mixed> a user of the tenant */
     public static function user(bool $required = true): array
     {
-        return [$required ? 'required' : 'sometimes', 'uuid', Rule::exists('users', 'id')];
+        return [$required ? 'required' : 'sometimes', 'uuid', Rule::exists('users', 'id')->where('status', 'active')];
     }
 
     /** @return list<mixed> an amount in minor units (digits or an integer) */

@@ -43,6 +43,7 @@ class DeviceShiftsRequest extends FormRequest
             'shifts.*.opening.nozzles' => ['required', 'array', 'min:1', 'max:40'],
             'shifts.*.opening.nozzles.*.nozzle_id' => ['required', 'uuid'],
             'shifts.*.opening.nozzles.*.attendant_id' => ['required', 'uuid'],
+            'shifts.*.opening.nozzles.*.attendant_proof' => ['nullable', 'array'],
             'shifts.*.opening.nozzles.*.reading' => FuelRules::litres(),
             ...$dips('shifts.*.opening'),
             'shifts.*.closing' => ['nullable', 'array'],

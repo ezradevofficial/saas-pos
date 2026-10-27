@@ -15324,6 +15324,8 @@
       "lossPercentHelp": "As a percent of the litres sold since the last baseline.",
       "lossLitres": "Tank tolerance in litres",
       "lossLitresHelp": "The larger of this and the percent applies.",
+      "testLitres": "Pump test allowance per nozzle in litres",
+      "testLitresHelp": "Pump tests above this on a nozzle send the shift to approval. Zero means every test is reviewed.",
       "deliveryPercent": "Delivery shortage tolerance",
       "deliveryPercentHelp": "As a percent of the litres on the delivery note.",
       "save": "Save tolerances",
@@ -15522,6 +15524,7 @@
       "emptyFiltered": "No dips match these filters. Widen the period or clear a filter."
     },
     "deliveries": {
+      "soldDuring": "Sold while offloading",
       "title": "Fuel deliveries",
       "description": "Fuel received into the tanks. The stock is posted from what the dips measured, not from the note.",
       "new": "Record a delivery",
@@ -15539,8 +15542,6 @@
       "afterDip": "Dip after",
       "before": "Before",
       "after": "After",
-      "soldDuring": "Sold while offloading",
-      "soldDuringHelp": "Litres sold from the tank during the delivery. Leave empty for none.",
       "unitCost": "Cost per litre",
       "unitCostHelp": "What you paid per litre. Stock is valued at it.",
       "cost": "Cost",

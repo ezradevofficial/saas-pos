@@ -9,6 +9,7 @@ use Modules\FuelStation\Http\Present;
 use Modules\FuelStation\Http\Requests\ListDeliveriesRequest;
 use Modules\FuelStation\Http\Requests\ListDipsRequest;
 use Modules\FuelStation\Http\Requests\ListReconciliationsRequest;
+use Modules\FuelStation\Http\Requests\ResubmitReconciliationRequest;
 use Modules\FuelStation\Http\Requests\ShowDeliveryRequest;
 use Modules\FuelStation\Http\Requests\ShowReconciliationRequest;
 use Modules\FuelStation\Http\Requests\StoreDeliveryRequest;
@@ -20,6 +21,7 @@ use Modules\FuelStation\Models\Tank;
 use Modules\FuelStation\Support\Access;
 use Modules\FuelStation\Tanks\Deliveries;
 use Modules\FuelStation\Tanks\Dips;
+use Modules\FuelStation\Tanks\Reconciliations;
 
 /**
  * FUEL-23 to FUEL-26: tank dips, the reconciliations they trigger (the
@@ -78,6 +80,11 @@ class TankController
     public function showReconciliation(ShowReconciliationRequest $request, Reconciliation $fuelReconciliation): JsonResponse
     {
         return response()->json(['data' => $this->present->reconciliation($fuelReconciliation)]);
+    }
+
+    public function resubmitReconciliation(ResubmitReconciliationRequest $request, Reconciliation $fuelReconciliation, Reconciliations $reconciliations): JsonResponse
+    {
+        return response()->json(['data' => $this->present->reconciliation($reconciliations->resubmit($fuelReconciliation, $request->user()))]);
     }
 
     public function deliveries(ListDeliveriesRequest $request): JsonResponse

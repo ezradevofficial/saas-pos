@@ -23,7 +23,7 @@ class Settings extends Model
     /** @return array<string, mixed> */
     public static function defaults(): array
     {
-        return ['cash_variance_tolerance_minor' => 0, 'litre_tolerance' => '0.000', 'loss_tolerance_percent' => '0.0000', 'loss_tolerance_litres' => '0.000', 'delivery_tolerance_percent' => '0.0000'];
+        return ['cash_variance_tolerance_minor' => 0, 'litre_tolerance' => '0.000', 'loss_tolerance_percent' => '0.0000', 'loss_tolerance_litres' => '0.000', 'test_tolerance_litres' => '0.000', 'delivery_tolerance_percent' => '0.0000'];
     }
 
     /** The settings of $companyId, defaults filled in (an unsaved instance when none is stored). */

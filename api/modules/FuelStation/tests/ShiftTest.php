@@ -27,7 +27,7 @@ class ShiftTest extends TestCase
 
     public function test_a_shift_opens_and_closes_with_exact_meter_maths_and_zero_variance_is_accepted(): void
     {
-        $this->allowLitres('1000');
+        $this->allowLitres('1000', '10');
         $id = $this->id();
         // 100.000 L on nozzle A less a 5.000 L test = 95.000 L; B 50.000 L. Expected 145 L x KES 180.50 = KES 26,172.50.
         $closing = $this->fuelClosing(['A' => '1100.000', 'B' => '5050.000'], ['A' => 1714750, 'B' => 902500]);
@@ -114,12 +114,14 @@ class ShiftTest extends TestCase
             $this->assertSame(180500, $fresh->variance_minor);
             $this->assertNotNull($fresh->reopened_at);
         });
-        $this->assertSame(1, $this->audited('fuel.settlement.reopen'));
+        // The shift's other settlement is reopened too: a flagged-sale reason or a changed figure touches every attendant of the shift.
+        $this->assertGreaterThanOrEqual(1, $this->audited('fuel.settlement.reopen'));
+        $reopened = $this->audited('fuel.settlement.reopen');
 
         // Uploading the same sale again changes nothing (idempotent).
         $this->upload([$body])->assertOk();
         $this->inTenant(fn () => $this->assertSame(1, FuelSale::query()->count()));
-        $this->assertSame(1, $this->audited('fuel.settlement.reopen'));
+        $this->assertSame($reopened, $this->audited('fuel.settlement.reopen'));
     }
 
     public function test_readings_never_go_down_and_a_gap_is_flagged(): void

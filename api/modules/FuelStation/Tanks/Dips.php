@@ -68,6 +68,17 @@ class Dips
             $cm = BigDecimal::of((string) $data['dip_cm'])->toScale(2, RoundingMode::HalfUp);
             [$chart, $litres] = $this->strapping->convert($tank, $cm, $takenAt);
 
+            // FUEL-23: water lies under the fuel; the dip's fuel is the level less the water's litres by the same chart.
+            $water = isset($data['water_cm']) ? BigDecimal::of((string) $data['water_cm'])->toScale(2, RoundingMode::HalfUp) : null;
+
+            if ($water !== null) {
+                if ($water->isGreaterThan($cm)) {
+                    throw FuelError::make(422, 'water_above_dip', field: 'water_cm');
+                }
+
+                $litres = $litres->minus($this->strapping->convert($tank, $water, $takenAt, 'water_cm')[1]);
+            }
+
             $dip = Dip::create([
                 'id' => $id,
                 'company_id' => $tank->company_id,
@@ -79,7 +90,7 @@ class Dips
                 'kind' => $data['kind'],
                 'source' => $source,
                 'dip_cm' => (string) $cm,
-                'water_cm' => isset($data['water_cm']) ? (string) BigDecimal::of((string) $data['water_cm'])->toScale(2, RoundingMode::HalfUp) : null,
+                'water_cm' => $water === null ? null : (string) $water,
                 'litres' => (string) $litres,
                 'taken_at' => $takenAt,
                 'received_at' => CarbonImmutable::now(),

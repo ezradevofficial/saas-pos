@@ -5,6 +5,7 @@ namespace Modules\FuelStation;
 use App\Core\Currency\CurrencyUsage;
 use App\Core\MasterData\RecordUsage;
 use App\Core\Numbering\DocumentNumberTypes;
+use App\Core\Payments\Tenders\SaleExtensionGrants;
 use App\Core\Payments\Tenders\TenderProviders;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
@@ -102,6 +103,9 @@ class FuelStationServiceProvider extends ServiceProvider
 
         // FUEL-21: the `fuel_voucher` tender, and the POS events that record fuel sales and redeem and give back vouchers.
         $this->app->make(TenderProviders::class)->register($this->app->make(VoucherTender::class));
+
+        // FUEL-18: `fuel.sale.create` rings sales carrying `extensions.fuel` for the lines that are fuel products only.
+        $this->app->make(SaleExtensionGrants::class)->register('fuel', self::MODULE, 'fuel.sale.create', fn (array $itemIds) => DB::table('fuel_products')->whereIn('item_id', $itemIds)->pluck('item_id')->all());
 
         if (class_exists(SaleCompleted::class)) {
             Event::listen(SaleCompleted::class, [HandlePosEvents::class, 'completed']);

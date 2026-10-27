@@ -18,7 +18,7 @@ class VoucherRedemption extends Model
     protected function casts(): array
     {
         return [
-            'amount_minor' => 'integer',
+            'amount_minor' => 'integer', 'applied_minor' => 'integer', 'refunded_minor' => 'integer', 'refund_ids' => 'array',
             'redeemed_at' => 'immutable_datetime',
             'reversed_at' => 'immutable_datetime',
             'flags' => 'array',

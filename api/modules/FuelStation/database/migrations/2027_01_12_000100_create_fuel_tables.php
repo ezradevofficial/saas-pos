@@ -36,10 +36,11 @@ return new class extends Migration
             $table->decimal('litre_tolerance', 14, 3)->default(0);
             $table->decimal('loss_tolerance_percent', 7, 4)->default(0);
             $table->decimal('loss_tolerance_litres', 14, 3)->default(0);
+            $table->decimal('test_tolerance_litres', 14, 3)->default(0);
             $table->decimal('delivery_tolerance_percent', 7, 4)->default(0);
             $table->timestampsTz();
         });
-        DB::statement('alter table fuel_settings add constraint fuel_settings_values_check check (cash_variance_tolerance_minor >= 0 and litre_tolerance >= 0
+        DB::statement('alter table fuel_settings add constraint fuel_settings_values_check check (cash_variance_tolerance_minor >= 0 and litre_tolerance >= 0 and test_tolerance_litres >= 0
             and loss_tolerance_percent between 0 and 100 and loss_tolerance_litres >= 0 and delivery_tolerance_percent between 0 and 100)');
         Rls::enable('fuel_settings');
 
@@ -285,7 +286,7 @@ return new class extends Migration
             $table->index('company_id');
             $table->index('branch_id');
         });
-        DB::statement("alter table fuel_settlements add constraint fuel_settlements_values_check check (status in ('open', 'pending_approval', 'auto_accepted', 'approved', 'rejected') and version >= 1)");
+        DB::statement("alter table fuel_settlements add constraint fuel_settlements_values_check check (status in ('open', 'pending_approval', 'auto_accepted', 'approved', 'rejected', 'cancelled') and version >= 1)");
         DB::statement('create unique index fuel_settlements_number_unique on fuel_settlements (tenant_id, number) where number is not null');
         Rls::enable('fuel_settlements');
 
@@ -311,8 +312,11 @@ return new class extends Migration
             $place($table);
             $table->foreignUuid('nozzle_id')->constrained('fuel_nozzles')->restrictOnDelete();
             $table->foreignUuid('shift_id')->nullable()->constrained('fuel_shifts')->restrictOnDelete();
+            $table->foreignUuid('device_id')->nullable()->constrained('devices')->restrictOnDelete();
             $table->decimal('reading_before', 16, 3);
             $table->decimal('reading_after', 16, 3);
+            // FUEL-17: the nozzle's last reading when asked; an approval is refused when it moved since.
+            $table->decimal('nozzle_reading', 16, 3)->nullable();
             $table->text('reason');
             $table->string('status', 8)->default('pending');
             $userRef($table, 'requested_by');
@@ -324,6 +328,7 @@ return new class extends Migration
 
             $table->index(['nozzle_id', 'status']);
             $table->index('shift_id');
+            $table->index('device_id');
             $table->index('location_id');
             $table->index('company_id');
             $table->index('branch_id');
@@ -387,7 +392,7 @@ return new class extends Migration
             $table->index('company_id');
             $table->index('branch_id');
         });
-        DB::statement("alter table fuel_reconciliations add constraint fuel_reconciliations_values_check check (status in ('baseline', 'accepted', 'pending_approval', 'approved', 'rejected'))");
+        DB::statement("alter table fuel_reconciliations add constraint fuel_reconciliations_values_check check (status in ('baseline', 'accepted', 'pending_approval', 'approved', 'rejected', 'cancelled'))");
         DB::statement('create unique index fuel_reconciliations_number_unique on fuel_reconciliations (tenant_id, number)');
         Rls::enable('fuel_reconciliations');
 
@@ -486,6 +491,10 @@ return new class extends Migration
             $table->uuid('sale_id');
             $table->uuid('payment_id');
             $table->bigInteger('amount_minor');
+            // FUEL-21: what was actually taken off the balance (0 for an expired, void or empty voucher), and what refunds gave back.
+            $table->bigInteger('applied_minor')->default(0);
+            $table->bigInteger('refunded_minor')->default(0);
+            $table->jsonb('refund_ids')->default('[]');
             $table->char('currency', 3);
             $table->timestampTz('redeemed_at');
             $table->timestampTz('reversed_at')->nullable();
@@ -496,7 +505,7 @@ return new class extends Migration
             $table->index('voucher_id');
             $table->index('location_id');
         });
-        DB::statement('alter table fuel_voucher_redemptions add constraint fuel_voucher_redemptions_values_check check (amount_minor > 0)');
+        DB::statement('alter table fuel_voucher_redemptions add constraint fuel_voucher_redemptions_values_check check (amount_minor > 0 and applied_minor >= 0 and refunded_minor between 0 and applied_minor)');
         Rls::enable('fuel_voucher_redemptions');
 
         // FUEL-18, FUEL-12: one row per fuel sale line, and the fuel share of each sale's payments by tender kind.

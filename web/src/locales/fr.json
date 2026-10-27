@@ -15324,6 +15324,8 @@
       "lossPercentHelp": "En pourcentage des litres vendus depuis la dernière référence.",
       "lossLitres": "Tolérance d’une cuve en litres",
       "lossLitresHelp": "La plus grande de cette valeur et du pourcentage s’applique.",
+      "testLitres": "Tolérance d’essai de pompe par pistolet en litres",
+      "testLitresHelp": "Des essais de pompe supérieurs à cette valeur sur un pistolet envoient l’équipe en approbation. Zéro : chaque essai est vérifié.",
       "deliveryPercent": "Tolérance de manquant à la livraison",
       "deliveryPercentHelp": "En pourcentage des litres du bon de livraison.",
       "save": "Enregistrer les tolérances",
@@ -15522,6 +15524,7 @@
       "emptyFiltered": "Aucun jaugeage ne correspond à ces filtres. Élargissez la période ou retirez un filtre."
     },
     "deliveries": {
+      "soldDuring": "Vendu pendant le dépotage",
       "title": "Livraisons de carburant",
       "description": "Le carburant reçu dans les cuves. Le stock est passé d’après ce que les jaugeages ont mesuré, pas d’après le bon.",
       "new": "Enregistrer une livraison",
@@ -15539,8 +15542,6 @@
       "afterDip": "Jaugeage après",
       "before": "Avant",
       "after": "Après",
-      "soldDuring": "Vendu pendant le dépotage",
-      "soldDuringHelp": "Les litres vendus de la cuve pendant la livraison. Laissez vide s’il n’y en a pas.",
       "unitCost": "Coût au litre",
       "unitCostHelp": "Ce que vous avez payé par litre. Le stock est valorisé à ce coût.",
       "cost": "Coût",

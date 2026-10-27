@@ -11,16 +11,16 @@ import { Amount, FilterBar, Flags, FormFooter, FuelList, Litres, PartyPicker, St
 import { DeliveryFigures } from './DeliveryDetail'
 import { currencyAt, DELIVERY_RECORD, fuelKey, useStations, useTanks } from './fuelData'
 
-const FIELDS = ['tank_id', 'supplier_id', 'note_number', 'note_litres', 'before_dip_cm', 'after_dip_cm', 'sold_during_litres', 'unit_cost_minor', 'currency']
+const FIELDS = ['tank_id', 'supplier_id', 'note_number', 'note_litres', 'before_dip_cm', 'after_dip_cm', 'unit_cost_minor', 'currency']
 
-/** FUEL-25: a delivery: the note, the dip before and after, litres sold while offloading and the cost per litre. The server posts what was measured. */
+/** FUEL-25: a delivery: the note, the dip before and after, and the cost per litre. The server posts what was measured and takes the litres sold while offloading from the sales between the two dips. */
 function DeliveryDialog({ stations, onClose }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [location, setLocation] = useState('')
   const { tanks, all } = useTanks(location)
   const [supplier, setSupplier] = useState(null)
-  const [form, setForm] = useState({ tank_id: '', note_number: '', note_litres: '', before: '', after: '', sold: '', cost: '' })
+  const [form, setForm] = useState({ tank_id: '', note_number: '', note_litres: '', before: '', after: '', cost: '' })
   const [shown, setShown] = useState(false)
   const set = (name) => (value) => setForm((current) => ({ ...current, [name]: value }))
   const tank = all.find((entry) => entry.id === form.tank_id)
@@ -34,7 +34,6 @@ function DeliveryDialog({ stations, onClose }) {
         note_litres: form.note_litres,
         before_dip_cm: form.before,
         after_dip_cm: form.after,
-        sold_during_litres: form.sold === '' ? null : form.sold,
         unit_cost_minor: form.cost,
         currency,
       }),
@@ -44,7 +43,7 @@ function DeliveryDialog({ stations, onClose }) {
   })
   const errors = formErrors(save.error, FIELDS)
   const done = save.data?.data
-  const ready = form.tank_id && currency && form.note_number.trim() && form.note_litres && form.before && form.after && form.sold !== null && form.cost
+  const ready = form.tank_id && currency && form.note_number.trim() && form.note_litres && form.before && form.after && form.cost
   return (
     <Dialog
       open
@@ -98,7 +97,6 @@ function DeliveryDialog({ stations, onClose }) {
             <DecimalInput label={t('fuel.deliveries.noteLitres')} suffix={t('fuel.units.litres')} value={form.note_litres} maxDecimals={3} maxIntegerDigits={13} showErrors={shown} error={errors.fields.note_litres} required onChange={set('note_litres')} />
             <DecimalInput label={t('fuel.deliveries.beforeDip')} suffix={t('fuel.units.cm')} value={form.before} maxDecimals={2} maxIntegerDigits={5} positive={false} showErrors={shown} error={errors.fields.before_dip_cm} required onChange={set('before')} />
             <DecimalInput label={t('fuel.deliveries.afterDip')} suffix={t('fuel.units.cm')} value={form.after} maxDecimals={2} maxIntegerDigits={5} positive={false} showErrors={shown} error={errors.fields.after_dip_cm} required onChange={set('after')} />
-            <DecimalInput label={t('fuel.deliveries.soldDuring')} help={t('fuel.deliveries.soldDuringHelp')} suffix={t('fuel.units.litres')} value={form.sold} maxDecimals={3} maxIntegerDigits={13} positive={false} showErrors={shown} error={errors.fields.sold_during_litres} onChange={set('sold')} />
             {currency ? (
               <MoneyInput key={currency} label={t('fuel.deliveries.unitCost')} help={t('fuel.deliveries.unitCostHelp')} currency={currency} value={form.cost} showErrors={shown} error={errors.fields.unit_cost_minor} required onChange={set('cost')} />
             ) : (

@@ -9,6 +9,8 @@ use App\Core\Workflow\DocumentTypes\FieldDefinition;
 use Illuminate\Support\Str;
 use Modules\FuelStation\Models\Settlement;
 use Modules\FuelStation\Models\Shift;
+use Modules\FuelStation\Models\ShiftNozzle;
+use Modules\FuelStation\Support\DeviceActors;
 
 /**
  * WF-01, FUEL-14: `fuel.shift_variance`, an attendant's variance on a shift
@@ -92,7 +94,11 @@ class ShiftVarianceType extends DocumentType
         return 'fuel.variance.approve';
     }
 
-    /** FUEL-14: never the attendant, the person who opened the shift or the one who closed it. */
+    /**
+     * FUEL-14: never the attendant, the person who opened the shift or the one who closed it, whatever the action (approve, move, cancel).
+     * When the till could not prove one of them (an unverified sign-in), what it named is only a claim: everyone who was signed in on
+     * that till during the shift is excluded too.
+     */
     public function mayAct(User $user, string $documentId, string $action): bool
     {
         $settlement = $this->find($documentId);
@@ -101,13 +107,23 @@ class ShiftVarianceType extends DocumentType
             return false;
         }
 
-        if ($action !== 'approve') {
-            return true;
+        return ! in_array($user->id, $this->excluded($settlement), true);
+    }
+
+    /** @return list<string> */
+    public function excluded(Settlement $settlement): array
+    {
+        $shift = Shift::query()->whereKey($settlement->shift_id)->first();
+        $named = array_values(array_filter([$settlement->attendant_id, $shift?->opened_by, $shift?->closed_by]));
+
+        if ($shift === null) {
+            return $named;
         }
 
-        $shift = Shift::query()->whereKey($settlement->shift_id)->first(['opened_by', 'closed_by']);
+        $unverified = in_array('actor_unverified', array_column($shift->flags ?? [], 'code'), true)
+            || ShiftNozzle::query()->where('shift_id', $shift->id)->get(['flags'])->contains(fn ($r) => in_array('attendant_unverified', array_column($r->flags ?? [], 'code'), true));
 
-        return ! in_array($user->id, array_filter([$settlement->attendant_id, $shift?->opened_by, $shift?->closed_by]), true);
+        return $unverified ? array_values(array_unique([...$named, ...DeviceActors::signedIn($shift->device_id, $shift->opened_at, $shift->closed_at ?? now())])) : $named;
     }
 
     public function documentLink(string $documentId): string

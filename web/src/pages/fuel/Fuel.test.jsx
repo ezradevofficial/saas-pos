@@ -216,7 +216,7 @@ describe('Fuel station back office', () => {
     fireEvent.change(await within(dialog).findByLabelText(/^Cost per litre/), { target: { value: '160.50' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Record delivery' }))
     await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith('fuel/deliveries', { tank_id: 'tk-1', supplier_id: null, note_number: 'DN-77', note_litres: '5000', before_dip_cm: '40', after_dip_cm: '95.5', sold_during_litres: null, unit_cost_minor: '16050', currency: 'KES' }),
+      expect(api.post).toHaveBeenCalledWith('fuel/deliveries', { tank_id: 'tk-1', supplier_id: null, note_number: 'DN-77', note_litres: '5000', before_dip_cm: '40', after_dip_cm: '95.5', unit_cost_minor: '16050', currency: 'KES' }),
     )
     expect(await screen.findByText('Delivery FD-WEST-2026-00001 recorded.')).toBeInTheDocument()
     expect(screen.getByText('50.000 L short against the note')).toBeInTheDocument()
@@ -302,8 +302,8 @@ describe('Fuel station back office', () => {
   })
 
   it('saves the company tolerances (FUEL-03)', async () => {
-    setup([['companies/c-1/fuel-settings', { data: { company_id: 'c-1', cash_variance_tolerance_minor: '0', litre_tolerance: '0.000', loss_tolerance_percent: '0', loss_tolerance_litres: '0.000', delivery_tolerance_percent: '0' } }]])
-    api.put.mockResolvedValue({ data: { company_id: 'c-1', cash_variance_tolerance_minor: '10000', litre_tolerance: '0.000', loss_tolerance_percent: '0', loss_tolerance_litres: '0.000', delivery_tolerance_percent: '0' } })
+    setup([['companies/c-1/fuel-settings', { data: { company_id: 'c-1', cash_variance_tolerance_minor: '0', litre_tolerance: '0.000', loss_tolerance_percent: '0', loss_tolerance_litres: '0.000', test_tolerance_litres: '0.000', delivery_tolerance_percent: '0' } }]])
+    api.put.mockResolvedValue({ data: { company_id: 'c-1', cash_variance_tolerance_minor: '10000', litre_tolerance: '0.000', loss_tolerance_percent: '0', loss_tolerance_litres: '0.000', test_tolerance_litres: '0.000', delivery_tolerance_percent: '0' } })
     renderApp('/fuel/setup?tab=settings')
     expect(await screen.findByText(/None is built in/)).toBeInTheDocument()
     fireEvent.change(await screen.findByLabelText(/^Cash variance tolerance/), { target: { value: '100.00' } })

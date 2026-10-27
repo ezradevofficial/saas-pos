@@ -11,11 +11,13 @@ use Modules\FuelStation\Http\Present;
 use Modules\FuelStation\Http\Requests\ListSalesRequest;
 use Modules\FuelStation\Http\Requests\ListSettlementsRequest;
 use Modules\FuelStation\Http\Requests\ListShiftsRequest;
+use Modules\FuelStation\Http\Requests\ResubmitSettlementRequest;
 use Modules\FuelStation\Http\Requests\ShowSettlementRequest;
 use Modules\FuelStation\Http\Requests\ShowShiftRequest;
 use Modules\FuelStation\Models\FuelSale;
 use Modules\FuelStation\Models\Settlement;
 use Modules\FuelStation\Models\Shift;
+use Modules\FuelStation\Shifts\Settlements;
 use Modules\FuelStation\Support\Access;
 
 /**
@@ -62,6 +64,11 @@ class ShiftController
     public function showSettlement(ShowSettlementRequest $request, Settlement $fuelSettlement): JsonResponse
     {
         return response()->json(['data' => $this->present->settlement($fuelSettlement, true)]);
+    }
+
+    public function resubmitSettlement(ResubmitSettlementRequest $request, Settlement $fuelSettlement, Settlements $settlements): JsonResponse
+    {
+        return response()->json(['data' => $this->present->settlement($settlements->resubmit($fuelSettlement, $request->user()), true)]);
     }
 
     public function sales(ListSalesRequest $request): JsonResponse

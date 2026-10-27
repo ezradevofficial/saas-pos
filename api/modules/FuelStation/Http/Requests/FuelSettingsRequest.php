@@ -43,6 +43,7 @@ class FuelSettingsRequest extends FormRequest
             'litre_tolerance' => FuelRules::litres(false),
             'loss_tolerance_percent' => ['sometimes', 'numeric', 'between:0,100', 'regex:/^\d{1,3}(\.\d{1,4})?$/'],
             'loss_tolerance_litres' => FuelRules::litres(false),
+            'test_tolerance_litres' => FuelRules::litres(false),
             'delivery_tolerance_percent' => ['sometimes', 'numeric', 'between:0,100', 'regex:/^\d{1,3}(\.\d{1,4})?$/'],
         ];
     }

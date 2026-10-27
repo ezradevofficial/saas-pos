@@ -92,6 +92,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('fuel/shifts/{fuel_shift}', [ShiftController::class, 'showShift']);
     Route::get('fuel/settlements', [ShiftController::class, 'settlements']);
     Route::get('fuel/settlements/{fuel_settlement}', [ShiftController::class, 'showSettlement']);
+    Route::post('fuel/settlements/{fuel_settlement}/resubmit', [ShiftController::class, 'resubmitSettlement']);
     Route::get('fuel/sales', [ShiftController::class, 'sales']);
 
     // FUEL-17
@@ -105,6 +106,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('fuel/dips', [TankController::class, 'storeDip']);
     Route::get('fuel/reconciliations', [TankController::class, 'reconciliations']);
     Route::get('fuel/reconciliations/{fuel_reconciliation}', [TankController::class, 'showReconciliation']);
+    Route::post('fuel/reconciliations/{fuel_reconciliation}/resubmit', [TankController::class, 'resubmitReconciliation']);
     Route::get('fuel/deliveries', [TankController::class, 'deliveries']);
     Route::post('fuel/deliveries', [TankController::class, 'storeDelivery']);
     Route::get('fuel/deliveries/{fuel_delivery}', [TankController::class, 'showDelivery']);

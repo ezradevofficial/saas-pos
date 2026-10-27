@@ -19,6 +19,7 @@ use Modules\FuelStation\Models\Product;
 use Modules\FuelStation\Models\Reconciliation;
 use Modules\FuelStation\Models\Settings;
 use Modules\FuelStation\Models\Tank;
+use Modules\FuelStation\Support\FuelError;
 use Modules\FuelStation\Support\Litres;
 use Modules\FuelStation\Support\Numbers;
 use Modules\Inventory\Contracts\StockGained;
@@ -56,8 +57,13 @@ class Reconciliations
         $dipLitres = Litres::of($dip->litres);
         $expected = $hasBaseline ? Litres::of($tank->baseline_litres)->plus($deliveries)->minus($sales) : $dipLitres;
         $variance = $hasBaseline ? $dipLitres->minus($expected) : Litres::zero();
-        $tolerance = $this->tolerance($tank, $sales);
-        $status = ! $hasBaseline ? Reconciliation::BASELINE : ($variance->abs()->isLessThanOrEqualTo($tolerance) ? Reconciliation::ACCEPTED : Reconciliation::PENDING);
+        // FUEL-26: the allowance is cumulative over a day: variances already accepted without approval in the 24 hours before this dip use it up,
+        // so splitting a loss over several small dips cannot keep each under the tolerance.
+        $recent = Reconciliation::query()->join('fuel_dips', 'fuel_dips.id', '=', 'fuel_reconciliations.dip_id')->where('fuel_reconciliations.tank_id', $tank->id)
+            ->where('fuel_reconciliations.status', Reconciliation::ACCEPTED)->where('fuel_dips.taken_at', '>=', $dip->taken_at->subDay())->where('fuel_dips.taken_at', '<=', $dip->taken_at)
+            ->selectRaw('coalesce(sum(abs(fuel_reconciliations.variance_litres)), 0) as used, coalesce(sum(fuel_reconciliations.sales_litres), 0) as sold')->first();
+        $tolerance = $this->tolerance($tank, $sales->plus(Litres::of((string) $recent->sold)));
+        $status = ! $hasBaseline ? Reconciliation::BASELINE : ($variance->abs()->plus(Litres::of((string) $recent->used))->isLessThanOrEqualTo($tolerance) ? Reconciliation::ACCEPTED : Reconciliation::PENDING);
 
         $reconciliation = Reconciliation::create([
             'company_id' => $tank->company_id,
@@ -114,6 +120,37 @@ class Reconciliations
             if ($approved) {
                 $this->post($reconciliation, Tank::query()->findOrFail($reconciliation->tank_id), Dip::query()->findOrFail($reconciliation->dip_id), $userId);
             }
+        });
+    }
+
+    /** WF-11, FUEL-26: the approval was cancelled: the reconciliation waits to be submitted again (nothing is posted). */
+    public function cancelled(string $reconciliationId): void
+    {
+        DB::connection(TenantContext::CONNECTION)->transaction(function () use ($reconciliationId) {
+            $reconciliation = Reconciliation::query()->whereKey($reconciliationId)->lockForUpdate()->first();
+
+            if ($reconciliation !== null && $reconciliation->status === Reconciliation::PENDING) {
+                $reconciliation->forceFill(['status' => Reconciliation::CANCELLED])->save();
+                $this->auditor->record('fuel.reconciliation.cancel', $reconciliation, ['status' => Reconciliation::PENDING], ['status' => Reconciliation::CANCELLED]);
+            }
+        });
+    }
+
+    /** FUEL-26: a cancelled reconciliation goes back for approval (a new flow). */
+    public function resubmit(Reconciliation $reconciliation, User $by): Reconciliation
+    {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($reconciliation, $by) {
+            $reconciliation = Reconciliation::query()->whereKey($reconciliation->id)->lockForUpdate()->firstOrFail();
+
+            if ($reconciliation->status !== Reconciliation::CANCELLED) {
+                throw FuelError::make(409, 'not_cancelled');
+            }
+
+            $reconciliation->forceFill(['status' => Reconciliation::PENDING])->save();
+            $this->engine->start(TankVarianceType::KEY, $reconciliation->id, $by);
+            $this->auditor->record('fuel.reconciliation.resubmit', $reconciliation, ['status' => Reconciliation::CANCELLED], ['status' => Reconciliation::PENDING], ['user_id' => $by->id]);
+
+            return $reconciliation->refresh();
         });
     }
 

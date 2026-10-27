@@ -19,6 +19,7 @@ use Modules\FuelStation\Models\ShiftNozzle;
 use Modules\FuelStation\Models\Station;
 use Modules\FuelStation\Models\Tank;
 use Modules\FuelStation\Models\Vehicle;
+use Modules\FuelStation\Models\VoucherRedemption;
 use Modules\FuelStation\Prices\Prices;
 use Modules\FuelStation\Shifts\Settlements;
 use Modules\FuelStation\Shifts\Tenders;
@@ -45,6 +46,9 @@ class FuelSales
 {
     /** A sale may be dated this far outside its shift's open period (clock drift) before it is flagged. */
     private const DRIFT_MINUTES = 5;
+
+    /** The POS compares a line with the core price lists, which do not hold fuel; the module checks the station's fuel price itself (FUEL-28). */
+    private const POS_PRICE_FLAGS = ['price_unknown', 'price_differs', 'list_price_missing', 'tax_differs'];
 
     public function __construct(private readonly Prices $prices, private readonly Settlements $settlements) {}
 
@@ -195,6 +199,9 @@ class FuelSales
         $credit = collect($payments)->contains(fn ($p) => in_array($p['method_type'] ?? '', ['credit', 'room_charge'], true));
         [$vehicle, $registration, $odometer, $vehicleFlags] = $this->vehicle($sale, $station, $ext, $credit);
         $first = null;
+        // The POS's own review flags of the sale (an unverified actor, a flagged tender, a discount or price override nobody allowed).
+        $posFlags = collect((array) ($sale['flags'] ?? []))->map(fn ($f) => is_array($f) ? $f['code'] ?? null : $f)->filter()->reject(fn ($code) => in_array($code, [...Settlements::BENIGN_SALE_FLAGS, ...self::POS_PRICE_FLAGS], true))
+            ->map(fn ($code) => ['code' => (string) $code, 'source' => 'pos'])->values()->all();
 
         foreach ($lines as $line) {
             if (FuelSale::query()->where('sale_line_id', $line['id'])->exists()) {
@@ -240,6 +247,10 @@ class FuelSales
                 $flags[] = ['code' => 'attendant_differs'];
             }
 
+            if ((int) ($line['discount_minor'] ?? 0) > 0) {
+                $flags[] = ['code' => 'discount'];
+            }
+
             $limit = $vehicle === null ? null : $this->vehicleLimit($vehicle, $product, $litres, $soldAt, $sale);
             $created = FuelSale::create([
                 'company_id' => $station->company_id, 'branch_id' => $station->branch_id, 'location_id' => $station->location_id, 'station_id' => $station->id,
@@ -250,7 +261,7 @@ class FuelSales
                 'vehicle_registration' => $registration, 'odometer' => $odometer,
                 'litres' => (string) Litres::of($litres), 'unit_price_minor' => (string) $line['unit_price_minor'], 'total_minor' => (string) $line['total_minor'],
                 'currency' => $sale['currency'], 'sold_at' => $soldAt, 'received_at' => CarbonImmutable::now(),
-                'flags' => [...$flags, ...$vehicleFlags, ...($limit === null ? [] : [$limit])],
+                'flags' => [...$flags, ...$vehicleFlags, ...($limit === null ? [] : [$limit]), ...$posFlags],
             ]);
             $first ??= $created;
         }
@@ -274,7 +285,10 @@ class FuelSales
         }
 
         $fuelTotal = array_reduce($lines, fn (BigInteger $sum, array $l) => $sum->plus((string) $l['total_minor']), BigInteger::zero());
-        $net = Tenders::net((array) ($sale['payments'] ?? []), (string) ($sale['change']['in_sale_minor'] ?? '0'));
+        // FUEL-21: a fuel voucher paid what was really taken off it, not the payment's face value.
+        $applied = VoucherRedemption::query()->where('sale_id', $sale['id'])->pluck('applied_minor', 'payment_id');
+        $payments = array_map(fn (array $p) => ($p['method_type'] ?? null) === 'fuel_voucher' ? [...$p, 'amount_in_sale_minor' => (string) ($applied[$p['id']] ?? 0)] : $p, (array) ($sale['payments'] ?? []));
+        $net = Tenders::net($payments, (string) ($sale['change']['in_sale_minor'] ?? '0'));
         $share = Tenders::fuelShare($net, $fuelTotal, BigInteger::of((string) ($sale['totals']['total_minor'] ?? '0')));
 
         foreach ($share as $kind => $amount) {

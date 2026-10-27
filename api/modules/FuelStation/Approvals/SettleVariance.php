@@ -53,11 +53,16 @@ class SettleVariance implements ShouldQueue
                 return;
             }
 
+            $shift = $event->documentType === ShiftVarianceType::KEY;
+
+            // FUEL-14: a cancelled approval leaves the document waiting to be submitted again, never pending for ever.
             if ($event instanceof WorkflowCancelled) {
+                $shift ? $this->settlements->cancelled($event->documentId) : $this->reconciliations->cancelled($event->documentId);
+
                 return;
             }
 
-            $event->documentType === ShiftVarianceType::KEY
+            $shift
                 ? $this->settlements->completed($event->documentId, $event->outcome, $event->userId)
                 : $this->reconciliations->completed($event->documentId, $event->outcome, $event->userId);
         });

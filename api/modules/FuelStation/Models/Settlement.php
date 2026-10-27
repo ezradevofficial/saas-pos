@@ -23,7 +23,10 @@ class Settlement extends Model
 
     public const REJECTED = 'rejected';
 
-    public const STATUSES = [self::OPEN, self::PENDING, self::AUTO, self::APPROVED, self::REJECTED];
+    /** Its approval was cancelled: it can be submitted again (FUEL-14). */
+    public const CANCELLED = 'cancelled';
+
+    public const STATUSES = [self::OPEN, self::PENDING, self::AUTO, self::APPROVED, self::REJECTED, self::CANCELLED];
 
     protected $table = 'fuel_settlements';
 

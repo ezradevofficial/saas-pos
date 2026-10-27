@@ -125,6 +125,7 @@ class Present
             'litre_tolerance' => Litres::show($s->litre_tolerance),
             'loss_tolerance_percent' => (string) $s->loss_tolerance_percent,
             'loss_tolerance_litres' => Litres::show($s->loss_tolerance_litres),
+            'test_tolerance_litres' => Litres::show($s->test_tolerance_litres),
             'delivery_tolerance_percent' => (string) $s->delivery_tolerance_percent,
         ];
     }

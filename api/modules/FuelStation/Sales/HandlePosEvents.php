@@ -72,6 +72,7 @@ class HandlePosEvents implements ShouldQueue
     {
         $this->tenants->run($event->tenantId, function () use ($event) {
             if ($this->active() && $event->refund !== []) {
+                $this->vouchers->refund($event->refund);
                 $this->sales->refunded($event->refund);
             }
         });
@@ -84,7 +85,8 @@ class HandlePosEvents implements ShouldQueue
         }
 
         if ($event instanceof SaleRefunded) {
-            return FuelSale::query()->where('sale_id', $event->saleId)->exists();
+            return FuelSale::query()->where('sale_id', $event->saleId)->exists()
+                || collect((array) ($event->refund['payments'] ?? []))->contains(fn ($p) => ($p['method_type'] ?? null) === 'fuel_voucher');
         }
 
         $sale = $event->sale;

@@ -55,7 +55,7 @@ class RoleTemplatesTest extends TestCase
         $this->assertFalse($this->can($this->manager, 'fuel.settings.edit'));
     }
 
-    public function test_the_admin_configures_and_reads_but_never_approves_and_the_auditor_only_reads(): void
+    public function test_the_admin_configures_and_reads_and_escalation_is_approved_by_them_and_the_auditor_only_reads(): void
     {
         $admin = $this->userWith('admin', Scope::company($this->acme->id));
         $auditor = $this->userWith('read_only_auditor', Scope::company($this->acme->id));
@@ -65,7 +65,10 @@ class RoleTemplatesTest extends TestCase
             $this->assertTrue($company($admin, $permission), $permission);
         }
 
-        foreach (['fuel.variance.approve', 'fuel.meter.approve_reset', 'fuel.sale.create'] as $permission) {
+        // The default flow escalates to the Admin (FUEL-14), so the Admin can approve a variance; resets and selling stay out.
+        $this->assertTrue($company($admin, 'fuel.variance.approve'));
+
+        foreach (['fuel.meter.approve_reset', 'fuel.sale.create'] as $permission) {
             $this->assertFalse($company($admin, $permission), $permission);
         }
 

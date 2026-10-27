@@ -22,6 +22,7 @@ use App\Core\MasterData\Taxes\PriceList;
 use App\Core\MasterData\Taxes\TaxCalculator;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\MasterData\Taxes\TaxRateMissing;
+use App\Core\Payments\Tenders\SaleExtensionGrants;
 use App\Core\Payments\Tenders\TenderProviders;
 use App\Core\Payments\Tenders\TenderUse;
 use App\Core\Tenancy\TenantContext;
@@ -99,6 +100,7 @@ class SaleUploads
         private readonly PriceResolver $prices,
         private readonly DiscountSources $discountSources,
         private readonly TenderProviders $tenders,
+        private readonly SaleExtensionGrants $extensionGrants,
     ) {}
 
     /**
@@ -173,10 +175,10 @@ class SaleUploads
         // REST-19: a waiter or bartender may ring the bill of a table or tab (a sale carrying `extensions.restaurant`), not any sale.
         $restaurantBill = is_array($data['extensions']['restaurant'] ?? null) && $this->authority->can($cashier, 'restaurant.order.close', $place->scope());
 
-        // FUEL-18: an attendant may ring fuel (a sale carrying `extensions.fuel`) with `fuel.sale.create`, not any sale.
-        $fuelSale = is_array($data['extensions']['fuel'] ?? null) && $this->authority->can($cashier, 'fuel.sale.create', $place->scope());
+        // FUEL-18: a module's own permission (fuel at the pumps) stands in for `pos.sale.create` only on the lines it answers for; any other line needs it.
+        $uncovered = $this->extensionGrants->uncovered($data['extensions'] ?? null, array_column($data['lines'], 'item_id'), fn (string $permission) => $this->authority->can($cashier, $permission, $place->scope()));
 
-        if (! $restaurantBill && ! $fuelSale && ! $this->authority->can($cashier, 'pos.sale.create', $place->scope())) {
+        if (! $restaurantBill && $uncovered !== [] && ! $this->authority->can($cashier, 'pos.sale.create', $place->scope())) {
             $flags->add('cashier_not_permitted');
         }
 

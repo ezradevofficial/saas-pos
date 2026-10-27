@@ -159,8 +159,8 @@ trait BuildsFuel
     }
 
     /** FUEL-03: the company allows this many litres between the meters and the sales rung up before a shift needs approval. */
-    protected function allowLitres(string $litres): void
+    protected function allowLitres(string $litres, string $tests = '0'): void
     {
-        $this->inTenant(fn () => Settings::query()->updateOrCreate(['company_id' => $this->acme->id], ['litre_tolerance' => $litres]));
+        $this->inTenant(fn () => Settings::query()->updateOrCreate(['company_id' => $this->acme->id], ['litre_tolerance' => $litres, 'test_tolerance_litres' => $tests]));
     }
 }

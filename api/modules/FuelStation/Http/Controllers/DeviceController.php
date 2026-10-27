@@ -42,7 +42,7 @@ class DeviceController
                     throw new Rejection('not_permitted', 'requested_by_id');
                 }
 
-                $reset = $resets->request($nozzle, $data, $by, $authority->proven($place->device, $by, $data['actor_proof'] ?? null) !== null);
+                $reset = $resets->request($nozzle, $data, $by, $authority->proven($place->device, $by, $data['actor_proof'] ?? null) !== null, $place->device->id);
                 $results[] = ['id' => $reset->id, 'status' => 'stored', 'reset_status' => $reset->status];
             } catch (Rejection $rejection) {
                 $results[] = ['id' => $data['id'], 'status' => 'rejected', 'error' => $rejection->toArray()];

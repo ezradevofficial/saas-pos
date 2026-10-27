@@ -48,6 +48,9 @@ return [
         'voucher_code_used' => 'Ce code de bon existe déjà. Choisissez un autre code ou laissez le champ vide pour en générer un.',
         'voucher_code_failed' => 'Nous n’avons pas pu générer de code de bon libre. Réessayez.',
         'voucher_void' => 'Ce bon est déjà annulé.',
+        'not_cancelled' => 'Seul un document dont l’approbation a été annulée peut être soumis de nouveau.',
+        'reset_stale' => 'Le compteur ou son équipe a changé depuis cette demande de remise à zéro. Rejetez-la et refaites la demande.',
+        'water_above_dip' => 'Le niveau d’eau dépasse la jauge. Vérifiez les deux mesures.',
     ],
 
     'numbering' => [

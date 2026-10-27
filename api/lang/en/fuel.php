@@ -48,6 +48,9 @@ return [
         'voucher_code_used' => 'This voucher code already exists. Choose another code or leave it empty to generate one.',
         'voucher_code_failed' => 'We couldn’t generate a free voucher code. Try again.',
         'voucher_void' => 'This voucher is already void.',
+        'not_cancelled' => 'Only a document whose approval was cancelled can be submitted again.',
+        'reset_stale' => 'The meter or its shift changed since this reset was asked for. Reject it and ask again.',
+        'water_above_dip' => 'The water level is above the dip. Check both readings.',
     ],
 
     'numbering' => [
