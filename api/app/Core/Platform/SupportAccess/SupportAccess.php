@@ -113,6 +113,8 @@ class SupportAccess
      */
     public const SENSITIVE_FIELDS = [
         'hr_employee' => ['identifiers', 'date_of_birth', 'pay_accounts', 'pay', 'medical_notes', 'disciplinary', 'personal_email', 'personal_phone', 'address', 'emergency_contacts'],
+        // SAL-25, NFR-08: a salon client's allergies, formulas and contact details.
+        'salon_client' => ['allergies', 'formulas', 'contact', 'notes'],
     ];
 
     public function __construct(

@@ -49,6 +49,8 @@ return [
             'restaurant.*.view', 'restaurant.floor.manage', 'restaurant.station.manage', 'restaurant.modifier.manage', 'restaurant.settings.edit',
             // Van sales (docs/modules/van-sales.md): reads it all, sets up vans, routes and the company's GPS and credit settings.
             'van_sales.*.view', 'van_sales.van.manage', 'van_sales.route.manage', 'van_sales.settings.edit',
+            // SAL-28: reads the salon's records, sets up the menu, staff, chairs, online booking, the company's fees and commission rules.
+            'salon.*.view', 'salon.settings.edit', 'salon.service.manage', 'salon.staff.manage', 'salon.resource.manage', 'salon.online.manage', 'salon.commission.rule',
             // PHA-02, PHA-03: sets a company's pharmacy rules and items' pharmacy profiles, and reads the module's records except prescriptions (personal data).
             'pharmacy.settings.edit', 'pharmacy.item.configure', 'pharmacy.*.view',
             // HOT-02, HOT-03, HOT-06: sets a company's hotel rules, room types, rooms and rate plans, and reads the module's records (guest ID numbers are `hotel.guest.identity`, not a view).
@@ -118,8 +120,10 @@ return [
             'pharmacy.*',
             // Hotel (docs/modules/hotel.md): the property's bookings, front desk, folios, housekeeping, night audit and reports; the settings are the Admin's.
             'hotel.*',
+            // Salon (docs/modules/salon.md): the branch's diary, queue, clients, packages, commissions (approves batches, never their own) and reports; the settings and commission rules are the Admin's.
+            'salon.*',
         ],
-        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'restaurant.settings.edit', 'van_sales.settings.edit', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure', 'hotel.settings.edit'],
+        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'restaurant.settings.edit', 'van_sales.settings.edit', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure', 'hotel.settings.edit', 'salon.settings.edit', 'salon.commission.rule'],
         // RBAC-06 (owner decision A, 2026-10-16; defaults the owner may change): a Branch Manager discounts quotes
         // up to 10 % without approval (CRM-20), so their own discounted quotes do not all escalate, and refunds up
         // to 10,000 in the company's base currency (POS-05, E-commerce refunds), so a manager can refund at all.
@@ -258,6 +262,36 @@ return [
         'requires_two_factor' => false,
     ],
     [
+        // SAL-28 (docs/modules/salon.md): a stylist, barber or therapist works their own diary from the till: sees their appointments,
+        // checks clients in, starts and finishes services, reads and writes their clients' allergies and formulas, books walk-ins and sells.
+        // No refunds, fees, deposits or other people's pay.
+        'key' => 'stylist',
+        'permissions' => [
+            'core.company.view', 'core.branch.view', 'core.location.view', 'core.currency.view', 'core.exchange_rate.view', 'core.party.view', 'core.party.create',
+            'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view', 'core.payment_method.view', 'core.tax.view',
+            'pos.sale.view', 'pos.sale.print', 'pos.sale.create', 'pos.till.sign_in', 'pos.shift.view',
+            'salon.service.view', 'salon.staff.view', 'salon.resource.view', 'salon.appointment.view_own', 'salon.appointment.create', 'salon.appointment.serve',
+            'salon.queue.view', 'salon.client.view', 'salon.client.manage', 'salon.client.notes', 'salon.package.view', 'salon.commission.view_own',
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // SAL-28: runs the salon: everything in the diary, queue, clients, packages, deposits, fees, exceptions, commissions (builds and approves
+        // batches, never their own, SAL-23) and reports. Not the company's settings or commission rules (the Admin's).
+        'key' => 'salon_manager',
+        'permissions' => [
+            'core.company.view', 'core.branch.view', 'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view', 'core.user.view',
+            'core.party.view', 'core.party.create', 'core.party.edit', 'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.price.view', 'core.payment_method.view', 'core.tax.view',
+            'pos.sale.view', 'pos.sale.print', 'pos.sale.create', 'pos.sale.refund', 'pos.till.sign_in', 'pos.shift.view', 'pos.shift.open', 'pos.shift.close',
+            'salon.*',
+        ],
+        'except' => ['salon.settings.edit', 'salon.commission.rule'],
+        'limits' => ['max_refund_amount' => '10000'],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
         'key' => 'storekeeper',
         'permissions' => [
             'core.location.view',
@@ -331,6 +365,11 @@ return [
             'hotel.reservation.*', 'hotel.stay.checkin', 'hotel.stay.checkout', 'hotel.stay.move',
             'hotel.folio.view', 'hotel.folio.charge', 'hotel.folio.payment', 'hotel.folio.transfer', 'hotel.folio.refund',
             'hotel.housekeeping.view', 'hotel.report.view',
+            // SAL-28: in a salon the front desk books, checks clients in, runs the queue, takes deposits and rings the visit at the till; clients' notes
+            // (allergies, formulas), refunds, fee waivers and commissions are not theirs.
+            'pos.sale.view', 'pos.sale.print', 'pos.sale.create', 'pos.till.sign_in', 'pos.shift.view',
+            'salon.service.view', 'salon.staff.view', 'salon.resource.view', 'salon.online.view', 'salon.appointment.view', 'salon.appointment.create', 'salon.appointment.edit',
+            'salon.appointment.cancel', 'salon.appointment.serve', 'salon.queue.*', 'salon.client.view', 'salon.client.manage', 'salon.package.view', 'salon.deposit.take', 'salon.exception.view',
         ],
         'is_owner' => false,
         'requires_two_factor' => false,

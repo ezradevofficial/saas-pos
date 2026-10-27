@@ -98,9 +98,10 @@ return [
         [
             'key' => 'salon',
             'pos_mode' => 'salon',
-            'role_templates' => ['admin', 'branch_manager', 'cashier'],
+            // SAL-28: the salon module (service menu, appointments, packages, commissions) and its roles: the front desk, stylists and the manager.
+            'role_templates' => ['admin', 'branch_manager', 'salon_manager', 'receptionist', 'stylist', 'cashier'],
             'flows' => [],
-            'modules' => ['pos', 'loyalty'],
+            'modules' => ['pos', 'salon', 'loyalty'],
             'quantities' => ['outlet' => 1, 'device' => 1, 'employee' => 6],
         ],
         [
@@ -122,7 +123,7 @@ return [
     ],
 
     'module_groups' => [
-        'sell' => ['pos', 'inventory', 'pharmacy', 'restaurant', 'hotel', 'van_sales', 'loyalty', 'ecommerce'],
+        'sell' => ['pos', 'inventory', 'pharmacy', 'restaurant', 'hotel', 'van_sales', 'salon', 'loyalty', 'ecommerce'],
         'operate' => ['stores', 'procurement', 'manufacturing', 'fixed_assets'],
         'finance_people' => ['accounting_essentials', 'accounting_pro', 'crm', 'hr', 'payroll'],
     ],
