@@ -245,6 +245,7 @@ return [
     ],
     'usage' => [
         'fixed_assets_asset' => 'Utilisé dans une immobilisation',
+        'pharmacy_lot' => 'A des lots en pharmacie',
         'fixed_assets_item' => 'Marqué comme article d’immobilisation',
         'fixed_assets_disposal' => 'L’acheteur d’une cession d’immobilisation',
         'fixed_assets_work_order' => 'Le prestataire d’un ordre de travail sur immobilisation',
