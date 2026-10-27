@@ -70,7 +70,7 @@ export function BookDialog({ branch, company, staff, services, zone, date: start
     mutationFn: () =>
       api.post('salon/appointments', {
         branch_id: branch.id,
-        client_id: values.client_id || undefined,
+        salon_client_id: values.client_id || undefined,
         guest_name: values.client_id ? undefined : values.guest_name.trim(),
         guest_phone: values.client_id || !values.guest_phone.trim() ? undefined : values.guest_phone.trim(),
         notes: values.notes.trim() || undefined,

@@ -12,6 +12,7 @@ use Modules\Salon\Models\Payment;
 use Modules\Salon\Models\Redemption;
 use Modules\Salon\Models\SalonException;
 use Modules\Salon\Packages\Packages;
+use Ramsey\Uuid\Uuid;
 
 /**
  * SAL-17, SAL-18: what the `salon_credit` payments of a sale use up, and what a void or a refund gives back.
@@ -54,8 +55,8 @@ class Credits
             $this->takeBackSession($redemption);
         }
 
-        foreach (Payment::query()->where('sale_id', $sale['id'])->where('kind', Payment::APPLIED)->where('status', Payment::SETTLED)->get() as $applied) {
-            $this->restore($applied->appointment_id, (int) $applied->amount_minor, $applied->currency, $sale['id'], (string) $applied->sale_payment_id, $applied->payment_method_id);
+        foreach (Payment::query()->where('sale_id', $sale['id'])->where('kind', Payment::APPLIED)->where('status', Payment::SETTLED)->orderBy('id')->get() as $applied) {
+            $this->restore($applied, (int) $applied->amount_minor, (string) $applied->sale_payment_id);
         }
     }
 
@@ -82,10 +83,15 @@ class Credits
                 continue;
             }
 
-            $applied = Payment::query()->where('sale_id', $refund['sale_id'])->where('kind', Payment::APPLIED)->first();
+            // The refund gives back what the sale's deposits used, payment by payment, never more than each used.
+            $left = $amount;
 
-            if ($applied !== null) {
-                $this->restore($applied->appointment_id, min($amount, (int) $applied->amount_minor), $applied->currency, $refund['sale_id'], (string) $payment['id'], $applied->payment_method_id);
+            foreach (Payment::query()->where('sale_id', $refund['sale_id'])->where('kind', Payment::APPLIED)->where('status', Payment::SETTLED)->orderBy('id')->get() as $applied) {
+                $left -= $this->restore($applied, $left, (string) Uuid::uuid5(Uuid::NAMESPACE_OID, $payment['id'].'|'.$applied->sale_payment_id));
+
+                if ($left <= 0) {
+                    break;
+                }
             }
         }
     }
@@ -93,9 +99,17 @@ class Credits
     /** @param array<string, mixed> $sale @param array<string, mixed> $payment @param array<string, mixed> $tender */
     private function useDeposit(string $companyId, array $sale, array $payment, array $tender): void
     {
-        $appointmentId = (string) ($tender['appointment_id'] ?? ($sale['extensions']['salon']['appointment_id'] ?? ''));
+        $billed = (string) ($sale['extensions']['salon']['appointment_id'] ?? '');
+        $appointmentId = (string) ($tender['appointment_id'] ?? $billed);
         $appointment = Str::isUuid($appointmentId) ? Appointment::query()->whereKey($appointmentId)->where('company_id', $companyId)->lockForUpdate()->first() : null;
         $amount = (int) $payment['amount_in_sale_minor'];
+
+        // SAL-17: a deposit pays only the appointment the sale bills, at the sale's own branch; anything else is for a person.
+        if ($appointment !== null && ($appointmentId !== $billed || $appointment->branch_id !== ($sale['branch_id'] ?? null))) {
+            $this->flag($companyId, $sale, $appointmentId !== $billed ? 'deposit_mismatch' : 'deposit_branch', $payment['id'], ['number' => $appointment->number], $amount);
+
+            return;
+        }
 
         if ($appointment === null) {
             $this->flag($companyId, $sale, 'deposit_unknown', $payment['id'], ['appointment_id' => $appointmentId], $amount);
@@ -169,7 +183,7 @@ class Credits
             'status' => $package->sessionsLeft() - 1 <= 0 ? Package::EXHAUSTED : Package::ACTIVE,
         ])->save();
         Redemption::create([
-            'package_id' => $package->id, 'appointment_id' => $tender['appointment_id'] ?? ($sale['extensions']['salon']['appointment_id'] ?? null),
+            'package_id' => $package->id, 'appointment_id' => $sale['extensions']['salon']['appointment_id'] ?? null,
             'sale_id' => $sale['id'], 'sale_payment_id' => $key, 'service_id' => $tender['service_id'] ?? null, 'value_minor' => $value,
             'currency' => $package->currency, 'status' => 'redeemed', 'redeemed_at' => now(),
         ]);
@@ -205,13 +219,28 @@ class Credits
         $this->auditor->record('salon.package.restore', $package, null, ['sale_id' => $redemption->sale_id, 'value_minor' => $redemption->value_minor]);
     }
 
-    private function restore(string $appointmentId, int $amount, string $currency, string $saleId, string $paymentId, ?string $methodId): void
+    /**
+     * Gives back up to $amount of the credit $applied used: under the appointment's lock, at most what it used less what
+     * earlier refunds and voids already gave back (their rows name the applied payment in `reference`). Returns what was given.
+     */
+    private function restore(Payment $applied, int $amount, string $key): int
     {
-        Payment::query()->insertOrIgnore([[
-            'id' => (string) Str::uuid7(), 'tenant_id' => app(TenantContext::class)->require(), 'appointment_id' => $appointmentId,
-            'kind' => Payment::RESTORED, 'status' => Payment::SETTLED, 'payment_method_id' => $methodId, 'method_type' => 'salon_credit', 'currency' => $currency,
-            'amount_minor' => $amount, 'sale_id' => $saleId, 'sale_payment_id' => $paymentId, 'created_at' => now(), 'updated_at' => now(),
+        Appointment::query()->whereKey($applied->appointment_id)->lockForUpdate()->first();
+
+        $given = (int) Payment::query()->where('appointment_id', $applied->appointment_id)->where('kind', Payment::RESTORED)->where('reference', (string) $applied->sale_payment_id)->sum('amount_minor');
+        $take = min($amount, (int) $applied->amount_minor - $given);
+
+        if ($take <= 0) {
+            return 0;
+        }
+
+        $made = Payment::query()->insertOrIgnore([[
+            'id' => (string) Str::uuid7(), 'tenant_id' => app(TenantContext::class)->require(), 'appointment_id' => $applied->appointment_id,
+            'kind' => Payment::RESTORED, 'status' => Payment::SETTLED, 'payment_method_id' => $applied->payment_method_id, 'method_type' => 'salon_credit', 'currency' => $applied->currency,
+            'amount_minor' => $take, 'reference' => (string) $applied->sale_payment_id, 'sale_id' => $applied->sale_id, 'sale_payment_id' => $key, 'created_at' => now(), 'updated_at' => now(),
         ]]);
+
+        return $made > 0 ? $take : 0;
     }
 
     /** @param array<string, mixed> $sale */

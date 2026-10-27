@@ -18,6 +18,7 @@ use App\Core\Fiscal\FiscalSources;
 use App\Core\Identity\Models\PersonalAccessToken;
 use App\Core\Identity\Models\User;
 use App\Core\Identity\Notifications\VerificationCode;
+use App\Core\Identity\Pin\ActorProofVerifier;
 use App\Core\Identity\Pin\OverrideVerifier;
 use App\Core\Limits\Allowances;
 use App\Core\Limits\PlanAllowances;
@@ -42,6 +43,7 @@ use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Sso\Models\SsoConnection;
 use App\Core\Sso\Models\SsoIdentity;
+use App\Core\Sync\DeviceSecrets;
 use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Device;
@@ -434,7 +436,8 @@ final class TwoTenants
         // TEN-05: a device, paired with its one-time code.
         $device = self::ok($test->postJson("/api/v1/locations/{$location}/devices", ['name' => "Till {$upper}"], $owner), 201)->json('data.id');
         $code = self::ok($test->postJson("/api/v1/devices/{$device}/pairing-code", [], $owner))->json('code');
-        $deviceToken = self::ok($test->postJson('/api/v1/devices/pair', ['code' => $code, 'device_name' => "Tablet {$upper}"]))->json('token');
+        $paired = self::ok($test->postJson('/api/v1/devices/pair', ['code' => $code, 'device_name' => "Tablet {$upper}"]));
+        $deviceToken = $paired->json('token');
 
         // Concept note 7.1: the till pushes an M-Pesa payment and confirms one
         // by its code; money arrives on the Paybill that matches nothing yet
@@ -812,6 +815,9 @@ final class TwoTenants
                 'location' => $location,
                 'archived_location' => $archived,
                 'device' => $device,
+                // AUTH-07: the device's signing key, so a fixture body can carry a verified sign-in proof (actorProof()).
+                'device_secret' => $paired->json('device_secret'),
+                'device_secret_kid' => $paired->json('device_secret_kid'),
                 'user' => $ownerId,
                 'manager' => $managerId,
                 'role' => $role,
@@ -1607,6 +1613,18 @@ final class TwoTenants
             'vs_load' => $load,
             ...$ids,
         ];
+    }
+
+    /** AUTH-07: a sign-in proof of $userId at the tenant's paired device, signed with its key, for a body that needs a verified actor. @return array<string, string> */
+    public static function actorProof(TenantFixture $tenant, string $userId): array
+    {
+        $proof = [
+            'session_id' => (string) Str::uuid7(), 'user_id' => $userId, 'signed_in_at' => CarbonImmutable::now()->subMinutes(8)->format('Y-m-d\TH:i:s.v\Z'), 'kid' => $tenant->id('device_secret_kid'),
+        ];
+        $message = ActorProofVerifier::message($tenant->id('device'), $proof['kid'], $proof['session_id'], $proof['user_id'], $proof['signed_in_at']);
+        $proof['signature'] = DeviceSecrets::encode(hash_hmac('sha256', $message, DeviceSecrets::decode($tenant->id('device_secret')), true));
+
+        return $proof;
     }
 
     /**

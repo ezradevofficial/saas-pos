@@ -30,7 +30,7 @@ class RoleTemplatesTest extends TestCase
     private const TEMPLATE_KEYS = [
         'owner', 'admin', 'branch_manager', 'sales_rep', 'cashier', 'rider', 'waiter', 'storekeeper', 'accountant',
         'hr_officer', 'payroll_officer', 'procurement_officer', 'approver', 'employee_self_service',
-        'read_only_auditor', 'kitchen', 'bartender', 'pharmacist', 'pharmacy_technician', 'receptionist', 'housekeeping', 'night_auditor', 'van_rep', 'route_supervisor', 'stylist', 'salon_manager',
+        'read_only_auditor', 'kitchen', 'bartender', 'pharmacist', 'pharmacy_technician', 'receptionist', 'housekeeping', 'night_auditor', 'van_rep', 'route_supervisor', 'stylist', 'salon_manager', 'salon_receptionist',
     ];
 
     protected function setUp(): void
@@ -131,12 +131,12 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame(126 + 18 + 23 + 23 + 19 + 32 + 14 + 37 + 27 + 16 + 17 + 14 + 18 + 26 + 18 + 33 + 23 + 36, count($names));
     }
 
-    public function test_sign_up_provisions_twenty_six_system_roles_and_an_owner_assignment(): void
+    public function test_sign_up_provisions_twenty_seven_system_roles_and_an_owner_assignment(): void
     {
         $tenantId = $this->enter($this->signUp()->json('challenge_id'));
 
         $roles = Role::orderBy('template_key')->get();
-        $this->assertCount(26, $roles);
+        $this->assertCount(27, $roles);
         $this->assertEqualsCanonicalizing(self::TEMPLATE_KEYS, $roles->pluck('template_key')->all());
         $this->assertTrue($roles->every(fn (Role $r) => $r->is_system && $r->tenant_id === $tenantId));
 
@@ -197,7 +197,7 @@ class RoleTemplatesTest extends TestCase
             $assignment->user_id, $assignment->role_id, $assignment->scope_type, $assignment->scope_id,
         ]);
 
-        $this->assertSame(26, AuditEntry::where('action', 'rbac.role.create')->count());
+        $this->assertSame(27, AuditEntry::where('action', 'rbac.role.create')->count());
         $this->assertSame(1, AuditEntry::where('action', 'rbac.assignment.create')->count());
     }
 

@@ -59,6 +59,7 @@ class ConcurrencyTest extends TestCase
     {
         $deskId = $this->desk->id;
         $body = $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '10:00');
+        $body['client_id'] = $body['salon_client_id'];
 
         $results = $this->race(array_fill(0, self::WORKERS, fn () => $this->attempt(fn () => app(Bookings::class)->create($body, User::query()->findOrFail($deskId)))));
 
@@ -75,6 +76,7 @@ class ConcurrencyTest extends TestCase
         // Quarter-hour starts from 10:00 to 11:15 for a 30-minute haircut by the same stylist, two of each.
         foreach (['10:00', '10:15', '10:30', '10:45', '11:00', '11:15'] as $time) {
             $body = $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], $time);
+            $body['client_id'] = $body['salon_client_id'];
             $workers[] = fn () => $this->attempt(fn () => app(Bookings::class)->create($body, User::query()->findOrFail($deskId)));
             $workers[] = fn () => $this->attempt(fn () => app(Bookings::class)->create($body, User::query()->findOrFail($deskId)));
         }
@@ -142,7 +144,7 @@ class ConcurrencyTest extends TestCase
     private function creditSale(?string $packageId, string $methodId, ?array $tender = null, string $amount = '90000'): array
     {
         return [
-            'id' => (string) Str::uuid7(), 'branch_id' => $this->branchA->id, 'currency' => 'KES', 'customer_id' => $this->client->id, 'sold_at' => now()->toIso8601String(), 'extensions' => [],
+            'id' => (string) Str::uuid7(), 'branch_id' => $this->branchA->id, 'currency' => 'KES', 'customer_id' => $this->client->id, 'sold_at' => now()->toIso8601String(), 'extensions' => $tender === null ? [] : ['salon' => ['appointment_id' => $tender['appointment_id'] ?? null]],
             'payments' => [['id' => (string) Str::uuid7(), 'payment_method_id' => $methodId, 'method_type' => 'salon_credit', 'amount_in_sale_minor' => $amount,
                 'tender' => $tender ?? ['source' => 'package', 'package_id' => $packageId, 'service_id' => $this->haircut->id]]],
         ];

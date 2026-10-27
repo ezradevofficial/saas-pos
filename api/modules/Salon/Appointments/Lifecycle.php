@@ -29,8 +29,19 @@ class Lifecycle
         private readonly Consumption $consumption,
     ) {}
 
+    /** The time $at names, held between the appointment's creation and now (the server's receipt). */
+    public static function bounded(Appointment $appointment, CarbonImmutable $at): CarbonImmutable
+    {
+        $made = CarbonImmutable::parse($appointment->created_at)->utc();
+        $now = CarbonImmutable::now();
+
+        return $at->lessThan($made) ? $made : ($at->greaterThan($now) ? $now : $at);
+    }
+
     public function checkIn(Appointment $appointment, ?User $by, ?CarbonImmutable $at = null): Appointment
     {
+        $at = $at === null ? null : self::bounded($appointment, $at);
+
         return $this->step($appointment, [Appointment::BOOKED], fn (Appointment $a) => $a->forceFill([
             'status' => Appointment::CHECKED_IN, 'checked_in_at' => $at ?? now(),
         ])->save(), 'check_in', $by);
@@ -71,7 +82,7 @@ class Lifecycle
             }
 
             $settings = Settings::for($a->company_id);
-            $now = $at ?? CarbonImmutable::now();
+            $now = $at === null ? CarbonImmutable::now() : self::bounded($a, $at);
             $late = $withFee && $a->status === Appointment::BOOKED && $a->starts_at->lessThan($now->addHours($settings['cancel_window_hours']));
             $fee = $late ? Bookings::percentOf((int) $a->total_minor, $settings['late_cancel_fee_percent']) : 0;
 

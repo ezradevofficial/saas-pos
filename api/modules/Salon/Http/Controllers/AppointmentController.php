@@ -83,7 +83,7 @@ class AppointmentController
         $override = $this->override($request, Scope::branch($data['branch_id']), $data['override_reason'] ?? null);
 
         $appointment = $this->bookings->create([
-            ...$data, 'source' => $data['source'] ?? 'staff', 'lines' => $data['lines'],
+            ...$data, 'client_id' => $data['salon_client_id'] ?? null, 'source' => $data['source'] ?? 'staff', 'lines' => $data['lines'],
         ], $request->user(), $override);
 
         return response()->json(['data' => $this->views->appointments(collect([$appointment]), $request, true)[0]], 201);

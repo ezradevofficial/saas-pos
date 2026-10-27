@@ -3,6 +3,7 @@
 namespace Modules\Salon\Tests;
 
 use App\Core\Audit\AuditEntry;
+use App\Core\Notifications\Channels;
 use App\Core\Notifications\EventTypes;
 use App\Core\Notifications\Models\NotificationDelivery;
 use App\Core\Rbac\ModuleRegistry;
@@ -18,6 +19,7 @@ use Modules\Salon\Models\Line;
 use Modules\Salon\Models\Payment;
 use Modules\Salon\Models\QueueEntry;
 use Modules\Salon\Models\SalonBranch;
+use Modules\Salon\Reminders\Notices;
 use Modules\Salon\Tests\Concerns\BuildsSalon;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -110,7 +112,7 @@ class OnlineBookingTest extends TestCase
         $this->assertSame([], array_values(array_intersect(array_keys($made), ['id', 'staff_id', 'client_id', 'guest_name', 'guest_phone', 'notes'])));
 
         $row = $this->inTenant(fn () => Appointment::query()->sole());
-        $this->assertSame(['online', null, 'Wendy Walker', '0712 345 678', null], [$row->source, $row->client_id, $row->guest_name, $row->guest_phone, $row->guest_email]);
+        $this->assertSame(['online', null, 'Wendy Walker', '+254712345678', null], [$row->source, $row->client_id, $row->guest_name, $row->guest_phone, $row->guest_email]);
         // The audit log names the booking, never the visitor.
         $this->assertStringNotContainsString('Wendy', json_encode(AuditEntry::where('auditable_id', $row->id)->get()->map->only(['before', 'after'])->all()));
         $this->assertStringNotContainsString('0712', json_encode(AuditEntry::where('auditable_id', $row->id)->get()->map->only(['before', 'after'])->all()));
@@ -144,12 +146,12 @@ class OnlineBookingTest extends TestCase
         }
         $this->reserve($this->booking('11:30'))->assertStatus(422)->assertJsonPath('code', 'too_many_bookings');
         // The same phone written differently is the same contact.
-        $this->reserve($this->booking('11:30', ['guest_phone' => '+254 712 345 678']))->assertCreated();
+        $this->reserve($this->booking('11:30', ['guest_phone' => '+254 712 345 678']))->assertStatus(422)->assertJsonPath('code', 'too_many_bookings');
 
         $first = $this->reserve($this->booking('15:00', ['guest_phone' => '0799000111']), ['Idempotency-Key' => 'retry-1'])->assertCreated()->json('data');
         $again = $this->reserve($this->booking('15:00', ['guest_phone' => '0799000111']), ['Idempotency-Key' => 'retry-1'])->assertCreated()->json('data');
         $this->assertSame($first['number'], $again['number']);
-        $this->assertSame(1, $this->inTenant(fn () => Appointment::query()->where('guest_phone', '0799000111')->count()));
+        $this->assertSame(1, $this->inTenant(fn () => Appointment::query()->where('guest_phone', '+254799000111')->count()));
     }
 
     public function test_writing_to_the_page_is_rate_limited_per_address(): void
@@ -261,5 +263,73 @@ class OnlineBookingTest extends TestCase
         $this->assertSame(1, $this->inTenant(fn () => Appointment::query()->whereNull('anonymised_at')->count()), 'the client’s visit stays whole');
         $this->assertSame('-', $this->inTenant(fn () => QueueEntry::query()->sole()->guest_name));
         $this->assertSame(1, AuditEntry::where('action', 'salon.guest.purge')->count());
+    }
+
+    public function test_a_phone_is_kept_in_e164_and_one_that_is_none_is_refused(): void
+    {
+        $made = $this->reserve($this->booking('10:00', ['guest_phone' => '0712 345 678']))->assertCreated()->json('data');
+        $this->assertSame('+254712345678', $this->inTenant(fn () => Appointment::query()->where('number', $made['number'])->value('guest_phone')));
+        $this->reserve($this->booking('11:00', ['guest_phone' => '1234567']))->assertStatus(422)->assertJsonPath('code', 'phone_invalid');
+        // The same person is found by either spelling.
+        $this->getJson('/api/v1/salon-booking/'.self::CODE."/appointments/{$made['number']}?phone=%2B254712345678")->assertOk();
+        $this->getJson('/api/v1/salon-booking/'.self::CODE."/appointments/{$made['number']}?phone=0712345678")->assertOk();
+    }
+
+    public function test_what_a_guest_typed_as_a_name_is_never_put_in_a_message_and_addresses_have_daily_caps(): void
+    {
+        config(['salon.notifications.per_email_per_day' => 1]);
+        $made = $this->reserve($this->booking('10:00', ['guest_name' => 'Click http://evil.example now', 'guest_email' => 'wendy@example.com']))->assertCreated()->json('data');
+        $appointment = $this->inTenant(fn () => Appointment::query()->where('number', $made['number'])->sole());
+        $addresses = fn () => $this->inTenant(fn () => (new \ReflectionMethod(Notices::class, 'addresses'))->invoke(app(Notices::class), $appointment->refresh()));
+
+        // The confirmation already used the one email a day this address may get: nothing more is addressed to it, and no name is ever set.
+        $found = $addresses();
+        $this->assertSame([], array_values(array_filter($found, fn ($a) => $a->channel === Channels::EMAIL)));
+        $this->assertSame([''], array_values(array_unique(array_map(fn ($a) => $a->name, $found))) ?: ['']);
+        $this->assertStringNotContainsString('{recipient_name}', __('salon.notifications.confirmed.body'));
+    }
+
+    public function test_a_contact_and_a_page_have_daily_caps_on_online_bookings(): void
+    {
+        config(['salon.booking.max_per_contact_per_day' => 1, 'salon.booking.max_open_per_contact' => 5]);
+        $this->reserve($this->booking('10:00'))->assertCreated();
+        $this->reserve($this->booking('11:00'))->assertStatus(422)->assertJsonPath('code', 'too_many_bookings');
+
+        config(['salon.booking.max_per_contact_per_day' => 6, 'salon.booking.max_per_page_per_day' => 1]);
+        $this->reserve($this->booking('11:00', ['guest_phone' => '0722000444']))->assertStatus(429)->assertJsonPath('code', 'page_busy');
+    }
+
+    public function test_an_idempotency_key_replays_only_for_the_contact_that_made_the_booking(): void
+    {
+        $headers = ['Idempotency-Key' => 'key-123'];
+        $made = $this->reserve($this->booking('10:00'), $headers)->assertCreated()->json('data');
+        $this->reserve($this->booking('10:00'), $headers)->assertStatus(201)->assertJsonPath('data.number', $made['number']);
+        $this->reserve($this->booking('10:00', ['guest_phone' => '0722000555']), $headers)->assertStatus(409)->assertJsonPath('code', 'idempotency_conflict');
+        $this->assertSame(1, $this->inTenant(fn () => Appointment::query()->count()));
+    }
+
+    public function test_paying_again_while_a_push_is_waiting_does_not_send_another(): void
+    {
+        $this->api('PUT', "salon/companies/{$this->acme->id}/settings", ['deposit_percent' => 50, 'deposit_online_required' => true, 'hold_minutes' => 30], $this->owner)->assertOk();
+        $made = $this->reserve($this->booking('10:00'))->assertCreated()->json('data');
+        config(['payments.callback_base_url' => 'https://api.example.com', 'payments.mpesa.base_url' => 'https://sandbox.safaricom.co.ke', 'payments.drivers' => []]);
+        Http::fake([
+            'sandbox.safaricom.co.ke/oauth/*' => Http::response(['access_token' => 'tok', 'expires_in' => '3599']),
+            'sandbox.safaricom.co.ke/mpesa/stkpush/*' => Http::response(['MerchantRequestID' => 'm-1', 'CheckoutRequestID' => 'ws_CO_online2', 'ResponseCode' => '0', 'ResponseDescription' => 'Success', 'CustomerMessage' => 'Success']),
+        ]);
+        $this->inTenant(fn () => $this->methods['mpesa']->fill(['settings' => ['shortcode' => '174379'], 'secrets' => ['consumer_key' => 'ck', 'consumer_secret' => 'cs', 'passkey' => 'pk'], 'active' => true])->save());
+
+        foreach (range(1, 3) as $ignored) {
+            $this->postJson('/api/v1/salon-booking/'.self::CODE."/appointments/{$made['number']}/pay", ['phone' => '0712345678'])->assertOk();
+        }
+
+        $this->assertSame(1, $this->inTenant(fn () => Payment::query()->count()));
+        Http::assertSentCount(2); // the token and one push
+    }
+
+    public function test_online_deposits_are_required_by_default(): void
+    {
+        $settings = $this->api('GET', "salon/companies/{$this->acme->id}/settings", [], $this->owner)->assertOk()->json('data');
+        $this->assertTrue($settings['deposit_online_required']);
     }
 }

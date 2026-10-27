@@ -37,7 +37,8 @@ class QueueController
 
     public function store(StoreQueueRequest $request): JsonResponse
     {
-        $entry = $this->queue->join($request->validated(), $request->user());
+        $data = $request->validated();
+        $entry = $this->queue->join([...$data, 'client_id' => $data['salon_client_id'] ?? null], $request->user());
 
         return response()->json(['data' => $this->views->queue(collect([$entry]), $entry->branch_id)[0]], 201);
     }

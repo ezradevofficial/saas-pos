@@ -365,8 +365,17 @@ return [
             'hotel.reservation.*', 'hotel.stay.checkin', 'hotel.stay.checkout', 'hotel.stay.move',
             'hotel.folio.view', 'hotel.folio.charge', 'hotel.folio.payment', 'hotel.folio.transfer', 'hotel.folio.refund',
             'hotel.housekeeping.view', 'hotel.report.view',
-            // SAL-28: in a salon the front desk books, checks clients in, runs the queue, takes deposits and rings the visit at the till; clients' notes
-            // (allergies, formulas), refunds, fee waivers and commissions are not theirs.
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // SAL-28: the salon's front desk (the Hotel receptionist stays as it was). Books, checks clients in, runs the queue, takes deposits and rings the
+        // visit at the till; clients' notes (allergies, formulas), refunds, fee waivers and commissions are not theirs.
+        'key' => 'salon_receptionist',
+        'permissions' => [
+            'core.company.view', 'core.branch.view', 'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
+            'core.party.view', 'core.party.create', 'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view', 'core.price.view', 'core.tax.view',
             'pos.sale.view', 'pos.sale.print', 'pos.sale.create', 'pos.till.sign_in', 'pos.shift.view',
             'salon.service.view', 'salon.staff.view', 'salon.resource.view', 'salon.online.view', 'salon.appointment.view', 'salon.appointment.create', 'salon.appointment.edit',
             'salon.appointment.cancel', 'salon.appointment.serve', 'salon.queue.*', 'salon.client.view', 'salon.client.manage', 'salon.package.view', 'salon.deposit.take', 'salon.exception.view',

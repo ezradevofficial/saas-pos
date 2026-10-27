@@ -124,6 +124,7 @@ class SaleLinks
     public function refunded(string $companyId, array $refund): void
     {
         $this->credits->refunded($companyId, $refund);
+        $this->packages->refund($companyId, $refund);
         $this->commissions->refunded($companyId, $refund);
     }
 

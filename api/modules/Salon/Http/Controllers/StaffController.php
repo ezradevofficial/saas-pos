@@ -16,6 +16,8 @@ use Modules\Salon\Http\Requests\StoreTimeOffRequest;
 use Modules\Salon\Http\Requests\UpdateStaffRequest;
 use Modules\Salon\Http\Requests\ViewRequest;
 use Modules\Salon\Http\Resources\Views;
+use Modules\Salon\Models\CommissionBatch;
+use Modules\Salon\Models\Payout;
 use Modules\Salon\Models\Staff;
 use Modules\Salon\Models\StaffHour;
 use Modules\Salon\Models\TimeOff;
@@ -63,6 +65,14 @@ class StaffController
     {
         $data = $request->validated();
         $this->assertLinks($salonStaff->company_id, $data, $salonStaff->id);
+
+        // SAL-23: the people a batch pays are fixed while it is open; moving the links of someone in one is refused.
+        foreach (['user_id', 'employee_id'] as $link) {
+            if (array_key_exists($link, $data) && ($data[$link] ?? null) !== $salonStaff->{$link}
+                && Payout::query()->where('staff_id', $salonStaff->id)->whereIn('batch_id', CommissionBatch::query()->whereIn('status', [CommissionBatch::DRAFT, CommissionBatch::SUBMITTED, CommissionBatch::APPROVED])->select('id'))->exists()) {
+                throw Errors::make(422, 'staff_in_open_batch', field: $link);
+            }
+        }
 
         // A new home branch must be one the editor reaches too (the request checked the old place).
         if (! empty($data['branch_id']) && $data['branch_id'] !== $salonStaff->branch_id && ! $this->places->at($request->user(), 'salon.staff.manage', Scope::branch($data['branch_id']))) {

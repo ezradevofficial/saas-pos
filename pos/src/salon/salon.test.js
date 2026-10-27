@@ -9,6 +9,7 @@ import { salonServer } from '../test/salonServer';
 import { testDatabase } from '../test/testDatabase';
 import { checkoutCart, CheckoutError, splitTip } from './checkout';
 import { dayList, daySummary } from './day';
+import { wireAppointment, wireQueue } from './records';
 import { BATCH } from './salonSync';
 import { salonCreditTender } from './credit';
 
@@ -329,5 +330,16 @@ describe('salon credit at the payment screen (SAL-17, SAL-18)', () => {
     const next = cartReducer(cart, { type: 'addTender', saleId: cart.id, tender: tender(methods.credit, 1000) });
     expect(next.ext.salon.appointment_id).toBe(IDS.a1);
     expect(next.tenders).toHaveLength(1);
+  });
+});
+
+describe('upload shape', () => {
+  it('names the client of a booking and of a queue entry in salon_client_id', () => {
+    const booked = wireAppointment({ id: id(90), user_id: id(91), client_id: id(92), starts_at: '2026-11-02T08:00:00.000Z', lines: [{ service_id: id(8) }] });
+    const queued = wireQueue({ id: id(93), user_id: id(91), action: 'join', client_id: id(92) });
+    expect(booked.salon_client_id).toBe(id(92));
+    expect(queued.salon_client_id).toBe(id(92));
+    expect(booked.client_id).toBeUndefined();
+    expect(queued.client_id).toBeUndefined();
   });
 });

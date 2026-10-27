@@ -548,7 +548,8 @@ class TenantIsolationTest extends TestCase
         'tip_item_id' => 'item',
         'into_order_id' => 'rest_order',
         'merged_into_id' => 'rest_order',
-        // Salon: the service, stylist, chair, visit and queue entry a booking, rule, seat or device record names, the fee item of the settings.
+        // Salon: the service, stylist, chair, visit and queue entry a booking, rule, seat or device record names, the fee item of the settings, the client (a customer).
+        'salon_client_id' => 'customer',
         'service_id' => 'salon_service',
         'staff_id' => 'salon_staff',
         'preferred_staff_id' => 'salon_staff',
@@ -586,7 +587,6 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/restaurant/orders/{rest_order}/merge' => ['merge_invalid', 'REST-15: the control merges the fixture order into itself, which is refused after validation and the permission check'],
         'POST api/v1/van-sales/device/loads/{vs_load}/confirm' => ['actor_unverified', 'VAN-08: a load confirmation needs the rep\'s verified sign-in proof (AUTH-07), which the fixture\'s body does not carry, so it is refused after validation and the permission check'],
         'POST api/v1/van-sales/reconciliations/{vs_count}/unload/receive' => ['unload_not_ready', 'VAN-23: the fixture count is balanced with nothing to unload, so receiving is refused after validation and the permission check'],
-        'POST api/v1/salon/device/sync' => ['upload_rejected', 'SAL-29: a device record needs the stylist\'s verified sign-in proof (AUTH-07), which the fixture\'s body does not carry, so the record is refused whole after validation (nothing is stored)'],
         'POST api/v1/fixed-assets/runs' => ['disposals_open', 'FA-12: the fixture\'s disposal dated in February is still open, so February\'s run is refused after validation'],
     ];
 
@@ -1903,7 +1903,7 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/salon/resources' => ['branch_id' => $tenant->id('branch'), 'name' => 'Isolation chair'],
             'PUT api/v1/salon/branches/{branch}/online' => ['location_id' => $tenant->id('location'), 'enabled' => true],
             'POST api/v1/salon/appointments' => [
-                'branch_id' => $tenant->id('branch'), 'client_id' => $tenant->id('customer'), 'starts_at' => $salonAt('11:00', 3),
+                'branch_id' => $tenant->id('branch'), 'salon_client_id' => $tenant->id('customer'), 'starts_at' => $salonAt('11:00', 3),
                 'lines' => [['service_id' => $tenant->id('salon_service'), 'staff_id' => $tenant->id('salon_staff_other'), 'resource_id' => $tenant->id('salon_resource')]],
             ],
             'POST api/v1/salon/appointments/{salon_appointment}/move' => [
@@ -1923,7 +1923,7 @@ class TenantIsolationTest extends TestCase
                 'company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'period_start' => now()->subDays(30)->toDateString(), 'period_end' => now()->toDateString(), 'currency' => 'KES',
             ],
             'POST api/v1/salon/device/sync' => ['appointments' => [[
-                'id' => (string) Str::uuid7(), 'user_id' => $tenant->id('user'), 'starts_at' => $salonAt('11:00', 4),
+                'id' => (string) Str::uuid7(), 'user_id' => $tenant->id('user'), 'actor_proof' => TwoTenants::actorProof($tenant, $tenant->id('user')), 'starts_at' => $salonAt('11:00', 4),
                 'lines' => [['service_id' => $tenant->id('salon_service'), 'staff_id' => $tenant->id('salon_staff_other')]],
             ]]],
             // Van sales (docs/modules/van-sales.md): a van, a route, its stops, a load and a device's records, each naming A's own rows.

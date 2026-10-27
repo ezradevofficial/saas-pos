@@ -52,7 +52,7 @@ class BackOfficeApiTest extends TestCase
         $this->assertEqualsCanonicalizing(['salon.service.view', 'salon.staff.view', 'salon.resource.view', 'salon.appointment.view_own', 'salon.appointment.create', 'salon.appointment.serve', 'salon.queue.view',
             'salon.client.view', 'salon.client.manage', 'salon.client.notes', 'salon.package.view', 'salon.commission.view_own'], $granted('stylist'));
         // The front desk: no notes, refunds, waivers, pay or reports.
-        $desk = $granted('receptionist');
+        $desk = $granted('salon_receptionist');
         foreach (['salon.client.notes', 'salon.deposit.refund', 'salon.fee.waive', 'salon.commission.view', 'salon.commission.approve', 'salon.report.view', 'salon.settings.edit', 'salon.appointment.override'] as $no) {
             $this->assertNotContains($no, $desk);
         }

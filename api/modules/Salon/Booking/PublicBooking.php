@@ -3,6 +3,7 @@
 namespace Modules\Salon\Booking;
 
 use App\Core\Http\ApiException;
+use App\Core\Identity\Support\PhoneNumber;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\Models\Company;
@@ -12,6 +13,7 @@ use Modules\Salon\Appointments\Bookings;
 use Modules\Salon\Appointments\Pricing;
 use Modules\Salon\Models\Appointment;
 use Modules\Salon\Models\Line;
+use Modules\Salon\Models\Payment;
 use Modules\Salon\Models\SalonBranch;
 use Modules\Salon\Models\Service;
 use Modules\Salon\Models\Staff;
@@ -93,9 +95,23 @@ class PublicBooking
     public function book(SalonBranch $page, array $in, ?string $bearer, ?string $idempotencyKey): array
     {
         $key = $idempotencyKey === null ? null : mb_substr($idempotencyKey, 0, 80);
+        $company = Company::query()->findOrFail($page->company_id);
+        $clientId = null;
+
+        if ($bearer !== null && $this->modules->isActive('ecommerce')) {
+            $clientId = $this->storefront->partyOf($bearer, $page->company_id) ?? throw Errors::make(401, 'session_invalid');
+        }
+
+        $phone = $clientId === null ? $this->phone($in['guest_phone'] ?? null, $company->country) : null;
+        $email = $clientId === null ? $this->email($in['guest_email'] ?? null) : null;
 
         if ($key !== null && ($existing = Appointment::query()->where('branch_id', $page->branch_id)->where('idempotency_key', $key)->first()) !== null) {
-            return $this->view($existing);
+            // SAL-15: a key replays only for the contact that made the booking; anyone else's use of it is refused.
+            $same = $clientId !== null ? $existing->client_id === $clientId
+                : ($phone !== null && $existing->guest_phone !== null && self::samePhone($existing->guest_phone, $phone))
+                    || ($email !== null && $existing->guest_email !== null && strtolower($existing->guest_email) === $email);
+
+            return $same ? $this->view($existing) : throw Errors::make(409, 'idempotency_conflict');
         }
 
         $branch = $this->places->openBranch($page->branch_id);
@@ -112,15 +128,6 @@ class PublicBooking
         if ($minutes % $settings['slot_minutes'] !== 0) {
             throw Errors::make(422, 'slot_unavailable', field: 'starts_at');
         }
-
-        $clientId = null;
-
-        if ($bearer !== null && $this->modules->isActive('ecommerce')) {
-            $clientId = $this->storefront->partyOf($bearer, $page->company_id) ?? throw Errors::make(401, 'session_invalid');
-        }
-
-        $phone = $clientId === null ? $this->clean($in['guest_phone'] ?? null) : null;
-        $email = $clientId === null ? $this->clean($in['guest_email'] ?? null) : null;
 
         if ($clientId === null && $phone === null && $email === null) {
             throw Errors::make(422, 'contact_required', field: 'guest_phone');
@@ -142,6 +149,13 @@ class PublicBooking
     public function payDeposit(SalonBranch $page, string $number, string $phone): array
     {
         $appointment = $this->owned($page, $number, $phone);
+
+        // A push already waiting on the guest's phone is reported, not sent again.
+        if (Payment::query()->where('appointment_id', $appointment->id)->where('kind', Payment::DEPOSIT)->where('status', Payment::PENDING)
+            ->where('created_at', '>', now()->subMinutes(max(1, (int) config('salon.booking.stk_wait_minutes', 2))))->exists()) {
+            return $this->view($appointment);
+        }
+
         $due = $appointment->deposit_required_minor - $this->deposits->balance($appointment);
 
         if ($due <= 0) {
@@ -180,7 +194,7 @@ class PublicBooking
     {
         $appointment = Appointment::query()->where('branch_id', $page->branch_id)->where('number', $number)->where('source', 'online')->first();
 
-        if ($appointment === null || $appointment->guest_phone === null || ! self::samePhone($appointment->guest_phone, $phone)) {
+        if ($appointment === null || $appointment->guest_phone === null || ! self::samePhone($appointment->guest_phone, PhoneNumber::normalise($phone, Company::query()->find($page->company_id)?->country) ?? $phone)) {
             throw Errors::make(404, 'booking_unknown');
         }
 
@@ -191,6 +205,34 @@ class PublicBooking
     private function assertNotFlooding(SalonBranch $page, ?string $phone, ?string $email, ?string $clientId): void
     {
         $max = max(1, (int) config('salon.booking.max_open_per_contact', 3));
+        $online = fn () => Appointment::query()->where('branch_id', $page->branch_id)->where('source', 'online');
+
+        // A page is never filled by guests alone: caps on what it holds open and on what it takes in a day.
+        if ($online()->where('status', Appointment::BOOKED)->where('starts_at', '>', now())->count() >= max(1, (int) config('salon.booking.max_open_per_page', 300))
+            || $online()->where('created_at', '>', now()->subDay())->count() >= max(1, (int) config('salon.booking.max_per_page_per_day', 400))) {
+            throw new ApiException(429, 'page_busy', __('salon.errors.page_busy'), []);
+        }
+
+        $contact = function ($q) use ($phone, $email, $clientId) {
+            $q->whereRaw('false');
+
+            if ($clientId !== null) {
+                $q->orWhere('client_id', $clientId);
+            }
+
+            if ($phone !== null) {
+                $q->orWhere('guest_phone', $phone);
+            }
+
+            if ($email !== null) {
+                $q->orWhereRaw('lower(guest_email) = ?', [strtolower($email)]);
+            }
+        };
+
+        if ($online()->where($contact)->where('created_at', '>', now()->subDay())->count() >= max(1, (int) config('salon.booking.max_per_contact_per_day', 6))) {
+            throw new ApiException(422, 'too_many_bookings', __('salon.errors.too_many_bookings'), []);
+        }
+
         $open = Appointment::query()->where('branch_id', $page->branch_id)->where('source', 'online')->where('status', Appointment::BOOKED)->where('starts_at', '>', now())
             ->where(function ($q) use ($phone, $email, $clientId) {
                 $q->whereRaw('false');
@@ -213,9 +255,21 @@ class PublicBooking
         }
     }
 
-    private function clean(?string $value): ?string
+    /** A phone as E.164 (the company's country for a local number); a number that is none is refused. */
+    private function phone(?string $value, ?string $country): ?string
     {
         $value = $value === null ? null : trim($value);
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return PhoneNumber::normalise($value, $country) ?? throw Errors::make(422, 'phone_invalid', field: 'guest_phone');
+    }
+
+    private function email(?string $value): ?string
+    {
+        $value = $value === null ? null : strtolower(trim($value));
 
         return $value === null || $value === '' ? null : $value;
     }
@@ -223,6 +277,10 @@ class PublicBooking
     /** Two phone numbers are the same person's when their last nine digits match (+254 and 0 prefixes aside). */
     public static function samePhone(string $a, string $b): bool
     {
+        if ($a === $b) {
+            return true;
+        }
+
         $a = substr(preg_replace('/\D+/', '', $a) ?? '', -9);
         $b = substr(preg_replace('/\D+/', '', $b) ?? '', -9);
 

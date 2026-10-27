@@ -101,11 +101,11 @@ class BookingTest extends TestCase
         $this->assertSame(0, $foreign);
 
         // A stranger's client or staff id does not exist for this tenant.
-        $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '10:00', ['client_id' => $this->id()]), $this->desk)->assertStatus(422);
+        $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '10:00', ['salon_client_id' => $this->id()]), $this->desk)->assertStatus(422);
         $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->id()]], '10:00'), $this->desk)->assertStatus(422);
         // A supplier is not a client.
         $supplier = $this->inTenant(fn () => Party::create(['kind' => 'organisation', 'name' => 'Supplier', 'roles' => ['supplier'], 'company_id' => $this->acme->id]));
-        $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '10:00', ['client_id' => $supplier->id]), $this->desk)->assertStatus(422)->assertJsonPath('code', 'client_unknown');
+        $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '10:00', ['salon_client_id' => $supplier->id]), $this->desk)->assertStatus(422)->assertJsonPath('code', 'client_unknown');
         // The desk works at branch A only.
         $this->api('POST', 'salon/appointments', $this->bookingBody([['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]], '10:00', ['branch_id' => $this->branchB->id]), $this->desk)->assertForbidden();
         // The other tenant's user cannot read this appointment, nor the module of a tenant without it be reached.

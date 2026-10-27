@@ -104,7 +104,7 @@ trait BuildsSalon
 
         $this->annUser = $this->userWith('stylist', Scope::branch($this->branchA->id));
         $this->bobUser = $this->userWith('stylist', Scope::branch($this->branchA->id));
-        $this->desk = $this->userWith('receptionist', Scope::branch($this->branchA->id));
+        $this->desk = $this->userWith('salon_receptionist', Scope::branch($this->branchA->id));
         $this->manager = $this->userWith('salon_manager', Scope::branch($this->branchA->id));
         $this->branchManager = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
 
@@ -160,7 +160,7 @@ trait BuildsSalon
     protected function bookingBody(array $lines, string $time = '10:00', array $overrides = []): array
     {
         return array_replace([
-            'branch_id' => $this->branchA->id, 'client_id' => $this->client->id, 'starts_at' => $this->at($time),
+            'branch_id' => $this->branchA->id, 'salon_client_id' => $this->client->id, 'starts_at' => $this->at($time),
             'lines' => $lines,
         ], $overrides);
     }

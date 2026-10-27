@@ -109,13 +109,13 @@ final class Notices
     /** @return list<NotificationAddress> */
     private function addresses(Appointment $appointment): array
     {
-        $name = $appointment->guest_name ?? '';
+        // SAL-15: what a guest typed as a name is never put in a message (a stranger could send any text through it).
+        $name = '';
         $phone = $appointment->guest_phone;
         $email = $appointment->guest_email;
 
         if ($appointment->client_id !== null) {
             $party = Party::query()->find($appointment->client_id);
-            $name = $party?->name ?? $name;
             $phone ??= $party?->phoneNumbers()[0] ?? null;
             $email ??= $party?->emails[0]['address'] ?? null;
         }
@@ -127,11 +127,27 @@ final class Notices
             $addresses[] = new NotificationAddress(Channels::SMS, (string) $phone, $name, $locale);
         }
 
-        if ($email !== null && $email !== '') {
+        if ($email !== null && $email !== '' && $this->emailAllowed((string) $appointment->tenant_id, (string) $appointment->branch_id, (string) $email)) {
             $addresses[] = new NotificationAddress(Channels::EMAIL, (string) $email, $name, $locale);
         }
 
         return $addresses;
+    }
+
+    private function emailAllowed(string $tenantId, string $branchId, string $email): bool
+    {
+        $key = 'salon-notices-email|'.$tenantId.'|'.hash('sha256', strtolower($email));
+        $page = 'salon-notices-branch|'.$tenantId.'|'.$branchId;
+
+        if (RateLimiter::tooManyAttempts($key, max(1, (int) config('salon.notifications.per_email_per_day', 10)))
+            || RateLimiter::tooManyAttempts($page, max(1, (int) config('salon.notifications.per_branch_per_day', 1000)))) {
+            return false;
+        }
+
+        RateLimiter::hit($key, 86400);
+        RateLimiter::hit($page, 86400);
+
+        return true;
     }
 
     private function phoneAllowed(string $tenantId, string $phone): bool

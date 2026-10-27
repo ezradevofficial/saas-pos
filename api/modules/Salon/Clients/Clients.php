@@ -27,9 +27,10 @@ class Clients
 
     public function __construct(private readonly Auditor $auditor, private readonly Parties $parties) {}
 
-    public function profile(Party $party): ?Client
+    /** The profile of $party in one company: a party shared by companies has a profile (and notes) in each. */
+    public function profile(Party $party, string $companyId): ?Client
     {
-        return Client::query()->where('party_id', $party->id)->first();
+        return Client::query()->where('company_id', $companyId)->where('party_id', $party->id)->first();
     }
 
     /**
@@ -39,7 +40,7 @@ class Clients
     public function save(Party $party, string $companyId, array $data, User $by, bool $notes): Client
     {
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($party, $companyId, $data, $by, $notes) {
-            $client = Client::query()->where('party_id', $party->id)->lockForUpdate()->first() ?? new Client(['company_id' => $companyId, 'party_id' => $party->id, 'created_by' => $by->id]);
+            $client = Client::query()->where('company_id', $companyId)->where('party_id', $party->id)->lockForUpdate()->first() ?? new Client(['company_id' => $companyId, 'party_id' => $party->id, 'created_by' => $by->id]);
             $allowed = array_values(array_diff(self::FIELDS, $notes ? [] : self::PRIVATE));
             $values = array_intersect_key($data, array_flip($allowed));
 

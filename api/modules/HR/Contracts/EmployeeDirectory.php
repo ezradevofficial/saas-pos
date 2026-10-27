@@ -14,7 +14,7 @@ use Modules\HR\Models\Employee;
  */
 final class EmployeeDirectory
 {
-    /** @return array{id: string, number: string, name: string, company_id: string, branch_id: ?string, status: string}|null */
+    /** @return array{id: string, number: string, name: string, company_id: string, branch_id: ?string, user_id: ?string, status: string}|null */
     public function find(string $id): ?array
     {
         if (! Str::isUuid($id)) {
@@ -29,7 +29,7 @@ final class EmployeeDirectory
     /**
      * Active employees of $companyId whose name or number matches $search.
      *
-     * @return list<array{id: string, number: string, name: string, company_id: string, branch_id: ?string, status: string}>
+     * @return list<array{id: string, number: string, name: string, company_id: string, branch_id: ?string, user_id: ?string, status: string}>
      */
     public function search(string $companyId, string $search = '', int $limit = 20): array
     {
@@ -59,7 +59,7 @@ final class EmployeeDirectory
             ->mapWithKeys(fn (Employee $employee) => [(string) $employee->id => self::row($employee)['name']])->all();
     }
 
-    /** @return array{id: string, number: string, name: string, company_id: string, branch_id: ?string, status: string} */
+    /** @return array{id: string, number: string, name: string, company_id: string, branch_id: ?string, user_id: ?string, status: string} */
     private static function row(Employee $employee): array
     {
         return [
@@ -68,6 +68,7 @@ final class EmployeeDirectory
             'name' => trim($employee->first_name.' '.$employee->last_name),
             'company_id' => (string) $employee->company_id,
             'branch_id' => $employee->branch_id,
+            'user_id' => $employee->user_id,
             'status' => (string) $employee->status,
         ];
     }

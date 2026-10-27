@@ -359,6 +359,7 @@ return [
         'route_supervisor' => 'Route supervisor',
         'stylist' => 'Stylist or therapist',
         'salon_manager' => 'Salon manager',
+        'salon_receptionist' => 'Salon receptionist',
         'storekeeper' => 'Storekeeper',
         'pharmacist' => 'Pharmacist',
         'pharmacy_technician' => 'Pharmacy technician',

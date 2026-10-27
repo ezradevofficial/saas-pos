@@ -12,6 +12,7 @@ use Modules\Payroll\Models\EmployeeItem;
 use Modules\Payroll\Models\PayrollEmployee;
 use Modules\Salon\Models\CommissionEntry;
 use Modules\Salon\Models\CommissionRule;
+use Modules\Salon\Models\Payout;
 use Modules\Salon\Tests\Concerns\BuildsSalon;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -226,5 +227,29 @@ class CommissionTest extends TestCase
         $again = $this->inTenant(fn () => app(ExternalEarnings::class)->addOnce($this->acme->id, $employee, 'COMMISSION', 17778, 'KES', '2027-03-31', "salon:{$id}:{$this->ann->id}", null));
         $this->assertSame('exists', $again['status']);
         $this->assertSame(1, $this->inTenant(fn () => EmployeeItem::query()->count()));
+    }
+
+    public function test_a_payout_remembers_who_it_pays_and_the_staff_link_cannot_move_while_its_batch_is_open(): void
+    {
+        $this->setUpSalon();
+        $this->sold('09:00');
+        $batch = $this->build()->assertCreated()->json('data');
+
+        $payout = $this->inTenant(fn () => Payout::query()->where('batch_id', $batch['id'])->sole());
+        $this->assertSame($this->annUser->id, $payout->user_id);
+
+        // Re-pointing Ann at someone else (or no one) would open the four-eyes check: refused until the batch is exported or rejected.
+        $this->api('PUT', "salon/staff/{$this->ann->id}", ['user_id' => $this->branchManager->id], $this->owner)->assertStatus(422)->assertJsonPath('code', 'staff_in_open_batch');
+        $this->api('PUT', "salon/staff/{$this->ann->id}", ['user_id' => null], $this->owner)->assertStatus(422)->assertJsonPath('code', 'staff_in_open_batch');
+        $this->api('PUT', "salon/staff/{$this->ann->id}", ['title' => 'Lead'], $this->owner)->assertOk();
+
+        // The check uses what the payout holds: even if the row were changed, Ann still cannot decide a batch that pays her.
+        $this->inTenant(fn () => $this->ann->forceFill(['user_id' => null])->save());
+        $this->api('POST', "salon/commission-batches/{$batch['id']}/submit", [], $this->manager)->assertOk();
+        $this->inTenant(fn () => $this->assign($this->annUser, $this->roles->get('salon_manager'), Scope::branch($this->branchA->id)));
+        $this->api('POST', "salon/commission-batches/{$batch['id']}/approve", [], $this->annUser)->assertStatus(403)->assertJsonPath('code', 'self_approval');
+        $this->api('POST', "salon/commission-batches/{$batch['id']}/reject", ['reason' => 'No'], $this->owner)->assertOk();
+        // Once rejected the batch is no longer open and the link may move.
+        $this->api('PUT', "salon/staff/{$this->ann->id}", ['user_id' => $this->branchManager->id], $this->owner)->assertOk();
     }
 }

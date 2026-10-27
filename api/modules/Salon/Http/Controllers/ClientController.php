@@ -5,6 +5,7 @@ namespace Modules\Salon\Http\Controllers;
 use App\Core\MasterData\Items\Http\Resources\HidesFields;
 use App\Core\MasterData\Parties\Party;
 use App\Core\Rbac\FieldRules;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Salon\Clients\Clients;
@@ -42,7 +43,7 @@ class ClientController
         }
 
         $page = $query->limit(50)->get();
-        $profiles = Client::query()->whereIn('party_id', $page->modelKeys())->get()->keyBy('party_id');
+        $profiles = Client::query()->where('company_id', $companyId)->whereIn('party_id', $page->modelKeys())->get()->keyBy('party_id');
 
         return response()->json(['data' => $page->map(fn (Party $p) => $this->views->client($p, $profiles->get($p->id), $request, $companyId))->values()->all()]);
     }
@@ -61,7 +62,7 @@ class ClientController
         $companyId = $this->company($request, $salonClient);
         $this->parties->customer($salonClient->id, $companyId, 'party');
 
-        return response()->json(['data' => $this->views->client($salonClient, $this->clients->profile($salonClient), $request, $companyId)]);
+        return response()->json(['data' => $this->views->client($salonClient, $this->clients->profile($salonClient, $companyId), $request, $companyId)]);
     }
 
     public function update(SaveClientRequest $request, Party $salonClient): JsonResponse
@@ -97,7 +98,13 @@ class ClientController
     private function company(Request $request, ?Party $party): string
     {
         $given = (string) $request->input('company_id');
+        $company = $given !== '' ? $given : ($party?->company_id ?? $this->places->defaultCompany($request->user(), 'salon.client.view') ?? throw Errors::make(422, 'company_required', field: 'company_id'));
 
-        return $given !== '' ? $given : ($party?->company_id ?? $this->places->defaultCompany($request->user(), 'salon.client.view') ?? throw Errors::make(422, 'company_required', field: 'company_id'));
+        // SAL-25: the company a request resolves to, sent or not, is one the reader holds the permission in.
+        if (! $this->places->inCompany($request->user(), $request->permission(), $company)) {
+            throw new AuthorizationException(__('rbac.forbidden'));
+        }
+
+        return $company;
     }
 }

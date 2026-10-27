@@ -119,7 +119,7 @@ class DeviceUploads
         $walkIn = ($data['source'] ?? 'device') === 'walk_in';
         $appointment = $this->bookings->create([
             'id' => $data['id'], 'branch_id' => $place->branch->id, 'location_id' => $place->location->id, 'device_id' => $place->device->id,
-            'client_id' => $data['client_id'] ?? null, 'guest_name' => $data['guest_name'] ?? null, 'guest_phone' => $data['guest_phone'] ?? null,
+            'client_id' => $data['salon_client_id'] ?? null, 'guest_name' => $data['guest_name'] ?? null, 'guest_phone' => $data['guest_phone'] ?? null,
             'notes' => $data['notes'] ?? null, 'source' => $walkIn ? 'walk_in' : 'device', 'starts_at' => $data['starts_at'],
             'lines' => array_map(fn (array $l) => ['service_id' => $l['service_id'], 'staff_id' => $l['staff_id'] ?? null, 'resource_id' => $l['resource_id'] ?? null], $data['lines']),
         ], $user, $override);
@@ -145,7 +145,9 @@ class DeviceUploads
             throw Errors::make(403, 'not_permitted', field: 'appointment_id');
         }
 
-        $at = isset($data['at']) ? CarbonImmutable::parse($data['at'])->utc() : null;
+        // SAL-10, SAL-29: a device's clock is its own word. The time it names cannot be before the appointment was made nor
+        // after the server received it, so a fee window is never judged from a time outside those bounds.
+        $at = isset($data['at']) ? Lifecycle::bounded($appointment, CarbonImmutable::parse($data['at'])->utc()) : null;
         $after = match ($type) {
             'check_in' => $this->lifecycle->checkIn($appointment, $user, $at),
             'start' => $this->lifecycle->start($appointment, $user, $at),
@@ -172,7 +174,7 @@ class DeviceUploads
 
             $entry = $this->queue->join([
                 'id' => $data['id'], 'branch_id' => $place->branch->id, 'device_id' => $place->device->id, 'guest_name' => $data['guest_name'] ?? null, 'guest_phone' => $data['guest_phone'] ?? null,
-                'client_id' => $data['client_id'] ?? null, 'service_ids' => $data['service_ids'] ?? [], 'staff_id' => $data['staff_id'] ?? null, 'joined_at' => $data['at'] ?? null,
+                'client_id' => $data['salon_client_id'] ?? null, 'service_ids' => $data['service_ids'] ?? [], 'staff_id' => $data['staff_id'] ?? null, 'joined_at' => $data['at'] ?? null,
             ], $user);
 
             return ['id' => $entry->id, 'status' => 'stored', 'entry_status' => $entry->status];

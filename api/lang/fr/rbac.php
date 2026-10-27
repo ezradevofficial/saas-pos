@@ -359,6 +359,7 @@ return [
         'route_supervisor' => 'Superviseur de tournée',
         'stylist' => 'Coiffeur, esthéticien ou thérapeute',
         'salon_manager' => 'Responsable du salon',
+        'salon_receptionist' => 'Réceptionniste du salon',
         'storekeeper' => 'Magasinier',
         'pharmacist' => 'Pharmacien',
         'pharmacy_technician' => 'Technicien en pharmacie',

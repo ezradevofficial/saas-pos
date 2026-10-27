@@ -37,7 +37,7 @@ return new class extends Migration
             $table->decimal('late_cancel_fee_percent', 5, 2)->default(0);
             $table->decimal('no_show_fee_percent', 5, 2)->default(0);
             $table->decimal('deposit_percent', 5, 2)->default(0);
-            $table->boolean('deposit_online_required')->default(false);
+            $table->boolean('deposit_online_required')->default(true);
             $table->smallInteger('hold_minutes')->default(30);
             $table->smallInteger('reminder_hours')->default(24);
             $table->smallInteger('guest_retention_days')->default(365);
@@ -194,7 +194,8 @@ return new class extends Migration
             $user($table, 'created_by');
             $table->timestampsTz();
 
-            $table->unique(['tenant_id', 'party_id']);
+            $table->unique(['tenant_id', 'company_id', 'party_id']);
+            $table->index('party_id');
             $table->index('company_id');
             $table->index('preferred_staff_id');
         });
@@ -386,6 +387,7 @@ return new class extends Migration
             $table->jsonb('service_ids')->default('[]');
             $table->string('status', 10)->default('active');
             $table->date('expires_on')->nullable();
+            $table->uuid('refund_line_id')->nullable();
             $table->timestampsTz();
 
             $table->unique(['tenant_id', 'sale_line_id', 'unit_no']);
@@ -566,6 +568,8 @@ return new class extends Migration
             $table->char('currency', 3);
             $table->integer('entry_count')->default(0);
             $table->uuid('employee_id')->nullable();
+            $table->uuid('user_id')->nullable();
+            $table->uuid('employee_user_id')->nullable();
             $table->string('status', 10)->default('pending');
             $table->uuid('payroll_ref')->nullable();
             $table->timestampsTz();

@@ -107,6 +107,52 @@ class Packages
     }
 
     /**
+     * A refund of a package item line takes back as many units as were refunded: unused ones are voided, used ones stay and
+     * are flagged for a person. Once per refund line (a retried event finds its units marked).
+     *
+     * @param  array<string, mixed>  $refund  SaleSnapshot::refund()
+     */
+    public function refund(string $companyId, array $refund): void
+    {
+        foreach ($refund['lines'] ?? [] as $line) {
+            $units = (int) BigDecimal::of((string) ($line['qty'] ?? '0'))->toScale(0, RoundingMode::Down)->toInt();
+
+            if ($units < 1 || empty($line['sale_line_id'])) {
+                continue;
+            }
+
+            $packages = Package::query()->where('company_id', $companyId)->where('sale_line_id', $line['sale_line_id'])->orderByDesc('unit_no')->lockForUpdate()->get();
+
+            if ($packages->isEmpty()) {
+                continue;
+            }
+
+            $left = $units - $packages->where('refund_line_id', $line['id'])->count();
+            $order = $packages->whereNull('refund_line_id')->where('status', '<>', Package::VOID)->sortBy(fn (Package $p) => [$p->sessions_used > 0 ? 1 : 0, -$p->unit_no])->values();
+
+            foreach ($order as $package) {
+                if ($left <= 0) {
+                    break;
+                }
+
+                $left--;
+                $package->refund_line_id = $line['id'];
+
+                if ($package->sessions_used > 0) {
+                    $package->save();
+                    $this->exception($companyId, ['id' => $refund['sale_id'], 'currency' => $refund['currency'], 'branch_id' => $refund['branch_id'] ?? null], 'package_used_on_refund', "package-refund:{$line['id']}:{$package->id}",
+                        ['package' => $package->name, 'sessions_used' => $package->sessions_used], $package->id);
+
+                    continue;
+                }
+
+                $package->forceFill(['status' => Package::VOID, 'remaining_minor' => 0])->save();
+                $this->auditor->record('salon.package.void', $package, null, ['sale_id' => $refund['sale_id'], 'refund_id' => $refund['id']]);
+            }
+        }
+    }
+
+    /**
      * A person's correction of the sessions used (a session given by hand, a mistake), with a reason; the remaining value
      * follows the sessions left.
      */

@@ -12,8 +12,8 @@ class StoreAppointmentRequest extends SalonRequest
     {
         return [
             'branch_id' => ['required', 'uuid', Rule::exists('branches', 'id')],
-            'client_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('parties', 'id')],
-            'guest_name' => ['required_without:client_id', 'nullable', 'string', 'max:120'],
+            'salon_client_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('parties', 'id')],
+            'guest_name' => ['required_without:salon_client_id', 'nullable', 'string', 'max:120'],
             'guest_phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'guest_email' => ['sometimes', 'nullable', 'email', 'max:190'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:500'],

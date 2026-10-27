@@ -171,7 +171,7 @@ class SalonServiceProvider extends ServiceProvider
             }
 
             $tenant = Tenant::query()->findOrFail($event->tenantId);
-            $this->app->make(RoleTemplates::class)->ensure($tenant, ['stylist', 'salon_manager']);
+            $this->app->make(RoleTemplates::class)->ensure($tenant, ['stylist', 'salon_manager', 'salon_receptionist']);
             $this->app->make(TenantContext::class)->run($event->tenantId, function () {
                 foreach (Company::query()->whereNull('archived_at')->get() as $company) {
                     $this->app->make(Catalogue::class)->creditMethod($company->id);

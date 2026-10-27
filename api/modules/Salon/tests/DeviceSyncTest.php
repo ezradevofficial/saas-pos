@@ -33,7 +33,7 @@ class DeviceSyncTest extends TestCase
     private function record(string $time = '10:00', array $overrides = []): array
     {
         return array_replace([
-            'id' => $this->id(), 'user_id' => $this->desk->id, 'actor_proof' => $this->actorProof($this->desk->id), 'client_id' => $this->client->id, 'starts_at' => $this->at($time),
+            'id' => $this->id(), 'user_id' => $this->desk->id, 'actor_proof' => $this->actorProof($this->desk->id), 'salon_client_id' => $this->client->id, 'starts_at' => $this->at($time),
             'lines' => [['service_id' => $this->haircut->id, 'staff_id' => $this->ann->id]],
         ], $overrides);
     }
@@ -75,7 +75,7 @@ class DeviceSyncTest extends TestCase
             $this->record('09:30', ['actor_proof' => $this->actorProof($this->bobUser->id)]),
             $this->record('10:00', ['user_id' => $this->id(), 'actor_proof' => null]),
             $this->record('10:30', ['service_ids' => null, 'lines' => [['service_id' => $this->id(), 'staff_id' => $this->ann->id]]]),
-            $this->record('11:00', ['client_id' => $this->id()]),
+            $this->record('11:00', ['salon_client_id' => $this->id()]),
             $this->record('11:30', ['lines' => [['service_id' => $this->haircut->id, 'staff_id' => $this->id()]]]),
         ]])->assertStatus(422)->json('results.appointments');
         $this->assertSame(['actor_unverified', 'actor_unverified', 'actor_unknown', 'service_unknown', 'client_unknown', 'staff_unqualified'], array_column($results, 'code'));
@@ -151,7 +151,7 @@ class DeviceSyncTest extends TestCase
         $this->setUpSalon();
         $this->inTenant(fn () => Client::create(['company_id' => $this->acme->id, 'party_id' => $this->client->id, 'allergies' => 'Peanut oil', 'formulas' => 'Level 6 + 20vol', 'notes' => 'Prefers quiet']));
         $made = $this->book('10:00');
-        $this->book('11:00', $this->bob, ['client_id' => null, 'guest_name' => 'Walk Guest', 'guest_phone' => '0700999888']);
+        $this->book('11:00', $this->bob, ['salon_client_id' => null, 'guest_name' => 'Walk Guest', 'guest_phone' => '0700999888']);
         $this->api('POST', 'salon/queue', ['branch_id' => $this->branchA->id, 'guest_name' => 'Waiting Wanjiru', 'guest_phone' => '0700111222', 'service_ids' => [$this->haircut->id]], $this->desk)->assertCreated();
         $package = $this->inTenant(fn () => Package::create([
             'company_id' => $this->acme->id, 'type_id' => $this->fiveCuts->id, 'customer_id' => $this->client->id, 'name' => 'Five haircuts', 'sale_id' => $this->id(), 'sale_line_id' => $this->id(),

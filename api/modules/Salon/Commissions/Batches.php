@@ -13,6 +13,7 @@ use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Modules\HR\Contracts\EmployeeDirectory;
 use Modules\Payroll\Contracts\ExternalEarnings;
 use Modules\Salon\Models\CommissionBatch;
 use Modules\Salon\Models\CommissionEntry;
@@ -75,6 +76,8 @@ class Batches
                 Payout::create([
                     'batch_id' => $batch->id, 'staff_id' => $staffId, 'amount_minor' => (int) $rows->sum('amount_minor'), 'currency' => $currency,
                     'entry_count' => $rows->count(), 'employee_id' => $staff->get($staffId)?->employee_id, 'status' => 'pending',
+                    // SAL-23: who the payout pays, fixed now, so changing a staff link later cannot open the four-eyes check.
+                    'user_id' => $staff->get($staffId)?->user_id, 'employee_user_id' => $this->employeeUser($staff->get($staffId)?->employee_id),
                 ]);
                 CommissionEntry::query()->whereKey($rows->modelKeys())->update(['batch_id' => $batch->id, 'updated_at' => now()]);
             }
@@ -195,9 +198,16 @@ class Batches
         return $text !== '' && str_contains('=+-@', $text[0]) ? "'".$text : $text;
     }
 
+    /** The user an HR employee is linked to (their self-service sign-in), when HR is on. */
+    private function employeeUser(?string $employeeId): ?string
+    {
+        return $employeeId === null || ! $this->modules->isActive('hr') ? null : app(EmployeeDirectory::class)->find($employeeId)['user_id'] ?? null;
+    }
+
     private function assertNotSelf(CommissionBatch $batch, User $by): void
     {
-        $own = Staff::query()->whereKey(Payout::query()->where('batch_id', $batch->id)->pluck('staff_id'))->pluck('user_id')->filter()->all();
+        $payouts = Payout::query()->where('batch_id', $batch->id)->get(['user_id', 'employee_user_id']);
+        $own = $payouts->pluck('user_id')->merge($payouts->pluck('employee_user_id'))->filter()->all();
 
         if (in_array($by->id, [$batch->created_by, $batch->submitted_by], true) || in_array($by->id, $own, true)) {
             throw Errors::make(403, 'self_approval');

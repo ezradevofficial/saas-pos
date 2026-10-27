@@ -13,7 +13,7 @@ final class Settings
         'late_cancel_fee_percent' => '0',
         'no_show_fee_percent' => '0',
         'deposit_percent' => '0',
-        'deposit_online_required' => false,
+        'deposit_online_required' => true,
         'hold_minutes' => 30,
         'reminder_hours' => 24,
         'guest_retention_days' => 365,

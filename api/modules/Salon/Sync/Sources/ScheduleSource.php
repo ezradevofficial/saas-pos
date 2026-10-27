@@ -51,7 +51,7 @@ class ScheduleSource implements SnapshotSource
         $services = Service::query()->whereKey($lines->flatten()->pluck('service_id')->unique())->pluck('name', 'id');
         $staff = Staff::query()->whereKey($lines->flatten()->pluck('staff_id')->unique())->pluck('name', 'id');
         $parties = Party::query()->whereKey($appointments->pluck('client_id')->filter()->unique())->pluck('name', 'id');
-        $alerts = Client::query()->whereIn('party_id', $appointments->pluck('client_id')->filter()->unique())
+        $alerts = Client::query()->where('company_id', $scope->branch->company_id)->whereIn('party_id', $appointments->pluck('client_id')->filter()->unique())
             ->get(['party_id', 'allergies', 'formulas', 'notes'])->filter(fn (Client $c) => filled($c->allergies) || filled($c->formulas) || filled($c->notes))->pluck('party_id')->all();
 
         return $appointments->map(fn (Appointment $a) => [
