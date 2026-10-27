@@ -477,6 +477,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->tenantId();
             $table->foreignUuid('company_id')->constrained()->restrictOnDelete();
+            $table->foreignUuid('branch_id')->nullable()->constrained()->restrictOnDelete();
             $table->string('number', 40);
             $table->date('period_start');
             $table->date('period_end');
@@ -495,6 +496,7 @@ return new class extends Migration
 
             $table->unique(['tenant_id', 'number']);
             $table->index('company_id');
+            $table->index('branch_id');
         });
         DB::statement("alter table salon_commission_batches add constraint salon_commission_batches_check check (
             status in ('draft', 'submitted', 'approved', 'rejected', 'exported') and period_end >= period_start and (export_mode is null or export_mode in ('payroll', 'report')))");

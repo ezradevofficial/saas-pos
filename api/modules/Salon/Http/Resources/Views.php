@@ -130,7 +130,7 @@ class Views
      */
     public function appointments(Collection $appointments, Request $request, bool $detail = false): array
     {
-        $lines = Line::query()->whereIn('appointment_id', $appointments->modelKeys())->orderBy('position')->orderBy('id')->get()->groupBy('appointment_id');
+        $lines = Line::query()->whereIn('appointment_id', $appointments->pluck('id')->all())->orderBy('position')->orderBy('id')->get()->groupBy('appointment_id');
         $services = Service::query()->whereKey($lines->flatten()->pluck('service_id')->unique())->pluck('name', 'id');
         $staff = Staff::query()->whereKey($lines->flatten()->pluck('staff_id')->unique())->pluck('name', 'id');
         $resources = Resource::query()->whereKey($lines->flatten()->pluck('resource_id')->filter()->unique())->pluck('name', 'id');
@@ -176,16 +176,22 @@ class Views
     /** @param Collection<int, QueueEntry> $entries @return list<array<string, mixed>> */
     public function queue(Collection $entries, string $branchId): array
     {
-        $waits = $this->queue->waits($branchId);
-        $position = 0;
+        $waits = [];
+
+        foreach ($entries->pluck('branch_id')->unique() as $branch) {
+            $waits += $this->queue->waits((string) $branch);
+        }
+
+        $position = [];
 
         return $entries->map(function (QueueEntry $e) use ($waits, &$position) {
             $waiting = $e->status === QueueEntry::WAITING;
+            $position[$e->branch_id] = ($position[$e->branch_id] ?? 0) + ($waiting ? 1 : 0);
 
             return [
                 'id' => $e->id, 'branch_id' => $e->branch_id, 'client_id' => $e->client_id, 'guest_name' => $e->guest_name, 'guest_phone' => $e->guest_phone, 'service_ids' => $e->service_ids,
                 'staff_id' => $e->staff_id, 'status' => $e->status, 'appointment_id' => $e->appointment_id, 'joined_at' => self::at($e->joined_at),
-                'position' => $waiting ? ++$position : null, 'wait_minutes' => $waiting ? ($waits[$e->id] ?? null) : null,
+                'position' => $waiting ? $position[$e->branch_id] : null, 'wait_minutes' => $waiting ? ($waits[$e->id] ?? null) : null,
             ];
         })->values()->all();
     }
@@ -266,7 +272,7 @@ class Views
         $users = User::query()->whereKey([$b->created_by, $b->submitted_by, $b->decided_by, $b->exported_by])->pluck('name', 'id');
 
         return [
-            'id' => $b->id, 'company_id' => $b->company_id, 'number' => $b->number, 'period_start' => $b->period_start->toDateString(), 'period_end' => $b->period_end->toDateString(),
+            'id' => $b->id, 'company_id' => $b->company_id, 'branch_id' => $b->branch_id, 'number' => $b->number, 'period_start' => $b->period_start->toDateString(), 'period_end' => $b->period_end->toDateString(),
             'currency' => $b->currency, 'status' => $b->status, 'total_minor' => (string) $payouts->sum('amount_minor'), 'staff_count' => $payouts->count(),
             'created_by' => $b->created_by, 'created_by_name' => $users[$b->created_by] ?? null, 'submitted_by_name' => $users[$b->submitted_by] ?? null, 'submitted_at' => self::at($b->submitted_at),
             'decided_by_name' => $users[$b->decided_by] ?? null, 'decided_at' => self::at($b->decided_at), 'reject_reason' => $b->reject_reason,

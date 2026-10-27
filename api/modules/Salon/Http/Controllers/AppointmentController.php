@@ -29,7 +29,6 @@ use Modules\Salon\Models\Package;
 use Modules\Salon\Models\Payment;
 use Modules\Salon\Models\Staff;
 use Modules\Salon\Payments\Deposits;
-use Modules\Salon\Support\Access;
 use Modules\Salon\Support\Errors;
 use Modules\Salon\Support\Places;
 use Modules\Salon\Support\Settings;
@@ -45,7 +44,6 @@ class AppointmentController
         private readonly Deposits $deposits,
         private readonly Views $views,
         private readonly Places $places,
-        private readonly Access $access,
         private readonly ScopeResolver $resolver,
         private readonly Auditor $auditor,
     ) {}
@@ -163,7 +161,11 @@ class AppointmentController
     {
         $payment = $this->deposits->take($salonAppointment, $request->validated(), $request->user());
 
-        return response()->json(['data' => $this->views->payments(collect([$payment]))[0]], $payment->status === Payment::FAILED ? 422 : 201);
+        return response()->json(['data' => $this->views->payments(collect([$payment]))[0]], match ($payment->status) {
+            Payment::FAILED => 422,
+            Payment::PENDING => 202,
+            default => 201,
+        });
     }
 
     public function refundDeposit(DepositRefundRequest $request, Appointment $salonAppointment): JsonResponse
@@ -187,9 +189,7 @@ class AppointmentController
         $user = $request->user();
         $all = $this->resolver->visibleIds($user, 'salon.appointment.view');
         $own = $this->resolver->visibleIds($user, 'salon.appointment.view_own');
-        $mine = $this->access->staffOf($user, $request->filled('company_id') ? (string) $request->input('company_id') : (string) ($this->companyOf($request) ?? ''));
         $ownIds = Staff::query()->where('user_id', $user->id)->whereNull('archived_at')->pluck('id')->all();
-        unset($mine);
 
         return $query->where(fn (Builder $w) => $w
             ->where(fn (Builder $a) => $this->inPlaces($a, $all))
@@ -199,11 +199,6 @@ class AppointmentController
     private function inPlaces(Builder $query, VisibleScope $visible): Builder
     {
         return $visible->all ? $query->whereRaw('true') : $query->where(fn (Builder $q) => $q->whereIn('branch_id', $visible->idsFor(Scope::BRANCH))->orWhereIn('location_id', $visible->idsFor(Scope::LOCATION)));
-    }
-
-    private function companyOf(ListAppointmentsRequest $request): ?string
-    {
-        return $request->filled('branch_id') ? $this->places->branch((string) $request->input('branch_id'))?->company_id : null;
     }
 
     /** The reason to book outside hours: allowed only to a holder of `salon.appointment.override` at the place (audited by Bookings). */

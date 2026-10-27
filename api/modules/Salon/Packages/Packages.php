@@ -55,7 +55,7 @@ class Packages
             }
 
             $customer = $sale['customer_id'] ?? null;
-            $units = max(1, (int) BigDecimal::of((string) $line['qty'])->toScale(0, RoundingMode::DOWN)->toInt());
+            $units = max(1, (int) BigDecimal::of((string) $line['qty'])->toScale(0, RoundingMode::Down)->toInt());
 
             if ($customer === null) {
                 $this->exception($companyId, $sale, 'package_no_customer', "package-nocustomer:{$sale['id']}:{$line['id']}", ['package' => $type->name]);
@@ -120,7 +120,7 @@ class Packages
             }
 
             $left = $locked->sessions_total - $sessionsUsed;
-            $remaining = (int) BigDecimal::of((string) $locked->price_minor)->multipliedBy((string) $left)->dividedBy((string) $locked->sessions_total, 0, RoundingMode::HALF_UP)->toInt();
+            $remaining = (int) BigDecimal::of((string) $locked->price_minor)->multipliedBy((string) $left)->dividedBy((string) $locked->sessions_total, 0, RoundingMode::HalfUp)->toInt();
             $before = ['sessions_used' => $locked->sessions_used, 'remaining_minor' => $locked->remaining_minor];
 
             $locked->forceFill([

@@ -123,15 +123,15 @@ class Reports
      *
      * @return array{from: string, to: string, staff: list<array<string, mixed>>}
      */
-    public function commissions(string $companyId, string $from, string $to, ?string $onlyStaffId = null): array
+    public function commissions(string $companyId, array $branchIds, string $from, string $to, ?string $onlyStaffId = null): array
     {
         [$start, $end] = $this->bounds($companyId, $from, $to);
-        $entries = DB::connection(TenantContext::CONNECTION)->table('salon_commission_entries')->where('company_id', $companyId)->where('earned_at', '>=', $start)->where('earned_at', '<', $end)
+        $entries = DB::connection(TenantContext::CONNECTION)->table('salon_commission_entries')->where('company_id', $companyId)->whereIn('branch_id', $branchIds)->where('earned_at', '>=', $start)->where('earned_at', '<', $end)
             ->when($onlyStaffId !== null, fn ($q) => $q->where('staff_id', $onlyStaffId))
             ->groupBy('staff_id', 'currency')
             ->selectRaw("staff_id, currency, coalesce(sum(amount_minor) filter (where kind = 'earn'), 0) as earned, coalesce(sum(amount_minor) filter (where kind = 'reversal'), 0) as reversed, coalesce(sum(amount_minor), 0) as net")
             ->get();
-        $tips = DB::connection(TenantContext::CONNECTION)->table('salon_tips')->where('company_id', $companyId)->where('earned_at', '>=', $start)->where('earned_at', '<', $end)
+        $tips = DB::connection(TenantContext::CONNECTION)->table('salon_tips')->where('company_id', $companyId)->whereIn('branch_id', $branchIds)->where('earned_at', '>=', $start)->where('earned_at', '<', $end)
             ->when($onlyStaffId !== null, fn ($q) => $q->where('staff_id', $onlyStaffId))
             ->groupBy('staff_id', 'currency')->selectRaw('staff_id, currency, sum(amount_minor) as tips')->get()->keyBy(fn ($r) => $r->staff_id.'|'.$r->currency);
         $names = Staff::query()->whereKey($entries->pluck('staff_id')->merge($tips->pluck('staff_id'))->unique())->pluck('name', 'id');

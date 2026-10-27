@@ -111,7 +111,7 @@ class Commissions
 
                 $cumQty = BigDecimal::of((string) $line['qty'])->plus($prior->reduce(fn (BigDecimal $sum, CommissionEntry $e) => $sum->plus((string) $e->qty), BigDecimal::zero()));
                 $cumQty = $cumQty->isGreaterThan($soldQty) ? $soldQty : $cumQty;
-                $target = (int) BigDecimal::of((string) $entry->amount_minor)->multipliedBy($cumQty)->dividedBy($soldQty, 0, RoundingMode::HALF_UP)->toInt();
+                $target = (int) BigDecimal::of((string) $entry->amount_minor)->multipliedBy($cumQty)->dividedBy($soldQty, 0, RoundingMode::HalfUp)->toInt();
                 $already = (int) -$prior->sum('amount_minor');
                 $delta = $target - $already;
 
@@ -149,6 +149,6 @@ class Commissions
             return $rule->currency === $currency ? (int) $rule->amount_minor : null;
         }
 
-        return (int) BigDecimal::of((string) $base)->multipliedBy((string) $rule->rate)->dividedBy(100, 0, RoundingMode::HALF_UP)->toInt();
+        return (int) BigDecimal::of((string) $base)->multipliedBy((string) $rule->rate)->dividedBy(100, 0, RoundingMode::HalfUp)->toInt();
     }
 }

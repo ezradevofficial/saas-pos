@@ -2,6 +2,7 @@
 
 namespace Modules\Salon\Http\Controllers;
 
+use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -110,7 +111,7 @@ class CommissionController
     public function batchIndex(ViewRequest $request): JsonResponse
     {
         $query = CommissionBatch::query()->orderByDesc('created_at')->orderBy('id');
-        $this->places->filterCompanies($query, $request->user(), $request->permission());
+        $this->places->filterScoped($query, $request->user(), $request->permission(), 'company_id', 'branch_id');
         $request->filled('company_id') && $query->where('company_id', $request->input('company_id'));
         $request->filled('status') && $query->where('status', $request->input('status'));
 
@@ -125,7 +126,11 @@ class CommissionController
     public function batchStore(StoreBatchRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $batch = $this->batches->create($data['company_id'], $data['period_start'], $data['period_end'], $data['currency'], $request->user());
+        if (! empty($data['branch_id']) && $this->places->openBranch($data['branch_id'])->company_id !== $data['company_id']) {
+            throw Errors::make(422, 'branch_unknown', field: 'branch_id');
+        }
+
+        $batch = $this->batches->create($data['company_id'], $data['branch_id'] ?? null, $data['period_start'], $data['period_end'], $data['currency'], $request->user());
 
         return response()->json(['data' => $this->views->batch($batch, true)], 201);
     }
@@ -161,14 +166,14 @@ class CommissionController
     private function scopeToReader($query, OwnCommissionsRequest $request): void
     {
         $user = $request->user();
-        $companies = $this->places->companyIds($user, 'salon.commission.view');
+        $own = Staff::query()->where('user_id', $user->id)->whereNull('archived_at')->pluck('id')->all();
+        $all = $this->resolver->visibleIds($user, 'salon.commission.view');
 
-        if ($companies === null) {
+        if ($all->all) {
             return;
         }
 
-        $own = Staff::query()->where('user_id', $user->id)->whereNull('archived_at')->pluck('id')->all();
-        $query->where(fn ($w) => $w->whereIn('company_id', $companies)->orWhereIn('staff_id', $own));
+        $query->where(fn ($w) => $w->where(fn ($a) => $a->whereIn('company_id', $all->idsFor(Scope::COMPANY))->orWhereIn('branch_id', $all->idsFor(Scope::BRANCH)))->orWhereIn('staff_id', $own));
     }
 
     /** SAL-20: a rule names things of its company, and a rule for products has no service. */

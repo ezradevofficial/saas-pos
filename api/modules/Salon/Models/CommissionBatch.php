@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * SAL-23: a period's commissions, reviewed and approved before export.
  *
  * @property string $company_id
+ * @property ?string $branch_id
  * @property string $number
  * @property CarbonImmutable $period_start
  * @property CarbonImmutable $period_end
@@ -57,6 +58,6 @@ class CommissionBatch extends Model implements HasScope
 
     public function scope(): Scope
     {
-        return Scope::company($this->company_id);
+        return $this->branch_id !== null ? Scope::branch($this->branch_id) : Scope::company($this->company_id);
     }
 }

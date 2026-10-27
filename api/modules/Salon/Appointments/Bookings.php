@@ -310,7 +310,7 @@ class Bookings
     /** a percentage of an amount, rounded half up to the minor unit */
     public static function percentOf(int $amount, string|int|float $percent): int
     {
-        return (int) BigDecimal::of((string) $amount)->multipliedBy((string) $percent)->dividedBy(100, 0, RoundingMode::HALF_UP)->toBigInteger()->toInt();
+        return (int) BigDecimal::of((string) $amount)->multipliedBy((string) $percent)->dividedBy(100, 0, RoundingMode::HalfUp)->toBigInteger()->toInt();
     }
 
     /**

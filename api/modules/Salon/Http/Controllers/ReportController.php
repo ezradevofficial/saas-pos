@@ -43,10 +43,10 @@ class ReportController
 
     public function commissions(ReportRequest $request): JsonResponse
     {
-        [$company] = $this->place($request);
+        [$company, $branches] = $this->place($request);
         [$from, $to] = $this->period($request, $company);
 
-        return response()->json(['data' => $this->reports->commissions($company, $from, $to)]);
+        return response()->json(['data' => $this->reports->commissions($company, $branches, $from, $to)]);
     }
 
     public function liability(ReportRequest $request): JsonResponse

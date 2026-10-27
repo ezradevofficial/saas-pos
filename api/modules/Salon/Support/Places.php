@@ -111,6 +111,15 @@ class Places
             ->orWhereIn($query->qualifyColumn($locationColumn), $visible->idsFor(Scope::LOCATION)));
     }
 
+    /** $query limited to rows of the companies, or of the branches, where $user holds $permission (a row with no branch needs the company). */
+    public function filterScoped(Builder $query, User $user, string $permission, string $companyColumn = 'company_id', string $branchColumn = 'branch_id'): Builder
+    {
+        $visible = $this->resolver->visibleIds($user, $permission);
+
+        return $visible->all ? $query : $query->where(fn (Builder $q) => $q->whereIn($query->qualifyColumn($companyColumn), $visible->idsFor(Scope::COMPANY))
+            ->orWhereIn($query->qualifyColumn($branchColumn), $visible->idsFor(Scope::BRANCH)));
+    }
+
     /** The companies where $user holds $permission somewhere; null for every company. @return list<string>|null */
     public function companyIds(User $user, string $permission): ?array
     {

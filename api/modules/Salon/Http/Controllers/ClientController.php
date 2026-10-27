@@ -35,7 +35,7 @@ class ClientController
 
         if ($search !== '') {
             $like = '%'.addcslashes($search, '\\%_').'%';
-            $query->where(fn ($q) => $q->where('name', 'ilike', $like)->orWhere('phones::text', 'ilike', $like)->orWhere('emails::text', 'ilike', $like));
+            $query->where(fn ($q) => $q->where('name', 'ilike', $like)->orWhereRaw('phones::text ilike ?', [$like])->orWhereRaw('emails::text ilike ?', [$like]));
         }
 
         $page = $query->limit(50)->get();

@@ -12,6 +12,7 @@ class StoreBatchRequest extends SalonRequest
     {
         return [
             'company_id' => ['required', 'uuid', Rule::exists('companies', 'id')],
+            'branch_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('branches', 'id')],
             'period_start' => ['required', 'date_format:Y-m-d'],
             'period_end' => ['required', 'date_format:Y-m-d', 'after_or_equal:period_start'],
             'currency' => ['required', 'string', 'size:3', Rule::exists('currencies', 'code')],
@@ -20,6 +21,6 @@ class StoreBatchRequest extends SalonRequest
 
     protected function target(): ?Scope
     {
-        return $this->atCompany($this->input('company_id'));
+        return $this->atBranch($this->input('branch_id')) ?? $this->atCompany($this->input('company_id'));
     }
 }

@@ -50,13 +50,13 @@ class Batches
         return new DocumentNumberType(self::NUMBER_TYPE, SalonServiceProvider::MODULE, self::NUMBER, NumberFormat::RESET_YEARLY, [], langKey: 'salon.numbering.commission_batch');
     }
 
-    public function create(string $companyId, string $periodStart, string $periodEnd, string $currency, User $by): CommissionBatch
+    public function create(string $companyId, ?string $branchId, string $periodStart, string $periodEnd, string $currency, User $by): CommissionBatch
     {
         $company = Company::query()->findOrFail($companyId);
         $until = CarbonImmutable::parse($periodEnd.' 00:00:00', $company->timezone ?: 'UTC')->addDay()->utc();
 
-        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($company, $periodStart, $periodEnd, $currency, $by, $until) {
-            $entries = CommissionEntry::query()->where('company_id', $company->id)->where('currency', $currency)->whereNull('batch_id')
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($company, $branchId, $periodStart, $periodEnd, $currency, $by, $until) {
+            $entries = CommissionEntry::query()->where('company_id', $company->id)->when($branchId !== null, fn ($q) => $q->where('branch_id', $branchId))->where('currency', $currency)->whereNull('batch_id')
                 ->where('earned_at', '<', $until)->orderBy('earned_at')->orderBy('id')->lockForUpdate()->get();
             $payable = $entries->groupBy('staff_id')->filter(fn ($rows) => $rows->sum('amount_minor') > 0);
 
@@ -65,7 +65,7 @@ class Batches
             }
 
             $batch = CommissionBatch::create([
-                'company_id' => $company->id,
+                'company_id' => $company->id, 'branch_id' => $branchId,
                 'number' => $this->numbering->next(self::NUMBER_TYPE, new NumberContext($company))->number,
                 'period_start' => $periodStart, 'period_end' => $periodEnd, 'currency' => $currency, 'status' => CommissionBatch::DRAFT, 'created_by' => $by->id,
             ]);
