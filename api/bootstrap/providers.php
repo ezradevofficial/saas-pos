@@ -50,8 +50,8 @@ use Modules\Pharmacy\PharmacyServiceProvider;
 use Modules\POS\PosServiceProvider;
 use Modules\Procurement\ProcurementServiceProvider;
 use Modules\Restaurant\RestaurantServiceProvider;
-use Modules\Stores\StoresServiceProvider;
 use Modules\Salon\SalonServiceProvider;
+use Modules\Stores\StoresServiceProvider;
 use Modules\VanSales\VanSalesServiceProvider;
 
 return [

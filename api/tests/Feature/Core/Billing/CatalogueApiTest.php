@@ -44,6 +44,8 @@ class CatalogueApiTest extends TestCase
             'hotel' => [150000, 1200, null, null],
             // Same: a placeholder price equal to Inventory's, per device (one van), price to set (docs/modules/van-sales.md).
             'van_sales' => [150000, 1200, null, null],
+            // Same: a placeholder price equal to Inventory's, per outlet, price to set (docs/modules/salon.md).
+            'salon' => [150000, 1200, null, null],
             'hr' => [10000, 100, 150000, 1200], 'payroll' => [15000, 150, 200000, 1500],
             'brand_pack' => [150000, 1200, null, null],
         ];
