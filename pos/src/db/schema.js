@@ -45,9 +45,15 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * the buyer snapshot (`buyer_tax_id`, `buyer_name`) the sale was printed
  * and uploaded with; null without a customer tax id.
  *
+ * v11 (Restaurant module, REST-02, REST-06, REST-08, REST-13, REST-17): the
+ * synced `restaurant_tables`, `restaurant_stations`, `restaurant_modifiers`,
+ * `restaurant_settings` and `restaurant_orders` (the server's open orders,
+ * folded into the till's), and local `rest_orders`: the open orders and tabs
+ * kept on this till (`dirty` while a change waits to upload).
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -159,6 +165,12 @@ export const schema = appSchema({
     tableSchema({ name: 'inventory_stock', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
     // v9: the HR module's clock-in staff (HR-23), a snapshot.
     tableSchema({ name: 'hr_clock_staff', columns: [{ name: 'name', type: 'string' }, { name: 'number', type: 'string' }, { name: 'version', type: 'number' }, data, seenAt] }),
+    // v11: the Restaurant module's synced entities (REST-02, REST-08, REST-07, REST-13, REST-17).
+    tableSchema({ name: 'restaurant_tables', columns: [data, seenAt] }),
+    tableSchema({ name: 'restaurant_stations', columns: [data, seenAt] }),
+    tableSchema({ name: 'restaurant_modifiers', columns: [data, seenAt] }),
+    tableSchema({ name: 'restaurant_settings', columns: [data, seenAt] }),
+    tableSchema({ name: 'restaurant_orders', columns: [data, seenAt] }),
     // v6: images by server path (data URIs), local only.
     tableSchema({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),
 
@@ -195,6 +207,20 @@ export const schema = appSchema({
     tableSchema({ name: 'pos_counters', columns: [data] }),
     // The sale being rung up (and its payments in progress), so it survives an app restart.
     tableSchema({ name: 'pos_state', columns: [data] }),
+
+    // v11: open orders and tabs kept on this till (REST-17); `dirty` while a change waits to upload.
+    tableSchema({
+      name: 'rest_orders',
+      columns: [
+        { name: 'kind', type: 'string' },
+        { name: 'status', type: 'string', isIndexed: true },
+        { name: 'table_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'waiter_id', type: 'string', isIndexed: true },
+        { name: 'dirty', type: 'boolean', isIndexed: true },
+        { name: 'opened_at', type: 'number' },
+        data,
+      ],
+    }),
 
     // v9: clock-ins and clock-outs made on this till (HR-22, HR-23), local only (uploads go through the outbox).
     tableSchema({

@@ -371,6 +371,24 @@ export function PosProvider({ children }) {
       },
 
       refundQuote: (args) => selling.refundQuote(args),
+      /** REST-11: ask for the person's own right or a manager's override (AUTH-08); resolves { override, approvedBy, proof } or null. */
+      authorize,
+      /**
+       * REST-16: put a prepared sale (a part of a restaurant bill) in the cart so the normal payment path takes it. The sale
+       * being rung is parked first (held sales). Resolves null, or 'mobile_paid' when a confirmed mobile payment keeps the cart.
+       */
+      async loadCart(next) {
+        const { cart: sale } = current();
+        if (sale.id === next.id) return null;
+        if (paid()) return MOBILE_PAID;
+        // A restaurant part already in the cart is rebuilt from its order; a quick sale is parked.
+        if (sale.lines.length && !sale.ext?.restaurant) {
+          await posStore.hold(sale);
+          await refreshHeld();
+        }
+        dispatch({ type: 'load', cart: next });
+        return null;
+      },
       finishOverride,
       refreshShift,
     };

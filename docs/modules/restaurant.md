@@ -106,6 +106,19 @@ strings, times ISO 8601 UTC.
 
 An order record: `{id, kind: table|tab, table_id?, tab_name?, customer_id?, waiter_id, covers, currency, opened_at, updated_at, updated_by, note?, bill_requested_at?, status?: open|cancelled, merged_into_id?, lines: [{id, item_id, name, qty, unit_price_minor, tax_code_id?, tax_rate?, tax_inclusive, course, seat?, note?, modifiers: [{id, name, price_minor}], created_at, round?, sent_at?, sent_by?, removed?: {at, by, reason, override?, actor_proof?}}], resends: [{id, line_ids, at, by}], actor_proof?}`. A result is `{id, status: stored, rev, flags: [], lines: [{id, status: stored|rejected, error?}]}` or `{id, status: rejected, error}`; a resend of the same content answers the same.
 
+**Response shapes** (Laravel resources: `{data: ...}`; orders are paginated with `links` and `meta`; areas, tables, stations and modifier groups are returned whole).
+
+- Area `{id, location_id, name, sort, archived_at}`.
+- Table `{id, location_id, area_id, name, seats, x, y, width, height, shape, manual_status, status, order: {id, kind, waiter_id, waiter_name, covers, opened_at, total_minor, currency, bill_requested} | null, archived_at}`; `x`, `y`, `width`, `height` are grid cells (integers, 0 to 99).
+- Station `{id, location_id, name, kind, printer, is_default, sort, category_ids, archived_at}`.
+- Modifier group `{id, company_id, name, min_select, max_select, currency, item_ids, category_ids, modifiers: [{id, name, price_minor, sort, archived_at}], archived_at}`.
+- Settings `{company_id, service_charge_percent: "10.0000", service_charge_item_id, tip_item_id, tip_presets: [5, 10, 15]}`.
+- Order `{id, location_id, kind, table_id, table_name, tab_name, customer_id, waiter_id, waiter_name, covers, status, currency, opened_at, closed_at, bill_requested_at, flags: [], bill: {lines_minor, service_charge_minor, service_tax_minor, tip_minor, total_minor}, lines: [{id, item_id, name, qty, unit_price_minor, tax_code_id, tax_rate, tax_inclusive, course, seat, note, modifiers, round, sent_at, ticket_status, void: {at, by, reason, after_send} | null}], tickets: [Ticket], settlements: [{id, sale_id, mode, part, parts, total_minor, settled_at, voided_at}]}`; the list omits `lines`, `tickets` and `settlements`.
+- Ticket `{id, number, order_id, location_id, station_id, station_name, kind: order|resend|void, status, course, round, table_name, tab_name, waiter_name, covers, created_at, preparing_at, ready_at, served_at, lines: [{id, order_line_id, name, qty, modifiers: [{name}], note, void}]}`.
+- Split preview `{data: {parts: [{line_ids, lines_minor, service_charge_minor, service_tax_minor, tip_minor, total_minor, equal}]}}`.
+- Report `{data: {from, to, currencies: {KES: {orders, covers, sales_minor, tips_minor, avg_per_cover_minor, avg_per_order_minor}}, avg_turn_minutes, waiters: [{waiter_id, name, currency, orders, covers, sales_minor, tips_minor}], voids: [{user_id, name, currency, count, value_minor}], void_reasons: [{reason, count}]}}`.
+- Sync rows (one object per id): `restaurant_tables` `{id, area_id, area_name, name, seats, x, y, width, height, shape, status}`; `restaurant_stations` `{id, name, kind, printer, is_default, category_ids}`; `restaurant_modifiers` as the modifier group (without archived rows); `restaurant_settings` `{id: company_id, service_charge_percent, service_charge_item_id, tip_item_id, tip_presets}`; `restaurant_orders` the order record above with `tickets: [{id, station_id, status, kind, number}]` and each line's `ticket_status`.
+
 Errors: `table_unknown`, `order_closed`, `waiter_unknown`, `line_changed` (a sent line's item, quantity or price differs), `void_not_permitted`, `void_limit_exceeded`, `override_required`, `station_unknown`, `ticket_status_invalid`, `split_invalid`.
 
 ## Closing into a sale (device)

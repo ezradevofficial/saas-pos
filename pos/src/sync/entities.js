@@ -121,3 +121,11 @@ registerEntity('hr_clock_staff', {
   table: 'hr_clock_staff',
   columns: (row) => ({ name: row.name ?? '', number: row.number ?? '', version: Number(row.version ?? 0) }),
 });
+
+// The Restaurant module's entities (served only while the tenant has it, RBAC-08, REST-01): the floor
+// plan, stations, modifier groups, the company's service charge, and the location's open orders.
+registerEntity('restaurant_tables', { table: 'restaurant_tables' });
+registerEntity('restaurant_stations', { table: 'restaurant_stations' });
+registerEntity('restaurant_modifiers', { table: 'restaurant_modifiers' });
+registerEntity('restaurant_settings', { table: 'restaurant_settings' });
+registerEntity('restaurant_orders', { table: 'restaurant_orders' });

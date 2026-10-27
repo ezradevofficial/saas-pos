@@ -4,6 +4,7 @@ import { Navigate } from 'react-router'
 import { GuestOnly, RequireAuth } from './auth/RequireAuth'
 import { RequirePermission } from './auth/RequirePermission'
 import { AppShell } from './layouts/AppShell'
+import { KdsLayout } from './pages/restaurant/KdsLayout'
 import { AuthLayout } from './layouts/AuthLayout'
 import {
   AUTOMATION_VIEW,
@@ -25,6 +26,13 @@ import {
   MANUFACTURING_ORDER_VIEW,
   MANUFACTURING_REPORT_VIEW,
   MANUFACTURING_SETTINGS_VIEW,
+  RESTAURANT_FLOOR_VIEW,
+  RESTAURANT_MODIFIER_VIEW,
+  RESTAURANT_ORDER_VIEW,
+  RESTAURANT_REPORT_VIEW,
+  RESTAURANT_SETTINGS_EDIT,
+  RESTAURANT_STATION_VIEW,
+  RESTAURANT_TICKET_VIEW,
   STORES_ISSUE_VIEW,
   STORES_LEDGER_VIEW,
   STORES_REPORT_VIEW,
@@ -148,6 +156,13 @@ const ManufacturingSettings = lazy(() => import('./pages/manufacturing/Manufactu
 const MfgOrderDetail = lazy(() => import('./pages/manufacturing/OrderDetail'))
 const MfgOrderForm = lazy(() => import('./pages/manufacturing/OrderForm'))
 const MfgOrders = lazy(() => import('./pages/manufacturing/Orders'))
+const RestaurantFloor = lazy(() => import('./pages/restaurant/FloorPlan'))
+const RestaurantKitchen = lazy(() => import('./pages/restaurant/KitchenDisplay'))
+const RestaurantModifiers = lazy(() => import('./pages/restaurant/Modifiers'))
+const RestaurantOrders = lazy(() => import('./pages/restaurant/Orders'))
+const RestaurantReports = lazy(() => import('./pages/restaurant/Reports'))
+const RestaurantSettings = lazy(() => import('./pages/restaurant/RestaurantSettings'))
+const RestaurantStations = lazy(() => import('./pages/restaurant/Stations'))
 const RecipeCosting = lazy(() => import('./pages/manufacturing/RecipeCosting'))
 const MfgYield = lazy(() => import('./pages/manufacturing/Yield'))
 const FaAssetDetail = lazy(() => import('./pages/fixedAssets/AssetDetail'))
@@ -481,6 +496,15 @@ export const routes = [
       { path: '/onboarding/setup/:step', handle: { stage: 'setup' }, element: <SetupStep /> },
     ],
   },
+  // REST-12: the kitchen display fills the screen, outside the app shell (the API answers 403 module_inactive without the module).
+  {
+    element: (
+      <RequireAuth>
+        <KdsLayout />
+      </RequireAuth>
+    ),
+    children: [{ path: '/restaurant/kitchen', element: <RequirePermission permission={RESTAURANT_TICKET_VIEW}><RestaurantKitchen /></RequirePermission> }],
+  },
   {
     element: (
       <RequireAuth>
@@ -658,6 +682,15 @@ export const routes = [
         ['/manufacturing/backflushes', MANUFACTURING_REPORT_VIEW, <Backflushes key="mfg-backflushes" />],
         ['/manufacturing/recipe-costing', MANUFACTURING_REPORT_VIEW, <RecipeCosting key="mfg-recipe-costing" />],
         ['/manufacturing/settings', MANUFACTURING_SETTINGS_VIEW, <ManufacturingSettings key="mfg-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Restaurant (docs/modules/restaurant.md): the API answers 403 module_inactive without the module.
+      ...[
+        ['/restaurant/orders', RESTAURANT_ORDER_VIEW, <RestaurantOrders key="rest-orders" />],
+        ['/restaurant/floor', RESTAURANT_FLOOR_VIEW, <RestaurantFloor key="rest-floor" />],
+        ['/restaurant/stations', RESTAURANT_STATION_VIEW, <RestaurantStations key="rest-stations" />],
+        ['/restaurant/modifiers', RESTAURANT_MODIFIER_VIEW, <RestaurantModifiers key="rest-modifiers" />],
+        ['/restaurant/reports', RESTAURANT_REPORT_VIEW, <RestaurantReports key="rest-reports" />],
+        ['/restaurant/settings', RESTAURANT_SETTINGS_EDIT, <RestaurantSettings key="rest-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // HR (docs/modules/hr.md, Screens): the API answers 403 module_inactive without the module.
       ...[

@@ -6,7 +6,11 @@ import { Alert } from '../../components/ds/Alert';
 import { Button } from '../../components/ds/Button';
 import { Dialog } from '../../components/ds/Dialog';
 import { DISPLAY_QUERY } from '../../pos/customerDisplay';
-import { usePosActions, usePosData } from '../../pos/PosProvider';
+import { usePosActions, usePosCart, usePosData } from '../../pos/PosProvider';
+import { useRestaurant } from '../../restaurant/context';
+import { BillScreen } from '../restaurant/BillScreen';
+import { OrderScreen } from '../restaurant/OrderScreen';
+import { TablesScreen } from '../restaurant/TablesScreen';
 import { APPEARANCES, useTillTheme } from '../../theme/TillTheme';
 import { CustomerDisplayScreen } from '../CustomerDisplayScreen';
 import { useCustomerDisplayFeed } from './useCustomerDisplayFeed';
@@ -92,14 +96,27 @@ export function PosScreen() {
   const tablet = width >= TABLET_MIN_WIDTH;
   const { catalogue, shift } = usePosData();
   const actions = usePosActions();
-  const [route, setRoute] = useState('sell');
+  const { cart } = usePosCart();
+  // REST-02: the restaurant and bar modes open on the floor; retail tills open on the sell screen.
+  const floor = useRestaurant();
+  const home = floor.enabled ? 'tables' : 'sell';
+  const [route, setRoute] = useState(home);
+  const [orderId, setOrderId] = useState(null);
+  // REST-16: paying a part of a bill goes through the normal payment screens and returns to the bill.
+  const [payingBill, setPayingBill] = useState(false);
   // LAY-05: the customer display follows the current sale.
   useCustomerDisplayFeed();
   const [dialog, setDialog] = useState(null);
   const [receipt, setReceipt] = useState(null);
 
-  // A new shift (or none) starts on the selling screen.
-  useEffect(() => setRoute('sell'), [shift?.id]);
+  // A new shift (or none) starts on the home screen.
+  useEffect(() => setRoute(home), [shift?.id, home]);
+
+  // A part of a bill left in the cart (backed out of paying) is rebuilt from its order, never sold as a quick sale.
+  const restaurantCart = Boolean(cart.ext?.restaurant) && !(cart.tenders ?? []).length;
+  useEffect(() => {
+    if (restaurantCart && !['bill', 'pay', 'receipt'].includes(route)) actions.clear();
+  }, [restaurantCart, route, actions]);
 
   const close = useCallback(() => setDialog(null), []);
   const openMenu = useCallback(() => setDialog({ kind: 'menu' }), []);
@@ -124,6 +141,14 @@ export function PosScreen() {
   const openHeld = useCallback(() => setDialog({ kind: 'held' }), []);
   const toPay = useCallback(() => setRoute('pay'), []);
   const toSell = useCallback(() => setRoute('sell'), []);
+  const toBill = useCallback(() => {
+    setPayingBill(false);
+    setRoute('bill');
+  }, []);
+  const openOrder = useCallback((id) => {
+    setOrderId(id);
+    setRoute('order');
+  }, []);
 
   if (!catalogue || shift === undefined) {
     return (
@@ -135,8 +160,14 @@ export function PosScreen() {
 
   let screen;
   if (!shift) screen = <OpenShiftScreen onMenu={openMenu} />;
-  else if (route === 'pay') screen = <PaymentScreen tablet={tablet} onBack={toSell} onDone={(sale) => { setReceipt(sale); setRoute('receipt'); }} />;
-  else if (route === 'receipt' && receipt) screen = <ReceiptScreen sale={receipt} onNewSale={toSell} />;
+  else if (route === 'pay') screen = <PaymentScreen tablet={tablet} onBack={payingBill ? toBill : toSell} onDone={(sale) => { setReceipt(sale); setRoute('receipt'); }} />;
+  else if (route === 'receipt' && receipt) screen = <ReceiptScreen sale={receipt} onNewSale={payingBill ? toBill : toSell} />;
+  else if (route === 'tables' && floor.enabled)
+    screen = <TablesScreen tablet={tablet} onOpenOrder={openOrder} onQuickSale={toSell} onHeld={openHeld} onCloseShift={() => setRoute('close')} onMenu={openMenu} />;
+  else if (route === 'order' && floor.enabled && orderId)
+    screen = <OrderScreen orderId={orderId} tablet={tablet} onBack={(next) => (next ? setOrderId(next) : setRoute('tables'))} onBill={toBill} />;
+  else if (route === 'bill' && floor.enabled && orderId)
+    screen = <BillScreen orderId={orderId} onBack={() => setRoute('order')} onPay={() => { setPayingBill(true); setRoute('pay'); }} onDone={() => setRoute('tables')} />;
   else if (route === 'sales') screen = <SalesScreen onBack={toSell} />;
   else if (route === 'close') screen = <CloseShiftScreen onBack={toSell} />;
   else if (route === 'display') screen = <CustomerDisplayScreen onClose={toSell} />;

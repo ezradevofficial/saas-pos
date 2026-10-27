@@ -44,7 +44,7 @@ export function within(staff, key, value) {
 
 /**
  * Whether `staff` may do `action` alone: { allowed, permission, reason }.
- * action: 'discount' (value = percent), 'price', 'void', 'refund'
+ * action: 'discount' (value = percent), 'price', 'void', 'void_line' (value = base major amount), 'refund'
  * (value = base major amount), 'pay_out', 'pay_in'.
  */
 export function check(staff, action, value) {
@@ -55,6 +55,10 @@ export function check(staff, action, value) {
       return decide(staff, PERMISSIONS.price);
     case 'void':
       return decide(staff, PERMISSIONS.void);
+    // REST-11: a line voided after it was sent needs pos.sale.void within the person's
+    // max_refund_amount for the line's value (base currency, major units), or a manager.
+    case 'void_line':
+      return decide(staff, PERMISSIONS.void, () => within(staff, LIMITS.refund, value));
     case 'refund':
       return decide(staff, PERMISSIONS.refund, () => within(staff, LIMITS.refund, value));
     case 'pay_out':

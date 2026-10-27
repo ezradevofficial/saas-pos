@@ -13,6 +13,7 @@ import { searchCustomers } from '../../pos/catalogue';
 import { maskPhone, parseAmount, parseQuantity } from '../../pos/input';
 import { usePosActions, usePosCart, usePosData } from '../../pos/PosProvider';
 import { extend } from '../../pos/tax';
+import { useRestaurant } from '../../restaurant/context';
 import { useServices } from '../../services/services';
 import { formatTime, useMoneyText } from './format';
 
@@ -289,7 +290,11 @@ export function MenuDialog({ onClose, onNavigate, compact }) {
     onClose();
     onNavigate(route);
   };
+  const floor = useRestaurant();
   const items = [
+    // REST-02: the floor is home on restaurant and bar tills; the retail sell screen stays reachable as a quick sale.
+    shift && floor.enabled && ['tables', t('restaurant.menu.tables')],
+    shift && floor.enabled && ['sell', t('restaurant.menu.quickSale')],
     shift && ['sales', t('pos.menu.sales')],
     shift && ['cash', t('pos.menu.cash')],
     shift && compact && ['held', t('pos.header.held', { count: held.length })],

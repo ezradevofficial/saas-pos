@@ -14,6 +14,7 @@ import { mergeGrouped } from '@/lib/catalogueMerge'
  * Inventory (Inventory module): stock, movements, transfers, counts, adjustments, reorder levels, valuation, labels and settings.
  * Sales (CRM module): leads, opportunities, quotes, calendar, targets and settings.
  * Procurement (Procurement module): requisitions, RFQs, tenders, POs, goods received, supplier invoices, landed costs, supplier performance and settings.
+ * Restaurant (Restaurant module): orders and tabs, kitchen display, floor plan, stations, modifiers, reports and settings.
  * Manufacturing (Manufacturing module): BOMs and recipes, production orders, consumption, yield, backflushes, recipe costing and settings.
  * Payroll (Payroll module): runs, employees' pay setup, loans, payslips, statutory returns and settings; My payslips in self-service.
  */
@@ -75,6 +76,13 @@ export const STORES_REPORT_VIEW = 'stores.report.view'
 export const MANUFACTURING_BOM_VIEW = 'manufacturing.bom.view'
 export const MANUFACTURING_ORDER_VIEW = 'manufacturing.order.view'
 export const MANUFACTURING_REPORT_VIEW = 'manufacturing.report.view'
+export const RESTAURANT_FLOOR_VIEW = 'restaurant.floor.view'
+export const RESTAURANT_STATION_VIEW = 'restaurant.station.view'
+export const RESTAURANT_MODIFIER_VIEW = 'restaurant.modifier.view'
+export const RESTAURANT_ORDER_VIEW = 'restaurant.order.view'
+export const RESTAURANT_TICKET_VIEW = 'restaurant.ticket.view'
+export const RESTAURANT_REPORT_VIEW = 'restaurant.report.view'
+export const RESTAURANT_SETTINGS_EDIT = 'restaurant.settings.edit'
 export const MANUFACTURING_SETTINGS_VIEW = ['manufacturing.settings.edit', 'manufacturing.bom.view', 'manufacturing.order.view']
 // HR module (docs/modules/hr.md, Screens; RBAC-09): who may open each page (the API checks again at the employee's place).
 export const HR_EMPLOYEE_VIEW = 'hr.employee.view'
@@ -241,6 +249,20 @@ export const NAV_GROUPS = [
       { to: '/manufacturing/backflushes', icon: 'movements', label: (t) => t('nav.manufacturingBackflushes'), permission: MANUFACTURING_REPORT_VIEW, module: 'manufacturing' },
       { to: '/manufacturing/recipe-costing', icon: 'valuation', label: (t) => t('nav.manufacturingRecipeCosting'), permission: MANUFACTURING_REPORT_VIEW, module: 'manufacturing' },
       { to: '/manufacturing/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.manufacturingSettings'), permission: MANUFACTURING_SETTINGS_VIEW, module: 'manufacturing' },
+    ],
+  },
+  {
+    // Restaurant (docs/modules/restaurant.md): only while the Restaurant module is active (RBAC-08).
+    id: 'restaurant',
+    label: (t) => t('nav.groups.restaurant'),
+    items: [
+      { to: '/restaurant/orders', icon: 'orders', label: (t) => t('nav.restaurantOrders'), permission: RESTAURANT_ORDER_VIEW, module: 'restaurant' },
+      { to: '/restaurant/kitchen', icon: 'clock', label: (t) => t('nav.restaurantKitchen'), permission: RESTAURANT_TICKET_VIEW, module: 'restaurant' },
+      { to: '/restaurant/floor', icon: 'dimensions', label: (t) => t('nav.restaurantFloor'), permission: RESTAURANT_FLOOR_VIEW, module: 'restaurant' },
+      { to: '/restaurant/stations', icon: 'device', label: (t) => t('nav.restaurantStations'), permission: RESTAURANT_STATION_VIEW, module: 'restaurant' },
+      { to: '/restaurant/modifiers', icon: 'categories', label: (t) => t('nav.restaurantModifiers'), permission: RESTAURANT_MODIFIER_VIEW, module: 'restaurant' },
+      { to: '/restaurant/reports', icon: 'chart', label: (t) => t('nav.restaurantReports'), permission: RESTAURANT_REPORT_VIEW, module: 'restaurant' },
+      { to: '/restaurant/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.restaurantSettings'), permission: RESTAURANT_SETTINGS_EDIT, module: 'restaurant' },
     ],
   },
   {
