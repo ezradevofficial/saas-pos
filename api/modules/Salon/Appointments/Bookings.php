@@ -83,7 +83,7 @@ class Bookings
         }
 
         $start = CarbonImmutable::parse($in['starts_at'])->utc();
-        $wanted = $this->wanted($company->id, $in['lines']);
+        $wanted = $this->wanted($company->id, $in['lines'], $source === 'online');
         $prices = $this->prices($wanted, $company, $start);
 
         $appointment = Errors::transaction(function () use ($in, $by, $overrideReason, $branch, $company, $client, $start, $wanted, $prices, $source) {

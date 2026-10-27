@@ -35,13 +35,13 @@ class PublicBookingController
         return response()->json(['data' => $data], 201);
     }
 
-    public function pay(PublicOwnedRequest $request, string $number): JsonResponse
+    public function pay(PublicOwnedRequest $request): JsonResponse
     {
-        return response()->json(['data' => $this->booking->payDeposit(ResolveBooking::branch($request), $number, (string) $request->input('phone'))]);
+        return response()->json(['data' => $this->booking->payDeposit(ResolveBooking::branch($request), (string) $request->route('number'), (string) $request->input('phone'))]);
     }
 
-    public function status(PublicOwnedRequest $request, string $number): JsonResponse
+    public function status(PublicOwnedRequest $request): JsonResponse
     {
-        return response()->json(['data' => $this->booking->status(ResolveBooking::branch($request), $number, (string) $request->input('phone'))]);
+        return response()->json(['data' => $this->booking->status(ResolveBooking::branch($request), (string) $request->route('number'), (string) $request->input('phone'))]);
     }
 }

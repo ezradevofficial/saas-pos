@@ -31,6 +31,7 @@ use Modules\Salon\Models\Staff;
 use Modules\Salon\Models\TimeOff;
 use Modules\Salon\Payments\Deposits;
 use Modules\Salon\Queue\Queue;
+use Modules\Salon\Support\Places;
 
 /**
  * The JSON of Salon records (docs/modules/salon.md): amounts as digit strings, times ISO 8601 UTC, names resolved in a
@@ -204,7 +205,7 @@ class Views
      */
     public function client(Party $party, ?Client $client, Request $request, string $companyId): array
     {
-        $notes = $request->user() !== null && $this->resolver->can($request->user(), 'salon.client.notes', Scope::company($companyId));
+        $notes = $request->user() !== null && app(Places::class)->inCompany($request->user(), 'salon.client.notes', $companyId);
 
         return HidesFields::apply($request, self::CLIENT_RESOURCE, [
             'party_id' => $party->id, 'company_id' => $companyId, 'name' => $party->name, 'phone' => $party->phoneNumbers()[0] ?? null, 'email' => $party->emails[0]['address'] ?? null,

@@ -18,7 +18,7 @@ class ListAppointmentsRequest extends ViewRequest
 
     protected function target(): ?Scope
     {
-        $target = parent::target();
+        $target = $this->filled('branch_id') ? Scope::branch((string) $this->input('branch_id')) : null;
         $resolver = app(ScopeResolver::class);
 
         if ($target !== null && ! $resolver->can($this->user(), 'salon.appointment.view', $target) && ! $resolver->can($this->user(), 'salon.appointment.view_own', $target)) {

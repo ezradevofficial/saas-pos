@@ -83,6 +83,11 @@ class StaffController
 
     public function hours(ActionRequest $request, Staff $salonStaff): JsonResponse
     {
+        return $this->hoursOf($salonStaff);
+    }
+
+    private function hoursOf(Staff $salonStaff): JsonResponse
+    {
         return response()->json(['data' => StaffHour::query()->where('staff_id', $salonStaff->id)->orderBy('branch_id')->orderBy('weekday')->orderBy('starts_at')->get()
             ->map(fn (StaffHour $h) => ['id' => $h->id, 'branch_id' => $h->branch_id, 'weekday' => $h->weekday, 'kind' => $h->kind, 'start' => substr((string) $h->starts_at, 0, 5), 'end' => substr((string) $h->ends_at, 0, 5)])
             ->values()->all()]);
@@ -92,7 +97,7 @@ class StaffController
     {
         $this->hours->replace($salonStaff, $request->validated('hours'));
 
-        return $this->hours($request, $salonStaff);
+        return $this->hoursOf($salonStaff);
     }
 
     public function timeOff(ActionRequest $request, Staff $salonStaff): JsonResponse

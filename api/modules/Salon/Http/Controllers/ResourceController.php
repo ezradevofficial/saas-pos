@@ -95,7 +95,7 @@ class ResourceController
         return SalonBranch::query()->where('branch_id', $branch->id)->first() ?? $this->coded(fn (string $code) => SalonBranch::create([
             'company_id' => $branch->company_id, 'branch_id' => $branch->id, 'public_code' => $code,
             'location_id' => Location::query()->where('branch_id', $branch->id)->whereNull('archived_at')->orderBy('created_at')->value('id'),
-        ]));
+        ])->refresh());
     }
 
     /**

@@ -60,6 +60,19 @@ abstract class SalonRequest extends FormRequest
         return is_string($id) && $id !== '' ? Scope::company($id) : null;
     }
 
+    /**
+     * Company-wide records (clients, the menu) are read and kept by people at any branch: the permission anywhere in the
+     * company is what the request needs (403 otherwise). Records of one branch are checked at that branch instead.
+     */
+    protected function reachesCompany(mixed $id): ?Scope
+    {
+        if (is_string($id) && $id !== '' && ! $this->places()->inCompany($this->user(), $this->permission(), $id)) {
+            throw new AuthorizationException(__('rbac.forbidden'));
+        }
+
+        return null;
+    }
+
     protected function places(): Places
     {
         return app(Places::class);

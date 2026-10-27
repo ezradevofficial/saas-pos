@@ -2,9 +2,9 @@
 
 namespace Modules\Salon\Http\Controllers;
 
+use App\Core\MasterData\Items\Http\Resources\HidesFields;
 use App\Core\MasterData\Parties\Party;
-use App\Core\Rbac\Scope;
-use App\Core\Rbac\ScopeResolver;
+use App\Core\Rbac\FieldRules;
 use Illuminate\Http\JsonResponse;
 use Modules\Salon\Clients\Clients;
 use Modules\Salon\Http\Requests\ClientRequest;
@@ -14,7 +14,9 @@ use Modules\Salon\Http\Requests\ViewRequest;
 use Modules\Salon\Http\Resources\Views;
 use Modules\Salon\Models\Appointment;
 use Modules\Salon\Models\Client;
+use Modules\Salon\Support\Errors;
 use Modules\Salon\Support\Parties;
+use Modules\Salon\Support\Places;
 
 /** SAL-25, NFR-08: clients (customer parties with a salon profile) and their visits. */
 class ClientController
@@ -23,7 +25,7 @@ class ClientController
         private readonly Clients $clients,
         private readonly Parties $parties,
         private readonly Views $views,
-        private readonly ScopeResolver $resolver,
+        private readonly Places $places,
     ) {}
 
     /** Customers of the company by name, phone or email (a page of 50), each with whether a profile with alerts exists. */
@@ -31,7 +33,7 @@ class ClientController
     {
         $companyId = (string) $request->input('company_id');
         $search = trim((string) $request->input('search', ''));
-        $query = Party::query()->whereNull('archived_at')->whereJsonContains('roles', 'customer')->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId))->orderBy('name')->orderBy('id');
+        $query = Party::query()->whereNull('archived_at')->whereRaw('? = any(roles)', ['customer'])->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId))->orderBy('name')->orderBy('id');
 
         if ($search !== '') {
             $like = '%'.addcslashes($search, '\\%_').'%';
@@ -65,7 +67,16 @@ class ClientController
     {
         $companyId = (string) $request->input('company_id');
         $this->parties->customer($party->id, $companyId, 'party');
-        $notes = $this->resolver->can($request->user(), 'salon.client.notes', Scope::company($companyId));
+        $notes = $this->places->inCompany($request->user(), 'salon.client.notes', $companyId);
+
+        // Allergies and formulas are written only by those who may read them (and not where their field rules make them read-only).
+        $private = array_values(array_intersect(Clients::PRIVATE, array_keys($request->validated())));
+        $locked = array_values(array_intersect(Clients::PRIVATE, [...HidesFields::hidden($request, Views::CLIENT_RESOURCE), ...app(FieldRules::class)->for($request->user(), Views::CLIENT_RESOURCE)['readonly']]));
+
+        if ($private !== [] && (! $notes || array_intersect($private, $locked) !== [])) {
+            throw Errors::make(403, 'not_permitted', field: $private[0]);
+        }
+
         $client = $this->clients->save($party, $companyId, $request->validated(), $request->user(), $notes);
 
         return response()->json(['data' => $this->views->client($party, $client, $request, $companyId)]);

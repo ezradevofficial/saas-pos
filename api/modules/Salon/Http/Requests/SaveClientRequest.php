@@ -22,6 +22,6 @@ class SaveClientRequest extends SalonRequest
 
     protected function target(): ?Scope
     {
-        return $this->atCompany($this->input('company_id'));
+        return $this->reachesCompany($this->input('company_id'));
     }
 }

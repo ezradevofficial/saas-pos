@@ -10,8 +10,8 @@ use Modules\Salon\SalonServiceProvider;
 // (ResolveBooking, a security-definer lookup that returns only the tenant id, ADR 002). Every route is rate-limited per
 // address; writes more tightly. Parameters are plain strings (model binding would run before the tenant is entered).
 
-Route::middleware([SecurityHeaders::class, 'throttle:'.SalonServiceProvider::BOOKING_LIMITER])->prefix('salon-booking/{code}')->where(['code' => '[A-Za-z0-9]{6,24}'])
-    ->middleware(ResolveBooking::class)->group(function () {
+Route::middleware([SecurityHeaders::class, 'throttle:'.SalonServiceProvider::BOOKING_LIMITER, ResolveBooking::class])->prefix('salon-booking/{code}')->where(['code' => '[A-Za-z0-9]{6,24}'])
+    ->group(function () {
         Route::get('/', [PublicBookingController::class, 'show']);
         Route::get('slots', [PublicBookingController::class, 'slots']);
         Route::post('appointments', [PublicBookingController::class, 'store'])->middleware('throttle:'.SalonServiceProvider::BOOKING_WRITE_LIMITER);
