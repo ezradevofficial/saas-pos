@@ -89,7 +89,7 @@ class RecordStockWrittenOff implements ShouldQueue
                 }
 
                 if ($lines !== []) {
-                    $this->ledger->post(new Posting($event->companyId, 'pharmacy.write_off', $event->writeOffId, CarbonImmutable::parse($event->occurredAt), $event->userId, $lines, manual: false, reference: $event->reference));
+                    $this->ledger->post(new Posting($event->companyId, $event->source ?? 'pharmacy.write_off', $event->writeOffId, CarbonImmutable::parse($event->occurredAt), $event->userId, $lines, manual: false, reference: $event->reference));
                 }
             });
         });

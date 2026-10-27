@@ -54,6 +54,7 @@
             <directory>modules/Restaurant/tests</directory>
             <directory>modules/Pharmacy/tests</directory>
             <directory>modules/Hotel/tests</directory>
+            <directory>modules/FuelStation/tests</directory>
         </testsuite>
         <!-- TEN-01: the CI isolation job (php artisan test with testsuite Isolation). -->
         <testsuite name="Isolation">

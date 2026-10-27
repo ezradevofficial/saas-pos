@@ -173,7 +173,10 @@ class SaleUploads
         // REST-19: a waiter or bartender may ring the bill of a table or tab (a sale carrying `extensions.restaurant`), not any sale.
         $restaurantBill = is_array($data['extensions']['restaurant'] ?? null) && $this->authority->can($cashier, 'restaurant.order.close', $place->scope());
 
-        if (! $restaurantBill && ! $this->authority->can($cashier, 'pos.sale.create', $place->scope())) {
+        // FUEL-18: an attendant may ring fuel (a sale carrying `extensions.fuel`) with `fuel.sale.create`, not any sale.
+        $fuelSale = is_array($data['extensions']['fuel'] ?? null) && $this->authority->can($cashier, 'fuel.sale.create', $place->scope());
+
+        if (! $restaurantBill && ! $fuelSale && ! $this->authority->can($cashier, 'pos.sale.create', $place->scope())) {
             $flags->add('cashier_not_permitted');
         }
 

@@ -40,6 +40,7 @@ use Modules\CRM\CrmServiceProvider;
 use Modules\Ecommerce\Courier\CourierApiServiceProvider;
 use Modules\Ecommerce\EcommerceServiceProvider;
 use Modules\FixedAssets\FixedAssetsServiceProvider;
+use Modules\FuelStation\FuelStationServiceProvider;
 use Modules\Hotel\HotelServiceProvider;
 use Modules\HR\HrServiceProvider;
 use Modules\Inventory\InventoryServiceProvider;
@@ -102,6 +103,7 @@ return [
     RestaurantServiceProvider::class,
     PharmacyServiceProvider::class,
     HotelServiceProvider::class,
+    FuelStationServiceProvider::class,
     // MKT-01..MKT-04 (ADR 024): the marketplace, OAuth for apps.
     MarketplaceServiceProvider::class,
     // API-01..API-05: last, so the sandbox's set-up runs after every other sign-up listener.

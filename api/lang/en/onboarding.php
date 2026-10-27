@@ -12,7 +12,7 @@ return [
         'wholesale' => ['name' => 'Wholesale or distributor', 'description' => 'Price lists, credit, deliveries'],
         'van_sales' => ['name' => 'Route or van sales', 'description' => 'Sell and collect in the field'],
         'salon' => ['name' => 'Salon, spa or services', 'description' => 'Appointments, staff commissions'],
-        'fuel_station' => ['name' => 'Fuel station', 'description' => 'Pumps, shifts, forecourt shop'],
+        'fuel_station' => ['name' => 'Fuel station', 'description' => 'Tanks, pumps, shifts, dips, forecourt shop'],
         'non_pos' => ['name' => 'No till needed', 'description' => 'HR, payroll or accounting only'],
     ],
 

@@ -51,6 +51,8 @@ return [
             'pharmacy.settings.edit', 'pharmacy.item.configure', 'pharmacy.*.view',
             // HOT-02, HOT-03, HOT-06: sets a company's hotel rules, room types, rooms and rate plans, and reads the module's records (guest ID numbers are `hotel.guest.identity`, not a view).
             'hotel.settings.edit', 'hotel.room.manage', 'hotel.rate.manage', 'hotel.*.view',
+            // FUEL-03, FUEL-32: sets a company's fuel rules, the forecourt set-up (tanks, charts, pumps, nozzles) and prices, and reads the module's records; approving variances is the station manager's.
+            'fuel.settings.edit', 'fuel.setup.manage', 'fuel.price.manage', 'fuel.*.view',
             // CP-01: exempting the company from a pack component (payroll.statutory.exempt).
             'payroll.statutory.exempt'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
@@ -114,8 +116,10 @@ return [
             'pharmacy.*',
             // Hotel (docs/modules/hotel.md): the property's bookings, front desk, folios, housekeeping, night audit and reports; the settings are the Admin's.
             'hotel.*',
+            // Fuel station (docs/modules/fuel-station.md): the station's shifts, variances (the default approver), dips, deliveries, fleet, vouchers and reports; the settings are the Admin's.
+            'fuel.*',
         ],
-        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'restaurant.settings.edit', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure', 'hotel.settings.edit'],
+        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'restaurant.settings.edit', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure', 'hotel.settings.edit', 'fuel.settings.edit'],
         // RBAC-06 (owner decision A, 2026-10-16; defaults the owner may change): a Branch Manager discounts quotes
         // up to 10 % without approval (CRM-20), so their own discounted quotes do not all escalate, and refunds up
         // to 10,000 in the company's base currency (POS-05, E-commerce refunds), so a manager can refund at all.
@@ -312,6 +316,47 @@ return [
         'requires_two_factor' => false,
     ],
     [
+        // FUEL-31, FUEL-32: the attendant signs in at the till, sells fuel, redeems vouchers, opens and closes their own shift and takes dips.
+        // They cannot approve a variance, request a meter reset, record a delivery or change a price.
+        'key' => 'forecourt_attendant',
+        'permissions' => [
+            'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
+            'core.party.view', 'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view', 'core.price.view',
+            'pos.sale.view', 'pos.sale.print', 'pos.till.sign_in',
+            'fuel.sale.create', 'fuel.shift.view', 'fuel.shift.open', 'fuel.shift.close', 'fuel.voucher.redeem', 'fuel.dip.record',
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // FUEL-14, FUEL-32: the shift supervisor runs the forecourt floor: all of the station's shifts, deliveries, dips, meter reset requests, and the variance
+        // and reports for reading. Approving a variance or a reset is the station manager's.
+        'key' => 'shift_supervisor',
+        'permissions' => [
+            'core.branch.view', 'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
+            'core.party.view', 'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view', 'core.price.view',
+            'pos.sale.view', 'pos.sale.print', 'pos.till.sign_in', 'pos.shift.view',
+            'fuel.setup.view', 'fuel.price.view', 'fuel.sale.view', 'fuel.sale.create', 'fuel.shift.view', 'fuel.shift.open', 'fuel.shift.close', 'fuel.variance.view',
+            'fuel.meter.request_reset', 'fuel.dip.view', 'fuel.dip.record', 'fuel.delivery.view', 'fuel.delivery.record', 'fuel.vehicle.view', 'fuel.voucher.view', 'fuel.voucher.redeem', 'fuel.report.view',
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // FUEL-14, FUEL-17, FUEL-26, FUEL-32: the station manager approves shift and tank variances and meter resets (never their own), sets prices, keeps the fleet and vouchers, and reads the reports.
+        'key' => 'station_manager',
+        'permissions' => [
+            'core.company.view', 'core.branch.view', 'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view', 'core.tax.view',
+            'core.party.view', 'core.party.create', 'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view', 'core.price.view', 'core.approval.reassign',
+            'core.user.view', 'core.audit.view',
+            'pos.sale.view', 'pos.sale.print', 'pos.till.sign_in', 'pos.shift.view', 'pos.shift.manage',
+            'fuel.*',
+        ],
+        'except' => ['fuel.settings.edit'],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
         'key' => 'accountant',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view', 'core.currency.view', 'core.exchange_rate.view',
@@ -346,6 +391,8 @@ return [
             'pharmacy.item.view', 'pharmacy.lot.view', 'pharmacy.writeoff.view', 'pharmacy.report.view',
             // HOT-20, HOT-27, HOT-31: folios, the night audits behind the room revenue, and the reports.
             'hotel.room.view', 'hotel.rate.view', 'hotel.folio.view', 'hotel.audit.view', 'hotel.report.view',
+            // FUEL-13, FUEL-34: shifts, variances, deliveries and the reports behind the fuel revenue and stock.
+            'fuel.shift.view', 'fuel.variance.view', 'fuel.delivery.view', 'fuel.dip.view', 'fuel.price.view', 'fuel.report.view',
         ],
         // FA-14, FA-17: transfers and disposals are approved by others.
         'except' => ['fixed_assets.transfer.approve', 'fixed_assets.disposal.approve'],
