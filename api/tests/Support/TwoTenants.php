@@ -1559,9 +1559,9 @@ final class TwoTenants
             ]);
             StockLine::create(['run_id' => $run, 'kind' => 'sold', 'source_type' => 'sale', 'source_id' => $sale, 'item_id' => $item, 'qty' => '2']);
             \Modules\VanSales\Models\Tender::create(['run_id' => $run, 'source_type' => 'sale', 'source_id' => $sale, 'kind' => 'cash', 'currency' => 'KES', 'amount_minor' => '50000']);
-            // The credit ledger of the shared customer and of the second party the account route reads.
+            // The credit ledger of the shared customer and of the second party the account route reads (an entry is once per source, so each has its own).
             foreach ([$customer, $party] as $holder) {
-                CreditEntry::create(['company_id' => $company, 'customer_id' => $holder, 'run_id' => $run, 'kind' => 'sale', 'source_id' => $sale, 'currency' => 'KES', 'amount_minor' => '112500', 'occurred_at' => now()->subHour()]);
+                CreditEntry::create(['company_id' => $company, 'customer_id' => $holder, 'run_id' => $run, 'kind' => 'sale', 'source_id' => $holder === $customer ? $sale : (string) Str::uuid7(), 'currency' => 'KES', 'amount_minor' => '112500', 'occurred_at' => now()->subHour()]);
             }
             $collection = Collection::create([
                 'company_id' => $company, 'branch_id' => $branch, 'location_id' => $location, 'device_id' => $deviceId, 'run_id' => $run, 'visit_id' => $visit, 'customer_id' => $customer,
