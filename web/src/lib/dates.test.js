@@ -57,5 +57,8 @@ describe('company time zones', () => {
     expect(zonedToUtc('2026-10-08T02:30', 'Africa/Nairobi')).toBe('2026-10-07T23:30:00.000Z')
     expect(localDateTimeIn('Africa/Kinshasa', new Date('2026-10-07T23:30:00Z'))).toBe('2026-10-08T00:30')
     expect(todayIn('Africa/Nairobi', new Date('2026-10-07T22:00:00Z'))).toBe('2026-10-08')
+    // Without a zone: the browser's local day, not UTC's.
+    const local = new Date(2026, 9, 8, 0, 30)
+    expect(todayIn(undefined, local)).toBe('2026-10-08')
   })
 })
