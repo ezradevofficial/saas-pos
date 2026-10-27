@@ -276,6 +276,7 @@
         "refund": "This refund needs a manager. A manager approves it with their PIN.",
         "pay_out": "Paying cash out needs a manager. A manager approves it with their PIN.",
         "pay_in": "Paying cash in needs a manager. A manager approves it with their PIN.",
+        "void_line": "Voiding an item after it was sent needs a manager. A manager approves it with their PIN.",
         "dispense": "Selling this needs a pharmacist. A pharmacist approves it with their PIN."
       },
       "nobody": "No one at this till can approve this. Ask an admin to give a manager a role here, then sync.",
@@ -867,6 +868,246 @@
       "blocked": "Location is turned off for this app in the phone’s settings. You can still deliver.",
       "openSettings": "Open settings",
       "on": "Your location is shared while a delivery is in progress."
+    }
+  },
+  "restaurant": {
+    "menu": {
+      "tables": "Tables",
+      "quickSale": "Quick sale"
+    },
+    "quickSale": "Quick sale",
+    "noPermission": "You do not have permission to open orders. Ask a manager.",
+    "view": {
+      "label": "View",
+      "tables": "Tables",
+      "tabs": "Tabs"
+    },
+    "filter": {
+      "label": "Show",
+      "mine": "Mine",
+      "all": "All"
+    },
+    "tables": {
+      "empty": "No tables yet. An admin sets up the floor, then sync this till.",
+      "noneMine": "None of your tables are open. Show all to see the floor."
+    },
+    "table": {
+      "seats_one": "{{count}} seat",
+      "seats_other": "{{count}} seats",
+      "partsPaid": "Paid in parts: {{paid}}"
+    },
+    "status": {
+      "free": "Free",
+      "occupied": "Occupied",
+      "bill": "Bill asked",
+      "reserved": "Reserved",
+      "cleaning": "Cleaning",
+      "blocked": "Blocked"
+    },
+    "open": {
+      "tableTitle": "Open {{name}}",
+      "guests": "Guests",
+      "fewer": "Fewer guests",
+      "more": "More guests",
+      "table": "Open table"
+    },
+    "tabs": {
+      "openTitle": "Open a tab",
+      "open": "Open tab",
+      "new": "New tab",
+      "name": "Tab name",
+      "namePlaceholder": "For example, Joe at the bar",
+      "customer": "Customer (optional)",
+      "customerPlaceholder": "Search by name or phone",
+      "customerChosen": "Customer: {{name}}",
+      "search": "Search tabs by name",
+      "empty": "No open tabs. Open a tab to start a round.",
+      "noMatch": "No tab matches that name.",
+      "rounds_one": "{{count}} round",
+      "rounds_other": "{{count}} rounds"
+    },
+    "order": {
+      "back": "Back to tables",
+      "tableTitle": "Table {{name}}",
+      "tabTitle": "Tab {{name}}",
+      "empty": "Nothing ordered yet. Tap an item to add it.",
+      "notSent": "Not sent",
+      "round": "Round {{round}}",
+      "voided": "Voided",
+      "heldCourses_one": "{{count}} item is held for a later course.",
+      "heldCourses_other": "{{count}} items are held for a later course.",
+      "cancel": "Cancel order",
+      "categories": "Categories",
+      "view": "Show",
+      "items": "Menu",
+      "lines_one": "Order ({{count}} item)",
+      "lines_other": "Order ({{count}} items)"
+    },
+    "line": {
+      "voidPending": "Void pending approval",
+      "course": "Course",
+      "courseN": "Course {{course}}",
+      "seat": "Seat",
+      "seatN": "Seat {{seat}}",
+      "noSeat": "None",
+      "quantity": "Quantity",
+      "less": "One less",
+      "more": "One more",
+      "note": "Note for the kitchen",
+      "notePlaceholder": "For example, no onions",
+      "options": "Change options",
+      "remove": "Remove line",
+      "save": "Save line",
+      "voided": "Voided"
+    },
+    "modifiers": {
+      "exactly": "Choose {{count}}",
+      "between": "Choose {{min}} to {{max}}",
+      "upTo": "Choose up to {{count}}",
+      "add": "Add to order · {{amount}}"
+    },
+    "send": {
+      "button_one": "Send {{count}} item to the kitchen",
+      "button_other": "Send {{count}} items to the kitchen",
+      "fire": "Fire course {{course}}",
+      "done_one": "{{count}} item sent in round {{round}}.",
+      "done_other": "{{count}} items sent in round {{round}}.",
+      "fired_one": "Course {{course}} fired: {{count}} item sent.",
+      "fired_other": "Course {{course}} fired: {{count}} items sent.",
+      "nothing": "Nothing is waiting for the kitchen. Fire the next course to send held items.",
+      "noPrinter": "No kitchen printer is connected: the ticket is on the kitchen display."
+    },
+    "resend": {
+      "button": "Re-send",
+      "title": "Re-send to the kitchen",
+      "help": "Pick the round to send again. The kitchen gets a new ticket marked re-send; the first stays.",
+      "round_one": "Round {{round}} · {{count}} item",
+      "round_other": "Round {{round}} · {{count}} items",
+      "line": "Re-send this item",
+      "done_one": "{{count}} item sent again.",
+      "done_other": "{{count}} items sent again."
+    },
+    "void": {
+      "title": "Void {{name}}",
+      "help": "This item was already sent to the kitchen. Voiding keeps it on the order, marked void, and tells the station. A reason is required.",
+      "reason": "Reason",
+      "reasonPlaceholder": "For example, guest changed their mind",
+      "reasonRequired": "Enter a reason, then void the item.",
+      "confirm": "Void item",
+      "refused": "Not approved. The item stays on the order.",
+      "done": "{{name}} voided."
+    },
+    "transfer": {
+      "button": "Transfer",
+      "title": "Transfer to another waiter",
+      "help": "The table or tab moves to the person you pick. The change is recorded.",
+      "nobody": "No other staff to pick. Sync this till to refresh the list.",
+      "done": "Moved to {{name}}."
+    },
+    "merge": {
+      "button": "Merge",
+      "title": "Merge into another table",
+      "help": "Every item moves to the table you pick, and this table is closed into it.",
+      "none": "No other table is open to merge into."
+    },
+    "tickets": {
+      "title": "Kitchen and bar tickets",
+      "markServed": "Mark served",
+      "markServedFor": "Mark ticket {{number}} served",
+      "kind": {
+        "order": "Order",
+        "resend": "Re-send",
+        "void": "Void"
+      },
+      "status": {
+        "new": "New",
+        "preparing": "Preparing",
+        "ready": "Ready",
+        "served": "Served"
+      }
+    },
+    "ticket": {
+      "kitchen": "Kitchen",
+      "table": "Table {{name}}",
+      "tab": "Tab {{name}}",
+      "covers": "{{count}} guests",
+      "round": "Round {{round}}",
+      "waiter": "Waiter: {{name}}",
+      "course": "Course {{course}}",
+      "seat": "seat {{seat}}",
+      "resend": "RE-SEND",
+      "void": "VOID"
+    },
+    "flags": {
+      "table_shared": "This table is also open on another till. Check with the other waiter before sending.",
+      "transfer_unauthorised": "The transfer was made without the right to transfer. A manager will review it."
+    },
+    "rejected": {
+      "title": "This order is closed",
+      "order_closed": "It was paid at another till. The items added here were kept; ring them again as a new order.",
+      "table_unknown": "The table no longer exists. The items were kept; ring them again as a new order.",
+      "waiter_unknown": "The waiter is no longer on this location. The items were kept; ring them again as a new order.",
+      "other": "The server did not accept this order. The items were kept; ring them again as a new order.",
+      "ringAgain": "Ring as a new order",
+      "done_one": "{{count}} item moved to a new order.",
+      "done_other": "{{count}} items moved to a new order."
+    },
+    "bill": {
+      "open": "Bill and pay",
+      "request": "Request bill",
+      "back": "Back to order",
+      "title": "Bill for {{name}}",
+      "lines": "Items",
+      "service": "Service charge ({{percent}}%)",
+      "tip": "Tip",
+      "total": "Total",
+      "split": "How to pay",
+      "modes": {
+        "full": "Whole bill",
+        "item": "By item",
+        "seat": "By seat",
+        "equal": "Equally"
+      },
+      "howMany": "Number of parts",
+      "fewer": "Fewer parts",
+      "more": "More parts",
+      "groups": "Number of groups",
+      "groupOf": "Group for {{name}}",
+      "groupN": "Put {{name}} in group {{group}}",
+      "seatHelp": "One bill per seat ({{count}} seats). Items without a seat are shared equally.",
+      "seatNeeds": "Give items to at least two seats to split by seat.",
+      "splitInvalid": "This split does not work yet. Put items in at least two groups, with every item in one group.",
+      "noTip": "No tip",
+      "customTip": "Other amount",
+      "tipAmount": "Tip amount in {{currency}}",
+      "parts": "Bills",
+      "wholeBill": "Whole bill",
+      "part": "Part {{part}} of {{parts}}",
+      "partSeat": "Seat bill {{part}} of {{parts}}",
+      "partPaid": "Paid",
+      "charge": "Charge {{amount}}",
+      "locked": "A part is paid, so the split can no longer change.",
+      "allPaid": "Every part is paid.",
+      "paid": "Order paid",
+      "paidHelp": "Every part of this bill is paid. The table is free again.",
+      "done": "Back to tables",
+      "problems": {
+        "order_empty": "There is nothing to bill yet.",
+        "service_item_missing": "The service charge item is not set for this company. Ask an admin to set it, then sync.",
+        "tip_item_missing": "The tip item is not set for this company. Ask an admin to set it, then sync.",
+        "item_unknown": "An item on this order is no longer in the catalogue. Sync this till, then try again."
+      }
+    },
+    "errors": {
+      "failed": "That did not work. Try again; if it keeps failing, sync this till.",
+      "table_blocked": "This table is blocked. Ask a manager.",
+      "order_unknown": "This order is no longer on this till. Go back to the tables and sync.",
+      "tab_name_required": "Enter a name for the tab.",
+      "reason_required": "Enter a reason.",
+      "line_not_sent": "This item was not sent, so it can be removed without a reason.",
+      "order_has_sent": "Items were already sent to the kitchen, so the order cannot be cancelled. Void them first.",
+      "merge_same": "Pick a different table to merge into.",
+      "merge_part_paid": "A part of this bill is paid, so it cannot be merged."
     }
   },
   "hotel": {

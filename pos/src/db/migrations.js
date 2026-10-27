@@ -162,8 +162,32 @@ export const migrations = schemaMigrations({
       ],
     },
     {
-      // Hotel module (HOT-35): who is in house at this till's property (a snapshot).
+      // Restaurant module (REST-02, REST-17): floor, stations, modifiers, settings, the server's orders
+      // and the open orders kept on this till.
       toVersion: 12,
+      steps: [
+        createTable({ name: 'restaurant_tables', columns: [data, seenAt] }),
+        createTable({ name: 'restaurant_stations', columns: [data, seenAt] }),
+        createTable({ name: 'restaurant_modifiers', columns: [data, seenAt] }),
+        createTable({ name: 'restaurant_settings', columns: [data, seenAt] }),
+        createTable({ name: 'restaurant_orders', columns: [data, seenAt] }),
+        createTable({
+          name: 'rest_orders',
+          columns: [
+            { name: 'kind', type: 'string' },
+            { name: 'status', type: 'string', isIndexed: true },
+            { name: 'table_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'waiter_id', type: 'string', isIndexed: true },
+            { name: 'dirty', type: 'boolean', isIndexed: true },
+            { name: 'opened_at', type: 'number' },
+            data,
+          ],
+        }),
+      ],
+    },
+    {
+      // Hotel module (HOT-35): who is in house at this till's property (a snapshot).
+      toVersion: 13,
       steps: [createTable({ name: 'hotel_in_house', columns: [{ name: 'room_number', type: 'string', isIndexed: true }, data, seenAt] })],
     },
   ],

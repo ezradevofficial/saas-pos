@@ -49,7 +49,8 @@ class RoleTemplatesTest extends TestCase
         $this->assertSame(['pos.layout.edit', 'pos.layout.publish', 'pos.layout.view', 'pos.sale.share'], $this->posPermissions('admin'));
         $this->assertSame(['pos.layout.view', 'pos.sale.view', 'pos.shift.view'], $this->posPermissions('accountant'));
         $this->assertSame(['pos.layout.view', 'pos.sale.view', 'pos.shift.view'], $this->posPermissions('read_only_auditor'));
-        $this->assertSame(['pos.sale.print', 'pos.sale.view'], $this->posPermissions('waiter'));
+        // REST-19: a waiter bills at the till: sells and signs in, but cannot void, refund or discount.
+        $this->assertSame(['pos.sale.print', 'pos.sale.view', 'pos.till.sign_in'], $this->posPermissions('waiter'));
         $this->assertSame([], $this->posPermissions('hr_officer'));
 
         // RBAC-08: with the module off, the same roles grant nothing of it.

@@ -245,6 +245,7 @@ return [
     ],
     'usage' => [
         'fixed_assets_asset' => 'Used in a fixed asset',
+        'pharmacy_lot' => 'Has pharmacy batches',
         'fixed_assets_item' => 'Flagged as a fixed asset item',
         'fixed_assets_disposal' => 'The buyer of a fixed asset disposal',
         'fixed_assets_work_order' => 'The vendor of an asset work order',
@@ -263,6 +264,7 @@ return [
         'stock_moved' => 'Stock moved since',
         'manufacturing_bom' => 'Used in a BOM or recipe',
         'manufacturing_order' => 'Used in a production order',
+        'restaurant_order' => 'Used in a table or tab order',
         'loyalty_account' => 'Has a loyalty or credit account',
         'accounting_document' => 'Used in an invoice or bill',
         'accounting_payment' => 'Used in a payment',

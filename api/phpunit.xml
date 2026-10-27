@@ -51,6 +51,7 @@
             <directory>modules/Ecommerce/tests</directory>
             <directory>modules/CRM/tests</directory>
             <directory>modules/Manufacturing/tests</directory>
+            <directory>modules/Restaurant/tests</directory>
             <directory>modules/Pharmacy/tests</directory>
             <directory>modules/Hotel/tests</directory>
         </testsuite>

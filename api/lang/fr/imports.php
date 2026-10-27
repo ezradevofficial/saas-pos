@@ -245,6 +245,7 @@ return [
     ],
     'usage' => [
         'fixed_assets_asset' => 'Utilisé dans une immobilisation',
+        'pharmacy_lot' => 'A des lots en pharmacie',
         'fixed_assets_item' => 'Marqué comme article d’immobilisation',
         'fixed_assets_disposal' => 'L’acheteur d’une cession d’immobilisation',
         'fixed_assets_work_order' => 'Le prestataire d’un ordre de travail sur immobilisation',
@@ -262,6 +263,7 @@ return [
         'changed' => 'Modifié depuis l’import',
         'stock_moved' => 'Du stock a bougé depuis',
         'manufacturing_bom' => 'Utilisé dans une nomenclature ou une recette',
+        'restaurant_order' => 'Utilisé dans une commande de table ou d’ardoise',
         'manufacturing_order' => 'Utilisé dans un ordre de fabrication',
         'loyalty_account' => 'A un compte de fidélité ou de crédit',
         'accounting_document' => 'Utilisé dans une facture',

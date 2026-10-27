@@ -17,6 +17,11 @@ import { createPosStore } from '../pos/posStore';
 import { createSelling } from '../pos/selling';
 import { createHousekeeping } from '../hotel/housekeeping';
 import { createRider } from '../rider/rider';
+import '../restaurant/register';
+import { createOrderStore } from '../restaurant/orderStore';
+import { createOrderSync } from '../restaurant/orderSync';
+import { createRestaurant } from '../restaurant/restaurant';
+import { registerAfterSale } from '../pos/extensions';
 
 /**
  * Everything the screens use, built once: the database, the keystore
@@ -26,6 +31,9 @@ import { createRider } from '../rider/rider';
  * Selling (POS-01..POS-06): services.selling records shifts, sales,
  * voids, refunds and cash movements locally and in the outbox;
  * services.posStore reads them back.
+ *
+ * Restaurant (REST-03..REST-17): services.restaurant keeps open orders and tabs on
+ * the device; the engine uploads them.
  *
  * Rider (ECOM-28): services.rider keeps the rider's deliveries and their
  * queued status updates.
@@ -38,8 +46,21 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const store = createSyncStore(db);
   const credentials = createCredentials(credentialsBackend);
   const api = apiOverride ?? createApiClient({ baseUrl, getToken: () => credentials.token(), getLocale: () => i18n.language, fetchImpl });
+  // REST-17: the Restaurant module's open orders are kept on the till and uploaded by the engine
+  // (before the sales that pay them); each pull folds the server's orders back in.
+  const orders = createOrderStore(db);
+  const orderSync = createOrderSync({ orders });
   // BR-02, LAY-05, NFR-04: after each pull, the logos and layout images go into the media cache.
-  const engine = createSyncEngine({ api, store, credentials, afterPull: () => syncMedia({ api, store }) });
+  const engine = createSyncEngine({
+    api,
+    store,
+    credentials,
+    afterPull: async (counts) => {
+      await syncMedia({ api, store });
+      if (counts?.restaurant_orders) await orderSync.reconcile();
+    },
+    pushers: [{ name: 'restaurant', pendingCount: orders.dirtyCount, push: orderSync.push }],
+  });
   const scheduler = createSyncScheduler({ engine, netInfo });
   const pinGate = createPinGate({
     store,
@@ -52,6 +73,11 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   });
   const posStore = createPosStore(db);
   const selling = createSelling({ engine, posStore, api });
+  // REST-16: waiters' orders; a part rung as a sale marks its order paid.
+  const restaurant = createRestaurant({ orders, engine, posStore });
+  registerAfterSale('restaurant', ({ sale }) => {
+    if (sale?.extensions?.restaurant) restaurant.recordPart(sale).catch(() => {});
+  });
   const clockStore = createClockStore(db);
   const clockGate = createClockGate({ clockStore, engine, credentials });
   // ECOM-28: the rider screen, signed in with the rider's own token (never the device's).
@@ -60,7 +86,7 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const rider = createRider({ api: riderApi, store, credentials: riderCredentials, deleteFile: deletePhotoFile });
   // HOT-29: a housekeeper signs in as themselves, the same way (their own token, never the till's).
   const housekeeping = createHousekeeping({ api: riderApi, credentials: riderCredentials });
-  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, clockStore, clockGate, riderCredentials, rider, housekeeping };
+  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, clockStore, clockGate, riderCredentials, rider, housekeeping };
 }
 
 export const ServicesContext = createContext(null);

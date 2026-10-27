@@ -49,6 +49,7 @@ use Modules\Payroll\PayrollServiceProvider;
 use Modules\Pharmacy\PharmacyServiceProvider;
 use Modules\POS\PosServiceProvider;
 use Modules\Procurement\ProcurementServiceProvider;
+use Modules\Restaurant\RestaurantServiceProvider;
 use Modules\Stores\StoresServiceProvider;
 
 return [
@@ -98,6 +99,7 @@ return [
     // MKT-04 (ADR 024): the courier's public API routes.
     CourierApiServiceProvider::class,
     PayrollServiceProvider::class,
+    RestaurantServiceProvider::class,
     PharmacyServiceProvider::class,
     HotelServiceProvider::class,
     // MKT-01..MKT-04 (ADR 024): the marketplace, OAuth for apps.

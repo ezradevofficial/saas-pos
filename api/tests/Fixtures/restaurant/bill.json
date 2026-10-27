@@ -1,0 +1,652 @@
+{
+    "cases": [
+        {
+            "name": "mixed tax, void line, service charge and tip",
+            "kind": "totals",
+            "lines": [
+                {
+                    "id": "l1",
+                    "qty": "2",
+                    "unit_price_minor": "50000",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "seat": 1
+                },
+                {
+                    "id": "l2",
+                    "qty": "1",
+                    "unit_price_minor": "30000",
+                    "modifiers": [
+                        {
+                            "price_minor": "5000"
+                        }
+                    ],
+                    "tax_rate": "16",
+                    "tax_inclusive": true,
+                    "seat": 2
+                },
+                {
+                    "id": "l3",
+                    "qty": "3",
+                    "unit_price_minor": "12000",
+                    "tax_rate": null,
+                    "tax_inclusive": false,
+                    "seat": null
+                },
+                {
+                    "id": "l4",
+                    "qty": "1",
+                    "unit_price_minor": "99900",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "void": true,
+                    "seat": 2
+                }
+            ],
+            "service": {
+                "percent": "10",
+                "tax_rate": "16"
+            },
+            "tip_minor": "2000",
+            "expect": {
+                "lines": [
+                    {
+                        "id": "l1",
+                        "gross_minor": "100000",
+                        "net_minor": "100000",
+                        "tax_minor": "16000",
+                        "payable_minor": "116000"
+                    },
+                    {
+                        "id": "l2",
+                        "gross_minor": "35000",
+                        "net_minor": "30172",
+                        "tax_minor": "4828",
+                        "payable_minor": "35000"
+                    },
+                    {
+                        "id": "l3",
+                        "gross_minor": "36000",
+                        "net_minor": "36000",
+                        "tax_minor": "0",
+                        "payable_minor": "36000"
+                    }
+                ],
+                "net_minor": "166172",
+                "tax_minor": "20828",
+                "lines_minor": "187000",
+                "service_charge_minor": "16617",
+                "service_tax_minor": "2659",
+                "tip_minor": "2000",
+                "total_minor": "208276"
+            }
+        },
+        {
+            "name": "no service charge, no tip",
+            "kind": "totals",
+            "lines": [
+                {
+                    "id": "l1",
+                    "qty": "2",
+                    "unit_price_minor": "50000",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "seat": 1
+                },
+                {
+                    "id": "l2",
+                    "qty": "1",
+                    "unit_price_minor": "30000",
+                    "modifiers": [
+                        {
+                            "price_minor": "5000"
+                        }
+                    ],
+                    "tax_rate": "16",
+                    "tax_inclusive": true,
+                    "seat": 2
+                },
+                {
+                    "id": "l3",
+                    "qty": "3",
+                    "unit_price_minor": "12000",
+                    "tax_rate": null,
+                    "tax_inclusive": false,
+                    "seat": null
+                },
+                {
+                    "id": "l4",
+                    "qty": "1",
+                    "unit_price_minor": "99900",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "void": true,
+                    "seat": 2
+                }
+            ],
+            "service": [],
+            "tip_minor": "0",
+            "expect": {
+                "lines": [
+                    {
+                        "id": "l1",
+                        "gross_minor": "100000",
+                        "net_minor": "100000",
+                        "tax_minor": "16000",
+                        "payable_minor": "116000"
+                    },
+                    {
+                        "id": "l2",
+                        "gross_minor": "35000",
+                        "net_minor": "30172",
+                        "tax_minor": "4828",
+                        "payable_minor": "35000"
+                    },
+                    {
+                        "id": "l3",
+                        "gross_minor": "36000",
+                        "net_minor": "36000",
+                        "tax_minor": "0",
+                        "payable_minor": "36000"
+                    }
+                ],
+                "net_minor": "166172",
+                "tax_minor": "20828",
+                "lines_minor": "187000",
+                "service_charge_minor": "0",
+                "service_tax_minor": "0",
+                "tip_minor": "0",
+                "total_minor": "187000"
+            }
+        },
+        {
+            "name": "service charge with a tax-free service item",
+            "kind": "totals",
+            "lines": [
+                {
+                    "id": "b1",
+                    "qty": "3",
+                    "unit_price_minor": "33333",
+                    "tax_rate": "16",
+                    "tax_inclusive": true,
+                    "seat": null
+                },
+                {
+                    "id": "b2",
+                    "qty": "0.5",
+                    "unit_price_minor": "45001",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "seat": null
+                }
+            ],
+            "service": {
+                "percent": "12.5",
+                "tax_rate": null
+            },
+            "tip_minor": "0",
+            "expect": {
+                "lines": [
+                    {
+                        "id": "b1",
+                        "gross_minor": "99999",
+                        "net_minor": "86206",
+                        "tax_minor": "13793",
+                        "payable_minor": "99999"
+                    },
+                    {
+                        "id": "b2",
+                        "gross_minor": "22501",
+                        "net_minor": "22501",
+                        "tax_minor": "3600",
+                        "payable_minor": "26101"
+                    }
+                ],
+                "net_minor": "108707",
+                "tax_minor": "17393",
+                "lines_minor": "126100",
+                "service_charge_minor": "13588",
+                "service_tax_minor": "0",
+                "tip_minor": "0",
+                "total_minor": "139688"
+            }
+        },
+        {
+            "name": "only void lines",
+            "kind": "totals",
+            "lines": [
+                {
+                    "id": "v",
+                    "qty": "1",
+                    "unit_price_minor": "1000",
+                    "void": true,
+                    "tax_inclusive": false
+                }
+            ],
+            "service": {
+                "percent": "10",
+                "tax_rate": "16"
+            },
+            "tip_minor": "0",
+            "expect": {
+                "lines": [],
+                "net_minor": "0",
+                "tax_minor": "0",
+                "lines_minor": "0",
+                "service_charge_minor": "0",
+                "service_tax_minor": "0",
+                "tip_minor": "0",
+                "total_minor": "0"
+            }
+        },
+        {
+            "name": "full",
+            "kind": "split",
+            "mode": "full",
+            "lines": [
+                {
+                    "id": "l1",
+                    "qty": "2",
+                    "unit_price_minor": "50000",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "seat": 1
+                },
+                {
+                    "id": "l2",
+                    "qty": "1",
+                    "unit_price_minor": "30000",
+                    "modifiers": [
+                        {
+                            "price_minor": "5000"
+                        }
+                    ],
+                    "tax_rate": "16",
+                    "tax_inclusive": true,
+                    "seat": 2
+                },
+                {
+                    "id": "l3",
+                    "qty": "3",
+                    "unit_price_minor": "12000",
+                    "tax_rate": null,
+                    "tax_inclusive": false,
+                    "seat": null
+                },
+                {
+                    "id": "l4",
+                    "qty": "1",
+                    "unit_price_minor": "99900",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "void": true,
+                    "seat": 2
+                }
+            ],
+            "service": {
+                "percent": "10",
+                "tax_rate": "16"
+            },
+            "tip_minor": "2000",
+            "options": [],
+            "expect": [
+                {
+                    "line_ids": null,
+                    "lines_minor": "187000",
+                    "service_charge_minor": "16617",
+                    "service_tax_minor": "2659",
+                    "tip_minor": "2000",
+                    "total_minor": "208276",
+                    "equal": null
+                }
+            ]
+        },
+        {
+            "name": "equal in three",
+            "kind": "split",
+            "mode": "equal",
+            "lines": [
+                {
+                    "id": "l1",
+                    "qty": "2",
+                    "unit_price_minor": "50000",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "seat": 1
+                },
+                {
+                    "id": "l2",
+                    "qty": "1",
+                    "unit_price_minor": "30000",
+                    "modifiers": [
+                        {
+                            "price_minor": "5000"
+                        }
+                    ],
+                    "tax_rate": "16",
+                    "tax_inclusive": true,
+                    "seat": 2
+                },
+                {
+                    "id": "l3",
+                    "qty": "3",
+                    "unit_price_minor": "12000",
+                    "tax_rate": null,
+                    "tax_inclusive": false,
+                    "seat": null
+                },
+                {
+                    "id": "l4",
+                    "qty": "1",
+                    "unit_price_minor": "99900",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "void": true,
+                    "seat": 2
+                }
+            ],
+            "service": {
+                "percent": "10",
+                "tax_rate": "16"
+            },
+            "tip_minor": "2000",
+            "options": {
+                "parts": 3
+            },
+            "expect": [
+                {
+                    "line_ids": null,
+                    "lines_minor": "62334",
+                    "service_charge_minor": "5539",
+                    "service_tax_minor": "887",
+                    "tip_minor": "667",
+                    "total_minor": "69427",
+                    "equal": {
+                        "index": 0,
+                        "count": 3
+                    }
+                },
+                {
+                    "line_ids": null,
+                    "lines_minor": "62333",
+                    "service_charge_minor": "5539",
+                    "service_tax_minor": "886",
+                    "tip_minor": "667",
+                    "total_minor": "69425",
+                    "equal": {
+                        "index": 1,
+                        "count": 3
+                    }
+                },
+                {
+                    "line_ids": null,
+                    "lines_minor": "62333",
+                    "service_charge_minor": "5539",
+                    "service_tax_minor": "886",
+                    "tip_minor": "666",
+                    "total_minor": "69424",
+                    "equal": {
+                        "index": 2,
+                        "count": 3
+                    }
+                }
+            ]
+        },
+        {
+            "name": "equal in two, odd total",
+            "kind": "split",
+            "mode": "equal",
+            "lines": [
+                {
+                    "id": "b1",
+                    "qty": "3",
+                    "unit_price_minor": "33333",
+                    "tax_rate": "16",
+                    "tax_inclusive": true,
+                    "seat": null
+                },
+                {
+                    "id": "b2",
+                    "qty": "0.5",
+                    "unit_price_minor": "45001",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "seat": null
+                }
+            ],
+            "service": {
+                "percent": "10",
+                "tax_rate": "16"
+            },
+            "tip_minor": "101",
+            "options": {
+                "parts": 2
+            },
+            "expect": [
+                {
+                    "line_ids": null,
+                    "lines_minor": "63050",
+                    "service_charge_minor": "5436",
+                    "service_tax_minor": "870",
+                    "tip_minor": "51",
+                    "total_minor": "69407",
+                    "equal": {
+                        "index": 0,
+                        "count": 2
+                    }
+                },
+                {
+                    "line_ids": null,
+                    "lines_minor": "63050",
+                    "service_charge_minor": "5435",
+                    "service_tax_minor": "869",
+                    "tip_minor": "50",
+                    "total_minor": "69404",
+                    "equal": {
+                        "index": 1,
+                        "count": 2
+                    }
+                }
+            ]
+        },
+        {
+            "name": "by item",
+            "kind": "split",
+            "mode": "item",
+            "lines": [
+                {
+                    "id": "l1",
+                    "qty": "2",
+                    "unit_price_minor": "50000",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "seat": 1
+                },
+                {
+                    "id": "l2",
+                    "qty": "1",
+                    "unit_price_minor": "30000",
+                    "modifiers": [
+                        {
+                            "price_minor": "5000"
+                        }
+                    ],
+                    "tax_rate": "16",
+                    "tax_inclusive": true,
+                    "seat": 2
+                },
+                {
+                    "id": "l3",
+                    "qty": "3",
+                    "unit_price_minor": "12000",
+                    "tax_rate": null,
+                    "tax_inclusive": false,
+                    "seat": null
+                },
+                {
+                    "id": "l4",
+                    "qty": "1",
+                    "unit_price_minor": "99900",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "void": true,
+                    "seat": 2
+                }
+            ],
+            "service": {
+                "percent": "10",
+                "tax_rate": "16"
+            },
+            "tip_minor": "2000",
+            "options": {
+                "groups": [
+                    [
+                        "l1"
+                    ],
+                    [
+                        "l2",
+                        "l3"
+                    ]
+                ]
+            },
+            "expect": [
+                {
+                    "line_ids": [
+                        "l1"
+                    ],
+                    "lines_minor": "116000",
+                    "service_charge_minor": "10000",
+                    "service_tax_minor": "1600",
+                    "tip_minor": "1241",
+                    "total_minor": "128841",
+                    "equal": null
+                },
+                {
+                    "line_ids": [
+                        "l2",
+                        "l3"
+                    ],
+                    "lines_minor": "71000",
+                    "service_charge_minor": "6617",
+                    "service_tax_minor": "1059",
+                    "tip_minor": "759",
+                    "total_minor": "79435",
+                    "equal": null
+                }
+            ]
+        },
+        {
+            "name": "by seat, unseated lines shared",
+            "kind": "split",
+            "mode": "seat",
+            "lines": [
+                {
+                    "id": "l1",
+                    "qty": "2",
+                    "unit_price_minor": "50000",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "seat": 1
+                },
+                {
+                    "id": "l2",
+                    "qty": "1",
+                    "unit_price_minor": "30000",
+                    "modifiers": [
+                        {
+                            "price_minor": "5000"
+                        }
+                    ],
+                    "tax_rate": "16",
+                    "tax_inclusive": true,
+                    "seat": 2
+                },
+                {
+                    "id": "l3",
+                    "qty": "3",
+                    "unit_price_minor": "12000",
+                    "tax_rate": null,
+                    "tax_inclusive": false,
+                    "seat": null
+                },
+                {
+                    "id": "l4",
+                    "qty": "1",
+                    "unit_price_minor": "99900",
+                    "tax_rate": "16",
+                    "tax_inclusive": false,
+                    "void": true,
+                    "seat": 2
+                }
+            ],
+            "service": {
+                "percent": "10",
+                "tax_rate": "16"
+            },
+            "tip_minor": "2000",
+            "options": [],
+            "expect": [
+                {
+                    "line_ids": [
+                        "l1"
+                    ],
+                    "lines_minor": "134000",
+                    "service_charge_minor": "11800",
+                    "service_tax_minor": "1888",
+                    "tip_minor": "1433",
+                    "total_minor": "149121",
+                    "equal": null
+                },
+                {
+                    "line_ids": [
+                        "l2"
+                    ],
+                    "lines_minor": "53000",
+                    "service_charge_minor": "4817",
+                    "service_tax_minor": "771",
+                    "tip_minor": "567",
+                    "total_minor": "59155",
+                    "equal": null
+                }
+            ]
+        }
+    ],
+    "equal_qty": [
+        {
+            "qty": "1",
+            "index": 0,
+            "count": 3,
+            "expect": "0.333333"
+        },
+        {
+            "qty": "1",
+            "index": 1,
+            "count": 3,
+            "expect": "0.333333"
+        },
+        {
+            "qty": "1",
+            "index": 2,
+            "count": 3,
+            "expect": "0.333334"
+        },
+        {
+            "qty": "2.5",
+            "index": 0,
+            "count": 2,
+            "expect": "1.250000"
+        },
+        {
+            "qty": "2.5",
+            "index": 1,
+            "count": 2,
+            "expect": "1.250000"
+        },
+        {
+            "qty": "3",
+            "index": 2,
+            "count": 3,
+            "expect": "1.000000"
+        }
+    ]
+}

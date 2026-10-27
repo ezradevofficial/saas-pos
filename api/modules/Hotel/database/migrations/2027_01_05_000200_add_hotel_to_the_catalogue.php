@@ -25,8 +25,8 @@ return new class extends Migration
             'name' => json_encode(['en' => 'Hotel and lodging', 'fr' => 'Hôtel et hébergement'], JSON_UNESCAPED_UNICODE),
             'includes' => json_encode((object) []),
             'requires' => null,
-            // After Pharmacy (125), before HR (130).
-            'sort' => 126,
+            // After Restaurant (126), before HR (130).
+            'sort' => 127,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
