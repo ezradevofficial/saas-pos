@@ -13,6 +13,7 @@ import { createSyncStore } from '../sync/store';
 import { fakeServer } from '../test/fakeServer';
 import { testDatabase } from '../test/testDatabase';
 import { loadFuelData, searchVehicles } from './data';
+import { attendantProofs, confirmAttendant, unconfirmed } from './attendants';
 import { registerFuel } from './register';
 import { createFuelResets } from './resets';
 import { buildFuelCart } from './sale';
@@ -291,8 +292,8 @@ describe('forecourt shifts (FUEL-09, FUEL-10)', () => {
         opened_at: shift.opened_at,
         actor_proof: ctx.proof,
         nozzles: [
-          { nozzle_id: N1.id, attendant_id: IDS.attendant, reading: '1000.000' },
-          { nozzle_id: N2.id, attendant_id: IDS.attendant, reading: '1012.500' },
+          { nozzle_id: N1.id, attendant_id: IDS.attendant, attendant_proof: ctx.proof, reading: '1000.000' },
+          { nozzle_id: N2.id, attendant_id: IDS.attendant, attendant_proof: ctx.proof, reading: '1012.500' },
         ],
       },
     });
@@ -428,6 +429,59 @@ describe('forecourt shifts (FUEL-09, FUEL-10)', () => {
     expect(row.collectedMinor).toBe(361000n);
     expect(row.varianceMinor).toBe(-90250n);
     expect(previewVariance({ shift, summary, readings: {}, declared: {}, fuel: ctx.fuel, at: NOW })[0].varianceMinor).toBeNull();
+  });
+});
+
+describe('attendants confirm with their PIN (FUEL-09, AUTH-07)', () => {
+  const credentials = { secret: async () => SECRET };
+  const deviceStore = { device: async () => ({ id: 'device-1' }) };
+  const pinGate = (accepted) => ({ signIn: async ({ userId, input }) => (accepted[userId] === input ? { ok: true, user: { id: userId } } : { ok: false, reason: 'incorrect', attemptsLeft: 4 }) });
+
+  it('signs the attendant’s attestation offline and refuses a wrong PIN', async () => {
+    const ctx = await setup();
+    ctx.server.goOffline();
+    ctx.engine.setNetwork('offline');
+    const gate = pinGate({ [IDS.supervisor]: '4321' });
+
+    await expect(confirmAttendant({ pinGate: gate, engine: ctx.engine, credentials, store: deviceStore, userId: IDS.supervisor, pin: '0000' })).resolves.toEqual({ ok: false, reason: 'incorrect', attemptsLeft: 4 });
+    const confirmed = await confirmAttendant({ pinGate: gate, engine: ctx.engine, credentials, store: deviceStore, userId: IDS.supervisor, pin: '4321' });
+    expect(confirmed.ok).toBe(true);
+    expect(confirmed.proof).toMatchObject({ user_id: IDS.supervisor, kid: 'k1' });
+    expect(typeof confirmed.proof.signature).toBe('string');
+  });
+
+  it('proves the signed-in person by their sign-in and asks the others for a PIN', () => {
+    const rows = [{ attendantId: IDS.attendant, attendantName: 'Wanjiru' }, { attendantId: IDS.supervisor, attendantName: 'Otieno' }, { attendantId: IDS.supervisor, attendantName: 'Otieno' }];
+    expect(unconfirmed({ rows, userId: IDS.attendant, actorProof: { signature: 'a' } })).toEqual([{ id: IDS.supervisor, name: 'Otieno' }]);
+    expect(unconfirmed({ rows, userId: IDS.attendant, actorProof: { signature: 'a' }, confirmed: { [IDS.supervisor]: { signature: 'b' } } })).toEqual([]);
+    expect(attendantProofs({ attendantIds: [IDS.attendant, IDS.supervisor], userId: IDS.attendant, actorProof: { signature: 'a' }, confirmed: { [IDS.supervisor]: { signature: 'b' } } })).toEqual({ [IDS.attendant]: { signature: 'a' }, [IDS.supervisor]: { signature: 'b' } });
+  });
+
+  it('queues a shift offline whose nozzles carry each attendant’s own proof, and none for an unconfirmed one', async () => {
+    const ctx = await setup();
+    ctx.server.goOffline();
+    ctx.engine.setNetwork('offline');
+    const proofS = { session_id: 's', user_id: IDS.supervisor, signed_in_at: 'x', kid: 'k1', signature: 'sig-s' };
+    const shift = await ctx.shifts.open({
+      user: attendant,
+      actorProof: ctx.proof,
+      attendantProofs: { [IDS.supervisor]: proofS },
+      station: ctx.fuel.station,
+      rows: [
+        { nozzle: N1, attendantId: IDS.attendant, attendantName: 'Wanjiru', reading: '1000' },
+        { nozzle: N2, attendantId: IDS.supervisor, attendantName: 'Otieno', reading: '1000' },
+      ],
+    });
+    const queued = (await ctx.store.entries('pending')).find((entry) => entry.kind === 'fuel.shifts');
+    expect(queued.payload.id).toBe(shift.id);
+    expect(queued.payload.opening.nozzles.map((row) => [row.attendant_id, row.attendant_proof])).toEqual([[IDS.attendant, ctx.proof], [IDS.supervisor, proofS]]);
+
+    // Nobody confirmed the second attendant: no proof is sent (the server flags it) rather than a borrowed one.
+    const other = await setup();
+    const unproved = await other.shifts.open({ user: attendant, actorProof: other.proof, station: other.fuel.station, rows: [{ nozzle: N2, attendantId: IDS.supervisor, attendantName: 'Otieno', reading: '1000' }] });
+    const payload = (await other.store.entries('pending')).find((entry) => entry.kind === 'fuel.shifts').payload;
+    expect(payload.opening.nozzles[0]).not.toHaveProperty('attendant_proof');
+    expect(unproved.status).toBe('open');
   });
 });
 

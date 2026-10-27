@@ -1200,6 +1200,15 @@
       "voucher": "Fuel vouchers"
     },
     "open": {
+      "confirmTitleAll": "Confirm the attendants",
+      "confirmHelpAll": "Each attendant on a nozzle confirms with their own PIN before the shift opens.",
+      "confirmButton": "Confirm {{name}}",
+      "confirmTitle": "{{name}}, confirm with your PIN",
+      "confirmHelp": "Enter your PIN to confirm you are working these nozzles. It works without a connection.",
+      "confirmPin": "PIN",
+      "confirmSubmit": "Confirm {{name}}",
+      "confirmIncorrect": "That PIN is not right. {{count}} attempts left.",
+      "confirmErrors": {"locked": "This PIN is locked. Ask a manager to unlock it.", "not_set": "No PIN is set for this person. Ask a manager to set one.", "online_required": "This PIN can only be checked online. Connect the till and try again.", "failed": "The PIN could not be checked. Try again."},
       "title": "Open shift",
       "intro": "Choose the nozzles in use, type each opening meter reading and choose who works each nozzle.",
       "inUse": "In use",

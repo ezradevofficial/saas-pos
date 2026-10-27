@@ -199,6 +199,8 @@ class HardeningTest extends TestCase
         $body['opening']['nozzles'][1]['attendant_proof'] = $this->actorProof($this->attendant2->id);
         $this->uploadShifts([[...$body, 'closing' => $this->fuelClosing(['A' => '1100.000', 'B' => '5000.000'], ['A' => 0, 'B' => 0])]])->assertOk();
         $a = $this->settlementOf($this->attendant);
+        // Each attendant's own attestation (`attendant_proof`) clears the unverified flag on their nozzle.
+        $this->inTenant(fn () => ShiftNozzle::query()->get()->each(fn ($row) => $this->assertNotContains('attendant_unverified', array_column($row->flags ?? [], 'code'))));
         $this->inTenant(fn () => TillSignIn::create(['device_id' => $this->till->id, 'user_id' => $this->manager->id, 'session_id' => (string) Str::uuid7(), 'signed_in_at' => now()->subHours(2), 'verified_at' => now()]));
         $this->inTenant(fn () => $this->assertTrue((new ShiftVarianceType)->mayAct($this->manager, $a->id, 'approve')));
     }

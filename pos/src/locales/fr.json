@@ -1200,6 +1200,15 @@
       "voucher": "Bons de carburant"
     },
     "open": {
+      "confirmTitleAll": "Confirmer les pompistes",
+      "confirmHelpAll": "Chaque pompiste d’un pistolet confirme avec son propre code PIN avant l’ouverture du poste.",
+      "confirmButton": "Confirmer {{name}}",
+      "confirmTitle": "{{name}}, confirmez avec votre PIN",
+      "confirmHelp": "Saisissez votre PIN pour confirmer que vous travaillez à ces pistolets. Cela fonctionne sans connexion.",
+      "confirmPin": "PIN",
+      "confirmSubmit": "Confirmer {{name}}",
+      "confirmIncorrect": "Ce PIN est incorrect. Il reste {{count}} essais.",
+      "confirmErrors": {"locked": "Ce PIN est verrouillé. Demandez à un responsable de le déverrouiller.", "not_set": "Aucun PIN n’est défini pour cette personne. Demandez à un responsable d’en définir un.", "online_required": "Ce PIN ne peut être vérifié qu’en ligne. Connectez la caisse et réessayez.", "failed": "Le PIN n’a pas pu être vérifié. Réessayez."},
       "title": "Ouvrir le poste",
       "intro": "Choisissez les pistolets utilisés, saisissez l’index d’ouverture de chacun et choisissez qui le tient.",
       "inUse": "Utilisé",

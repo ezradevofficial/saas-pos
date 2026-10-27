@@ -7,6 +7,8 @@ import { Button } from '../components/ds/Button';
 import { Dialog } from '../components/ds/Dialog';
 import { TextField } from '../components/ds/TextField';
 import { usePosData } from '../pos/PosProvider';
+import { useServices } from '../services/services';
+import { attendantProofs, confirmAttendant, unconfirmed } from './attendants';
 import { nozzlesByPump, productName } from './data';
 import { parseCm, parseLitres } from './meters';
 import { lastKnownReading } from './shifts';
@@ -18,6 +20,37 @@ function attendantsOf(catalogue) {
   const staff = (catalogue?.staff ?? []).filter((member) => !member.locked);
   const eligible = staff.filter((member) => member.owner || member.permissions?.includes('fuel.sale.create'));
   return eligible.length ? eligible : staff;
+}
+
+/** AUTH-07: an attendant confirms they are the one on the nozzle with their own PIN; works offline. */
+function PinDialog({ attendant, onConfirm, onClose }) {
+  const { t } = useTranslation();
+  const [pin, setPin] = useState('');
+  const [problem, setProblem] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    setBusy(true);
+    setProblem(null);
+    const result = await onConfirm(attendant, pin).catch(() => ({ ok: false, reason: 'failed' }));
+    setBusy(false);
+    if (!result.ok) {
+      setPin('');
+      setProblem(result.reason === 'incorrect' ? t('fuel.open.confirmIncorrect', { count: result.attemptsLeft ?? 0 }) : t(`fuel.open.confirmErrors.${result.reason}`, { defaultValue: t('fuel.open.confirmErrors.failed') }));
+    }
+  }
+
+  return (
+    <Dialog open title={t('fuel.open.confirmTitle', { name: attendant.name })} onClose={onClose}>
+      <View className="gap-3">
+        <Text className="font-sans text-body text-ink-muted">{t('fuel.open.confirmHelp')}</Text>
+        <TextField label={t('fuel.open.confirmPin')} secureTextEntry keyboardType="number-pad" value={pin} onChangeText={setPin} error={problem} />
+        <Button variant="pay" block loading={busy} disabled={pin.length < 4} onPress={submit}>
+          {t('fuel.open.confirmSubmit', { name: attendant.name })}
+        </Button>
+      </View>
+    </Dialog>
+  );
 }
 
 function AttendantDialog({ staff, onChoose, onClose }) {
@@ -43,6 +76,7 @@ function AttendantDialog({ staff, onChoose, onClose }) {
 export function OpenFuelShift({ fuel, services, location, onBack, onDone }) {
   const { t } = useTranslation();
   const { user, actorProof } = useSession();
+  const { pinGate, engine, credentials, store } = useServices();
   const { catalogue } = usePosData();
   const staff = useMemo(() => attendantsOf(catalogue), [catalogue]);
   const groups = useMemo(() => nozzlesByPump(fuel), [fuel]);
@@ -53,6 +87,8 @@ export function OpenFuelShift({ fuel, services, location, onBack, onDone }) {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [lastReadings, setLastReadings] = useState(null);
+  const [confirmed, setConfirmed] = useState({});
+  const [pinFor, setPinFor] = useState(null);
 
   // The last reading each nozzle is known to have, including shifts closed here since the last sync.
   useEffect(() => {
@@ -72,10 +108,23 @@ export function OpenFuelShift({ fuel, services, location, onBack, onDone }) {
     else update(nozzle.id, { on: true, attendant: rows[nozzle.id]?.attendant ?? staff.find((member) => member.id === user?.id) ?? staff[0] ?? null, reading: rows[nozzle.id]?.reading ?? '' });
   };
 
+  // Everyone put on a nozzle proves who they are: the person signed in by their own sign-in, the others by their PIN.
+  const chosen = fuel.nozzles.filter((nozzle) => rows[nozzle.id]?.on);
+  const chosenRows = chosen.map((nozzle) => ({ attendantId: rows[nozzle.id].attendant?.id, attendantName: rows[nozzle.id].attendant?.name }));
+  const waiting = unconfirmed({ rows: chosenRows, userId: user?.id, actorProof, confirmed });
+
+  async function confirm(attendant, pin) {
+    const result = await confirmAttendant({ pinGate, engine, credentials, store, userId: attendant.id, pin });
+    if (result.ok) {
+      setConfirmed((current) => ({ ...current, [attendant.id]: result.proof ?? null }));
+      setPinFor(null);
+    }
+    return result;
+  }
+
   async function open() {
     setError(null);
     setErrors({});
-    const chosen = fuel.nozzles.filter((nozzle) => rows[nozzle.id]?.on);
     const missing = {};
     for (const nozzle of chosen) if (parseLitres(rows[nozzle.id].reading) === null) missing[nozzle.id] = t('fuel.errors.reading_invalid');
     if (Object.keys(missing).length) return setErrors(missing);
@@ -90,6 +139,7 @@ export function OpenFuelShift({ fuel, services, location, onBack, onDone }) {
       await services.shifts.open({
         user,
         actorProof,
+        attendantProofs: attendantProofs({ attendantIds: chosenRows.map((row) => row.attendantId), userId: user?.id, actorProof, confirmed }),
         station: fuel.station,
         rows: chosen.map((nozzle) => ({ nozzle, attendantId: rows[nozzle.id].attendant?.id, attendantName: rows[nozzle.id].attendant?.name, reading: rows[nozzle.id].reading })),
         dips: dipRows,
@@ -149,10 +199,20 @@ export function OpenFuelShift({ fuel, services, location, onBack, onDone }) {
           ))}
         </Section>
       ) : null}
+      {waiting.length ? (
+        <Section title={t('fuel.open.confirmTitleAll')} help={t('fuel.open.confirmHelpAll')}>
+          {waiting.map((attendant) => (
+            <Button key={attendant.id} variant="secondary" block onPress={() => setPinFor(attendant)}>
+              {t('fuel.open.confirmButton', { name: attendant.name })}
+            </Button>
+          ))}
+        </Section>
+      ) : null}
       {error ? <Alert tone="danger">{error}</Alert> : null}
-      <Button variant="pay" block loading={busy} disabled={!count} onPress={open}>
+      <Button variant="pay" block loading={busy} disabled={!count || waiting.length > 0} onPress={open}>
         {t('fuel.open.submit')}
       </Button>
+      {pinFor ? <PinDialog attendant={pinFor} onConfirm={confirm} onClose={() => setPinFor(null)} /> : null}
       {chooser ? (
         <AttendantDialog
           staff={staff}

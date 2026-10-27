@@ -28,7 +28,7 @@ export function openingPayload({ openedById, openedAt, actorProof, nozzles, dips
     opened_by_id: openedById,
     opened_at: openedAt,
     actor_proof: actorProof ?? undefined,
-    nozzles: nozzles.map((row) => ({ nozzle_id: row.nozzle_id, attendant_id: row.attendant_id, reading: showLitres(row.reading) })),
+    nozzles: nozzles.map((row) => clean({ nozzle_id: row.nozzle_id, attendant_id: row.attendant_id, attendant_proof: row.attendant_proof ?? undefined, reading: showLitres(row.reading) })),
     dips: dips?.length ? dips.map(dipPayload) : undefined,
   });
 }
@@ -182,11 +182,12 @@ export function createFuelShifts({ engine, store, database, now = () => Date.now
 
     /**
      * FUEL-09: open a shift. `rows` = [{ nozzle (a synced fuel_nozzles row), attendantId, attendantName, reading }];
-     * `dips` = [{ tank, dipCm, waterCm }] taken now (optional). Resolves the stored shift.
+     * `dips` = [{ tank, dipCm, waterCm }] taken now (optional). `attendantProofs` = { [userId]: actor_proof } of the
+     * attendants who confirmed with their PIN (attendants.js); the signed-in user's own `actorProof` is used for them. Resolves the stored shift.
      * Throws FuelError: not_permitted, shift_open, nozzles_required, attendant_required, reading_invalid,
      * meter_decreased (with `nozzleId`, `last`), nozzle_duplicate, dip_*.
      */
-    open: ({ user, actorProof, station, rows: nozzleRows, dips = [] }) =>
+    open: ({ user, actorProof, attendantProofs = {}, station, rows: nozzleRows, dips = [] }) =>
       serial(async () => {
         if (!can(user, FUEL.shiftOpen)) throw new FuelError('not_permitted');
         if (await service.current()) throw new FuelError('shift_open');
@@ -204,7 +205,7 @@ export function createFuelShifts({ engine, store, database, now = () => Date.now
             if (error instanceof FuelError) error.nozzleId = row.nozzle.id;
             throw error;
           }
-          opened.push({ nozzle_id: row.nozzle.id, attendant_id: row.attendantId, reading: parseLitres(row.reading) });
+          opened.push({ nozzle_id: row.nozzle.id, attendant_id: row.attendantId, attendant_proof: attendantProofs[row.attendantId] ?? (row.attendantId === user.id ? actorProof : undefined), reading: parseLitres(row.reading) });
         }
         const openingDips = dips.map((dip) => makeDip(dip, at, serverNow));
         const opening = openingPayload({ openedById: user.id, openedAt: at, actorProof, nozzles: opened, dips: openingDips });
