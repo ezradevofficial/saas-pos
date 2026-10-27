@@ -100,11 +100,11 @@ export function PaymentScreen({ tablet, onBack, onDone }) {
       // LOY-05, LOY-15, LOY-22: the module checks the tender (offline rules) and gives its reference.
       try {
         const prepared = await provider.prepare({ input: tenderInput, amountMinor: amountText ? amountMinor : remainingActive, currency: active.currency, cart, catalogue, database, api, online, user });
-        actions.addTender(saleId, { id, method: active.method, currency: active.currency, amountMinor: String(prepared.amountMinor), tender: prepared.tender ?? undefined, label: prepared.label ?? undefined });
+        actions.addTender(saleId, { id, method: active.method, currency: active.currency, amountMinor: String(prepared.amountMinor), tender: prepared.tender ?? undefined, label: prepared.label ?? undefined, extension: prepared.extension ?? undefined });
         setAmountText('');
         setTenderInput('');
       } catch (refusal) {
-        setError(t(`pos.loyalty.errors.${refusal?.code ?? 'failed'}`, { ...refusal, amount: refusal?.available ? money(refusal.available, active.currency) : '', defaultValue: t('pos.loyalty.errors.failed') }));
+        setError(t(refusal?.messageKey ?? `pos.loyalty.errors.${refusal?.code ?? 'failed'}`, { ...refusal, amount: refusal?.available ? money(refusal.available, active.currency) : '', defaultValue: t('pos.loyalty.errors.failed') }));
       }
       return;
     }

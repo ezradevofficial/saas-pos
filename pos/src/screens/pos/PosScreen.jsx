@@ -13,6 +13,12 @@ import { OrderScreen } from '../restaurant/OrderScreen';
 import { TablesScreen } from '../restaurant/TablesScreen';
 import { APPEARANCES, useTillTheme } from '../../theme/TillTheme';
 import { CustomerDisplayScreen } from '../CustomerDisplayScreen';
+import { useVanSales } from '../../vansales/context';
+import { CollectScreen } from '../vansales/CollectScreen';
+import { CountScreen } from '../vansales/CountScreen';
+import { DayScreen } from '../vansales/DayScreen';
+import { LoadScreen } from '../vansales/LoadScreen';
+import { StopScreen } from '../vansales/StopScreen';
 import { useCustomerDisplayFeed } from './useCustomerDisplayFeed';
 import { useServices } from '../../services/services';
 import { AUTH } from '../../sync/engine';
@@ -99,11 +105,16 @@ export function PosScreen() {
   const { cart } = usePosCart();
   // REST-02: the restaurant and bar modes open on the floor; retail tills open on the sell screen.
   const floor = useRestaurant();
-  const home = floor.enabled ? 'tables' : 'sell';
+  // VAN-05: a van's till opens on the rep's day.
+  const van = useVanSales();
+  const home = floor.enabled ? 'tables' : van.enabled ? 'day' : 'sell';
   const [route, setRoute] = useState(home);
   const [orderId, setOrderId] = useState(null);
   // REST-16: paying a part of a bill goes through the normal payment screens and returns to the bill.
   const [payingBill, setPayingBill] = useState(false);
+  // VAN-09: the stop being worked ({ customerId, visitId, stop }); selling, collecting and returns come back to it.
+  const [stopRef, setStopRef] = useState(null);
+  const [fromStop, setFromStop] = useState(false);
   // LAY-05: the customer display follows the current sale.
   useCustomerDisplayFeed();
   const [dialog, setDialog] = useState(null);
@@ -145,6 +156,14 @@ export function PosScreen() {
     setPayingBill(false);
     setRoute('bill');
   }, []);
+  const openStop = useCallback((next) => {
+    setStopRef(next);
+    setRoute('stop');
+  }, []);
+  const toStop = useCallback(() => {
+    setFromStop(false);
+    setRoute(stopRef ? 'stop' : 'day');
+  }, [stopRef]);
   const openOrder = useCallback((id) => {
     setOrderId(id);
     setRoute('order');
@@ -161,14 +180,20 @@ export function PosScreen() {
   let screen;
   if (!shift) screen = <OpenShiftScreen onMenu={openMenu} />;
   else if (route === 'pay') screen = <PaymentScreen tablet={tablet} onBack={payingBill ? toBill : toSell} onDone={(sale) => { setReceipt(sale); setRoute('receipt'); }} />;
-  else if (route === 'receipt' && receipt) screen = <ReceiptScreen sale={receipt} onNewSale={payingBill ? toBill : toSell} />;
+  else if (route === 'receipt' && receipt) screen = <ReceiptScreen sale={receipt} onNewSale={payingBill ? toBill : fromStop && receipt.extensions?.van_sales?.visit_id ? toStop : toSell} />;
+  else if (route === 'day' && van.enabled) screen = <DayScreen onStop={openStop} onLoad={() => setRoute('load')} onCount={() => setRoute('count')} onMenu={openMenu} />;
+  else if (route === 'load' && van.enabled) screen = <LoadScreen onBack={() => setRoute('day')} />;
+  else if (route === 'count' && van.enabled) screen = <CountScreen onBack={() => setRoute('day')} />;
+  else if (route === 'stop' && van.enabled && stopRef)
+    screen = <StopScreen stopRef={stopRef} onBack={() => { setFromStop(false); setRoute('day'); }} onSell={() => { setFromStop(true); setRoute('sell'); }} onCollect={() => setRoute('collect')} onReturns={() => { setFromStop(true); setRoute('sales'); }} />;
+  else if (route === 'collect' && van.enabled && stopRef) screen = <CollectScreen target={stopRef} onBack={toStop} />;
   else if (route === 'tables' && floor.enabled)
     screen = <TablesScreen tablet={tablet} onOpenOrder={openOrder} onQuickSale={toSell} onHeld={openHeld} onCloseShift={() => setRoute('close')} onMenu={openMenu} />;
   else if (route === 'order' && floor.enabled && orderId)
     screen = <OrderScreen orderId={orderId} tablet={tablet} onBack={(next) => (next ? setOrderId(next) : setRoute('tables'))} onBill={toBill} />;
   else if (route === 'bill' && floor.enabled && orderId)
     screen = <BillScreen orderId={orderId} onBack={() => setRoute('order')} onPay={() => { setPayingBill(true); setRoute('pay'); }} onDone={() => setRoute('tables')} />;
-  else if (route === 'sales') screen = <SalesScreen onBack={toSell} />;
+  else if (route === 'sales') screen = <SalesScreen onBack={fromStop ? toStop : toSell} />;
   else if (route === 'close') screen = <CloseShiftScreen onBack={toSell} />;
   else if (route === 'display') screen = <CustomerDisplayScreen onClose={toSell} />;
   else if (route === 'cart' && !tablet) screen = <PhoneCartScreen onBack={toSell} onPay={toPay} onCustomer={openCustomer} onLine={openLine} />;

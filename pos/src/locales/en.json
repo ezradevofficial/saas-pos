@@ -1100,5 +1100,174 @@
       "merge_same": "Pick a different table to merge into.",
       "merge_part_paid": "A part of this bill is paid, so it cannot be merged."
     }
+  },
+  "vansales": {
+    "menu": {
+      "day": "Route day",
+      "sell": "Quick sale"
+    },
+    "kinds": {
+      "run": "Day",
+      "visit": "Visit",
+      "collection": "Collection",
+      "count": "Count"
+    },
+    "status": {
+      "pending": "Pending",
+      "visited": "Visited",
+      "sold": "Sold",
+      "no_sale": "No sale",
+      "skipped": "Skipped"
+    },
+    "noSale": {
+      "closed": "Shop closed",
+      "no_need": "No need",
+      "has_stock": "Has stock",
+      "no_money": "No money",
+      "credit_hold": "Credit on hold",
+      "not_found": "Customer not found",
+      "other": "Other"
+    },
+    "day": {
+      "title": "Route day",
+      "startTitle": "Start the day",
+      "startHelp": "Choose today's route. You can start without a connection.",
+      "noneToday": "No route is due today. Choose one anyway or start without a route.",
+      "route": "Route",
+      "noRoute": "No route",
+      "routeNotToday": "{{name}} (not today)",
+      "start": "Start day",
+      "summary": "{{done}} of {{total}} stops done, {{sold}} sold",
+      "loads": "Load sheets",
+      "confirmLoadCount": "Confirm load ({{count}})",
+      "visitOther": "Visit another customer",
+      "endDay": "End of day count",
+      "noLoad": "No load sheet is confirmed yet. You can still sell; confirm the load when you are online.",
+      "stale": "This day started on an earlier date and is still open. Count the van to close it.",
+      "noStopsToday": "No stops are due today on this route.",
+      "noRouteRun": "This day has no route. Visit customers with the button above.",
+      "otherTitle": "Visit another customer",
+      "otherSearch": "Customer name or phone",
+      "rejectedTitle": "{{count}} records were refused by the server",
+      "rejectedRetry": "Try again"
+    },
+    "load": {
+      "title": "Load sheets",
+      "none": "No load sheets yet.",
+      "sheet": "Load {{number}}",
+      "released": "Sent: {{qty}}",
+      "received": "Received",
+      "confirm": "Confirm load",
+      "confirmed": "Load {{number}} confirmed.",
+      "offline": "You are offline. Confirming a load needs a connection; the sheet is kept as it is. Try again when you are online.",
+      "status": {
+        "awaiting_approval": "Awaiting approval",
+        "approved": "Approved",
+        "released": "Ready to confirm",
+        "confirmed": "Confirmed",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      }
+    },
+    "stop": {
+      "back": "Stop",
+      "status": "Visit",
+      "noRun": "Start the day before selling or collecting.",
+      "credit": "Credit",
+      "noAccount": "No credit account is synced for this customer yet.",
+      "noLimit": "No credit limit is set. Credit sales are refused for this customer.",
+      "limit": "Limit {{amount}}",
+      "balance": "Balance {{amount}}",
+      "available": "Available {{amount}}",
+      "sell": "Sell",
+      "collect": "Collect payment",
+      "return": "Return or exchange",
+      "noSale": "No sale",
+      "skip": "Skip stop",
+      "note": "Note",
+      "noSaleTitle": "Why was nothing sold?",
+      "noSaleReason": "Reason",
+      "noSaleSave": "Record no sale",
+      "returnTitle": "Return or exchange",
+      "returnHelp": "Choose the sale. Return the goods first, then sell the replacement for an exchange.",
+      "returnNone": "This customer has no sale on today's run.",
+      "returnItems": "Return items",
+      "exchange": "Sell replacement"
+    },
+    "checkin": {
+      "title": "Record your arrival",
+      "body": "Your company asks for one position when you arrive at a stop. The app reads it once, only while it is open, and never tracks you in between. You can refuse and carry on.",
+      "allow": "Allow once at arrival",
+      "notNow": "Not now"
+    },
+    "collect": {
+      "title": "Collect payment",
+      "balance": "Outstanding balance",
+      "method": "Payment method",
+      "currency": "Currency",
+      "amount": "Amount",
+      "amountInvalid": "Enter an amount, for example 1500.00.",
+      "reference": "M-Pesa code",
+      "referenceHelp": "Optional. Type the code from the confirmation message.",
+      "save": "Collect {{amount}}",
+      "saveEmpty": "Collect payment",
+      "saved": "Receipt {{number}} saved: {{amount}}. It uploads when you are online.",
+      "aboveTitle": "More than the balance",
+      "aboveBody": "The amount is above the balance of {{balance}}. The server keeps it and marks it for review.",
+      "aboveConfirm": "Collect anyway"
+    },
+    "count": {
+      "title": "End of day count",
+      "noRun": "There is no day to count.",
+      "stock": "Stock on the van",
+      "equation": "Load = sold + returned + damaged + variance",
+      "figures": "Load {{load}} · sold {{sold}}",
+      "returned": "Returned (good)",
+      "damaged": "Damaged",
+      "line": "Load {{load_qty}} = sold {{sold_qty}} + returned {{returned_qty}} + damaged {{damaged_qty}} + variance {{variance_qty}}",
+      "balanced": "Balanced",
+      "variance": "Variance",
+      "qtyInvalid": "Enter a quantity with up to 6 decimals.",
+      "noItems": "No items were loaded or sold today.",
+      "money": "Cash and mobile money",
+      "kind": {
+        "cash": "Cash {{currency}}",
+        "mobile_money": "Mobile money {{currency}}"
+      },
+      "expected": "Expected {{amount}}",
+      "counted": "Counted",
+      "moneyVariance": "Difference {{amount}}",
+      "noMoney": "No cash or mobile money was taken today.",
+      "submit": "Submit count",
+      "queued": "Count saved. It uploads when you are online.",
+      "recount": "Count the van again and submit a new count.",
+      "parked": "The server refused the count ({{code}}). Ask your supervisor.",
+      "outcome": {
+        "queued": "Count waiting to upload",
+        "parked": "Count refused",
+        "balanced": "Balanced, the day is closed",
+        "approved": "Approved, the day is closed",
+        "pending": "Waiting for supervisor approval",
+        "rejected": "Rejected, count again"
+      }
+    },
+    "errors": {
+      "failed": "That did not work. Try again.",
+      "offline": "You are offline. Try again when you are online.",
+      "run_open": "A day is already open. Count the van to close it first.",
+      "record_exists": "This was already saved.",
+      "visit_unknown": "This visit was not found. Go back and open the stop again.",
+      "method_invalid": "Choose cash or mobile money.",
+      "amount": "Enter an amount above zero.",
+      "confirm_failed": "The load could not be confirmed. Try again.",
+      "load_not_released": "This load is not released yet.",
+      "load_confirmed": "This load is already confirmed.",
+      "load_not_open": "This load can no longer be confirmed.",
+      "van_unknown": "This device is not linked to a van.",
+      "credit_without_customer": "Choose a customer before selling on credit.",
+      "no_credit_limit": "This customer has no credit limit, so credit is refused.",
+      "limit_currency_differs": "The credit limit is in {{currency}}. Pay this sale in {{currency}} to use credit.",
+      "over_limit": "This is above the available credit of {{amount}}. Take a lower amount on credit."
+    }
   }
 }

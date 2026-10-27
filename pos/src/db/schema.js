@@ -54,9 +54,14 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * folded into the till's), and local `rest_orders`: the open orders and tabs
  * kept on this till (`dirty` while a change waits to upload).
  *
+ * v13 (Van sales module, VAN-27): the synced `van_sales_van`, `van_sales_routes`,
+ * `van_sales_accounts` (by customer), `van_sales_loads` and `van_sales_runs`, and local
+ * `vs_records`: what the rep's device makes (runs, visits, collections, counts), one row
+ * each, with `state` pending until the server stored it (or rejected, parked with its code).
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -178,6 +183,27 @@ export const schema = appSchema({
     tableSchema({ name: 'restaurant_modifiers', columns: [data, seenAt] }),
     tableSchema({ name: 'restaurant_settings', columns: [data, seenAt] }),
     tableSchema({ name: 'restaurant_orders', columns: [data, seenAt] }),
+    // v13: the Van sales module's synced entities (VAN-27).
+    tableSchema({ name: 'van_sales_van', columns: [data, seenAt] }),
+    tableSchema({ name: 'van_sales_routes', columns: [data, seenAt] }),
+    tableSchema({ name: 'van_sales_accounts', columns: [data, seenAt] }),
+    tableSchema({ name: 'van_sales_loads', columns: [data, seenAt] }),
+    tableSchema({ name: 'van_sales_runs', columns: [data, seenAt] }),
+    // v13: runs, visits, collections and counts made on this device (VAN-27); `state` is pending until uploaded.
+    tableSchema({
+      name: 'vs_records',
+      columns: [
+        // run | visit | collection | count
+        { name: 'kind', type: 'string', isIndexed: true },
+        { name: 'run_id', type: 'string', isIndexed: true },
+        { name: 'customer_id', type: 'string', isOptional: true, isIndexed: true },
+        // pending | stored | rejected
+        { name: 'state', type: 'string', isIndexed: true },
+        { name: 'seq', type: 'number', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        data,
+      ],
+    }),
     // v6: images by server path (data URIs), local only.
     tableSchema({ name: 'media_cache', columns: [data, { name: 'fetched_at', type: 'number' }] }),
 

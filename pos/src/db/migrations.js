@@ -185,5 +185,28 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      // Van sales module (VAN-27): the synced route data and what the rep's device makes.
+      toVersion: 13,
+      steps: [
+        createTable({ name: 'van_sales_van', columns: [data, seenAt] }),
+        createTable({ name: 'van_sales_routes', columns: [data, seenAt] }),
+        createTable({ name: 'van_sales_accounts', columns: [data, seenAt] }),
+        createTable({ name: 'van_sales_loads', columns: [data, seenAt] }),
+        createTable({ name: 'van_sales_runs', columns: [data, seenAt] }),
+        createTable({
+          name: 'vs_records',
+          columns: [
+            { name: 'kind', type: 'string', isIndexed: true },
+            { name: 'run_id', type: 'string', isIndexed: true },
+            { name: 'customer_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'state', type: 'string', isIndexed: true },
+            { name: 'seq', type: 'number', isIndexed: true },
+            { name: 'created_at', type: 'number' },
+            data,
+          ],
+        }),
+      ],
+    },
   ],
 });
