@@ -89,6 +89,14 @@ use Modules\Procurement\Models\Tender;
 use Modules\Procurement\Tenders\Bidders;
 use Modules\Restaurant\Models\Settlement;
 use Modules\Restaurant\Models\Ticket;
+use Modules\Salon\Models\CommissionBatch;
+use Modules\Salon\Models\CommissionEntry;
+use Modules\Salon\Models\Package;
+use Modules\Salon\Models\Payout;
+use Modules\Salon\Models\Redemption;
+use Modules\Salon\Models\Reminder;
+use Modules\Salon\Models\SalonException;
+use Modules\Salon\Models\Tip;
 use Modules\VanSales\Models\Collection;
 use Modules\VanSales\Models\Count;
 use Modules\VanSales\Models\CountLine;
@@ -668,6 +676,11 @@ final class TwoTenants
         // a stop, an open run (a visit with a check-in, a flagged credit sale with its stock, tender and ledger rows, a
         // collection), a load sheet requested from the store, and a closed run with a counted reconciliation.
         $vanSales = self::vanSales($test, $owner, $tenantId, $ownerId, $company, $branch, $location, $device, $deviceToken, $inventory['inventory_location'], $item, $customer, $party, $paymentMethod, $upper);
+        // Salon (docs/modules/salon.md): the module switched on; settings with a tip and a fee item, a service menu with an
+        // add-on, a package type, two stylists with hours, a chair, online booking, a client profile, a booked visit with a
+        // deposit, a walk-in in the queue, time off, a commission rule, and the rows the till and the ledger make (a package
+        // with a redemption, an exception, tips, commission entries in a batch with its payout, a reminder).
+        $salon = self::salon($test, $owner, $tenantId, $ownerId, $company, $branch, $location, $priceList, $paymentMethod, $uoms['EA'], $taxCategory, $customer, $upper);
         // HR (docs/modules/hr.md): the module switched on; a position, a default
         // onboarding template, an employee linked to the Owner (self-service)
         // and a peer reporting to them, with identifiers, a pay account, a
@@ -866,6 +879,7 @@ final class TwoTenants
                 ...$pharmacy,
                 ...$hotel,
                 ...$vanSales,
+                ...$salon,
                 ...$hr,
                 ...$fixedAssets,
                 ...$crm,
@@ -1591,6 +1605,123 @@ final class TwoTenants
             'vs_run' => $run,
             'vs_visit' => $visit,
             'vs_load' => $load,
+            ...$ids,
+        ];
+    }
+
+    /**
+     * The Salon fixture of one tenant (docs/modules/salon.md), made through its API as the Owner: service items and their
+     * list prices, settings, a service menu with an add-on, a package type, two stylists with all-week hours, a chair, online
+     * booking for the outlet, a client profile of the shared customer, a booked visit with its deposit, a walk-in in the queue
+     * and time off for the second stylist. The rows the till and the ledger make (a package sold with one session redeemed,
+     * a credit exception, a tip, commission entries in a batch with its payout, a reminder) are written directly (their
+     * paths are covered by the module's tests). Spare items stand ready for the bodies that make or change a service.
+     *
+     * @return array<string, string>
+     */
+    private static function salon(TestCase $test, array $owner, string $tenantId, string $ownerId, string $company, string $branch, string $location, string $priceList,
+        string $paymentMethod, string $each, string $taxCategory, string $customer, string $upper): array
+    {
+        app(TenantContext::class)->run($tenantId, fn () => app(ModuleRegistry::class)->activate('salon'));
+        $owner = [...$owner, 'Accept' => 'application/json'];
+        $today = app(TenantContext::class)->run($tenantId, fn () => CompanyClock::today($company));
+        $at = fn (string $time, int $days) => CarbonImmutable::parse("{$today} {$time}:00", 'Africa/Nairobi')->addDays($days)->utc()->toIso8601String();
+
+        $items = [];
+
+        foreach (['haircut' => 100000, 'beard' => 50000, 'fee' => 10000, 'tip' => 10000, 'package' => 450000, 'spare_a' => 20000, 'spare_b' => 20000, 'spare_c' => 20000] as $name => $price) {
+            $items[$name] = self::ok($test->postJson('/api/v1/items', [
+                'code' => 'SAL-'.strtoupper($name)."-{$upper}", 'name' => 'Salon '.str_replace('_', ' ', $name)." {$upper}", 'type' => 'service', 'base_uom_id' => $each, 'tax_category_id' => $taxCategory,
+            ], $owner), 201)->json('data.id');
+            self::ok($test->postJson("/api/v1/price-lists/{$priceList}/prices", ['item_id' => $items[$name], 'uom_id' => $each, 'amount_minor' => (string) $price, 'currency' => 'KES'], $owner), 201);
+        }
+
+        self::ok($test->putJson("/api/v1/salon/companies/{$company}/settings", ['tip_item_id' => $items['tip'], 'fee_item_id' => $items['fee'], 'deposit_percent' => 0, 'cancel_window_hours' => 24], $owner));
+
+        $staff = self::ok($test->postJson('/api/v1/salon/staff', ['company_id' => $company, 'name' => "Stylist {$upper}", 'title' => 'Senior stylist', 'branch_id' => $branch, 'user_id' => $ownerId], $owner), 201)->json('data.id');
+        $other = self::ok($test->postJson('/api/v1/salon/staff', ['company_id' => $company, 'name' => "Barber {$upper}", 'title' => 'Barber', 'branch_id' => $branch], $owner), 201)->json('data.id');
+        $week = array_map(fn (int $day) => ['branch_id' => $branch, 'weekday' => $day, 'kind' => 'work', 'start' => '00:00', 'end' => '23:59'], range(1, 7));
+
+        foreach ([$staff, $other] as $member) {
+            self::ok($test->putJson("/api/v1/salon/staff/{$member}/hours", ['hours' => $week], $owner));
+        }
+
+        $chair = self::ok($test->postJson('/api/v1/salon/resources', ['branch_id' => $branch, 'name' => "Chair {$upper}", 'kind' => 'chair'], $owner), 201)->json('data.id');
+        $beard = self::ok($test->postJson('/api/v1/salon/services', ['company_id' => $company, 'item_id' => $items['beard'], 'kind' => 'addon', 'duration_minutes' => 15, 'category' => 'Hair'], $owner), 201)->json('data.id');
+        $haircut = self::ok($test->postJson('/api/v1/salon/services', [
+            'company_id' => $company, 'item_id' => $items['haircut'], 'duration_minutes' => 30, 'category' => 'Hair', 'addon_ids' => [$beard], 'online_bookable' => true,
+        ], $owner), 201)->json('data.id');
+        $packageType = self::ok($test->postJson('/api/v1/salon/package-types', [
+            'company_id' => $company, 'item_id' => $items['package'], 'name' => "Five haircuts {$upper}", 'sessions' => 5, 'validity_days' => 180, 'service_ids' => [$haircut],
+        ], $owner), 201)->json('data.id');
+        self::ok($test->putJson("/api/v1/salon/branches/{$branch}/online", ['enabled' => true, 'public_name' => "Salon {$upper}", 'location_id' => $location], $owner));
+        self::ok($test->putJson("/api/v1/salon/clients/{$customer}", ['company_id' => $company, 'preferred_staff_id' => $staff, 'preferences' => "Prefers mornings {$upper}", 'allergies' => "Latex {$upper}"], $owner));
+        $rule = self::ok($test->postJson('/api/v1/salon/commission-rules', [
+            'company_id' => $company, 'staff_id' => $staff, 'applies_to' => 'service', 'kind' => 'percent', 'rate' => '20', 'effective_from' => '2026-01-01',
+        ], $owner), 201)->json('data.id');
+
+        $visit = self::ok($test->postJson('/api/v1/salon/appointments', [
+            'branch_id' => $branch, 'client_id' => $customer, 'starts_at' => $at('10:00', 2), 'lines' => [['service_id' => $haircut, 'staff_id' => $staff]],
+        ], $owner), 201)->json('data');
+        $payment = self::ok($test->postJson("/api/v1/salon/appointments/{$visit['id']}/deposit", ['payment_method_id' => $paymentMethod, 'amount_minor' => '10000', 'mode' => 'direct'], $owner), 201)->json('data.id');
+        $queue = self::ok($test->postJson('/api/v1/salon/queue', ['branch_id' => $branch, 'guest_name' => "Walk-in {$upper}", 'service_ids' => [$haircut]], $owner), 201)->json('data.id');
+        $timeOff = self::ok($test->postJson("/api/v1/salon/staff/{$other}/time-off", ['starts_at' => $at('09:00', 20), 'ends_at' => $at('17:00', 20), 'reason' => 'leave'], $owner), 201)->json('data.id');
+
+        $item = $items['haircut'];
+        $ids = app(TenantContext::class)->run($tenantId, function () use ($company, $branch, $ownerId, $customer, $staff, $item, $haircut, $packageType, $visit, $rule, $upper) {
+            $sale = (string) Str::uuid7();
+            $package = Package::create([
+                'company_id' => $company, 'type_id' => $packageType, 'customer_id' => $customer, 'name' => "Five haircuts {$upper}", 'sale_id' => $sale, 'sale_line_id' => (string) Str::uuid7(),
+                'sessions_total' => 5, 'sessions_used' => 1, 'price_minor' => 450000, 'remaining_minor' => 360000, 'currency' => 'KES', 'service_ids' => [$haircut], 'status' => 'active',
+                'expires_on' => now()->addDays(180)->toDateString(),
+            ]);
+            Redemption::create([
+                'package_id' => $package->id, 'appointment_id' => $visit['id'], 'sale_id' => $sale, 'sale_payment_id' => (string) Str::uuid7(), 'service_id' => $haircut,
+                'value_minor' => 90000, 'currency' => 'KES', 'status' => 'redeemed', 'redeemed_at' => now()->subDay(),
+            ]);
+            $exception = SalonException::create([
+                'company_id' => $company, 'branch_id' => $branch, 'kind' => 'package_unmatched', 'source_key' => "isolation-{$upper}", 'package_id' => $package->id,
+                'amount_minor' => 90000, 'currency' => 'KES', 'detail' => ['reason' => 'fixture'], 'status' => 'open',
+            ]);
+            Tip::create([
+                'company_id' => $company, 'branch_id' => $branch, 'staff_id' => $staff, 'sale_id' => $sale, 'kind' => 'tip', 'currency' => 'KES', 'amount_minor' => 5000,
+                'source_key' => "isolation-tip-{$upper}", 'earned_at' => now()->subDay(),
+            ]);
+            $batch = CommissionBatch::create([
+                'company_id' => $company, 'branch_id' => $branch, 'number' => "CB-ISO-{$upper}", 'period_start' => now()->subDays(40)->toDateString(), 'period_end' => now()->subDays(10)->toDateString(),
+                'currency' => 'KES', 'status' => 'draft', 'created_by' => $ownerId,
+            ]);
+            $entry = fn (string $key, ?string $batchId, int $amount) => CommissionEntry::create([
+                'company_id' => $company, 'branch_id' => $branch, 'staff_id' => $staff, 'kind' => 'earn', 'line_kind' => 'service', 'sale_id' => $sale, 'sale_line_id' => (string) Str::uuid7(),
+                'appointment_id' => $visit['id'], 'item_id' => $item, 'qty' => '1', 'base_minor' => $amount * 5, 'rule_id' => $rule, 'rule_snapshot' => ['kind' => 'percent', 'rate' => '20'],
+                'currency' => 'KES', 'amount_minor' => $amount, 'source_type' => 'sale', 'source_id' => $sale, 'source_key' => "isolation-{$key}-{$upper}", 'earned_at' => now()->subDay(), 'batch_id' => $batchId,
+            ]);
+            $entry('batched', $batch->id, 20000);
+            $entry('open', null, 30000);
+            Payout::create(['batch_id' => $batch->id, 'staff_id' => $staff, 'amount_minor' => 20000, 'currency' => 'KES', 'entry_count' => 1, 'status' => 'pending']);
+            Reminder::create(['appointment_id' => $visit['id'], 'kind' => 'reminder', 'dedupe' => 'v1', 'sent_at' => now()]);
+
+            return ['salon_package' => $package->id, 'salon_exception' => $exception->id, 'salon_batch' => $batch->id];
+        });
+
+        return [
+            'salon_service' => $haircut,
+            'salon_addon' => $beard,
+            'salon_ptype' => $packageType,
+            'salon_staff' => $staff,
+            'salon_staff_other' => $other,
+            'salon_resource' => $chair,
+            'salon_appointment' => $visit['id'],
+            'salon_line' => $visit['lines'][0]['id'],
+            'salon_payment' => $payment,
+            'salon_queue' => $queue,
+            'salon_timeoff' => $timeOff,
+            'salon_rule' => $rule,
+            'salon_item_tip' => $items['tip'],
+            'salon_item_fee' => $items['fee'],
+            'salon_item_spare_a' => $items['spare_a'],
+            'salon_item_spare_b' => $items['spare_b'],
+            'salon_item_spare_c' => $items['spare_c'],
             ...$ids,
         ];
     }
