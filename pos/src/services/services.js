@@ -26,6 +26,10 @@ import '../vansales/register';
 import { createVanSales } from '../vansales/vansales';
 import { createVsStore } from '../vansales/vsStore';
 import { createVsSync } from '../vansales/vsSync';
+import '../salon/register';
+import { createSalon } from '../salon/salon';
+import { createSalonStore } from '../salon/salonStore';
+import { createSalonSync } from '../salon/salonSync';
 
 /**
  * Everything the screens use, built once: the database, the keystore
@@ -41,6 +45,9 @@ import { createVsSync } from '../vansales/vsSync';
  *
  * Van sales (VAN-27): services.vanSales keeps the rep's runs, visits, collections and counts on the
  * device; the engine uploads them through POST van-sales/device/sync.
+ *
+ * Salon (SAL-29): services.salon keeps the staff's appointments made, day steps and queue changes on the
+ * device; the engine uploads them through POST salon/device/sync.
  *
  * Rider (ECOM-28): services.rider keeps the rider's deliveries and their
  * queued status updates.
@@ -60,6 +67,9 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   // VAN-27: the rep's runs, visits, collections and counts, uploaded before the sales they belong to.
   const vsRecords = createVsStore(db);
   const vsSync = createVsSync({ records: vsRecords });
+  // SAL-29: the salon's appointments, steps of the day and queue changes, uploaded before the sales they belong to.
+  const salonRecords = createSalonStore(db);
+  const salonSync = createSalonSync({ records: salonRecords });
   // BR-02, LAY-05, NFR-04: after each pull, the logos and layout images go into the media cache.
   const engine = createSyncEngine({
     api,
@@ -72,6 +82,7 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
     pushers: [
       { name: 'restaurant', pendingCount: orders.dirtyCount, push: orderSync.push },
       { name: 'van_sales', pendingCount: vsSync.pendingCount, push: vsSync.push },
+      { name: 'salon', pendingCount: salonSync.pendingCount, push: salonSync.push },
     ],
   });
   const scheduler = createSyncScheduler({ engine, netInfo });
@@ -96,6 +107,11 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   registerAfterSale('van_sales', ({ sale }) => {
     if (sale?.extensions?.van_sales) vanSales.recordSale(sale).catch(() => {});
   });
+  // SAL-16: a sale completed for an appointment marks it paid on the till until the server's row says so.
+  const salon = createSalon({ records: salonRecords, engine });
+  registerAfterSale('salon', ({ sale }) => {
+    if (sale?.extensions?.salon) salon.recordSale(sale).catch(() => {});
+  });
   const clockStore = createClockStore(db);
   const clockGate = createClockGate({ clockStore, engine, credentials });
   // ECOM-28: the rider screen, signed in with the rider's own token (never the device's).
@@ -104,7 +120,7 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const rider = createRider({ api: riderApi, store, credentials: riderCredentials, deleteFile: deletePhotoFile });
   // HOT-29: a housekeeper signs in as themselves, the same way (their own token, never the till's).
   const housekeeping = createHousekeeping({ api: riderApi, credentials: riderCredentials });
-  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, vanSales, clockStore, clockGate, riderCredentials, rider, housekeeping };
+  return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, vanSales, salon, clockStore, clockGate, riderCredentials, rider, housekeeping };
 }
 
 export const ServicesContext = createContext(null);

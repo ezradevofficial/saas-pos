@@ -13,6 +13,7 @@ import { searchCustomers } from '../../pos/catalogue';
 import { maskPhone, parseAmount, parseQuantity } from '../../pos/input';
 import { usePosActions, usePosCart, usePosData } from '../../pos/PosProvider';
 import { extend } from '../../pos/tax';
+import { useSalon } from '../../salon/context';
 import { useVanSales } from '../../vansales/context';
 import { useRestaurant } from '../../restaurant/context';
 import { useServices } from '../../services/services';
@@ -293,6 +294,7 @@ export function MenuDialog({ onClose, onNavigate, compact }) {
   };
   const floor = useRestaurant();
   const route = useVanSales();
+  const salon = useSalon();
   const items = [
     // REST-02: the floor is home on restaurant and bar tills; the retail sell screen stays reachable as a quick sale.
     shift && floor.enabled && ['tables', t('restaurant.menu.tables')],
@@ -300,6 +302,10 @@ export function MenuDialog({ onClose, onNavigate, compact }) {
     // VAN-05: the rep's day is home on a van's till; the sell screen stays reachable for any sale.
     shift && route.enabled && ['day', t('vansales.menu.day')],
     shift && route.enabled && ['sell', t('vansales.menu.sell')],
+    // SAL-29: the day's appointments are home on a salon's till; the sell screen stays reachable for any sale.
+    shift && salon.enabled && ['salon', t('salon.menu.day')],
+    shift && salon.enabled && ['salon_queue', t('salon.menu.queue')],
+    shift && salon.enabled && ['sell', t('salon.menu.sell')],
     shift && ['sales', t('pos.menu.sales')],
     shift && ['cash', t('pos.menu.cash')],
     shift && compact && ['held', t('pos.header.held', { count: held.length })],

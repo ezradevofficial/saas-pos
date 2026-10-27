@@ -17,6 +17,10 @@ import { useVanSales } from '../../vansales/context';
 import { CollectScreen } from '../vansales/CollectScreen';
 import { CountScreen } from '../vansales/CountScreen';
 import { DayScreen } from '../vansales/DayScreen';
+import { useSalon } from '../../salon/context';
+import { CheckoutScreen } from '../salon/CheckoutScreen';
+import { QueueScreen } from '../salon/QueueScreen';
+import { SalonDayScreen } from '../salon/SalonDayScreen';
 import { LoadScreen } from '../vansales/LoadScreen';
 import { StopScreen } from '../vansales/StopScreen';
 import { useCustomerDisplayFeed } from './useCustomerDisplayFeed';
@@ -107,7 +111,9 @@ export function PosScreen() {
   const floor = useRestaurant();
   // VAN-05: a van's till opens on the rep's day.
   const van = useVanSales();
-  const home = floor.enabled ? 'tables' : van.enabled ? 'day' : 'sell';
+  // SAL-29: a salon's till opens on the day's appointments.
+  const salon = useSalon();
+  const home = floor.enabled ? 'tables' : van.enabled ? 'day' : salon.enabled ? 'salon' : 'sell';
   const [route, setRoute] = useState(home);
   const [orderId, setOrderId] = useState(null);
   // REST-16: paying a part of a bill goes through the normal payment screens and returns to the bill.
@@ -115,6 +121,9 @@ export function PosScreen() {
   // VAN-09: the stop being worked ({ customerId, visitId, stop }); selling, collecting and returns come back to it.
   const [stopRef, setStopRef] = useState(null);
   const [fromStop, setFromStop] = useState(false);
+  // SAL-16: the appointment being charged ({ id, fee }); the receipt comes back to the salon day.
+  const [visit, setVisit] = useState(null);
+  const [fromSalon, setFromSalon] = useState(false);
   // LAY-05: the customer display follows the current sale.
   useCustomerDisplayFeed();
   const [dialog, setDialog] = useState(null);
@@ -151,6 +160,10 @@ export function PosScreen() {
   const openCustomer = useCallback(() => setDialog({ kind: 'customer' }), []);
   const openHeld = useCallback(() => setDialog({ kind: 'held' }), []);
   const toPay = useCallback(() => setRoute('pay'), []);
+  const toSalon = useCallback(() => {
+    setFromSalon(false);
+    setRoute('salon');
+  }, []);
   const toSell = useCallback(() => setRoute('sell'), []);
   const toBill = useCallback(() => {
     setPayingBill(false);
@@ -179,8 +192,13 @@ export function PosScreen() {
 
   let screen;
   if (!shift) screen = <OpenShiftScreen onMenu={openMenu} />;
-  else if (route === 'pay') screen = <PaymentScreen tablet={tablet} onBack={payingBill ? toBill : toSell} onDone={(sale) => { setReceipt(sale); setRoute('receipt'); }} />;
-  else if (route === 'receipt' && receipt) screen = <ReceiptScreen sale={receipt} onNewSale={payingBill ? toBill : fromStop && receipt.extensions?.van_sales?.visit_id ? toStop : toSell} />;
+  else if (route === 'pay') screen = <PaymentScreen tablet={tablet} onBack={payingBill ? toBill : fromSalon && visit ? () => setRoute('salon_checkout') : toSell} onDone={(sale) => { setReceipt(sale); setRoute('receipt'); }} />;
+  else if (route === 'receipt' && receipt) screen = <ReceiptScreen sale={receipt} onNewSale={payingBill ? toBill : fromStop && receipt.extensions?.van_sales?.visit_id ? toStop : fromSalon && receipt.extensions?.salon ? toSalon : toSell} />;
+  else if (route === 'salon' && salon.enabled)
+    screen = <SalonDayScreen onMenu={openMenu} onQueue={() => setRoute('salon_queue')} onCharge={(id, fee) => { setVisit({ id, fee }); setFromSalon(true); setRoute('salon_checkout'); }} />;
+  else if (route === 'salon_queue' && salon.enabled) screen = <QueueScreen onBack={toSalon} />;
+  else if (route === 'salon_checkout' && salon.enabled && visit)
+    screen = <CheckoutScreen appointmentId={visit.id} fee={visit.fee} onBack={toSalon} onPay={() => setRoute('pay')} />;
   else if (route === 'day' && van.enabled) screen = <DayScreen onStop={openStop} onLoad={() => setRoute('load')} onCount={() => setRoute('count')} onMenu={openMenu} />;
   else if (route === 'load' && van.enabled) screen = <LoadScreen onBack={() => setRoute('day')} />;
   else if (route === 'count' && van.enabled) screen = <CountScreen onBack={() => setRoute('day')} />;

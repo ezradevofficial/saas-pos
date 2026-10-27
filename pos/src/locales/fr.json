@@ -1318,5 +1318,125 @@
       "limit_currency_differs": "La limite de crédit est en {{currency}}. Réglez cette vente en {{currency}} pour utiliser le crédit.",
       "over_limit": "Ce montant dépasse le crédit disponible de {{amount}}. Mettez un montant plus bas à crédit."
     }
+  },
+  "salon": {
+    "menu": {
+      "day": "Rendez-vous",
+      "queue": "File d’attente",
+      "sell": "Vente rapide"
+    },
+    "status": {
+      "booked": "Réservé",
+      "checked_in": "Arrivé",
+      "in_service": "En cours",
+      "completed": "Terminé, à payer",
+      "paid": "Payé",
+      "cancelled": "Annulé",
+      "no_show": "Absent"
+    },
+    "day": {
+      "title": "Rendez-vous",
+      "unnamed": "Client sans nom",
+      "today": "Aujourd’hui",
+      "pickDay": "Jour",
+      "pickStaff": "Personnel",
+      "everyone": "Tout le monde",
+      "summary": "{{total}} rendez-vous, {{done}} terminés",
+      "empty": "Aucun rendez-vous ce jour-là.",
+      "walkIn": "Nouveau client sans rendez-vous",
+      "queue": "File ({{count}})",
+      "depositHeld": "Acompte détenu {{amount}}",
+      "feeDue": "Frais dus {{amount}}",
+      "alerts": "Ce client a des notes ou des allergies. Lisez-les avant de commencer.",
+      "alertsShort": "Notes à lire",
+      "waiting": "En attente d’envoi",
+      "nothingToDo": "Rien d’autre à faire ici.",
+      "rejectedTitle": "{{count}} enregistrements refusés par le serveur",
+      "rejectedRetry": "Renvoyer"
+    },
+    "actions": {
+      "checkIn": "Enregistrer l’arrivée",
+      "start": "Commencer la prestation",
+      "finish": "Terminer la prestation",
+      "charge": "Encaisser",
+      "chargeFee": "Encaisser les frais {{amount}}",
+      "noShow": "Marquer comme absent",
+      "cancel": "Annuler le rendez-vous"
+    },
+    "walkIn": {
+      "bookTitle": "Réserver un client sans rendez-vous maintenant",
+      "queueTitle": "Ajouter à la file",
+      "book": "Réserver maintenant",
+      "join": "Ajouter à la file",
+      "name": "Nom",
+      "phone": "Téléphone (facultatif)",
+      "services": "Prestations",
+      "minutes": "{{count}} min",
+      "chosen": "Choisi",
+      "choose": "Choisir",
+      "staff": "Personnel",
+      "anyone": "Quelqu’un de libre"
+    },
+    "queue": {
+      "title": "File d’attente",
+      "count": "{{count}} en attente",
+      "add": "Ajouter un client",
+      "empty": "Personne n’attend.",
+      "seat": "Installer",
+      "leave": "Retirer",
+      "since": "depuis {{time}}",
+      "wait": "environ {{count}} min",
+      "seatTitle": "Installer {{name}}",
+      "free": "Libre maintenant"
+    },
+    "checkout": {
+      "title": "Encaisser la visite",
+      "feeTitle": "Encaisser les frais",
+      "deposit": "Acompte disponible : {{amount}}",
+      "package": "{{name}} : {{count}} séances restantes, {{amount}} chacune",
+      "creditHelp": "Payez avec le crédit du salon à l’écran suivant pour utiliser d’abord l’acompte, puis une séance du forfait.",
+      "tip": "Pourboire ({{currency}})",
+      "noTip": "Pas de pourboire",
+      "total": "Total",
+      "charge": "Encaisser {{amount}}",
+      "fee": {
+        "no_show": "Frais d’absence",
+        "late_cancel": "Frais d’annulation tardive"
+      }
+    },
+    "errors": {
+      "failed": "Impossible de le faire. Réessayez.",
+      "appointment_unknown": "Ce rendez-vous n’est pas sur la caisse. Synchronisez et réessayez.",
+      "appointment_closed": "Ce rendez-vous est clos. Il ne peut plus être modifié.",
+      "step_unknown": "Cette étape est inconnue.",
+      "services_required": "Choisissez au moins un service.",
+      "client_required": "Saisissez le nom du client.",
+      "service_unknown": "Choisissez un service de la carte.",
+      "staff_unqualified": "Cette personne ne réalise pas ce service.",
+      "outside_hours": "Cette personne ne travaille pas à cette heure.",
+      "staff_off": "Cette personne est en pause ou absente à cette heure.",
+      "slot_taken": "Cette heure est prise. Choisissez une autre heure ou une autre personne.",
+      "resource_taken": "Ce fauteuil ou cette salle est pris à cette heure.",
+      "no_staff": "Personne n’est libre pour ce service maintenant.",
+      "already_paid": "Cette visite est déjà payée.",
+      "no_lines": "Ce rendez-vous n’a aucun service à encaisser.",
+      "no_fee_due": "Il n’y a aucun frais à encaisser.",
+      "fee_item_missing": "L’article des frais n’est pas configuré. Demandez à un responsable de le choisir dans les paramètres du salon.",
+      "tip_item_missing": "L’article du pourboire n’est pas configuré. Demandez à un responsable de le choisir dans les paramètres du salon.",
+      "item_missing": "Un service de cette visite n’est pas dans les articles de la caisse. Synchronisez et réessayez.",
+      "mobile_paid": "Un paiement mobile est en cours sur la vente. Terminez-le d’abord.",
+      "queue_entry_closed": "Cette personne n’attend plus.",
+      "actor_unverified": "Le serveur n’a pas pu vérifier qui l’a fait. Reconnectez-vous et renvoyez.",
+      "not_permitted": "Cette personne n’est pas autorisée à le faire.",
+      "id_conflict": "Cet enregistrement a déjà servi à autre chose.",
+      "upload_rejected": "Le serveur n’a accepté aucun enregistrement.",
+      "no_appointment": "Le crédit du salon s’utilise en encaissant un rendez-vous depuis l’écran des rendez-vous.",
+      "amount": "Saisissez un montant supérieur à zéro.",
+      "currency_mismatch": "Ce rendez-vous est en {{currency}}. Payez en {{currency}}.",
+      "deposit_empty": "L’acompte est épuisé. Des frais ne se paient pas avec un forfait.",
+      "customer_required": "Choisissez d’abord le client pour utiliser un forfait.",
+      "package_none": "Ce client n’a aucune séance de forfait à utiliser.",
+      "package_covers_nothing": "Aucun forfait de ce client ne couvre les services restant à payer."
+    }
   }
 }
