@@ -115,5 +115,10 @@
   "Folio",
   "Charge",
   "RevPAR {{currency}}",
-  "RevPAR"
+  "RevPAR",
+  "Commissions",
+  "Services",
+  "Client",
+  "Allergies",
+  "Clients"
 ]

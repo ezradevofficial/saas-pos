@@ -34,6 +34,13 @@ import {
   RESTAURANT_SETTINGS_EDIT,
   RESTAURANT_STATION_VIEW,
   RESTAURANT_TICKET_VIEW,
+  SALON_APPOINTMENT_VIEW,
+  SALON_CLIENT_VIEW,
+  SALON_COMMISSION_VIEW,
+  SALON_REPORT_VIEW,
+  SALON_SERVICE_VIEW,
+  SALON_SETTINGS_VIEW,
+  SALON_STAFF_VIEW,
   VAN_SALES_COLLECTION_VIEW,
   VAN_SALES_CREDIT_REVIEW,
   VAN_SALES_CREDIT_VIEW,
@@ -203,6 +210,14 @@ const RestaurantPendingVoids = lazy(() => import('./pages/restaurant/PendingVoid
 const RestaurantReports = lazy(() => import('./pages/restaurant/Reports'))
 const RestaurantSettings = lazy(() => import('./pages/restaurant/RestaurantSettings'))
 const RestaurantStations = lazy(() => import('./pages/restaurant/Stations'))
+const SalonCalendar = lazy(() => import('./pages/salon/Calendar'))
+const SalonServices = lazy(() => import('./pages/salon/Services'))
+const SalonStaff = lazy(() => import('./pages/salon/StaffPage'))
+const SalonClients = lazy(() => import('./pages/salon/Clients'))
+const SalonCommissions = lazy(() => import('./pages/salon/Commissions'))
+const SalonReports = lazy(() => import('./pages/salon/Reports'))
+const SalonSettings = lazy(() => import('./pages/salon/SalonSettings'))
+const SalonPublicBooking = lazy(() => import('./pages/salon/PublicBooking'))
 const VanSalesVans = lazy(() => import('./pages/vansales/Vans'))
 const VanSalesRoutes = lazy(() => import('./pages/vansales/Routes'))
 const VanSalesRouteDetail = lazy(() => import('./pages/vansales/RouteDetail'))
@@ -541,6 +556,8 @@ export const routes = [
       { path: 'account', element: <ShopAccount /> },
     ],
   },
+  // SAL-15: a salon branch's public booking page, open to everyone; it never uses a tenant user's sign-in.
+  { path: '/book/:code', element: <SalonPublicBooking /> },
   // PRC-07, PRC-08: the supplier portal, open to everyone; it never uses a tenant user's sign-in.
   {
     element: <PortalLayout />,
@@ -821,6 +838,16 @@ export const routes = [
         ['/restaurant/modifiers', RESTAURANT_MODIFIER_VIEW, <RestaurantModifiers key="rest-modifiers" />],
         ['/restaurant/reports', RESTAURANT_REPORT_VIEW, <RestaurantReports key="rest-reports" />],
         ['/restaurant/settings', RESTAURANT_SETTINGS_EDIT, <RestaurantSettings key="rest-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Salon (docs/modules/salon.md): the API answers 403 module_inactive without the module.
+      ...[
+        ['/salon/calendar', SALON_APPOINTMENT_VIEW, <SalonCalendar key="salon-calendar" />],
+        ['/salon/services', SALON_SERVICE_VIEW, <SalonServices key="salon-services" />],
+        ['/salon/staff', SALON_STAFF_VIEW, <SalonStaff key="salon-staff" />],
+        ['/salon/clients', SALON_CLIENT_VIEW, <SalonClients key="salon-clients" />],
+        ['/salon/commissions', SALON_COMMISSION_VIEW, <SalonCommissions key="salon-commissions" />],
+        ['/salon/reports', SALON_REPORT_VIEW, <SalonReports key="salon-reports" />],
+        ['/salon/settings', SALON_SETTINGS_VIEW, <SalonSettings key="salon-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // Van sales (docs/modules/van-sales.md): the API answers 403 module_inactive without the module.
       ...[
