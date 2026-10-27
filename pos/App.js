@@ -10,6 +10,8 @@ import './src/i18n';
 import './src/loyalty/register';
 // PHA-25: the Pharmacy module through the same seams (served only while the tenant has it).
 import './src/pharmacy/register';
+// HOT-22, HOT-35: the Hotel module (room-charge tender) through the same seams.
+import './src/hotel/register';
 import { ChangePinScreen } from './src/screens/ChangePinScreen';
 import { PosProvider } from './src/pos/PosProvider';
 import { RestaurantProvider } from './src/restaurant/RestaurantProvider';

@@ -31,6 +31,7 @@ return [
             'manufacturing' => 'Manufacturing',
             'restaurant' => 'Restaurant and bar',
             'pharmacy' => 'Pharmacy and agrovet',
+            'hotel' => 'Hotel and lodging',
         ],
         'resources' => [
             'accounting' => [
@@ -78,6 +79,20 @@ return [
                 'tax' => 'Tax book',
                 'transfer' => 'Asset transfers',
                 'value' => 'Asset values',
+            ],
+            'hotel' => [
+                'settings' => 'Hotel settings',
+                'room' => 'Rooms and room types',
+                'rate' => 'Rates and rate plans',
+                'guest' => 'Guests',
+                'reservation' => 'Reservations',
+                'stay' => 'Check-in and check-out',
+                'folio' => 'Guest folios',
+                'fee' => 'Fee waivers',
+                'charge' => 'Room charges to resolve',
+                'housekeeping' => 'Housekeeping',
+                'audit' => 'Night audit',
+                'report' => 'Hotel reports',
             ],
             'restaurant' => [
                 'floor' => 'Floor plan',
@@ -312,6 +327,9 @@ return [
         'storekeeper' => 'Storekeeper',
         'pharmacist' => 'Pharmacist',
         'pharmacy_technician' => 'Pharmacy technician',
+        'receptionist' => 'Receptionist',
+        'housekeeping' => 'Housekeeping',
+        'night_auditor' => 'Night auditor',
         'accountant' => 'Accountant',
         'hr_officer' => 'HR Officer',
         'payroll_officer' => 'Payroll Officer',

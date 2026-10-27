@@ -31,6 +31,7 @@ return [
             'manufacturing' => 'Production',
             'restaurant' => 'Restaurant et bar',
             'pharmacy' => 'Pharmacie et agrovet',
+            'hotel' => 'Hôtel et hébergement',
         ],
         'resources' => [
             'accounting' => [
@@ -78,6 +79,20 @@ return [
                 'tax' => 'Registre fiscal',
                 'transfer' => 'Transferts d’immobilisations',
                 'value' => 'Valeurs des immobilisations',
+            ],
+            'hotel' => [
+                'settings' => 'Paramètres de l\'hôtel',
+                'room' => 'Chambres et types de chambre',
+                'rate' => 'Tarifs et plans tarifaires',
+                'guest' => 'Clients de l\'hôtel',
+                'reservation' => 'Réservations',
+                'stay' => 'Arrivées et départs',
+                'folio' => 'Folios des clients',
+                'fee' => 'Suppression de frais',
+                'charge' => 'Imputations en chambre à traiter',
+                'housekeeping' => 'Ménage',
+                'audit' => 'Audit de nuit',
+                'report' => 'Rapports de l\'hôtel',
             ],
             'restaurant' => [
                 'floor' => 'Plan de salle',
@@ -312,6 +327,9 @@ return [
         'storekeeper' => 'Magasinier',
         'pharmacist' => 'Pharmacien',
         'pharmacy_technician' => 'Technicien en pharmacie',
+        'receptionist' => 'Réceptionniste',
+        'housekeeping' => 'Gouvernante et femmes de chambre',
+        'night_auditor' => 'Auditeur de nuit',
         'accountant' => 'Comptable',
         'hr_officer' => 'Chargé RH',
         'payroll_officer' => 'Gestionnaire de paie',

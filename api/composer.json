@@ -64,7 +64,8 @@
             "Modules\\Ecommerce\\Tests\\": "modules/Ecommerce/tests/",
             "Modules\\Payroll\\Tests\\": "modules/Payroll/tests/",
             "Modules\\Restaurant\\Tests\\": "modules/Restaurant/tests/",
-            "Modules\\Pharmacy\\Tests\\": "modules/Pharmacy/tests/"
+            "Modules\\Pharmacy\\Tests\\": "modules/Pharmacy/tests/",
+            "Modules\\Hotel\\Tests\\": "modules/Hotel/tests/"
         }
     },
     "scripts": {

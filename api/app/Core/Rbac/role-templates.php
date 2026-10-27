@@ -49,6 +49,8 @@ return [
             'restaurant.*.view', 'restaurant.floor.manage', 'restaurant.station.manage', 'restaurant.modifier.manage', 'restaurant.settings.edit',
             // PHA-02, PHA-03: sets a company's pharmacy rules and items' pharmacy profiles, and reads the module's records except prescriptions (personal data).
             'pharmacy.settings.edit', 'pharmacy.item.configure', 'pharmacy.*.view',
+            // HOT-02, HOT-03, HOT-06: sets a company's hotel rules, room types, rooms and rate plans, and reads the module's records (guest ID numbers are `hotel.guest.identity`, not a view).
+            'hotel.settings.edit', 'hotel.room.manage', 'hotel.rate.manage', 'hotel.*.view',
             // CP-01: exempting the company from a pack component (payroll.statutory.exempt).
             'payroll.statutory.exempt'],
         // EXP-02: the full tenant export is the Owner's alone. ONB-02, ONB-03:
@@ -110,8 +112,10 @@ return [
             // Pharmacy (docs/modules/pharmacy.md): lots, write-offs (the default approver), recalls, prescriptions, the register
             // and reports at their branch; authorising a restricted dispense is a pharmacist's, and the settings the Admin's.
             'pharmacy.*',
+            // Hotel (docs/modules/hotel.md): the property's bookings, front desk, folios, housekeeping, night audit and reports; the settings are the Admin's.
+            'hotel.*',
         ],
-        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'restaurant.settings.edit', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure'],
+        'except' => ['crm.settings.manage', 'ecommerce.delivery.deliver', 'restaurant.settings.edit', 'pharmacy.dispense.authorise', 'pharmacy.settings.edit', 'pharmacy.item.configure', 'hotel.settings.edit'],
         // RBAC-06 (owner decision A, 2026-10-16; defaults the owner may change): a Branch Manager discounts quotes
         // up to 10 % without approval (CRM-20), so their own discounted quotes do not all escalate, and refunds up
         // to 10,000 in the company's base currency (POS-05, E-commerce refunds), so a manager can refund at all.
@@ -275,6 +279,39 @@ return [
         'requires_two_factor' => false,
     ],
     [
+        // HOT-33: the front desk. Bookings, check-in and out, folios (charges, payments, transfers, refunds within the role's refund limit, RBAC-06);
+        // not rates, voids, fee waivers, leaving a balance on account, the night audit or the settings. Sees guests' ID numbers masked and may reveal them (audited, HOT-38).
+        'key' => 'receptionist',
+        'permissions' => [
+            'core.company.view', 'core.branch.view', 'core.location.view', 'core.device.view', 'core.currency.view', 'core.exchange_rate.view',
+            'core.party.view', 'core.party.create', 'core.item.view', 'core.item_category.view', 'core.uom.view', 'core.payment_method.view', 'core.price.view', 'core.tax.view',
+            'hotel.room.view', 'hotel.rate.view', 'hotel.guest.view', 'hotel.guest.manage', 'hotel.guest.identity',
+            'hotel.reservation.*', 'hotel.stay.checkin', 'hotel.stay.checkout', 'hotel.stay.move',
+            'hotel.folio.view', 'hotel.folio.charge', 'hotel.folio.payment', 'hotel.folio.transfer', 'hotel.folio.refund',
+            'hotel.housekeeping.view', 'hotel.report.view',
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // HOT-29: a housekeeper sees rooms and their tasks and marks rooms clean or dirty, from the phone, signed in as themselves. No guest data.
+        'key' => 'housekeeping',
+        'permissions' => ['core.branch.view', 'core.location.view', 'hotel.room.view', 'hotel.housekeeping.view', 'hotel.housekeeping.update'],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
+        // HOT-30: the night auditor runs the audit, reads folios and reports, marks no-shows and resolves room charges that could not be posted.
+        'key' => 'night_auditor',
+        'permissions' => [
+            'core.company.view', 'core.branch.view', 'core.location.view',
+            'hotel.room.view', 'hotel.guest.view', 'hotel.reservation.view', 'hotel.reservation.cancel', 'hotel.folio.view', 'hotel.charge.resolve',
+            'hotel.housekeeping.view', 'hotel.audit.view', 'hotel.audit.run', 'hotel.report.view',
+        ],
+        'is_owner' => false,
+        'requires_two_factor' => false,
+    ],
+    [
         'key' => 'accountant',
         'permissions' => [
             'core.company.view', 'core.branch.view', 'core.location.view', 'core.audit.view', 'core.currency.view', 'core.exchange_rate.view',
@@ -307,6 +344,8 @@ return [
             'ecommerce.order.view', 'ecommerce.cashup.view', 'ecommerce.cashup.manage', 'ecommerce.report.view',
             // PHA-12, PHA-24: lots, write-offs and the expiry and slow-mover reports.
             'pharmacy.item.view', 'pharmacy.lot.view', 'pharmacy.writeoff.view', 'pharmacy.report.view',
+            // HOT-20, HOT-27, HOT-31: folios, the night audits behind the room revenue, and the reports.
+            'hotel.room.view', 'hotel.rate.view', 'hotel.folio.view', 'hotel.audit.view', 'hotel.report.view',
         ],
         // FA-14, FA-17: transfers and disposals are approved by others.
         'except' => ['fixed_assets.transfer.approve', 'fixed_assets.disposal.approve'],

@@ -8,6 +8,7 @@
         "https://www.kra.go.ke/images/publications/Overview-of-Withholding-VAT-December-2024.pdf"
     ],
     "todo": [
+        "Tourism and catering levies (Hotel module): whether they apply to room and food charges, their rates, base and legal reference, and whether they are tax codes of this pack. Hotel applies only the tax codes a company lists in its settings; no rate is built in.",
         "VAT_STD: confirm the researched 16% standard rate (VAT Act) with its legal reference; it is used now, marked researched.",
         "VAT_ZERO: confirm the researched 0% zero rate (VAT Act Second Schedule) and its official name.",
         "VAT_WHT: 2% of the taxable value, withheld by agents the Commissioner appoints (Tax Procedures Act s. 42A; rate from the Finance Act 2019; KRA overview of December 2024). Medium: no later change was found, but the Finance Act 2026 was not checked. Confirm, with who withholds it.",

@@ -99,6 +99,20 @@ import {
   WRITEOFF_CREATE,
   WRITEOFF_VIEW,
 } from './pages/pharmacy/pharmacyData'
+import {
+  AUDIT_VIEW as HOTEL_AUDIT_VIEW,
+  CHECKIN as HOTEL_CHECKIN,
+  CHECKOUT as HOTEL_CHECKOUT,
+  FOLIO_VIEW as HOTEL_FOLIO_VIEW,
+  GUEST_VIEW as HOTEL_GUEST_VIEW,
+  HK_VIEW as HOTEL_HK_VIEW,
+  RATE_VIEW as HOTEL_RATE_VIEW,
+  REPORT_VIEW as HOTEL_REPORT_VIEW,
+  RESERVATION_CREATE as HOTEL_RESERVATION_CREATE,
+  RESERVATION_VIEW as HOTEL_RESERVATION_VIEW,
+  ROOM_VIEW as HOTEL_ROOM_VIEW,
+  SETTINGS_VIEW as HOTEL_SETTINGS_VIEW,
+} from './pages/hotel/hotelData'
 import { ACTIVITY_VIEW as CRM_ACTIVITY_VIEW, LEAD_VIEW as CRM_LEAD_VIEW, OPPORTUNITY_VIEW as CRM_OPPORTUNITY_VIEW, QUOTE_VIEW as CRM_QUOTE_VIEW, SETTINGS_VIEW as CRM_SETTINGS_VIEW, TARGET_VIEW as CRM_TARGET_VIEW } from './pages/crm/crmData'
 import './pages/crm/register'
 import { CASHUP_VIEW as ECOM_CASHUP_VIEW, DELIVERY_VIEW as ECOM_DELIVERY_VIEW, ORDER_VIEW as ECOM_ORDER_VIEW, REPORT_VIEW as ECOM_REPORT_VIEW, RIDERS_VIEW as ECOM_RIDERS_VIEW, SETTINGS_VIEW as ECOM_SETTINGS_VIEW, WHATSAPP_VIEW as ECOM_WHATSAPP_VIEW } from './pages/ecommerce/ecommerceData'
@@ -302,6 +316,22 @@ const SlowMovers = lazy(() => import('./pages/pharmacy/SlowMovers'))
 const WriteOffDetail = lazy(() => import('./pages/pharmacy/WriteOffDetail'))
 const WriteOffForm = lazy(() => import('./pages/pharmacy/WriteOffForm'))
 const WriteOffs = lazy(() => import('./pages/pharmacy/WriteOffs'))
+const HotelAvailability = lazy(() => import('./pages/hotel/Availability'))
+const HotelChargeExceptions = lazy(() => import('./pages/hotel/ChargeExceptions'))
+const HotelFolioDetail = lazy(() => import('./pages/hotel/FolioDetail'))
+const HotelFolios = lazy(() => import('./pages/hotel/Folios'))
+const HotelFrontDesk = lazy(() => import('./pages/hotel/FrontDesk'))
+const HotelGuestDetail = lazy(() => import('./pages/hotel/Guests').then((module) => ({ default: module.GuestDetail })))
+const HotelGuests = lazy(() => import('./pages/hotel/Guests'))
+const HotelHousekeeping = lazy(() => import('./pages/hotel/Housekeeping'))
+const HotelNewReservation = lazy(() => import('./pages/hotel/NewReservation'))
+const HotelNightAudit = lazy(() => import('./pages/hotel/NightAudit'))
+const HotelRatePlans = lazy(() => import('./pages/hotel/RatePlans'))
+const HotelReports = lazy(() => import('./pages/hotel/Reports'))
+const HotelReservationDetail = lazy(() => import('./pages/hotel/ReservationDetail'))
+const HotelReservations = lazy(() => import('./pages/hotel/Reservations'))
+const HotelRooms = lazy(() => import('./pages/hotel/Rooms'))
+const HotelSettings = lazy(() => import('./pages/hotel/HotelSettings'))
 const CrmCalendar = lazy(() => import('./pages/crm/Calendar'))
 const CrmSettings = lazy(() => import('./pages/crm/CrmSettings'))
 const Leads = lazy(() => import('./pages/crm/Leads'))
@@ -610,6 +640,25 @@ export const routes = [
         ['/pharmacy/reports/prescriptions', PHARMACY_REPORT_VIEW, <PharmacyPrescriptionLog key="pharmacy-log" />],
         ['/pharmacy/items', PHARMACY_ITEM_VIEW, <PharmacyItemProfiles key="pharmacy-items" />],
         ['/pharmacy/settings', PHARMACY_SETTINGS_VIEW, <PharmacySettings key="pharmacy-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Hotel (docs/modules/hotel.md): the API answers 403 module_inactive without the module.
+      ...[
+        ['/hotel/front-desk', [HOTEL_CHECKIN, HOTEL_CHECKOUT], <HotelFrontDesk key="hotel-front-desk" />],
+        ['/hotel/availability', HOTEL_RESERVATION_VIEW, <HotelAvailability key="hotel-availability" />],
+        ['/hotel/reservations', HOTEL_RESERVATION_VIEW, <HotelReservations key="hotel-reservations" />],
+        ['/hotel/reservations/new', HOTEL_RESERVATION_CREATE, <HotelNewReservation key="hotel-reservation-new" />],
+        ['/hotel/reservations/:reservationId', HOTEL_RESERVATION_VIEW, <HotelReservationDetail key="hotel-reservation" />],
+        ['/hotel/folios', HOTEL_FOLIO_VIEW, <HotelFolios key="hotel-folios" />],
+        ['/hotel/folios/:folioId', HOTEL_FOLIO_VIEW, <HotelFolioDetail key="hotel-folio" />],
+        ['/hotel/guests', HOTEL_GUEST_VIEW, <HotelGuests key="hotel-guests" />],
+        ['/hotel/guests/:guestId', HOTEL_GUEST_VIEW, <HotelGuestDetail key="hotel-guest" />],
+        ['/hotel/housekeeping', HOTEL_HK_VIEW, <HotelHousekeeping key="hotel-housekeeping" />],
+        ['/hotel/night-audit', HOTEL_AUDIT_VIEW, <HotelNightAudit key="hotel-night-audit" />],
+        ['/hotel/charge-exceptions', HOTEL_FOLIO_VIEW, <HotelChargeExceptions key="hotel-charge-exceptions" />],
+        ['/hotel/rooms', HOTEL_ROOM_VIEW, <HotelRooms key="hotel-rooms" />],
+        ['/hotel/rates', HOTEL_RATE_VIEW, <HotelRatePlans key="hotel-rates" />],
+        ['/hotel/reports/:kind', HOTEL_REPORT_VIEW, <HotelReports key="hotel-reports" />],
+        ['/hotel/settings', HOTEL_SETTINGS_VIEW, <HotelSettings key="hotel-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // CRM and sales (docs/modules/crm.md, Screens): the API answers 403 module_inactive without the module.
       ...[

@@ -54,9 +54,13 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * folded into the till's), and local `rest_orders`: the open orders and tabs
  * kept on this till (`dirty` while a change waits to upload).
  *
+ * v13 (Hotel module, HOT-35): the synced `hotel_in_house` (who is in house at
+ * this till's property: room, guest name, folio, charge allowed and limit; a
+ * snapshot), read-only, for the room-charge tender offline.
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -168,6 +172,8 @@ export const schema = appSchema({
     tableSchema({ name: 'pharmacy_settings', columns: [data, seenAt] }),
     tableSchema({ name: 'pharmacy_items', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
     tableSchema({ name: 'pharmacy_lots', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
+    // v13: the Hotel module's in-house guests (HOT-35), a snapshot.
+    tableSchema({ name: 'hotel_in_house', columns: [{ name: 'room_number', type: 'string', isIndexed: true }, data, seenAt] }),
     // v7: stock on hand at this till's location (Inventory, INV-17), read-only.
     tableSchema({ name: 'inventory_stock', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
     // v9: the HR module's clock-in staff (HR-23), a snapshot.

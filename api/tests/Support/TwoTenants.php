@@ -42,6 +42,7 @@ use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Sso\Models\SsoConnection;
 use App\Core\Sso\Models\SsoIdentity;
+use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\Models\Branch;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
@@ -70,6 +71,9 @@ use Modules\Ecommerce\Models\Delivery;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\OrderLine;
 use Modules\Ecommerce\WhatsApp\FakeWhatsAppProvider;
+use Modules\Hotel\Models\ChargeException;
+use Modules\Hotel\Models\HousekeepingTask;
+use Modules\Hotel\Models\NightAuditRun;
 use Modules\HR\Events\AttendancePeriodClosed;
 use Modules\HR\Events\LeaveApproved;
 use Modules\HR\Models\Employee;
@@ -649,6 +653,9 @@ final class TwoTenants
         // pending write-off, a prescription with its image, a recall and a till sale dispensed against the
         // prescription (a dispense, register entries and lot movements).
         $pharmacy = self::pharmacy($test, $owner, $tenantId, $ownerId, $company, $location, $deviceToken, $pos, $priceList, $paymentMethod, $taxCode, $taxCategory, $uoms['EA'], $customer, $upper);
+        // Hotel (docs/modules/hotel.md): the module switched on; settings, a room type, rooms, a rate plan, a guest, three reservations
+        // (one for the front-desk routes), a charge and a payment on a folio, a charge exception, a task and an audit.
+        $hotel = self::hotel($test, $owner, $tenantId, $company, $branch, $paymentMethod, $uoms['EA'], $taxCategory, $upper);
         // HR (docs/modules/hr.md): the module switched on; a position, a default
         // onboarding template, an employee linked to the Owner (self-service)
         // and a peer reporting to them, with identifiers, a pay account, a
@@ -845,6 +852,7 @@ final class TwoTenants
                 ...$stores,
                 ...$manufacturing,
                 ...$pharmacy,
+                ...$hotel,
                 ...$hr,
                 ...$fixedAssets,
                 ...$crm,
@@ -1491,6 +1499,89 @@ final class TwoTenants
             'pharmacy_recall' => $recall,
             'pharmacy_prescription' => $prescription,
             'pharmacy_dispense' => $dispense,
+        ];
+    }
+
+    /**
+     * The Hotel fixture of one tenant (docs/modules/hotel.md), made through its API as the Owner: a room type, five
+     * rooms, a rate plan, a guest, one reservation for the front-desk routes (reserved, today), two future
+     * reservations whose folios take charges, a payment and transfers, a charge exception, a housekeeping task
+     * and an earlier night audit (a row of its own, so the business date stays today).
+     *
+     * @return array<string, string> hotel_room_type, hotel_room, hotel_room_walkin, hotel_room_spare, hotel_room_extra, hotel_rate_plan, hotel_guest,
+     *                               hotel_reservation, hotel_stay, hotel_folio, hotel_folio_other, hotel_line, hotel_payment, hotel_task, hotel_audit,
+     *                               hotel_exception, hotel_room_item, hotel_charge_method
+     */
+    private static function hotel(TestCase $test, array $owner, string $tenantId, string $company, string $branch, string $paymentMethod, string $each, string $taxCategory, string $upper): array
+    {
+        $owner = [...$owner, 'Accept' => 'application/json'];
+        $today = app(TenantContext::class)->run($tenantId, function () use ($company) {
+            app(ModuleRegistry::class)->activate('hotel');
+
+            return CompanyClock::today($company);
+        });
+        $day = fn (int $offset) => CarbonImmutable::parse($today)->addDays($offset)->toDateString();
+        $roomItem = self::ok($test->postJson('/api/v1/items', ['code' => "ROOM-{$upper}", 'name' => "Room night {$upper}", 'type' => 'service', 'base_uom_id' => $each, 'tax_category_id' => $taxCategory], $owner), 201)->json('data.id');
+        $chargeMethod = app(TenantContext::class)->run($tenantId, fn () => PaymentMethod::create([
+            'company_id' => $company, 'type' => 'room_charge', 'name' => "Room charge {$upper}", 'currency' => 'KES', 'active' => true, 'position' => 20,
+        ])->id);
+        self::ok($test->putJson("/api/v1/companies/{$company}/hotel-settings", ['room_item_id' => $roomItem, 'room_charge_method_id' => $chargeMethod], $owner));
+
+        $type = self::ok($test->postJson('/api/v1/hotel/room-types', ['company_id' => $company, 'code' => "DLX-{$upper}", 'name' => "Deluxe {$upper}", 'base_adults' => 2, 'max_adults' => 3, 'max_children' => 1, 'max_occupancy' => 3], $owner), 201)->json('data.id');
+        $rooms = [];
+
+        foreach (['room' => '1', 'room_walkin' => '2', 'room_spare' => '3', 'room_extra' => '4'] as $name => $number) {
+            $rooms[$name] = self::ok($test->postJson('/api/v1/hotel/rooms', ['branch_id' => $branch, 'room_type_id' => $type, 'number' => "H{$number}{$upper}", 'floor' => '1'], $owner), 201)->json('data.id');
+        }
+
+        $plan = self::ok($test->postJson('/api/v1/hotel/rate-plans', [
+            'room_type_id' => $type, 'code' => "BB-{$upper}", 'name' => "Bed and breakfast {$upper}", 'board' => 'bed_breakfast', 'currency' => 'KES',
+            'weekday_rate_minor' => 1000000, 'weekend_rate_minor' => 1200000, 'tax_inclusive' => false,
+        ], $owner), 201)->json('data.id');
+        $guest = self::ok($test->postJson('/api/v1/hotel/guests', ['company_id' => $company, 'name' => "Hotel guest {$upper}", 'id_type' => 'national_id', 'id_number' => "IDNO{$upper}0001"], $owner), 201)->json('data.id');
+        $book = fn (int $from, int $nights) => self::ok($test->postJson('/api/v1/hotel/reservations', [
+            'branch_id' => $branch, 'guest_id' => $guest,
+            'stays' => [['room_type_id' => $type, 'rate_plan_id' => $plan, 'arrival_on' => $day($from), 'departure_on' => $day($from + $nights), 'adults' => 2]],
+        ], $owner), 201)->json('data');
+
+        $front = $book(0, 2);
+        $second = $book(30, 2);
+        $third = $book(40, 2);
+        $folio = $second['folios'][0]['id'];
+        $other = $third['folios'][0]['id'];
+        $line = self::ok($test->postJson("/api/v1/hotel/folios/{$folio}/charges", ['amount_minor' => 700, 'description' => "Parking {$upper}"], $owner), 201)->json('data.id');
+        $payment = self::ok($test->postJson("/api/v1/hotel/folios/{$folio}/payments", ['payment_method_id' => $paymentMethod, 'amount_minor' => 5000], $owner), 201)->json('data.id');
+
+        [$task, $audit, $exception] = app(TenantContext::class)->run($tenantId, function () use ($company, $branch, $rooms, $today, $day, $upper) {
+            $task = HousekeepingTask::create(['company_id' => $company, 'branch_id' => $branch, 'room_id' => $rooms['room_spare'], 'kind' => 'deep_clean', 'status' => 'pending', 'business_date' => $today]);
+            $audit = NightAuditRun::create(['company_id' => $company, 'branch_id' => $branch, 'business_date' => $day(-1), 'status' => 'completed', 'started_at' => now(), 'completed_at' => now(), 'summary' => ['rooms_sold' => 0]]);
+            $exception = ChargeException::create([
+                'company_id' => $company, 'branch_id' => $branch, 'source' => 'pos.sale', 'source_id' => "pay-{$upper}", 'reference' => "RCPT-{$upper}", 'room_number' => '999',
+                'currency' => 'KES', 'amount_minor' => 1500, 'reason' => 'room_unknown', 'status' => 'open',
+            ]);
+
+            return [$task->id, $audit->id, $exception->id];
+        });
+
+        return [
+            'hotel_room_type' => $type,
+            'hotel_room' => $rooms['room'],
+            'hotel_room_walkin' => $rooms['room_walkin'],
+            'hotel_room_spare' => $rooms['room_spare'],
+            'hotel_room_extra' => $rooms['room_extra'],
+            'hotel_rate_plan' => $plan,
+            'hotel_guest' => $guest,
+            'hotel_reservation' => $front['id'],
+            'hotel_stay' => $front['stays'][0]['id'],
+            'hotel_folio' => $folio,
+            'hotel_folio_other' => $other,
+            'hotel_line' => $line,
+            'hotel_payment' => $payment,
+            'hotel_task' => $task,
+            'hotel_audit' => $audit,
+            'hotel_exception' => $exception,
+            'hotel_room_item' => $roomItem,
+            'hotel_charge_method' => $chargeMethod,
         ];
     }
 
