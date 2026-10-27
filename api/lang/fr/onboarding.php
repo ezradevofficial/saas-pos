@@ -8,7 +8,7 @@ return [
         'restaurant' => ['name' => 'Restaurant ou café', 'description' => 'Tables, commandes en cuisine, additions partagées'],
         'bar' => ['name' => 'Bar ou lounge', 'description' => 'Ardoises ouvertes, tournées rapides'],
         'hotel' => ['name' => 'Hôtel ou lodge', 'description' => 'Frais de chambre, folios clients'],
-        'pharmacy' => ['name' => 'Pharmacie ou agro-vétérinaire', 'description' => 'Lots, dates de péremption'],
+        'pharmacy' => ['name' => 'Pharmacie ou agro-vétérinaire', 'description' => 'Lots, péremptions, ordonnances'],
         'wholesale' => ['name' => 'Grossiste ou distributeur', 'description' => 'Listes de prix, crédit, livraisons'],
         'van_sales' => ['name' => 'Vente itinérante', 'description' => 'Vendre et encaisser sur le terrain'],
         'salon' => ['name' => 'Salon, spa ou services', 'description' => 'Rendez-vous, commissions du personnel'],

@@ -8,7 +8,7 @@ return [
         'restaurant' => ['name' => 'Restaurant or café', 'description' => 'Tables, kitchen orders, split bills'],
         'bar' => ['name' => 'Bar or lounge', 'description' => 'Open tabs, fast rounds'],
         'hotel' => ['name' => 'Hotel or lodge', 'description' => 'Room charges, guest folios'],
-        'pharmacy' => ['name' => 'Pharmacy or agrovet', 'description' => 'Batches, expiry dates'],
+        'pharmacy' => ['name' => 'Pharmacy or agrovet', 'description' => 'Batches, expiry dates, prescriptions'],
         'wholesale' => ['name' => 'Wholesale or distributor', 'description' => 'Price lists, credit, deliveries'],
         'van_sales' => ['name' => 'Route or van sales', 'description' => 'Sell and collect in the field'],
         'salon' => ['name' => 'Salon, spa or services', 'description' => 'Appointments, staff commissions'],

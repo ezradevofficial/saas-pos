@@ -45,6 +45,7 @@ use Modules\Inventory\InventoryServiceProvider;
 use Modules\Loyalty\LoyaltyServiceProvider;
 use Modules\Manufacturing\ManufacturingServiceProvider;
 use Modules\Payroll\PayrollServiceProvider;
+use Modules\Pharmacy\PharmacyServiceProvider;
 use Modules\POS\PosServiceProvider;
 use Modules\Procurement\ProcurementServiceProvider;
 use Modules\Restaurant\RestaurantServiceProvider;
@@ -98,6 +99,7 @@ return [
     CourierApiServiceProvider::class,
     PayrollServiceProvider::class,
     RestaurantServiceProvider::class,
+    PharmacyServiceProvider::class,
     // MKT-01..MKT-04 (ADR 024): the marketplace, OAuth for apps.
     MarketplaceServiceProvider::class,
     // API-01..API-05: last, so the sandbox's set-up runs after every other sign-up listener.

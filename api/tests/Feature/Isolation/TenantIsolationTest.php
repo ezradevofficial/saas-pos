@@ -74,6 +74,7 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/custom-field-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record and the field (CF-01)',
         'GET api/v1/custom-form-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the record (CF-04)',
         'GET api/v1/import-files/{path}' => 'temporary signed URL for one import file and one user; the controller enters the tenant the path names, finds the import there (RLS) and checks that user may still see it (IMP-03)',
+        'GET api/v1/pharmacy-files/{path}' => 'PHA-15: temporary signed URL for one prescription image and one user; the controller enters the tenant the path names, finds the prescription there (RLS) and checks that user may still read its image at its location',
         'GET api/v1/hr-files/{path}' => 'temporary signed URL for one HR document and one user; the controller enters the tenant the path names, finds the document there (RLS) and checks that user may still see its category for that employee (HR-27)',
         'GET api/v1/approval-files/{path}' => 'temporary signed URL for one file and one user; the controller enters the tenant the path names and checks that user may still see the approval (APR-03)',
         'GET api/v1/approvals/email/{token}' => 'the 48-character single-use approval token is the credential; answers only what confirming would do (APR-08)',
@@ -255,6 +256,14 @@ class TenantIsolationTest extends TestCase
         'rest_order_line' => 'rest_order_line',
         'rest_ticket' => 'rest_ticket',
         // HR (docs/modules/hr.md): an employee linked to the Owner and what hangs off them.
+        // Pharmacy (docs/modules/pharmacy.md): an item with a profile, its lot, a receipt, a pending write-off, a recall, a prescription (with an image) and a dispense.
+        'pharmacy_item' => 'pharmacy_item',
+        'pharmacy_lot' => 'pharmacy_lot',
+        'pharmacy_receipt' => 'pharmacy_receipt',
+        'pharmacy_write_off' => 'pharmacy_write_off',
+        'pharmacy_recall' => 'pharmacy_recall',
+        'pharmacy_prescription' => 'pharmacy_prescription',
+        'pharmacy_dispense' => 'pharmacy_dispense',
         'hr_employee' => 'hr_employee',
         'hr_pay_account' => 'hr_pay_account',
         'hr_contract' => 'hr_contract',
@@ -429,6 +438,9 @@ class TenantIsolationTest extends TestCase
         'material_id' => 'mfg_material',
         'output_id' => 'mfg_output',
         'issue_id' => 'mfg_issue',
+        // Pharmacy: a lot of a write-off, transfer or register correction, and the customer a prescription is for.
+        'lot_id' => 'pharmacy_lot',
+        'patient_party_id' => 'customer',
         // HR: employees (and line managers, peers), their leave types, positions, rotations, shifts and templates.
         'employee_id' => 'hr_employee',
         'reports_to_id' => 'hr_employee',
@@ -661,14 +673,16 @@ class TenantIsolationTest extends TestCase
      * `?company=` on tax categories, MD-03) => which id. The list check
      * sends B's id, and A's as a control (idQueries()).
      */
-    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook', 'subject_id' => 'customer',
+    public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook', 'subject_id' => 'customer', 'item_id' => 'item', 'location_id' => 'location',
         // Restaurant: the filters of the orders, tickets, tables and reports.
-        'location_id' => 'location', 'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user'];
+        'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
     public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id',
         // Restaurant: the filters of the orders, tickets, tables and reports.
         'location_id', 'company_id', 'branch_id', 'station_id', 'table_id', 'waiter_id', 'since', 'archived',
+        // Pharmacy: the lots, register, dispenses and reports (PHA-24), the profile list and FEFO (PHA-07).
+        'item_id', 'location_id', 'with_empty', 'expires_within', 'class', 'product_kind', 'review', 'with_prescription',
         // MKT-02: the OAuth authorization request of the consent screen (no tenant ids).
         'client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method',
         // RBAC-04: role pickers' grantable roles.
@@ -1308,6 +1322,15 @@ class TenantIsolationTest extends TestCase
             'stores/ledger' => ['ITEM-A', 'Store A'],
             'stores/stock' => [],
             'stores/consumption?group=cost_centre' => ['ITEM-A', 'Unit A renamed'],
+            // Pharmacy (PHA-24): stock by lot, the register, prescriptions, the prescription log, write-offs and the reports.
+            'pharmacy/lots' => ['LOT-A', 'Pharmacy item A'],
+            'pharmacy/register' => ['LOT-A', 'Pharmacy item A'],
+            'pharmacy/prescriptions' => ['Patient A', 'Clinic A'],
+            'pharmacy/dispenses' => ['Pharmacy item A', 'Till patient A'],
+            'pharmacy/write-offs' => ['WO-', 'Outlet A'],
+            'pharmacy/reports/expiry' => ['OLD-A', 'Pharmacy item A'],
+            'pharmacy/reports/slow-movers' => ['OLD-A', 'Pharmacy item A'],
+            'pharmacy/reports/prescriptions' => ['Pharmacy item A', 'Till patient A'],
             // Manufacturing (MFG-27): its lists.
             'manufacturing/boms' => ['MFG-PRODUCT-A', 'MFG-MENU-A'],
             'manufacturing/orders' => ['MFG-PRODUCT-A', 'Outlet A'],
@@ -1967,6 +1990,19 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/manufacturing/orders/{mfg_order}/returns' => ['issue_id' => $tenant->id('mfg_issue'), 'reason' => 'unused', 'lines' => [['issue_line_id' => $tenant->id('mfg_issue_line'), 'qty' => '1']]],
             'POST api/v1/manufacturing/revalue' => ['kind' => 'issue', 'document_id' => $tenant->id('mfg_issue')],
             'POST api/v1/manufacturing/orders/{mfg_order}/reports' => ['qty_good' => '1', 'by_products' => [['output_id' => $tenant->id('mfg_output'), 'qty' => '1']]],
+            // Pharmacy (docs/modules/pharmacy.md): bodies naming A's own places, item, lot, supplier and customer.
+            'POST api/v1/pharmacy/receipts' => [
+                'location_id' => $tenant->id('location'), 'supplier_id' => $tenant->id('party'), 'reference' => 'Hijack',
+                'lines' => [['item_id' => $tenant->id('pharmacy_item'), 'qty' => '1', 'batch_number' => 'HIJACK', 'expires_on' => now()->addDays(120)->toDateString(), 'unit_cost_minor' => '100', 'currency' => 'KES']],
+            ],
+            'POST api/v1/pharmacy/write-offs' => ['location_id' => $tenant->id('location'), 'reason' => 'damaged', 'lines' => [['lot_id' => $tenant->id('pharmacy_lot'), 'qty' => '1']]],
+            'POST api/v1/pharmacy/transfers' => ['from_location_id' => $tenant->id('location'), 'to_location_id' => $tenant->id('inventory_location'), 'lines' => [['item_id' => $tenant->id('pharmacy_item'), 'qty' => '1', 'lots' => [['lot_id' => $tenant->id('pharmacy_lot'), 'qty' => '1']]]]],
+            'POST api/v1/pharmacy/prescriptions' => [
+                'location_id' => $tenant->id('location'), 'prescriber_name' => 'Hijack', 'prescriber_licence' => 'H-1', 'facility' => 'Hijack', 'patient_name' => 'Hijack',
+                'patient_party_id' => $tenant->id('customer'), 'prescribed_on' => now()->toDateString(),
+            ],
+            'POST api/v1/pharmacy/recalls' => ['item_id' => $tenant->id('pharmacy_item'), 'batch_number' => 'HIJACK-RECALL', 'reason' => 'Hijack'],
+            'POST api/v1/pharmacy/register/adjustments' => ['item_id' => $tenant->id('pharmacy_item'), 'location_id' => $tenant->id('location'), 'qty' => '-1', 'reason' => 'Hijack', 'lot_id' => $tenant->id('pharmacy_lot')],
             // HR (docs/modules/hr.md): bodies naming A's own employees, places, dimensions, types, shifts and templates.
             'POST api/v1/hr/employees' => [
                 'company_id' => $tenant->id('company'), 'first_name' => 'Hijack', 'last_name' => 'Check', 'hire_date' => '2026-02-01', 'branch_id' => $tenant->id('branch'),

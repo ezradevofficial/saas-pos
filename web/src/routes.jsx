@@ -84,6 +84,20 @@ import { PAYROLL_EMPLOYEE_VIEW, PAYROLL_LOAN_VIEW, PAYROLL_PAYSLIP_VIEW, PAYROLL
 import { PortalLayout } from './pages/procurement/portal/PortalLayout'
 import { CREDIT_VIEW, GIFT_CARD_VIEW, PROGRAMME_VIEW, PROMOTION_VIEW, SALE_VIEW } from './pages/loyalty/loyaltyData'
 import './pages/loyalty/register'
+import {
+  DISPENSE_REVIEW,
+  ITEM_VIEW as PHARMACY_ITEM_VIEW,
+  LOT_RECEIVE,
+  LOT_TRANSFER,
+  LOT_VIEW,
+  PRESCRIPTION_VIEW,
+  RECALL_VIEW,
+  REGISTER_VIEW,
+  REPORT_VIEW as PHARMACY_REPORT_VIEW,
+  SETTINGS_VIEW as PHARMACY_SETTINGS_VIEW,
+  WRITEOFF_CREATE,
+  WRITEOFF_VIEW,
+} from './pages/pharmacy/pharmacyData'
 import { ACTIVITY_VIEW as CRM_ACTIVITY_VIEW, LEAD_VIEW as CRM_LEAD_VIEW, OPPORTUNITY_VIEW as CRM_OPPORTUNITY_VIEW, QUOTE_VIEW as CRM_QUOTE_VIEW, SETTINGS_VIEW as CRM_SETTINGS_VIEW, TARGET_VIEW as CRM_TARGET_VIEW } from './pages/crm/crmData'
 import './pages/crm/register'
 import { CASHUP_VIEW as ECOM_CASHUP_VIEW, DELIVERY_VIEW as ECOM_DELIVERY_VIEW, ORDER_VIEW as ECOM_ORDER_VIEW, REPORT_VIEW as ECOM_REPORT_VIEW, RIDERS_VIEW as ECOM_RIDERS_VIEW, SETTINGS_VIEW as ECOM_SETTINGS_VIEW, WHATSAPP_VIEW as ECOM_WHATSAPP_VIEW } from './pages/ecommerce/ecommerceData'
@@ -268,6 +282,24 @@ const FlaggedSales = lazy(() => import('./pages/loyalty/FlaggedSales'))
 const LoyaltyProgramme = lazy(() => import('./pages/loyalty/Programme'))
 const PromotionEditor = lazy(() => import('./pages/loyalty/PromotionEditor'))
 const Promotions = lazy(() => import('./pages/loyalty/Promotions'))
+const ExpiryReport = lazy(() => import('./pages/pharmacy/ExpiryReport'))
+const LotDetail = lazy(() => import('./pages/pharmacy/LotDetail'))
+const Lots = lazy(() => import('./pages/pharmacy/Lots'))
+const MoveStock = lazy(() => import('./pages/pharmacy/MoveStock'))
+const PharmacyDispenses = lazy(() => import('./pages/pharmacy/Dispenses'))
+const PharmacyItemProfiles = lazy(() => import('./pages/pharmacy/ItemProfiles'))
+const PharmacyPrescriptionDetail = lazy(() => import('./pages/pharmacy/PrescriptionDetail'))
+const PharmacyPrescriptionLog = lazy(() => import('./pages/pharmacy/PrescriptionLog'))
+const PharmacyPrescriptions = lazy(() => import('./pages/pharmacy/Prescriptions'))
+const PharmacyRecallDetail = lazy(() => import('./pages/pharmacy/RecallDetail'))
+const PharmacyRecalls = lazy(() => import('./pages/pharmacy/Recalls'))
+const PharmacyRegister = lazy(() => import('./pages/pharmacy/Register'))
+const PharmacySettings = lazy(() => import('./pages/pharmacy/PharmacySettings'))
+const ReceiveStock = lazy(() => import('./pages/pharmacy/ReceiveStock'))
+const SlowMovers = lazy(() => import('./pages/pharmacy/SlowMovers'))
+const WriteOffDetail = lazy(() => import('./pages/pharmacy/WriteOffDetail'))
+const WriteOffForm = lazy(() => import('./pages/pharmacy/WriteOffForm'))
+const WriteOffs = lazy(() => import('./pages/pharmacy/WriteOffs'))
 const CrmCalendar = lazy(() => import('./pages/crm/Calendar'))
 const CrmSettings = lazy(() => import('./pages/crm/CrmSettings'))
 const Leads = lazy(() => import('./pages/crm/Leads'))
@@ -555,6 +587,27 @@ export const routes = [
         ['/loyalty/gift-cards', GIFT_CARD_VIEW, <GiftCards key="loyalty-gift-cards" />],
         ['/loyalty/gift-cards/:cardId', GIFT_CARD_VIEW, <GiftCardDetail key="loyalty-gift-card" />],
         ['/loyalty/review', SALE_VIEW, <FlaggedSales key="loyalty-review" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Pharmacy (docs/modules/pharmacy.md): the API answers 403 module_inactive without the module.
+      ...[
+        ['/pharmacy/lots', LOT_VIEW, <Lots key="pharmacy-lots" />],
+        ['/pharmacy/lots/:lotId', LOT_VIEW, <LotDetail key="pharmacy-lot" />],
+        ['/pharmacy/receive', LOT_RECEIVE, <ReceiveStock key="pharmacy-receive" />],
+        ['/pharmacy/transfers/new', LOT_TRANSFER, <MoveStock key="pharmacy-move" />],
+        ['/pharmacy/write-offs', WRITEOFF_VIEW, <WriteOffs key="pharmacy-write-offs" />],
+        ['/pharmacy/write-offs/new', WRITEOFF_CREATE, <WriteOffForm key="pharmacy-write-off-new" />],
+        ['/pharmacy/write-offs/:writeOffId', WRITEOFF_VIEW, <WriteOffDetail key="pharmacy-write-off" />],
+        ['/pharmacy/recalls', RECALL_VIEW, <PharmacyRecalls key="pharmacy-recalls" />],
+        ['/pharmacy/recalls/:recallId', RECALL_VIEW, <PharmacyRecallDetail key="pharmacy-recall" />],
+        ['/pharmacy/prescriptions', PRESCRIPTION_VIEW, <PharmacyPrescriptions key="pharmacy-prescriptions" />],
+        ['/pharmacy/prescriptions/:prescriptionId', PRESCRIPTION_VIEW, <PharmacyPrescriptionDetail key="pharmacy-prescription" />],
+        ['/pharmacy/register', REGISTER_VIEW, <PharmacyRegister key="pharmacy-register" />],
+        ['/pharmacy/dispenses', DISPENSE_REVIEW, <PharmacyDispenses key="pharmacy-dispenses" />],
+        ['/pharmacy/reports/expiry', PHARMACY_REPORT_VIEW, <ExpiryReport key="pharmacy-expiry" />],
+        ['/pharmacy/reports/slow-movers', PHARMACY_REPORT_VIEW, <SlowMovers key="pharmacy-slow" />],
+        ['/pharmacy/reports/prescriptions', PHARMACY_REPORT_VIEW, <PharmacyPrescriptionLog key="pharmacy-log" />],
+        ['/pharmacy/items', PHARMACY_ITEM_VIEW, <PharmacyItemProfiles key="pharmacy-items" />],
+        ['/pharmacy/settings', PHARMACY_SETTINGS_VIEW, <PharmacySettings key="pharmacy-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // CRM and sales (docs/modules/crm.md, Screens): the API answers 403 module_inactive without the module.
       ...[

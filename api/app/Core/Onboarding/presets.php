@@ -14,10 +14,7 @@
  *   version 1, WF-02) when the type is chosen; types not registered are
  *   skipped;
  * - `modules` and `quantities`: the module picker's suggestion (catalogue
- *   keys and units, ONB-03);
- * - `features` (optional): modules that are part of the till's mode rather
- *   than sold on their own (docs/modules/restaurant.md): they are switched
- *   on when the type is chosen and off when another type replaces it.
+ *   keys and units, ONB-03).
  *
  * Names and short descriptions are the translation keys
  * `onboarding.business_types.{key}.name|description` (en, fr).
@@ -50,33 +47,32 @@ return [
             'pos_mode' => 'restaurant',
             'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'kitchen', 'storekeeper'],
             'flows' => [],
-            'modules' => ['pos', 'inventory', 'manufacturing'],
+            'modules' => ['pos', 'inventory', 'restaurant', 'manufacturing'],
             'quantities' => ['outlet' => 1, 'device' => 3, 'employee' => 12],
-            'features' => ['restaurant'],
         ],
         [
             'key' => 'bar',
             'pos_mode' => 'bar',
             'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'bartender'],
             'flows' => [],
-            'modules' => ['pos', 'inventory'],
+            'modules' => ['pos', 'inventory', 'restaurant'],
             'quantities' => ['outlet' => 1, 'device' => 2, 'employee' => 8],
-            'features' => ['restaurant'],
         ],
         [
             'key' => 'hotel',
             'pos_mode' => 'hotel',
             'role_templates' => ['admin', 'branch_manager', 'cashier', 'waiter', 'storekeeper', 'accountant'],
             'flows' => [],
-            'modules' => ['pos', 'inventory', 'stores', 'accounting_essentials'],
+            'modules' => ['pos', 'inventory', 'restaurant', 'stores', 'accounting_essentials'],
             'quantities' => ['outlet' => 2, 'device' => 4, 'employee' => 25],
         ],
         [
             'key' => 'pharmacy',
             'pos_mode' => 'pharmacy',
-            'role_templates' => ['admin', 'branch_manager', 'cashier', 'storekeeper'],
+            // PHA-29: the pharmacy module (batches, expiry, prescriptions, the controlled-drug register) and its roles.
+            'role_templates' => ['admin', 'branch_manager', 'pharmacist', 'pharmacy_technician', 'cashier', 'storekeeper'],
             'flows' => [],
-            'modules' => ['pos', 'inventory', 'loyalty'],
+            'modules' => ['pos', 'inventory', 'pharmacy', 'loyalty'],
             'quantities' => ['outlet' => 1, 'device' => 2, 'employee' => 6],
         ],
         [
@@ -123,7 +119,7 @@ return [
     ],
 
     'module_groups' => [
-        'sell' => ['pos', 'inventory', 'loyalty', 'ecommerce'],
+        'sell' => ['pos', 'inventory', 'pharmacy', 'restaurant', 'loyalty', 'ecommerce'],
         'operate' => ['stores', 'procurement', 'manufacturing', 'fixed_assets'],
         'finance_people' => ['accounting_essentials', 'accounting_pro', 'crm', 'hr', 'payroll'],
     ],

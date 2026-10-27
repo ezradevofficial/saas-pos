@@ -30,6 +30,7 @@ return [
             'fixed_assets' => 'Immobilisations',
             'manufacturing' => 'Production',
             'restaurant' => 'Restaurant et bar',
+            'pharmacy' => 'Pharmacie et agrovet',
         ],
         'resources' => [
             'accounting' => [
@@ -86,6 +87,17 @@ return [
                 'ticket' => 'Bons de cuisine',
                 'settings' => 'Paramètres du restaurant',
                 'report' => 'Rapports du restaurant',
+            ],
+            'pharmacy' => [
+                'settings' => 'Paramètres de la pharmacie',
+                'item' => 'Profils pharmacie des articles',
+                'lot' => 'Lots et péremption',
+                'writeoff' => 'Mises au rebut',
+                'recall' => 'Rappels',
+                'prescription' => 'Ordonnances',
+                'dispense' => 'Délivrance encadrée',
+                'register' => 'Registre des stupéfiants',
+                'report' => 'Rapports de la pharmacie',
             ],
             'manufacturing' => [
                 'bom' => 'Nomenclatures',
@@ -297,6 +309,8 @@ return [
         'kitchen' => 'Personnel de cuisine',
         'bartender' => 'Barman',
         'storekeeper' => 'Magasinier',
+        'pharmacist' => 'Pharmacien',
+        'pharmacy_technician' => 'Technicien en pharmacie',
         'accountant' => 'Comptable',
         'hr_officer' => 'Chargé RH',
         'payroll_officer' => 'Gestionnaire de paie',

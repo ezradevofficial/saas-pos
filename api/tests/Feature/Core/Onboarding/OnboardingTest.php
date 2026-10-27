@@ -120,24 +120,6 @@ class OnboardingTest extends TestCase
         $this->assertMatchesRegularExpression('/^admin-[a-z0-9]{4}$/', $slug($reserved));
     }
 
-    public function test_restaurant_and_bar_switch_the_restaurant_module_on_and_other_types_switch_it_off(): void
-    {
-        $owner = $this->signUp();
-        $active = fn () => $this->asTenant($owner['tenant'], fn () => app(ModuleRegistry::class)->isActive('restaurant'));
-        $this->assertFalse($active());
-
-        $this->putJson('/api/v1/onboarding/business', ['business_type' => 'restaurant'], $this->as($owner))
-            ->assertOk()->assertJsonPath('data.pos_mode', 'restaurant')->assertJsonPath('data.applied.features', ['restaurant'])
-            ->assertJsonPath('data.applied.role_templates', ['admin', 'branch_manager', 'cashier', 'waiter', 'kitchen', 'storekeeper']);
-        $this->assertTrue($active());
-
-        $this->putJson('/api/v1/onboarding/business', ['business_type' => 'bar'], $this->as($owner))->assertOk()->assertJsonPath('data.applied.features', ['restaurant']);
-        $this->assertTrue($active());
-
-        $this->putJson('/api/v1/onboarding/business', ['business_type' => 'retail'], $this->as($owner))->assertOk()->assertJsonPath('data.applied.features', []);
-        $this->assertFalse($active(), 'the module is off with the till mode; its data stays');
-    }
-
     public function test_a_business_type_applies_its_pos_mode_role_templates_flows_and_suggestion(): void
     {
         $owner = $this->signUp();
@@ -147,8 +129,8 @@ class OnboardingTest extends TestCase
             ->assertJsonPath('data.stage', 'modules')
             ->assertJsonPath('data.business_type', 'pharmacy')
             ->assertJsonPath('data.pos_mode', 'pharmacy')
-            ->assertJsonPath('data.applied.role_templates', ['admin', 'branch_manager', 'cashier', 'storekeeper'])
-            ->assertJsonPath('data.selection.modules', ['pos', 'inventory', 'loyalty'])
+            ->assertJsonPath('data.applied.role_templates', ['admin', 'branch_manager', 'cashier', 'storekeeper', 'pharmacist', 'pharmacy_technician'])
+            ->assertJsonPath('data.selection.modules', ['pos', 'inventory', 'pharmacy', 'loyalty'])
             ->assertJsonPath('data.selection.quantities.outlet', 2)
             ->assertJsonPath('data.selection.quantities.device', 4)
             ->assertJsonPath('data.business_types.5.name', 'Pharmacie ou agro-vétérinaire');
@@ -215,7 +197,7 @@ class OnboardingTest extends TestCase
         $this->pickModules($owner)->assertOk()->assertJsonPath('data.trial.state', 'trial')->assertJsonPath('data.trial.days_left', 14);
 
         $this->asTenant($owner['tenant'], function () {
-            // POS, Inventory and Loyalty are installed and now active.
+            // POS, Inventory and Loyalty are what was picked (the modules step sends them) and now active.
             $this->assertTrue(app(ModuleRegistry::class)->isActive('pos'));
             $this->assertSame(['inventory', 'loyalty', 'pos'], TenantModule::where('status', 'active')->orderBy('module')->pluck('module')->all());
             $state = OnboardingState::sole();

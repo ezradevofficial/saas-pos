@@ -153,9 +153,18 @@ export const migrations = schemaMigrations({
       ],
     },
     {
+      // Pharmacy module (PHA-25): rules, item profiles and the lots with stock at this location.
+      toVersion: 11,
+      steps: [
+        createTable({ name: 'pharmacy_settings', columns: [data, seenAt] }),
+        createTable({ name: 'pharmacy_items', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
+        createTable({ name: 'pharmacy_lots', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
+      ],
+    },
+    {
       // Restaurant module (REST-02, REST-17): floor, stations, modifiers, settings, the server's orders
       // and the open orders kept on this till.
-      toVersion: 11,
+      toVersion: 12,
       steps: [
         createTable({ name: 'restaurant_tables', columns: [data, seenAt] }),
         createTable({ name: 'restaurant_stations', columns: [data, seenAt] }),

@@ -63,7 +63,8 @@
             "Modules\\CRM\\Tests\\": "modules/CRM/tests/",
             "Modules\\Ecommerce\\Tests\\": "modules/Ecommerce/tests/",
             "Modules\\Payroll\\Tests\\": "modules/Payroll/tests/",
-            "Modules\\Restaurant\\Tests\\": "modules/Restaurant/tests/"
+            "Modules\\Restaurant\\Tests\\": "modules/Restaurant/tests/",
+            "Modules\\Pharmacy\\Tests\\": "modules/Pharmacy/tests/"
         }
     },
     "scripts": {

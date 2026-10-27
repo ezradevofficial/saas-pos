@@ -9,11 +9,15 @@ spec disagree, the core spec wins.
 ## Scope
 
 Restaurant is a module (`api/modules/Restaurant`, permissions `restaurant.*`,
-tables `rest_*`), switched on per tenant (RBAC-08). It is the table, tab,
-course and kitchen layer of the POS `restaurant` and `bar` modes. It is not
-sold on its own: choosing the `restaurant` or `bar` business type switches it
-on (`features` in `app/Core/Onboarding/presets.php`) and choosing another
-type switches it off, keeping its data (owner to confirm).
+tables `rest_*`), sold and switched on per tenant like every other module
+(catalogue key `restaurant`, per outlet, RBAC-08). Routes, menus, permissions,
+sync sources and listeners exist only while the tenant's subscription has it.
+It is the table, tab, course and kitchen layer of the POS `restaurant` and
+`bar` modes. The `restaurant`, `bar` and `hotel` business types suggest it by
+default in the module picker; existing tenants add it from their subscription.
+**Price to set:** the catalogue row is a placeholder equal to Inventory's
+(KES 1,500.00 and USD 12.00 per outlet per month) until the owner sets it; a
+price change is a new catalogue price row.
 
 - **An order is not a sale.** An order (table or tab) is open for hours or
   days, grows in rounds and may be paid in parts. When it is paid it becomes
@@ -121,7 +125,7 @@ An order record: `{id, kind: table|tab, table_id?, tab_name?, customer_id?, wait
 
 Errors: `table_unknown`, `order_closed`, `waiter_unknown`, `item_unknown`, `tax_code_unknown`, `order_unknown`, `line_changed` (a sent line's item, quantity or price differs), `line_conflict`, `reason_required`, `void_not_permitted` and `void_limit_exceeded` (back office), `override_required` and `limit_exceeded`/`override_limit_exceeded` (the till's void, POS's own codes), `name_taken`, `ticket_status_invalid`, `user_unknown`, `ticket_not_permitted`, `split_invalid`, `upload_rejected`. An order record naming an unknown item, tax code, table, waiter, customer or merge target is refused whole; one with a bad line keeps its good lines.
 
-**Decisions to confirm.** (1) Restaurant has no catalogue price: the business type switches it on; hotels and an owner-side switch for existing tenants are not built. (2) A void's limit is `max_refund_amount` in the order's currency's major units, not converted to the base currency. (3) A waiter's `pos.sale.create` and `pos.till.sign_in` let the sale be rung on their handheld; the shift is the till's. (4) The service charge line is rung exclusive of tax at its item's rate; a tip line must be an item with an exempt tax category. (5) The tip-percent split preview takes the percentage of the lines' payable amount, before the service charge. (6) `restaurant_settings` carries the tenant's `pos_mode` so the till knows to open on the floor.
+**Decisions to confirm.** (1) The Restaurant catalogue price is a placeholder (price to set). (2) A void's limit is `max_refund_amount` in the order's currency's major units, not converted to the base currency. (3) A waiter's `pos.sale.create` and `pos.till.sign_in` let the sale be rung on their handheld; the shift is the till's. (4) The service charge line is rung exclusive of tax at its item's rate; a tip line must be an item with an exempt tax category. (5) The tip-percent split preview takes the percentage of the lines' payable amount, before the service charge. (6) `restaurant_settings` carries the tenant's `pos_mode` so the till knows to open on the floor.
 
 ## Closing into a sale (device)
 

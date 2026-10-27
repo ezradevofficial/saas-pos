@@ -192,7 +192,16 @@
       "tax_code_archived": "Tax code archived",
       "price_missing": "No price",
       "item_unknown": "Unknown item",
-      "discount_above_price": "Discount above price"
+      "discount_above_price": "Discount above price",
+      "lot_expired": "Batch expired",
+      "lot_recalled": "Batch recalled",
+      "lot_quarantined": "Batch on hold",
+      "lot_too_close": "Batch too close to expiry",
+      "lot_short": "Not enough in date stock. Choose another batch or reduce the quantity.",
+      "prescription_needed": "Prescription needed",
+      "prescription_stale": "Prescription too old",
+      "pharmacist_needed": "Pharmacist approval needed",
+      "buyer_needed": "Choose the customer who is buying"
     },
     "sale": {
       "title": "Current sale",
@@ -267,7 +276,8 @@
         "refund": "This refund needs a manager. A manager approves it with their PIN.",
         "pay_out": "Paying cash out needs a manager. A manager approves it with their PIN.",
         "pay_in": "Paying cash in needs a manager. A manager approves it with their PIN.",
-        "void_line": "Voiding an item after it was sent needs a manager. A manager approves it with their PIN."
+        "void_line": "Voiding an item after it was sent needs a manager. A manager approves it with their PIN.",
+        "dispense": "Selling this needs a pharmacist. A pharmacist approves it with their PIN."
       },
       "nobody": "No one at this till can approve this. Ask an admin to give a manager a role here, then sync.",
       "pinFor": "PIN for {{name}}",
@@ -542,6 +552,32 @@
         "credit_limit_exceeded": "This takes the customer over their credit limit. {{amount}} is left on it.",
         "amount": "Type an amount above zero."
       }
+    },
+    "pharmacy": {
+      "batchLine": "Batch {{batch}} · expires {{date}} · {{qty}}",
+      "nearExpiry": "Near expiry",
+      "chooseBatch": "Choose batch",
+      "chooseFor": "Choose batch for {{name}}",
+      "chooseTitle": "Batches of {{name}}",
+      "batchOption": "Batch {{batch}} · expires {{date}} · {{qty}} in stock",
+      "useBatch": "Use batch {{batch}}",
+      "useEarliest": "Use earliest expiry",
+      "rxNeeded": "This sale needs a prescription.",
+      "rxSummary": "Prescription for {{patient}} from {{prescriber}}, {{date}}",
+      "rxAdd": "Add prescription",
+      "rxEdit": "Change prescription",
+      "rxTitle": "Prescription",
+      "rxSave": "Save prescription",
+      "patientName": "Patient name",
+      "patientPhone": "Patient phone",
+      "prescriberName": "Prescriber name",
+      "prescriberLicence": "Prescriber licence number",
+      "facility": "Facility",
+      "prescribedOn": "Date prescribed",
+      "dateHelp": "Year-month-day, for example 2026-10-27. Attach a photo in the back office.",
+      "approvalNeeded": "A pharmacist must approve this sale.",
+      "approved": "Approved by a pharmacist.",
+      "approve": "Ask a pharmacist to approve"
     }
   },
   "templates": {

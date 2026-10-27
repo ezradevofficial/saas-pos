@@ -7,7 +7,9 @@
  * - a cart adjuster: discounts it vouches for on cart lines (provenance
  *   `adjustments: [{source, reference, amount_minor, label}]`, sent with the
  *   sale so the server does not treat them as manual discounts, core
- *   DiscountSources) and data for the sale's `extensions[key]`;
+ *   DiscountSources), data for the sale's `extensions[key]`, and lines it
+ *   blocks (`blocked: Map(lineId → reason)`: the sale cannot be charged until
+ *   they are fixed, PHA-08, PHA-16, PHA-17). It also gets the signed-in user;
  * - a tender provider per payment method type: what the payment screen asks
  *   for (`input`), the currencies it pays in, and `prepare()`, which checks
  *   the tender (offline rules included) and gives the payment's `tender`;
@@ -39,25 +41,28 @@ export async function loadCatalogueExtensions(database, base) {
   return out;
 }
 
-/** adjuster({ lines, cart, catalogue, at }) → { adjustments: Map(lineId → [...]), extension?: object } */
+/** adjuster({ lines, cart, catalogue, at, user }) → { adjustments?: Map(lineId → [...]), extension?: object, blocked?: Map(lineId → reason) } */
 export function registerCartAdjuster(key, adjuster) {
   cartAdjusters.set(key, adjuster);
 }
 
 /**
- * Every adjuster's discounts by line id (concatenated) and the sale's
- * extensions by key. `lines` are the cart lines (unit price, quantity).
+ * Every adjuster's discounts by line id (concatenated), the sale's
+ * extensions by key and the lines modules block (the first reason of a line
+ * stands). `lines` are the cart lines (unit price, quantity).
  */
-export function runCartAdjusters({ lines, cart, catalogue, at }) {
+export function runCartAdjusters({ lines, cart, catalogue, at, user }) {
   const adjustments = new Map();
   const extensions = {};
-  if (!catalogue) return { adjustments, extensions };
+  const blocked = new Map();
+  if (!catalogue) return { adjustments, extensions, blocked };
   for (const [key, adjuster] of cartAdjusters) {
-    const result = adjuster({ lines, cart, catalogue, at }) ?? {};
+    const result = adjuster({ lines, cart, catalogue, at, user }) ?? {};
     for (const [lineId, list] of result.adjustments ?? []) adjustments.set(lineId, [...(adjustments.get(lineId) ?? []), ...list]);
+    for (const [lineId, reason] of result.blocked ?? []) if (!blocked.has(lineId)) blocked.set(lineId, reason);
     if (result.extension && Object.keys(result.extension).length) extensions[key] = result.extension;
   }
-  return { adjustments, extensions };
+  return { adjustments, extensions, blocked };
 }
 
 export function registerTenderProvider(type, provider) {

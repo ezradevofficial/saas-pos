@@ -390,11 +390,14 @@ export function PosProvider({ children }) {
         return null;
       },
       finishOverride,
+      /** AUTH-08: ask for a right the signed-in person may lack (a module's action, e.g. 'dispense'): resolves { override, approvedBy, proof } or null. */
+      authorize,
       refreshShift,
     };
   }, [activeList, authorize, finishOverride, posStore, refreshHeld, refreshShift, selling]);
 
-  const computed = useMemo(() => (catalogue ? computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.day, catalogue }) : null), [cart, catalogue]);
+  const user = session?.user ?? null;
+  const computed = useMemo(() => (catalogue ? computeCart(cart, { taxCodes: catalogue.taxCodes, day: catalogue.day, catalogue, user }) : null), [cart, catalogue, user]);
   const cartValue = useMemo(() => ({ cart, computed }), [cart, computed]);
   const data = useMemo(
     () => ({ catalogue, shift, held, nextReceipt, overrideRequest, lastSale }),

@@ -121,7 +121,7 @@ export function cartReducer(state, action) {
 export function computeCart(cart, ctx) {
   const blocked = [];
   // LOY-11, LOY-27: discounts modules vouch for (promotions), when the catalogue is given (extensions.js).
-  const { adjustments, extensions } = runCartAdjusters({ lines: cart.lines, cart, catalogue: ctx.catalogue, at: ctx.at ?? Date.now() });
+  const { adjustments, extensions, blocked: blockedByModules } = runCartAdjusters({ lines: cart.lines, cart, catalogue: ctx.catalogue, at: ctx.at ?? Date.now(), user: ctx.user });
   const lines = cart.lines.map((line) => {
     const manual = BigInt(String(line.discountMinor ?? '0'));
     // A vouched discount never takes the line below zero with the manual one.
@@ -136,6 +136,8 @@ export function computeCart(cart, ctx) {
     if (amounts.blocked) blocked.push({ lineId: line.id, reason: amounts.blocked, name: line.name });
     return { ...line, amounts: vouched.length ? { ...amounts, adjustments: vouched, manualDiscountMinor: String(manual) } : amounts };
   });
+  // PHA-08, PHA-16: lines a module blocks (an expired batch, a missing prescription) cannot be charged.
+  for (const line of lines) if (blockedByModules.has(line.id) && !blocked.some((entry) => entry.lineId === line.id)) blocked.push({ lineId: line.id, reason: blockedByModules.get(line.id), name: line.name });
   const totals = saleTotals(lines.filter((line) => !line.amounts.blocked).map((line) => line.amounts));
   const itemCount = Number(lines.reduce((count, line) => count + (isWholeQty(line.qty) ? BigInt(line.qty) : 1n), 0n));
   return { lines, totals, itemCount, blocked, extensions };

@@ -45,7 +45,10 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * the buyer snapshot (`buyer_tax_id`, `buyer_name`) the sale was printed
  * and uploaded with; null without a customer tax id.
  *
- * v11 (Restaurant module, REST-02, REST-06, REST-08, REST-13, REST-17): the
+ * v11 (Pharmacy module, PHA-25): the synced `pharmacy_settings` (a snapshot),
+ * `pharmacy_items` (profiles) and `pharmacy_lots` (the lots with stock at this
+ * till's location, with their expiry and blocked state), read-only.
+ * v12 (Restaurant module, REST-02, REST-06, REST-08, REST-13, REST-17): the
  * synced `restaurant_tables`, `restaurant_stations`, `restaurant_modifiers`,
  * `restaurant_settings` and `restaurant_orders` (the server's open orders,
  * folded into the till's), and local `rest_orders`: the open orders and tabs
@@ -53,7 +56,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -161,6 +164,10 @@ export const schema = appSchema({
     tableSchema({ name: 'loyalty_promotions', columns: [data, seenAt] }),
     tableSchema({ name: 'loyalty_members', columns: [{ name: 'customer_id', type: 'string', isIndexed: true }, { name: 'kind', type: 'string' }, data, seenAt] }),
     tableSchema({ name: 'loyalty_gift_cards', columns: [{ name: 'code_hash', type: 'string', isIndexed: true }, data, seenAt] }),
+    // v11: the Pharmacy module's synced entities (rules, item profiles, lots with stock here).
+    tableSchema({ name: 'pharmacy_settings', columns: [data, seenAt] }),
+    tableSchema({ name: 'pharmacy_items', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
+    tableSchema({ name: 'pharmacy_lots', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
     // v7: stock on hand at this till's location (Inventory, INV-17), read-only.
     tableSchema({ name: 'inventory_stock', columns: [{ name: 'item_id', type: 'string', isIndexed: true }, data, seenAt] }),
     // v9: the HR module's clock-in staff (HR-23), a snapshot.

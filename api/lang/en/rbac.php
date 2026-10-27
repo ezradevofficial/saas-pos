@@ -30,6 +30,7 @@ return [
             'fixed_assets' => 'Fixed assets',
             'manufacturing' => 'Manufacturing',
             'restaurant' => 'Restaurant and bar',
+            'pharmacy' => 'Pharmacy and agrovet',
         ],
         'resources' => [
             'accounting' => [
@@ -86,6 +87,17 @@ return [
                 'ticket' => 'Kitchen tickets',
                 'settings' => 'Restaurant settings',
                 'report' => 'Restaurant reports',
+            ],
+            'pharmacy' => [
+                'settings' => 'Pharmacy settings',
+                'item' => 'Pharmacy item profiles',
+                'lot' => 'Lots and expiry',
+                'writeoff' => 'Write-offs',
+                'recall' => 'Recalls',
+                'prescription' => 'Prescriptions',
+                'dispense' => 'Restricted dispensing',
+                'register' => 'Controlled-drug register',
+                'report' => 'Pharmacy reports',
             ],
             'manufacturing' => [
                 'bom' => 'Bills of materials',
@@ -297,6 +309,8 @@ return [
         'kitchen' => 'Kitchen staff',
         'bartender' => 'Bartender',
         'storekeeper' => 'Storekeeper',
+        'pharmacist' => 'Pharmacist',
+        'pharmacy_technician' => 'Pharmacy technician',
         'accountant' => 'Accountant',
         'hr_officer' => 'HR Officer',
         'payroll_officer' => 'Payroll Officer',
