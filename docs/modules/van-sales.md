@@ -69,7 +69,7 @@ the owner sets it; a price change is a new catalogue price row.
 | VAN-18 | **End-of-day count.** The rep submits, per item, the quantity returned (good) and damaged, and per currency the cash and mobile money counted. A recount after a rejection is a new attempt. | Must |
 | VAN-19 | **Stock reconciliation.** Per item: `load = sold + returned + damaged + variance`, where `load` is the confirmed load of the run plus customer returns taken back, `sold` is the net quantity of its van sales (voids out), and `variance` (a shortage is positive, a surplus negative) is what is left over. Quantities are in the item's base unit. | Must |
 | VAN-20 | **Cash and mobile money reconciliation.** Per currency and kind (`cash`, `mobile_money`): expected = tenders of its sales and collections less change given, refunds and voids; counted is the rep's figure; variance = counted − expected. Credit never counts as cash. | Must |
-| VAN-21 | **Variance approval.** A count with any variance is a document of the workflow engine (`van_sales.reconciliation`, WF-01) with its flow; the default flow is one approval by a Route supervisor (any one, APR-07: never the rep who counted), escalated to the Branch managers after two business days. A tenant may change it and route on `cash_variance` (absolute base-currency amount) and `stock_variance_lines`. A count without variance closes the run at once. Rejection reopens the count for a recount. | Must |
+| VAN-21 | **Variance approval.** A count with any variance, or any damaged quantity (a write-off is a decision), is a document of the workflow engine (`van_sales.reconciliation`, WF-01) with its flow; the default flow is one approval by a Route supervisor (any one, APR-07: never the rep who counted), escalated to the Branch managers after two business days. A tenant may change it and route on `cash_variance` (absolute base-currency amount) and `stock_variance_lines`. A count with neither closes the run at once. Rejection reopens the count for a recount. | Must |
 | VAN-22 | **Posting on approval.** Approved: the damaged quantity and the shortage are written off from the van by Inventory (`StockWrittenOff`, audited, once per count); a surplus and the cash variance are recorded on the reconciliation and the audit log, not posted. The run closes. | Must |
 | VAN-23 | **Unload.** The counted good quantity (not above what the van holds) goes back to the warehouse by an Inventory transfer, requested when the count is submitted; a storekeeper with `van_sales.unload.receive` receives it with the counts at the warehouse (dispatch and receipt in one step), differences being Inventory's transit loss. | Must |
 | VAN-24 | **GPS check-in (optional).** A company setting (`gps_checkin`: `off` or `optional`, default off). When optional, the app asks once with an in-app explanation (en, fr) and the phone's permission, only in the foreground; refusing leaves the rep working. One point is stored per visit at arrival (latitude and longitude rounded to 4 decimals, accuracy, time); no trail, no background tracking. Positions are the rep's and customer's personal data (NFR-08): read only with `van_sales.visit.track`, never in the audit log or other lists, and cleared after `gps_retention_days` (1 to 90, default 30). | Should |
@@ -90,7 +90,7 @@ the owner sets it; a price change is a new catalogue price row.
 | `van_sales.collection.view`, `.record`, `.void` | Read collections; collect; void one |
 | `van_sales.credit.view`, `van_sales.credit.review` | Read customers' route balances and the review queue; review a flagged credit sale |
 | `van_sales.reconciliation.view`, `.submit`, `.approve` | Read counts; count the van; the default approver of a variance (the workflow checks it is not the requester) |
-| `van_sales.unload.receive` | Receive the unload at the warehouse |
+| `van_sales.unload.receive` | Receive the unload at the warehouse (checked at the warehouse; the storekeeper holds it with `van_sales.load.release`) |
 | `van_sales.settings.edit` | A company's GPS and credit settings |
 | `van_sales.report.view` | Reports |
 
@@ -115,7 +115,7 @@ strings, times ISO 8601 UTC, quantities decimal strings.
 | `GET/POST van-sales/loads`, `GET van-sales/loads/{id}` | `{van_id, from_location_id, note?, run_id?, lines: [{item_id, qty}]}` |
 | `POST van-sales/loads/{id}/release`, `POST .../cancel` | Dispatch from the warehouse; cancel (`{reason}`) |
 | `GET van-sales/collections`, `POST van-sales/collections/{id}/void` | `{reason}` |
-| `GET van-sales/accounts`, `GET van-sales/accounts/{customer_id}` | Balances per currency, limit, entries |
+| `GET van-sales/accounts`, `GET van-sales/accounts/{party}` | Balances per currency, limit, entries |
 | `GET van-sales/credit-reviews`, `POST van-sales/credit-reviews/{id}/review` | `{note?}` |
 | `GET van-sales/reconciliations`, `GET van-sales/reconciliations/{id}` | Lines, tenders, status, the flow's document id (decided in the approvals inbox) |
 | `POST van-sales/reconciliations/{id}/unload/receive` | `{lines: [{item_id, qty_received}]}` |

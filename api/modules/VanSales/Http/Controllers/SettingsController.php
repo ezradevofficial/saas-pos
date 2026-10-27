@@ -12,14 +12,14 @@ use Modules\VanSales\Support\Settings;
 /** VAN-24, VAN-11: a company's GPS and credit settings. */
 class SettingsController
 {
-    public function show(ShowSettingsRequest $request, string $company): JsonResponse
+    public function show(ShowSettingsRequest $request, Company $company): JsonResponse
     {
-        return response()->json(['data' => Settings::for(Company::query()->findOrFail($company)->id)]);
+        return response()->json(['data' => Settings::for($company->id)]);
     }
 
-    public function update(UpdateSettingsRequest $request, string $company): JsonResponse
+    public function update(UpdateSettingsRequest $request, Company $company): JsonResponse
     {
-        $id = Company::query()->findOrFail($company)->id;
+        $id = $company->id;
         $setting = Setting::query()->where('company_id', $id)->first() ?? new Setting(['company_id' => $id]);
         $setting->fill($request->validated())->save();
 

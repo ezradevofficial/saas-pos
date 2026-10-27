@@ -6,7 +6,6 @@ use App\Core\Audit\Auditor;
 use App\Core\MasterData\Parties\Party;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Str;
 use Modules\VanSales\Http\Requests\ReviewCreditRequest;
 use Modules\VanSales\Http\Requests\ViewRequest;
 use Modules\VanSales\Http\Resources\Views;
@@ -34,15 +33,13 @@ class CreditController
         return response()->json(['data' => $this->views->accounts($query->limit(500)->get())]);
     }
 
-    public function account(ViewRequest $request, string $customerId): JsonResponse
+    public function account(ViewRequest $request, Party $party): JsonResponse
     {
-        $party = Str::isUuid($customerId) ? Party::query()->find($customerId) : null;
-
-        if ($party === null || ! CreditEntry::query()->where('customer_id', $party->id)->exists()) {
+        if (! CreditEntry::query()->where('customer_id', $party->id)->exists()) {
             throw Errors::make(404, 'customer_unknown');
         }
 
-        if ($party->company_id !== null && ! $this->places->atCompany($request->user(), $request->permission(), $party->company_id)) {
+        if ($party->company_id !== null && ! $this->places->inCompany($request->user(), $request->permission(), $party->company_id)) {
             throw Errors::make(403, 'not_permitted');
         }
 

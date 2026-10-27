@@ -267,6 +267,8 @@ return [
             'manufacturing.bom.view', 'manufacturing.order.view', 'manufacturing.material.*',
             // PHA-06, PHA-12, PHA-13: receives and moves lots and asks for write-offs; never quarantines, recalls or approves.
             'pharmacy.item.view', 'pharmacy.lot.view', 'pharmacy.lot.receive', 'pharmacy.lot.transfer', 'pharmacy.writeoff.view', 'pharmacy.writeoff.create', 'pharmacy.report.view',
+            // VAN-07, VAN-23: releases the load sheets of vans from the warehouse and receives the unloads.
+            'van_sales.load.view', 'van_sales.load.release', 'van_sales.unload.receive',
         ],
         // INV-08 to INV-10, INV-12: storekeepers request; managers and approvers decide.
         // Costs belong to Accountants and Admins: storekeepers see quantities only (RBAC-05).

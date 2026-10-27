@@ -83,7 +83,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
 
     // VAN-11 to VAN-13: credit.
     Route::get('van-sales/accounts', [CreditController::class, 'accounts'])->defaults('permission', 'van_sales.credit.view');
-    Route::get('van-sales/accounts/{customer_id}', [CreditController::class, 'account'])->defaults('permission', 'van_sales.credit.view');
+    Route::get('van-sales/accounts/{party}', [CreditController::class, 'account'])->defaults('permission', 'van_sales.credit.view');
     Route::get('van-sales/credit-reviews', [CreditController::class, 'reviews'])->defaults('permission', 'van_sales.credit.view');
     Route::post('van-sales/credit-reviews/{vs_sale}/review', [CreditController::class, 'review'])->defaults('permission', 'van_sales.credit.review');
 

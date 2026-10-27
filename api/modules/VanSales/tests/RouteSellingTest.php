@@ -2,6 +2,7 @@
 
 namespace Modules\VanSales\Tests;
 
+use App\Core\Rbac\Scope;
 use Modules\VanSales\Credit\Ledger;
 use Modules\VanSales\Models\CreditEntry;
 use Modules\VanSales\Models\Run;
@@ -52,7 +53,7 @@ class RouteSellingTest extends TestCase
 
     public function test_a_person_without_the_right_cannot_start_a_day(): void
     {
-        $stranger = $this->userWith('cashier', \App\Core\Rbac\Scope::location($this->locationB->id));
+        $stranger = $this->userWith('cashier', Scope::location($this->locationB->id));
 
         $this->vsSync(['runs' => [$this->runRecord(['user_id' => $stranger->id])]])->assertStatus(422)
             ->assertJsonPath('results.runs.0.code', 'not_permitted');

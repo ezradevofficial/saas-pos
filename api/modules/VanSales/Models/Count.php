@@ -34,7 +34,7 @@ class Count extends Model implements HasScope
 
     public function scope(): Scope
     {
-        return Scope::branch($this->branch_id);
+        return Scope::location((string) Van::query()->whereKey($this->van_id)->value('location_id'));
     }
 
     public function lines(): HasMany

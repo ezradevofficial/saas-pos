@@ -255,6 +255,14 @@ class TenantIsolationTest extends TestCase
         'rest_order' => 'rest_order',
         'rest_order_line' => 'rest_order_line',
         'rest_ticket' => 'rest_ticket',
+        // Van sales (docs/modules/van-sales.md): a van at the device's outlet, a route with a stop, an open run with a visit and a flagged credit sale, a load sheet, a collection, a counted reconciliation.
+        'vs_van' => 'vs_van',
+        'vs_route' => 'vs_route',
+        'vs_load' => 'vs_load',
+        'vs_run' => 'vs_run',
+        'vs_collection' => 'vs_collection',
+        'vs_count' => 'vs_count',
+        'vs_sale' => 'vs_sale',
         // HR (docs/modules/hr.md): an employee linked to the Owner and what hangs off them.
         // Pharmacy (docs/modules/pharmacy.md): an item with a profile, its lot, a receipt, a pending write-off, a recall, a prescription (with an image) and a dispense.
         'pharmacy_item' => 'pharmacy_item',
@@ -496,6 +504,13 @@ class TenantIsolationTest extends TestCase
         'tip_item_id' => 'item',
         'into_order_id' => 'rest_order',
         'merged_into_id' => 'rest_order',
+        // Van sales: the van, route, stop, run and visit a record names, and the rep (a user).
+        'van_id' => 'vs_van',
+        'route_id' => 'vs_route',
+        'stop_id' => 'vs_stop',
+        'run_id' => 'vs_run',
+        'visit_id' => 'vs_visit',
+        'rep_id' => 'user',
         'scope_id' => null,
     ];
 
@@ -516,6 +531,8 @@ class TenantIsolationTest extends TestCase
         'POST api/v1/ecommerce/orders/{ecom_order}/returns/quote' => ['return_not_allowed', 'ECOM-42: the fixture order is out for delivery (accepted, not delivered), so a return quote is refused after validation and the permission check'],
         'POST api/v1/ecommerce/returns/{ecom_return}/collect' => ['collect_not_due', 'ECOM-43: the fixture return is a plain return (nothing to collect), so collecting is refused after validation and the permission check'],
         'POST api/v1/restaurant/orders/{rest_order}/merge' => ['merge_invalid', 'REST-15: the control merges the fixture order into itself, which is refused after validation and the permission check'],
+        'POST api/v1/van-sales/device/loads/{vs_load}/confirm' => ['load_not_released', 'VAN-08: the fixture load waits for the transfer\'s approval (Inventory is active), so the rep\'s count is refused after validation and the permission check'],
+        'POST api/v1/van-sales/reconciliations/{vs_count}/unload/receive' => ['unload_not_ready', 'VAN-23: the fixture count is balanced with nothing to unload, so receiving is refused after validation and the permission check'],
         'POST api/v1/fixed-assets/runs' => ['disposals_open', 'FA-12: the fixture\'s disposal dated in February is still open, so February\'s run is refused after validation'],
     ];
 
@@ -675,12 +692,16 @@ class TenantIsolationTest extends TestCase
      */
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook', 'subject_id' => 'customer', 'item_id' => 'item', 'location_id' => 'location',
         // Restaurant: the filters of the orders, tickets, tables and reports.
-        'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user'];
+        'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user',
+        // Van sales: the filters of the vans, routes, runs, collections, counts and reports.
+        'van_id' => 'vs_van', 'route_id' => 'vs_route', 'rep_id' => 'user', 'customer_id' => 'customer'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
     public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id',
         // Restaurant: the filters of the orders, tickets, tables and reports.
         'location_id', 'company_id', 'branch_id', 'station_id', 'table_id', 'waiter_id', 'since', 'archived',
+        // Van sales: the filters of the vans, routes, plan, runs, collections, credit reviews, counts and reports.
+        'van_id', 'route_id', 'rep_id', 'customer_id', 'review_status', 'date',
         // Pharmacy: the lots, register, dispenses and reports (PHA-24), the profile list and FEFO (PHA-07).
         'item_id', 'location_id', 'with_empty', 'expires_within', 'class', 'product_kind', 'review', 'with_prescription',
         // MKT-02: the OAuth authorization request of the consent screen (no tenant ids).
@@ -1796,6 +1817,20 @@ class TenantIsolationTest extends TestCase
                     'created_at' => now()->subMinutes(4)->toIso8601String(),
                 ]],
             ]]],
+            // Van sales (docs/modules/van-sales.md): a van, a route, its stops, a load and a device's records, each naming A's own rows.
+            'POST api/v1/van-sales/vans' => ['branch_id' => $tenant->id('branch'), 'name' => 'Control van', 'rep_id' => $tenant->id('user')],
+            'PUT api/v1/van-sales/vans/{vs_van}' => ['rep_id' => $tenant->id('user'), 'device_id' => $tenant->id('device')],
+            'POST api/v1/van-sales/routes' => ['branch_id' => $tenant->id('branch'), 'name' => 'Control route', 'visit_days' => [1, 2], 'van_id' => $tenant->id('vs_van')],
+            'PUT api/v1/van-sales/routes/{vs_route}' => ['van_id' => $tenant->id('vs_van')],
+            'PUT api/v1/van-sales/routes/{vs_route}/stops' => ['stops' => [['customer_id' => $tenant->id('customer')]]],
+            'POST api/v1/van-sales/loads' => ['van_id' => $tenant->id('vs_van'), 'from_location_id' => $tenant->id('inventory_location'), 'run_id' => $tenant->id('vs_run'), 'lines' => [['item_id' => $tenant->id('item'), 'qty' => '1']]],
+            'POST api/v1/van-sales/reconciliations/{vs_count}/unload/receive' => ['lines' => [['item_id' => $tenant->id('item'), 'qty_received' => '1']]],
+            // VAN-27: a visit to A's customer in A's open run (a record naming B's id is refused whole, so nothing of B is stored).
+            'POST api/v1/van-sales/device/sync' => ['visits' => [[
+                'id' => (string) Str::uuid7(), 'run_id' => $tenant->id('vs_run'), 'stop_id' => $tenant->id('vs_stop'), 'customer_id' => $tenant->id('customer'), 'user_id' => $tenant->id('user'),
+                'status' => 'visited', 'updated_at' => now()->toIso8601String(),
+            ]]],
+            'POST api/v1/van-sales/device/loads/{vs_load}/confirm' => ['user_id' => $tenant->id('user'), 'lines' => [['id' => (string) Str::uuid7(), 'qty_received' => '1']]],
             // AUTH-11: linking one's own account; JIT provisioning's default role (A's custom role) at A's company.
             'POST api/v1/me/sso/link' => ['connection_id' => $tenant->id('sso_live_connection'), 'origin' => 'https://app.example.test'],
             'PUT api/v1/sso/settings' => ['jit_role_id' => $tenant->id('role'), 'jit_scope_type' => 'company', 'jit_scope_id' => $tenant->id('company')],

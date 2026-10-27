@@ -18,6 +18,6 @@ class UpdateSettingsRequest extends VanSalesRequest
 
     protected function target(): ?Scope
     {
-        return Scope::company((string) $this->route('company'));
+        return Scope::company($this->route('company')->id);
     }
 }
