@@ -51,7 +51,7 @@ class WebhookCatalogueTest extends TestCase
 
         foreach (['sale.completed.v1', 'sale.voided.v1', 'sale.refunded.v1', 'stock.low.v1', 'invoice.posted.v1', 'credit_note.posted.v1',
             'supplier_invoice.approved.v1', 'purchase_order.approved.v1', 'payroll.approved.v1', 'order.placed.v1', 'order.paid.v1',
-            'order.status_changed.v1', 'order.completed.v1', 'document.stage_changed.v1', 'webhook.test.v1'] as $key) {
+            'order.status_changed.v1', 'order.completed.v1', 'order.ready_for_delivery.v1', 'document.stage_changed.v1', 'webhook.test.v1'] as $key) {
             $this->assertContains($key, $keys);
         }
 

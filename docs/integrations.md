@@ -453,5 +453,7 @@ fields.
   | Power BI and Excel | `CONNECTOR_BI_REDIRECT_URI` | `php artisan marketplace:connector bi` |
   | Biometric attendance | `CONNECTOR_BIOMETRIC_REDIRECT_URI` | `php artisan marketplace:connector biometric` |
 
+  Whoever installs a connector picks the role it acts as, at a place. The courier connector needs a role with `ecommerce.order.view`, `ecommerce.delivery.assign` and `ecommerce.delivery.deliver` (no system template holds all three: copy one into a "Courier" role); the biometric connector a role with `hr.employee.view`, `hr.device.view` and `hr.attendance.manage` (the HR Officer template, or a narrower copy). Their endpoints are in the developer portal's connectors guide (`ecommerce/courier/*`, `hr/connector/*`). They have their own rate limits on top of the public API's: by default 120 reads and 120 writes a minute per caller and route (config `ecommerce.courier.reads_per_minute` and `writes_per_minute`, `hr.connector.reads_per_minute` and `punches_per_minute`).
+
   The command prints the client secret and the webhook signing secret once: put them in the connector service's configuration. `--rotate` issues new ones (installs get the new webhook secret with a 24-hour overlap); `--disable` switches the connector off and stops its tokens.
 - **Payouts** to developers are recorded by hand in the console (Marketplace, Payouts) until a payout provider is chosen.

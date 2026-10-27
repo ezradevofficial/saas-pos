@@ -194,6 +194,7 @@ reaches Payroll without it reading HR's tables.
 | `hr.roster.view`, `manage` | Shifts, rotations, rosters and planned shifts; swaps |
 | `hr.swap.approve` | Acting on the swap flow |
 | `hr.attendance.view`, `manage`, `close` | Punches, timesheets and periods; manual punches, voids, approvals, time rules, clock-in PINs; closing periods |
+| `hr.device.view` | Read attendance devices (no tokens), for the biometric connector (MKT-04) |
 | `hr.device.manage` | Attendance devices and their tokens |
 | `hr.document.view`, `manage` | Documents of the general categories; uploading and archiving (each category's own view permission applies too) |
 | `hr.checklist.view`, `manage` | Checklists and their templates |
@@ -241,6 +242,9 @@ marked. Lists follow ADR 008 (`?search`, `?sort`, `?per_page`, `?page`,
 | `GET/POST hr/attendance-devices`, `POST hr/attendance-devices/{hr_attendance_device}/token`, `/suspend`, `/resume`, `/retire` | `device.manage` |
 | `POST hr/till/punches` (POS device token) | the device's location |
 | `POST hr/device/punches` (attendance device token) | the device |
+| `GET hr/connector/employees` (public API, `hr.employee.read`): the active roster, id, display name and enrolment reference only (`hr_employee` field rules; no sensitive group) | `employee.view` |
+| `GET hr/connector/devices` (public API, `hr.device.read`): devices, never their tokens | `device.view` |
+| `POST hr/connector/devices/{hr_attendance_device}/punches` (public API, `hr.attendance.write`): the biometric connector's punches of one active device, through the device's own upload (idempotent by event id, 7-day window), matched only to employees at the device's place that day, recorded by the principal and audited once per upload; API keys and apps only | `attendance.manage` at the device's location |
 | `GET/POST hr/checklist-templates`, `PATCH hr/checklist-templates/{hr_checklist_template}`, `POST …/archive` | `checklist.view` / `manage` |
 | `GET hr/checklists`, `POST hr/employees/{hr_employee}/checklists`, `POST hr/checklist-items/{hr_checklist_item}/complete`, `/reopen` | `checklist.view` / `manage` |
 | `GET/POST hr/disciplinary-cases`, `GET/PATCH hr/disciplinary-cases/{hr_disciplinary_case}`, `POST …/close` | `disciplinary.view` / `manage` |

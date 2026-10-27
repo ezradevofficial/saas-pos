@@ -12794,6 +12794,7 @@
       "order_placed_v1": "Commande en ligne passée",
       "order_paid_v1": "Commande en ligne payée",
       "order_status_changed_v1": "Statut de commande en ligne modifié",
+      "order_ready_for_delivery_v1": "Commande en ligne prête à livrer",
       "order_completed_v1": "Commande en ligne livrée",
       "document_stage_changed_v1": "Document passé à une étape",
       "webhook_test_v1": "Événement de test"
@@ -13018,6 +13019,14 @@
         "p2": "Une organisation installe votre application par le flux du code d’autorisation avec PKCE (S256 uniquement). Votre application envoie l’utilisateur vers l’écran de consentement ; il voit ce qu’elle demande en termes simples et choisit le rôle sous lequel elle agit. Votre application ne peut jamais faire plus que ce rôle, ni plus que ses autorisations.",
         "p3": "Échangez le code contre un jeton d’accès (une heure) et un jeton d’actualisation (30 jours, à usage unique : chaque actualisation en donne un nouveau). Utilisez le jeton d’accès exactement comme une clé d’API sur les points d’accès publics. Un jeton d’actualisation utilisé deux fois révoque tous les jetons de cette installation.",
         "p4": "Les événements webhook sont envoyés à votre URL de webhook avec installation=<id> ajouté. Chaque installation signe avec sa propre clé : HMAC-SHA256 de « install: » suivi de l’installation_id du corps signé, avec pour clé le secret webhook de votre application (décodé en base64, sans whsec_) ; vérifiez la signature avec cette clé, jamais avec l’URL seule. Une nouvelle version qui demande plus d’autorisations ou d’événements attend l’accord de chaque organisation ; d’ici là, votre application garde ce qu’elle a reçu. La désinstallation révoque ses jetons immédiatement."
+      },
+      "connectors": {
+        "title": "Connecteurs coursier et pointage",
+        "summary": "Livrer les commandes en ligne comme coursier, et envoyer les pointages des terminaux biométriques.",
+        "p1": "Un coursier lit les commandes en ligne qui attendent un coursier et en réserve une avec sa référence et son lien de suivi : la livraison lui est alors confiée, et c’est seulement alors qu’il voit le nom, le téléphone, l’adresse et les notes du client. Il ne voit jamais où un livreur se trouve ou est passé.",
+        "p2": "Le coursier signale la prise en charge, la livraison avec le code à 6 chiffres du client, ou l’échec avec un motif. Envoyez votre propre référence avec chaque réservation et mise à jour : renvoyée, elle donne la même réponse, et la même référence avec d’autres détails est refusée. L’événement webhook order.ready_for_delivery.v1 vous prévient quand une commande est prête pour un coursier.",
+        "p3": "Une passerelle biométrique lit l’effectif actif (id, nom et référence d’enrôlement seulement) et les appareils de pointage, puis envoie les pointages de chaque appareil avec son propre identifiant d’événement. Un pointage renvoyé donne la même réponse ; les pointages de plus de 7 jours, dans le futur ou avec une référence inconnue sont refusés un par un.",
+        "p4": "La clé ou l’application a besoin des portées de chaque point d’accès, et d’un rôle qui détient, aux endroits qu’elle sert, la consultation des commandes en ligne, l’attribution et la livraison des livraisons pour un coursier, ou la consultation des employés et des appareils de pointage et la gestion des pointages pour une passerelle biométrique. Seules les clés d’API et les applications réservent, signalent et envoient des pointages ; les personnes utilisent l’administration. Si l’organisation arrête un coursier, chaque point d’accès coursier répond courier_stopped et les livraisons qu’il n’avait pas prises en charge reviennent en attente."
       }
     },
     "errorCodes": {
@@ -13063,6 +13072,11 @@
       "noDeprecations": "Aucun retrait n’est annoncé.",
       "sunset": "Retiré le {{date}}",
       "entries": {
+        "connectors": {
+          "courier": "Points d’accès coursier : commandes en ligne à livrer, réservation avec suivi et mises à jour de livraison.",
+          "attendance": "Points d’accès pointage : l’effectif, les appareils de pointage et leurs pointages.",
+          "event": "L’événement webhook order.ready_for_delivery.v1."
+        },
         "v1-launch": {
           "keys": "L’API publique v1 : clés d’API avec rôles et portées, limites de débit, POST idempotents et erreurs en problem JSON.",
           "reference": "La référence de l’API et ces guides, en anglais et en français.",
@@ -13382,8 +13396,7 @@
     "missing": {
       "connector_service": "Le service du connecteur n’est pas configuré.",
       "courier_provider": "Aucun transporteur n’a encore été choisi.",
-      "message_provider": "Aucun fournisseur SMS ou WhatsApp n’est configuré.",
-      "public_api": "L’API publique dont ce connecteur a besoin n’est pas encore disponible."
+      "message_provider": "Aucun fournisseur SMS ou WhatsApp n’est configuré."
     },
     "support": "Assistance",
     "website": "Site web",

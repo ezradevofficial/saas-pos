@@ -66,6 +66,7 @@ return [
         'delivery_not_assignable' => 'This delivery can’t be assigned now: it is on its way, finished or its order is not ready.',
         'rider_unavailable' => 'Choose an active rider of this company.',
         'delivery_unknown' => 'This delivery isn’t assigned to you. Refresh your list.',
+        'rider_stopped' => 'Your rider account at this company is switched off. Ask the store to switch it on again.',
         'delivery_status_invalid' => 'This delivery has moved on. Refresh your list.',
         'code_locked' => 'Too many wrong delivery codes. Ask the store to confirm this delivery.',
         'code_invalid' => 'The code is not right. Check it and try again.',

@@ -104,6 +104,7 @@ An app's body also carries `installation_id` and `tenant_id` next to `id`, `type
 | `payroll.approved.v1` | A payroll run is approved | `payroll_run_id`, `number`, `company_id`, `kind`, `period_start`, `period_end`, `pay_date`, `totals` (per pay currency; left out when the user's field rules hide payroll totals) |
 | `order.placed.v1`, `order.paid.v1`, `order.completed.v1` | An online order is placed, paid or delivered | `order_id`, `number`, `company_id`, `currency`, `total_minor` |
 | `order.status_changed.v1` | An online order changes status | as above, plus `from_status`, `to_status` |
+| `order.ready_for_delivery.v1` | A delivery order is ready and its delivery waits for a rider or courier (MKT-04, for couriers; not sent for a pickup, or once the delivery is handed to someone) | `order_id`, `number`, `company_id`, `location_id`, `delivery_id` |
 | `document.stage_changed.v1` | A document enters a stage or approval of its workflow | `document_type`, `document_id`, `workflow_id`, `stage.id`, `stage.type`, `company_id`, `branch_id`, `location_id` |
 | `webhook.test.v1` | **Send test event** | `message`, `webhook_id` |
 

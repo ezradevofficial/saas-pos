@@ -328,6 +328,14 @@
     [
       "amz",
       "credential"
+    ],
+    [
+      "biometric",
+      "ref"
+    ],
+    [
+      "^",
+      "ref"
     ]
   ],
   "values": [

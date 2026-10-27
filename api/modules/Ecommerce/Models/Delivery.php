@@ -44,6 +44,19 @@ class Delivery extends EcomModel
     protected static function booted(): void
     {
         static::updated(function (Delivery $delivery) {
+            // MKT-04, security review L7: a courier's tracking goes with it: when the rider changes
+            // (unless a booking sets new tracking in the same change), or the delivery fails or goes
+            // back to waiting before pick-up.
+            $tracking = ['courier_reference', 'tracking_reference', 'tracking_url', 'booked_at'];
+            $riderChanged = $delivery->wasChanged('rider_id') && ! $delivery->wasChanged('courier_reference');
+            $endedEarly = $delivery->wasChanged('status') && in_array($delivery->status, [self::UNASSIGNED, self::FAILED], true) && $delivery->picked_up_at === null;
+
+            if (($riderChanged || $endedEarly) && collect($tracking)->contains(fn (string $field) => $delivery->getAttribute($field) !== null)) {
+                $clear = array_fill_keys($tracking, null);
+                static::query()->whereKey($delivery->id)->update($clear);
+                $delivery->forceFill($clear)->syncOriginal();
+            }
+
             if ($delivery->wasChanged('rider_id')) {
                 RiderLocations::clear($delivery);
                 static::query()->whereKey($delivery->id)->update(['last_latitude' => null, 'last_longitude' => null, 'located_at' => null]);

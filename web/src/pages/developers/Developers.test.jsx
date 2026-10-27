@@ -59,7 +59,7 @@ describe('Developer portal (API-04)', () => {
     expect(screen.getByRole('link', { name: 'Create a developer sandbox' })).toHaveAttribute('href', '/welcome?sandbox=1')
     expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Developer portal' })
-    for (const guide of ['Authentication', 'Scopes', 'Pagination and filters', 'Errors', 'Idempotency', 'Rate limits', 'Versions and deprecation', 'Sandbox', 'Webhooks']) {
+    for (const guide of ['Authentication', 'Scopes', 'Pagination and filters', 'Errors', 'Idempotency', 'Rate limits', 'Versions and deprecation', 'Sandbox', 'Webhooks', 'Courier and attendance connectors']) {
       expect(within(nav).getByRole('link', { name: guide })).toBeInTheDocument()
     }
   })

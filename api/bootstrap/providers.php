@@ -37,6 +37,7 @@ use App\Providers\CoreServiceProvider;
 use App\Providers\HorizonServiceProvider;
 use Modules\Accounting\AccountingServiceProvider;
 use Modules\CRM\CrmServiceProvider;
+use Modules\Ecommerce\Courier\CourierApiServiceProvider;
 use Modules\Ecommerce\EcommerceServiceProvider;
 use Modules\FixedAssets\FixedAssetsServiceProvider;
 use Modules\HR\HrServiceProvider;
@@ -92,6 +93,8 @@ return [
     FixedAssetsServiceProvider::class,
     CrmServiceProvider::class,
     EcommerceServiceProvider::class,
+    // MKT-04 (ADR 024): the courier's public API routes.
+    CourierApiServiceProvider::class,
     PayrollServiceProvider::class,
     // MKT-01..MKT-04 (ADR 024): the marketplace, OAuth for apps.
     MarketplaceServiceProvider::class,

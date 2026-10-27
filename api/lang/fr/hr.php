@@ -65,6 +65,8 @@ return [
         'clock_pin_format' => 'Un code de pointage compte de 4 à 6 chiffres.',
         'not_an_employee' => 'Votre compte n’est lié à aucune fiche employé. Demandez aux RH.',
         'device_inactive' => 'Cet appareil est retiré.',
+        'device_not_active' => 'Cet appareil est suspendu ou retiré. Réactivez-le dans RH, Appareils de pointage, puis renvoyez ses pointages.',
+        'device_punches_keys_only' => 'Seule une clé d’API ou une application envoie les pointages d’un appareil. Saisissez un pointage à la main dans RH, Pointage.',
         'punch_id_taken' => 'Cet identifiant de pointage est déjà utilisé. Envoyez un nouvel identifiant.',
         'not_at_device' => 'Cet employé ne pointe pas sur cet appareil.',
         'unknown_ref' => 'Aucun employé de cette société n’a cette référence d’enrôlement.',

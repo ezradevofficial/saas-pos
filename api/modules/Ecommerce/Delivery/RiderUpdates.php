@@ -52,6 +52,9 @@ final class RiderUpdates
 {
     public const MAX_CODE_ATTEMPTS = 5;
 
+    /** Security review H1: the rider of the delivery is archived or switched off (not stored, so it answers again once restored). */
+    public const RIDER_STOPPED = 'rider_stopped';
+
     public const LOCATION_IDS_DAYS = 9;
 
     public function __construct(private readonly OrderFlow $flow, private readonly RiderLocations $locations) {}
@@ -97,11 +100,18 @@ final class RiderUpdates
             return $known->outcome === 'applied' ? ['id' => $id, 'status' => 'stored'] : self::rejected($id, (string) $known->error);
         }
 
-        $riderIds = Rider::query()->where('user_id', $user->id)->pluck('id');
-        $delivery = Delivery::query()->whereKey($update['delivery_id'])->whereIn('rider_id', $riderIds)->first();
+        $riders = Rider::query()->where('user_id', $user->id)->get(['id', 'active', 'archived_at'])->keyBy('id');
+        $delivery = Delivery::query()->whereKey($update['delivery_id'])->whereIn('rider_id', $riders->keys())->first();
 
         if ($delivery === null) {
             return self::rejected($id, 'delivery_unknown');
+        }
+
+        // Security review H1: an archived or switched-off rider (a person or a courier) updates nothing.
+        $rider = $riders->get($delivery->rider_id);
+
+        if (! $rider->active || $rider->archived_at !== null) {
+            return self::rejected($id, self::RIDER_STOPPED);
         }
 
         $now = CarbonImmutable::now();
