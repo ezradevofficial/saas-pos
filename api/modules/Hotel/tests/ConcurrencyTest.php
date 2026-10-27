@@ -95,7 +95,7 @@ class ConcurrencyTest extends TestCase
         $branch = $this->branchA->id;
         $date = $this->day(0);
 
-        $results = $this->race(array_fill(0, 4, fn () => app(NightAudits::class)->run($branch, null, $date)['created'] ? 'created' : 'repeat'));
+        $results = $this->race(array_fill(0, 4, fn () => app(NightAudits::class)->run($branch, null, $date, true)['created'] ? 'created' : 'repeat'));
 
         sort($results);
         $this->assertSame(['created', 'repeat', 'repeat', 'repeat'], $results);

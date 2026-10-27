@@ -43,10 +43,10 @@ trait BuildsHotel
     /** 2027-03-03 is a Wednesday. */
     protected string $today = '2027-03-03';
 
-    protected function setUpHotel(): void
+    protected function setUpHotel(bool $pos = true): void
     {
         $this->travelTo(CarbonImmutable::parse($this->today.' 09:00:00', 'Africa/Nairobi'));
-        $this->setUpPos();
+        $pos && $this->setUpPos();
 
         $this->inTenant(function () {
             app(ModuleRegistry::class)->activate('hotel');
@@ -75,6 +75,17 @@ trait BuildsHotel
     protected function audited(string $action): int
     {
         return $this->inTenant(fn () => AuditEntry::query()->where('action', $action)->count());
+    }
+
+    /** A manual night audit of the property's current business date, closed on purpose before its time (HOT-30). */
+    protected function auditBody(array $over = []): array
+    {
+        return [
+            'branch_id' => $this->branchA->id,
+            'business_date' => $this->inTenant(fn () => app(Properties::class)->businessDate($this->branchA->id)),
+            'close_early' => true,
+            ...$over,
+        ];
     }
 
     protected function day(int $offset = 0): string

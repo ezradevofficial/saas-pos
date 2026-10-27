@@ -14870,7 +14870,10 @@
       "reason": "Reason (optional)",
       "reasonHelp": "Give a reason when the price differs from the item’s list price.",
       "post": "Post charge",
-      "posted": "Charge posted."
+      "posted": "Charge posted.",
+      "noListPriceTyped": "The price list has no price for this item. Type the price and give a reason.",
+      "noListPrice": "The price list has no price for this item. Ask someone allowed to set a price.",
+      "listPriceOnly": "This is the price list price. Only someone with the price override permission can change it."
     },
     "refund": {
       "title": "Refund the guest",

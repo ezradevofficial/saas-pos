@@ -14870,7 +14870,10 @@
       "reason": "Motif (facultatif)",
       "reasonHelp": "Indiquez un motif lorsque le prix diffère du prix catalogue de l'article.",
       "post": "Enregistrer la charge",
-      "posted": "Charge enregistrée."
+      "posted": "Charge enregistrée.",
+      "noListPriceTyped": "La liste de prix n’a pas de prix pour cet article. Saisissez le prix et indiquez un motif.",
+      "noListPrice": "La liste de prix n’a pas de prix pour cet article. Demandez à une personne autorisée de fixer un prix.",
+      "listPriceOnly": "C’est le prix de la liste de prix. Seule une personne autorisée à modifier les prix peut le changer."
     },
     "refund": {
       "title": "Rembourser le client",

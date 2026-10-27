@@ -46,7 +46,7 @@ class LedgerTest extends TestCase
         $this->assertSame([-500000, 500000], [$this->balance('2300'), $this->balance('1110')]);
 
         foreach ([0, 1] as $ignored) {
-            $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated();
+            $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated();
         }
 
         $this->assertSame([2000000, -1777778, -222222], [$this->balance('1280'), $this->balance('4110'), $this->balance('2200')]);
@@ -61,7 +61,7 @@ class LedgerTest extends TestCase
     {
         $stay = $this->checkedIn(1, '101');
         $folio = $this->inTenant(fn () => Folio::query()->where('stay_id', $stay['id'])->value('id'));
-        $line = $this->postJson("/api/v1/hotel/folios/{$folio}/charges", ['item_id' => $this->minibar->id, 'unit_price_minor' => 100000, 'description' => 'Minibar'], $this->headersFor())->assertCreated()->json('data.id');
+        $line = $this->postJson("/api/v1/hotel/folios/{$folio}/charges", ['item_id' => $this->minibar->id, 'unit_price_minor' => 100000, 'description' => 'Minibar', 'reason' => 'Agreed with the guest'], $this->headersFor())->assertCreated()->json('data.id');
         $this->assertSame(112500, $this->balance('1280'));
         $this->postJson("/api/v1/hotel/folios/{$folio}/lines/{$line}/void", ['reason' => 'Wrong room'], $this->headersFor())->assertCreated();
         $this->assertSame([0, 0], [$this->balance('1280'), $this->balance('4200')]);

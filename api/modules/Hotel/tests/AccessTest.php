@@ -84,7 +84,7 @@ class AccessTest extends TestCase
             ['POST', "hotel/housekeeping/tasks/{$task}/finish", []],
             ['POST', "hotel/housekeeping/tasks/{$task}/inspect", []],
             ['GET', "hotel/night-audits?branch={$branch}", []],
-            ['POST', 'hotel/night-audits', ['branch_id' => $branch]],
+            ['POST', 'hotel/night-audits', ['branch_id' => $branch, 'business_date' => $this->day(0), 'close_early' => true]],
             ['GET', "hotel/reports/occupancy?branch_id={$branch}&from={$this->day(0)}&to={$this->day(1)}", []],
             ['GET', "hotel/reports/arrivals?branch={$branch}", []],
             ['GET', "hotel/reports/departures?branch={$branch}", []],
@@ -163,7 +163,7 @@ class AccessTest extends TestCase
         $this->getJson('/api/v1/hotel/reservations', $h($housekeeper))->assertForbidden();
 
         // The night auditor audits and reads, but does not take payments.
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $h($auditor))->assertCreated();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $h($auditor))->assertCreated();
         $this->getJson("/api/v1/hotel/folios/{$folio}", $h($auditor))->assertOk();
         $this->postJson("/api/v1/hotel/folios/{$folio}/payments", ['payment_method_id' => $this->methods['cash_kes']->id, 'amount_minor' => 1000], $h($auditor))->assertForbidden();
         $this->assertNotNull($stay);

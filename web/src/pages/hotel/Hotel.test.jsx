@@ -259,6 +259,23 @@ describe('Hotel back office', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('hotel/folios/f-1/charges', { amount_minor: '2500', description: 'Parking' }))
   })
 
+  it.each([[false, true], [true, false]])('fills an extra with the price list price, editable only with the override permission (HOT-21), override %s', async (canOverride, locked) => {
+    setup([
+      ['hotel/folios/f-1', { data: FOLIO() }],
+      [/^items\?/, { data: [{ id: 'i-1', name: 'Minibar', code: 'MB' }] }],
+      [/^hotel\/item-price\?/, { data: { amount_minor: '20000', currency: 'KES', tax_inclusive: true, can_override: canOverride } }],
+    ])
+    api.post.mockResolvedValue({ data: LINE({ id: 'l-6', line_no: 6, kind: 'extra', description: 'Minibar', amount_minor: '20000' }) })
+    renderApp('/hotel/folios/f-1')
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Add a charge' }))[0])
+    const dialog = await screen.findByRole('dialog', { name: 'Add a charge' })
+    await waitFor(() => chooseOption(within(dialog).getByLabelText(/^Item/), 'Minibar · MB'))
+    await waitFor(() => expect(within(dialog).getByLabelText(/^Unit price/)).toHaveValue('200.00'))
+    expect(within(dialog).getByLabelText(/^Unit price/).disabled).toBe(locked)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Post charge' }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hotel/folios/f-1/charges', { item_id: 'i-1', qty: '1' }))
+  })
+
   it('voids a line with a reason, never a delete (HOT-21)', async () => {
     setup()
     api.post.mockResolvedValue({ data: LINE({ id: 'l-9', line_no: 2, kind: 'void', amount_minor: '-500000' }) })
@@ -325,7 +342,7 @@ describe('Hotel back office', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run night audit' }))
     const dialog = await screen.findByRole('dialog', { name: 'Run the night audit now' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Run audit' }))
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hotel/night-audits', { branch_id: 'br-1', business_date: TODAY }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('hotel/night-audits', { branch_id: 'br-1', business_date: TODAY, close_early: true }))
   })
 
   it('resolves a room charge that could not be posted by moving it to a folio (HOT-22)', async () => {

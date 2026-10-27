@@ -139,7 +139,7 @@ class FolioPayments
     }
 
     /** RBAC-06: $amount (the folio's currency) within the user's `max_refund_amount` (base currency) at the property; an Owner has none. */
-    public function assertRefundLimit(Folio $folio, User $by, int $amount): void
+    public function assertRefundLimit(Folio $folio, User $by, int $amount, string $error = 'refund_above_limit'): void
     {
         $scope = Scope::branch($folio->branch_id);
         $roles = $this->resolver->roleIds($by, $scope);
@@ -155,7 +155,7 @@ class FolioPayments
         $inBase = BigDecimal::of($baseMinor)->withPointMovedLeft($this->decimals->for($company->base_currency));
 
         if ($max === null || $inBase->isGreaterThan($max)) {
-            throw HotelError::make(403, 'refund_above_limit');
+            throw HotelError::make(403, $error);
         }
     }
 

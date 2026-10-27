@@ -69,7 +69,7 @@ class PosCharges
             ? ['posted' => false, 'duplicate' => false, 'reason' => 'room_unknown']
             : $this->rooms->post([
                 'branch_id' => $doc['branch_id'], 'room_number' => $room, 'amount_minor' => $amount, 'currency' => $payment['currency'],
-                'source' => $source, 'source_id' => $payment['id'], 'reference' => $reference,
+                'source' => $source, 'source_id' => $payment['id'], 'reference' => $reference, 'folio_id' => $payment['tender']['folio_id'] ?? null,
             ]);
 
         if ($result['posted'] || $result['duplicate']) {

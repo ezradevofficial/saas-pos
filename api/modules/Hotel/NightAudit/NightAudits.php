@@ -57,11 +57,11 @@ class NightAudits
     ) {}
 
     /** @return array{run: NightAuditRun, created: bool} */
-    public function run(string $branchId, ?User $by = null, ?string $businessDate = null): array
+    public function run(string $branchId, ?User $by = null, ?string $businessDate = null, bool $closeEarly = false): array
     {
         $branch = $this->properties->require($branchId);
 
-        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($branch, $by, $businessDate) {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($branch, $by, $businessDate, $closeEarly) {
             $property = $this->properties->lock($branch->id);
             $current = $property->business_date->toDateString();
             $date = $businessDate ?? $current;
@@ -79,6 +79,15 @@ class NightAudits
             if ($date < $current) {
                 // A past date without an audit (the property was set up after it): nothing to close.
                 throw HotelError::make(409, 'audit_date_past', field: 'business_date');
+            }
+
+            // A day that is not over is closed only on purpose: `close_early` is explicit and audited (HOT-30).
+            if (! $this->over($branch->id, $date)) {
+                if (! $closeEarly) {
+                    throw HotelError::make(409, 'audit_not_due', ['time' => Settings::for($branch->company_id)->night_audit_time], 'business_date');
+                }
+
+                $this->auditor->record('hotel.night_audit.close_early', $property, null, ['branch_id' => $branch->id, 'business_date' => $date]);
             }
 
             $started = now();
@@ -111,7 +120,13 @@ class NightAudits
             return false;
         }
 
-        $date = $this->properties->businessDate($branchId);
+        return $this->over($branchId, $this->properties->businessDate($branchId), $now);
+    }
+
+    /** Whether the audit time has passed on the day after $date at the property. */
+    public function over(string $branchId, string $date, ?CarbonImmutable $now = null): bool
+    {
+        $branch = $this->properties->branch($branchId);
         $time = Settings::for($branch->company_id)->night_audit_time;
         $zone = CompanyClock::timezone($branch->company_id, $branchId);
         $dueAt = CarbonImmutable::parse(CarbonImmutable::parse($date)->addDay()->toDateString().' '.$time.':00', $zone);

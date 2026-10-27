@@ -54,6 +54,6 @@ class GuestResource extends JsonResource
             'notes' => $g->notes,
             'archived_at' => Refs::at($g->archived_at),
             'created_at' => Refs::at($g->created_at),
-        ], ['identity_document' => ['identity_document'], 'phone' => ['contact'], 'email' => ['contact']]);
+        ], ['identity_document' => ['identity_document'], 'date_of_birth' => ['date_of_birth'], 'address' => ['address'], 'phone' => ['contact'], 'email' => ['contact']]);
     }
 }

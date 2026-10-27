@@ -97,7 +97,7 @@ class FrontDeskTest extends TestCase
         $this->assertSame([], $fees($b));
 
         // The night is audited; leaving after the check-out time on the departure day (move the clock to 13:00) costs the late fee.
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated();
         $this->inTenant(fn () => Settings::query()->where('company_id', $this->acme->id)->update(['check_out_time' => '08:00']));
         $this->postJson("/api/v1/hotel/stays/{$b}/check-out", [], $this->headersFor())->assertStatus(409)->assertJsonPath('code', 'folio_balance');
         $this->postJson("/api/v1/hotel/stays/{$b}/check-out", ['payments' => [['payment_method_id' => $this->methods['cash_kes']->id, 'amount_minor' => 1150000]]], $this->headersFor())->assertOk()->assertJsonPath('data.folio.status', 'settled');
@@ -130,7 +130,7 @@ class FrontDeskTest extends TestCase
         }
 
         // Each night's charge goes to the master folio, not the guests' own.
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated();
         $balance = fn (string $id) => $this->getJson("/api/v1/hotel/folios/{$id}", $this->headersFor())->json('data.balance_minor');
         $this->assertSame('1900000', $balance($master['id']));
 

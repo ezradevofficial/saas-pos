@@ -354,6 +354,8 @@ return new class extends Migration
         DB::statement("alter table hotel_folio_lines add constraint hotel_folio_lines_values_check check (
             kind in ('room', 'extra', 'fee', 'pos_charge', 'deposit', 'payment', 'refund', 'transfer_in', 'transfer_out', 'void') and amount_minor <> 0)");
         DB::statement('create unique index hotel_folio_lines_once on hotel_folio_lines (folio_id, source, source_id) where source_id is not null');
+        // HOT-22: a till's sale or refund payment is charged to one folio only, whichever folio a room's charge was moved to.
+        DB::statement("create unique index hotel_folio_lines_sale_once on hotel_folio_lines (tenant_id, source, source_id) where source in ('pos.sale', 'pos.refund') and source_id is not null");
         DB::statement('create unique index hotel_folio_lines_number on hotel_folio_lines (folio_id, line_no)');
         DB::statement('create unique index hotel_folio_lines_reversed_once on hotel_folio_lines (reverses_id) where reverses_id is not null');
         Rls::enable('hotel_folio_lines');

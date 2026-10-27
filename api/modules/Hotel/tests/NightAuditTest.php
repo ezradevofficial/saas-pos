@@ -40,7 +40,7 @@ class NightAuditTest extends TestCase
     public function test_the_audit_posts_each_night_once_rolls_the_date_and_is_idempotent_per_business_date(): void
     {
         $stay = $this->checkedIn(3, '101');
-        $first = $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated()->json('data');
+        $first = $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated()->json('data');
         $this->assertSame($this->day(0), $first['business_date']);
         $this->assertSame([1, 3, 1], [$first['summary']['rooms_sold'], $first['summary']['rooms_available'], $first['summary']['arrivals']]);
         $this->assertSame(33.3, $first['summary']['occupancy_percent']);
@@ -63,7 +63,7 @@ class NightAuditTest extends TestCase
         $this->assertSame(1, $this->roomLines($stay['id']));
 
         $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id, 'business_date' => $this->day(5)], $this->headersFor())->assertStatus(409)->assertJsonPath('code', 'audit_date_future');
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated();
         $this->assertSame(2, $this->roomLines($stay['id']));
         $this->getJson('/api/v1/hotel/night-audits?branch='.$this->branchA->id, $this->headersFor())->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('meta.business_date', $this->day(2));
     }
@@ -72,13 +72,13 @@ class NightAuditTest extends TestCase
     {
         $arrived = $this->checkedIn(1, '101');
         $noShow = $this->book(2)['stays'][0]['id'];
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated();
         $this->assertSame('no_show', $this->inTenant(fn () => Stay::find($noShow)->status));
         $fee = $this->inTenant(fn () => FolioLine::query()->whereIn('folio_id', Folio::query()->where('stay_id', $noShow)->select('id'))->first());
         $this->assertSame(['fee', 1000000], [$fee->kind, $fee->amount_minor]);
 
         // The guest booked for one night is still in the room the next night: charged at the last rate, flagged.
-        $audit = $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated()->json('data');
+        $audit = $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated()->json('data');
         $this->assertSame($arrived['id'], $audit['summary']['overstays'][0]['stay_id']);
         $this->assertSame(2, $this->roomLines($arrived['id']));
         $this->assertSame(['overstay'], $this->inTenant(fn () => FolioLine::query()->where('kind', 'room')->whereIn('folio_id', Folio::query()->where('stay_id', $arrived['id'])->select('id'))->orderBy('line_no')->get()->last()->flags));
@@ -89,7 +89,7 @@ class NightAuditTest extends TestCase
         $this->checkedIn(4, '101');
         $leaving = $this->checkedIn(1, '102');
         $this->postJson('/api/v1/hotel/stays/'.$leaving['id'].'/check-out', [], $this->headersFor())->assertOk();
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated();
         $tasks = $this->inTenant(fn () => HousekeepingTask::query()->where('business_date', $this->day(1))->pluck('kind', 'room_id')->all());
         $this->assertSame('stayover', $tasks[$this->rooms['101']->id]);
         $this->assertSame('checkout_clean', $tasks[$this->rooms['102']->id]);
@@ -116,16 +116,16 @@ class NightAuditTest extends TestCase
     {
         $auditor = $this->userWith('night_auditor', Scope::branch($this->branchA->id));
         $receptionist = $this->userWith('receptionist', Scope::branch($this->branchA->id));
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor($receptionist))->assertForbidden();
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchB->id], $this->headersFor($auditor))->assertForbidden();
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor($auditor))->assertCreated();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor($receptionist))->assertForbidden();
+        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchB->id, 'business_date' => $this->day(0), 'close_early' => true], $this->headersFor($auditor))->assertForbidden();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor($auditor))->assertCreated();
     }
 
     public function test_the_occupancy_report_uses_audits_for_past_days_and_the_stays_for_the_future(): void
     {
         $this->checkedIn(2, '101');
         $this->book(2, ['arrival_on' => $this->day(1), 'departure_on' => $this->day(3)]);
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated();
         $report = $this->getJson('/api/v1/hotel/reports/occupancy?branch_id='.$this->branchA->id.'&from='.$this->day(0).'&to='.$this->day(2), $this->headersFor())->assertOk()->json('data');
         $this->assertSame(['audit', 'live', 'forecast'], array_column($report['days'], 'source'));
         $this->assertSame([1, 2, 1], array_column($report['days'], 'rooms_sold'));

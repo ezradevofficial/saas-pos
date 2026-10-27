@@ -45,7 +45,7 @@ class FolioTest extends TestCase
 
     private function audit(): void
     {
-        $this->postJson('/api/v1/hotel/night-audits', ['branch_id' => $this->branchA->id], $this->headersFor())->assertCreated();
+        $this->postJson('/api/v1/hotel/night-audits', $this->auditBody(), $this->headersFor())->assertCreated();
     }
 
     public function test_folio_maths_nights_extras_deposit_payment_and_settlement_into_an_invoice(): void
@@ -55,7 +55,7 @@ class FolioTest extends TestCase
         $folio = $this->folioOf($stay);
 
         // An extra: 2 × KES 250.00 plus the test tax of 12.5 % = KES 562.50.
-        $extra = $this->postJson("/api/v1/hotel/folios/{$folio}/charges", ['item_id' => $this->minibar->id, 'qty' => 2, 'unit_price_minor' => 25000, 'description' => 'Minibar'], $this->headersFor())->assertCreated()->json('data');
+        $extra = $this->postJson("/api/v1/hotel/folios/{$folio}/charges", ['item_id' => $this->minibar->id, 'qty' => 2, 'unit_price_minor' => 25000, 'description' => 'Minibar', 'reason' => 'Agreed with the guest'], $this->headersFor())->assertCreated()->json('data');
         $this->assertSame(['extra', '56250', '50000', '6250'], [$extra['kind'], $extra['amount_minor'], $extra['net_minor'], $extra['tax_minor']]);
 
         $this->audit();

@@ -78,6 +78,11 @@ class RoomChargeController
             $folioId = null;
 
             if ($request->validated('resolution') === 'moved') {
+                // A charge that was posted (a retry after the exception, a sale synced late) cannot be moved on top of itself.
+                if (FolioLine::query()->where('source', $exception->source)->where('source_id', $exception->source_id)->exists()) {
+                    throw HotelError::make(409, 'exception_already_posted');
+                }
+
                 $folio = Folio::query()->findOrFail($request->validated('folio_id'));
 
                 if ($folio->company_id !== $exception->company_id || $folio->currency !== $exception->currency || ! $folio->isOpen()) {

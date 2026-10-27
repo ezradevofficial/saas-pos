@@ -2,8 +2,10 @@
 
 namespace Modules\Hotel\Contracts;
 
+use App\Core\Audit\Auditor;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\TenantContext;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\Hotel\Folios\Folios;
 use Modules\Hotel\HotelServiceProvider;
@@ -40,6 +42,7 @@ final class RoomCharges
         private readonly ModuleRegistry $modules,
         private readonly Properties $properties,
         private readonly Folios $folios,
+        private readonly Auditor $auditor,
     ) {}
 
     /** Whether the Hotel module is on for the current tenant. */
@@ -90,7 +93,7 @@ final class RoomCharges
 
     /**
      * Charge a room. `$charge`: branch_id, room_number, amount_minor (> 0; a negative amount is a credit, a refund), currency, source
-     * (`pos.sale`, `restaurant.order`...), source_id (unique per source), reference? (the receipt or order number), description?.
+     * (`pos.sale`, `restaurant.order`...), source_id (unique per source), reference? (the receipt or order number), description?, folio_id? (the folio the caller charged: a different one now is refused, `folio_changed`).
      *
      * @param  array{branch_id: string, room_number: string, amount_minor: int, currency: string, source: string, source_id: string, reference?: ?string, description?: ?string}  $charge
      * @return array{posted: bool, duplicate: bool, reason: ?string, folio_id: ?string, line_id: ?string}
@@ -98,13 +101,19 @@ final class RoomCharges
     public function post(array $charge): array
     {
         $amount = (int) $charge['amount_minor'];
-        $found = $this->lookup($charge['branch_id'], $charge['room_number'], $charge['currency'], $amount > 0 ? $amount : null);
 
-        // A repeat of a charge already on the folio is answered with it, whatever the guest's state now.
-        $existing = $found['folio_id'] === null ? null : FolioLine::query()->where('folio_id', $found['folio_id'])->where('source', $charge['source'])->where('source_id', $charge['source_id'])->first();
+        // A repeat of a charge already on any folio (a front desk moved it, the guest changed rooms) is answered with it, never posted twice.
+        $existing = FolioLine::query()->where('source', $charge['source'])->where('source_id', $charge['source_id'])->whereIn('kind', [FolioLine::POS_CHARGE])->first();
 
         if ($existing !== null) {
             return ['posted' => false, 'duplicate' => true, 'reason' => null, 'folio_id' => $existing->folio_id, 'line_id' => $existing->id];
+        }
+
+        $found = $this->lookup($charge['branch_id'], $charge['room_number'], $charge['currency'], $amount > 0 ? $amount : null);
+
+        // The till charged the folio it knew; if the room now holds another stay's folio, the charge is not theirs (HOT-22).
+        if ($found['folio_id'] !== null && ! empty($charge['folio_id']) && $charge['folio_id'] !== $found['folio_id']) {
+            return ['posted' => false, 'duplicate' => false, 'reason' => 'folio_changed', 'folio_id' => $found['folio_id'], 'line_id' => null];
         }
 
         if (! $found['allowed'] && ! ($amount < 0 && $found['reason'] === 'limit_exceeded')) {
@@ -116,7 +125,26 @@ final class RoomCharges
         }
 
         $folio = Folio::query()->findOrFail($found['folio_id']);
-        $line = $this->folios->post($folio, [
+        try {
+            $line = $this->post_($folio, $charge, $amount);
+        } catch (UniqueConstraintViolationException) {
+            // A racing post of the same charge won (the unique index on the sale and refund sources).
+            $won = FolioLine::query()->where('source', $charge['source'])->where('source_id', $charge['source_id'])->where('kind', FolioLine::POS_CHARGE)->firstOrFail();
+
+            return ['posted' => false, 'duplicate' => true, 'reason' => null, 'folio_id' => $won->folio_id, 'line_id' => $won->id];
+        }
+
+        if ($line->wasRecentlyCreated) {
+            $this->auditor->record('hotel.folio.room_charge', $folio, null, ['line_id' => $line->id, 'amount_minor' => $amount, 'source' => $charge['source'], 'source_id' => $charge['source_id'], 'reference' => $charge['reference'] ?? null]);
+        }
+
+        return ['posted' => $line->wasRecentlyCreated, 'duplicate' => ! $line->wasRecentlyCreated, 'reason' => null, 'folio_id' => $folio->id, 'line_id' => $line->id];
+    }
+
+    /** @param array<string, mixed> $charge */
+    private function post_(Folio $folio, array $charge, int $amount): FolioLine
+    {
+        return DB::connection(TenantContext::CONNECTION)->transaction(fn () => $this->folios->post($folio, [
             'kind' => FolioLine::POS_CHARGE,
             'description' => $charge['description'] ?? Text::line($amount > 0 ? 'hotel.lines.room_charge' : 'hotel.lines.room_charge_credit', ['reference' => (string) ($charge['reference'] ?? '')]),
             'amount_minor' => $amount,
@@ -124,9 +152,7 @@ final class RoomCharges
             'source' => $charge['source'],
             'source_id' => $charge['source_id'],
             'reference' => $charge['reference'] ?? null,
-        ]);
-
-        return ['posted' => $line->wasRecentlyCreated, 'duplicate' => ! $line->wasRecentlyCreated, 'reason' => null, 'folio_id' => $folio->id, 'line_id' => $line->id];
+        ]));
     }
 
     /**
@@ -153,6 +179,7 @@ final class RoomCharges
             }
 
             $this->folios->post($folio, [...$this->folios->reversal($line, FolioLine::VOID, 'reversal', null, null), 'description' => Text::line('hotel.lines.void', ['description' => $line->description])]);
+            $this->auditor->record('hotel.folio.room_charge_reverse', $folio, null, ['line_id' => $line->id, 'amount_minor' => $line->amount_minor, 'source' => $source, 'source_id' => $sourceId]);
 
             return true;
         });

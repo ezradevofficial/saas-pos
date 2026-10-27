@@ -10,6 +10,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\MasterData\History\HistoryTypes;
+use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\DueTenants;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\TenantContext;
@@ -699,7 +700,7 @@ class TenantIsolationTest extends TestCase
      */
     public const LIST_ID_QUERIES = ['category' => 'item_category', 'company' => 'company', 'party' => 'customer', 'rule' => 'automation_rule', 'branch' => 'branch', 'location' => 'location', 'id' => 'party', 'scope_id' => 'company', 'item' => 'item', 'account' => 'acc_account', 'cost_centre' => 'cost_centre', 'department' => 'department', 'source' => 'inventory_adjustment', 'employee' => 'hr_employee', 'order' => 'mfg_order', 'uom_id' => 'uom', 'pay_group' => 'payroll_pay_group', 'run' => 'payroll_run', 'owner' => 'user', 'pipeline' => 'crm_pipeline', 'asset' => 'fa_asset', 'custodian' => 'user', 'store' => 'ecom_store', 'rider' => 'ecom_rider', 'webhook' => 'webhook', 'subject_id' => 'customer', 'item_id' => 'item', 'location_id' => 'location',
         // Restaurant: the filters of the orders, tickets, tables and reports.
-        'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user', 'room_type' => 'hotel_room_type', 'rate_plan_id' => 'hotel_rate_plan', 'assigned_to' => 'user'];
+        'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user', 'room_type' => 'hotel_room_type', 'rate_plan_id' => 'hotel_rate_plan', 'assigned_to' => 'user', 'folio_id' => 'hotel_folio'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
     public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id',
@@ -708,7 +709,7 @@ class TenantIsolationTest extends TestCase
         // Pharmacy: the lots, register, dispenses and reports (PHA-24), the profile list and FEFO (PHA-07).
         'item_id', 'location_id', 'with_empty', 'expires_within', 'class', 'product_kind', 'review', 'with_prescription',
         // Hotel: the rooms, rates, availability, reservations, folios, tasks, guests and reports (HOT-04 to HOT-31).
-        'room_type', 'floor', 'archived', 'branch_id', 'rate_plan_id', 'arrival_on', 'departure_on', 'adults', 'children', 'reveal', 'arrival_from', 'arrival_to', 'with_balance', 'date', 'assigned_to', 'room', 'amount_minor',
+        'room_type', 'folio_id', 'floor', 'archived', 'branch_id', 'rate_plan_id', 'arrival_on', 'departure_on', 'adults', 'children', 'reveal', 'arrival_from', 'arrival_to', 'with_balance', 'date', 'assigned_to', 'room', 'amount_minor',
         // MKT-02: the OAuth authorization request of the consent screen (no tenant ids).
         'client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method',
         // RBAC-04: role pickers' grantable roles.
@@ -2059,13 +2060,13 @@ class TenantIsolationTest extends TestCase
             'POST api/v1/hotel/stays/{hotel_stay}/check-in' => ['room_id' => $tenant->id('hotel_room')],
             'POST api/v1/hotel/stays/{hotel_stay}/check-out' => ['payments' => []],
             'POST api/v1/hotel/stays/{hotel_stay}/move-room' => ['room_id' => $tenant->id('hotel_room_spare'), 'reason' => 'Isolation check'],
-            'POST api/v1/hotel/folios/{hotel_folio}/charges' => ['item_id' => $tenant->id('item'), 'qty' => 1, 'unit_price_minor' => 50000, 'description' => 'Isolation extra'],
+            'POST api/v1/hotel/folios/{hotel_folio}/charges' => ['item_id' => $tenant->id('item'), 'qty' => 1, 'unit_price_minor' => 50000, 'description' => 'Isolation extra', 'reason' => 'Isolation check'],
             'POST api/v1/hotel/folios/{hotel_folio}/payments' => ['payment_method_id' => $tenant->id('payment_method'), 'amount_minor' => 100000],
             'POST api/v1/hotel/folios/{hotel_folio}/refunds' => ['payment_method_id' => $tenant->id('payment_method'), 'amount_minor' => 30000, 'reason' => 'Isolation check'],
             'POST api/v1/hotel/folios/{hotel_folio}/transfers' => ['to_folio_id' => $tenant->id('hotel_folio_other'), 'line_ids' => [$tenant->id('hotel_line')], 'reason' => 'Isolation check'],
             'POST api/v1/hotel/charge-exceptions/{hotel_exception}/resolve' => ['resolution' => 'moved', 'folio_id' => $tenant->id('hotel_folio_other')],
             'POST api/v1/hotel/housekeeping/tasks' => ['room_id' => $tenant->id('hotel_room_spare'), 'kind' => 'deep_clean'],
-            'POST api/v1/hotel/night-audits' => ['branch_id' => $tenant->id('branch')],
+            'POST api/v1/hotel/night-audits' => ['branch_id' => $tenant->id('branch'), 'business_date' => app(TenantContext::class)->run($tenant->tenantId, fn () => CompanyClock::today($tenant->id('company'))), 'close_early' => true],
             // HR (docs/modules/hr.md): bodies naming A's own employees, places, dimensions, types, shifts and templates.
             'POST api/v1/hr/employees' => [
                 'company_id' => $tenant->id('company'), 'first_name' => 'Hijack', 'last_name' => 'Check', 'hire_date' => '2026-02-01', 'branch_id' => $tenant->id('branch'),

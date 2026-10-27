@@ -2,6 +2,7 @@
 
 namespace Modules\Hotel\Http\Controllers;
 
+use App\Core\Audit\Auditor;
 use App\Core\Exports\ListExport;
 use App\Core\MasterData\Items\Item;
 use App\Core\Tenancy\Models\Branch;
@@ -12,11 +13,13 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Hotel\Folios\FolioPayments;
 use Modules\Hotel\Folios\Folios;
 use Modules\Hotel\Folios\InvoiceLines;
+use Modules\Hotel\Folios\ItemPrices;
 use Modules\Hotel\Folios\Settlement;
 use Modules\Hotel\Http\Lists\FolioList;
 use Modules\Hotel\Http\Requests\ChargeFolioRequest;
 use Modules\Hotel\Http\Requests\CheckPaymentRequest;
 use Modules\Hotel\Http\Requests\FolioBalancesReportRequest;
+use Modules\Hotel\Http\Requests\ItemPriceRequest;
 use Modules\Hotel\Http\Requests\ListFoliosRequest;
 use Modules\Hotel\Http\Requests\PaymentFolioRequest;
 use Modules\Hotel\Http\Requests\RefundFolioRequest;
@@ -46,6 +49,8 @@ class FolioController
         private readonly FolioPayments $payments,
         private readonly Settlement $settlement,
         private readonly InvoiceLines $invoice,
+        private readonly ItemPrices $prices,
+        private readonly Auditor $auditor,
     ) {}
 
     public function index(ListFoliosRequest $request, ListExport $export): AnonymousResourceCollection|StreamedResponse
@@ -88,17 +93,63 @@ class FolioController
         $data = $request->validated();
         $item = isset($data['item_id']) ? Item::query()->findOrFail($data['item_id']) : null;
 
+        $unit = null;
+        $inclusive = false;
+
+        if ($item !== null) {
+            // HOT-21: the price is master data; another price is a rate override for a holder of `hotel.rate.override`, with a reason, audited.
+            $listed = $this->prices->for($hotelFolio, $item, (string) ($data['qty'] ?? '1'));
+            $typed = isset($data['unit_price_minor']) ? (int) $data['unit_price_minor'] : null;
+            $inclusive = $listed?->taxInclusive ?? false;
+            $unit = $typed ?? ($listed === null ? null : (int) $listed->money->minor());
+
+            if ($unit === null) {
+                throw HotelError::make(422, 'price_required', field: 'unit_price_minor');
+            }
+
+            if ($listed === null || $unit !== (int) $listed->money->minor()) {
+                if (! $this->access->can($request->user(), 'hotel.rate.override', $hotelFolio->branch_id)) {
+                    throw HotelError::make(403, 'price_override_forbidden', field: 'unit_price_minor');
+                }
+
+                if (trim((string) ($data['reason'] ?? '')) === '') {
+                    throw HotelError::make(422, 'override_reason', field: 'reason');
+                }
+
+                $this->auditor->record('hotel.folio.price_override', $hotelFolio, null, ['item_id' => $item->id, 'list_price_minor' => $listed?->money->minor(), 'price_minor' => $unit, 'reason' => $data['reason']]);
+            }
+        }
+
         $line = $item !== null
             ? $this->folios->charge($hotelFolio, [
                 'kind' => FolioLine::EXTRA, 'item_id' => $item->id, 'description' => $data['description'] ?? $item->name, 'qty' => (string) ($data['qty'] ?? '1'),
-                'unit_price_minor' => (int) $data['unit_price_minor'], 'source' => 'manual', 'source_id' => null, 'reason' => $data['reason'] ?? null,
+                'unit_price_minor' => $unit, 'tax_inclusive' => $inclusive, 'source' => 'manual', 'source_id' => null, 'reason' => $data['reason'] ?? null,
             ], $request->user())
             : $this->folios->post($hotelFolio, [
                 'kind' => FolioLine::FEE, 'description' => $data['description'], 'amount_minor' => (int) $data['amount_minor'], 'source' => 'manual', 'reason' => $data['reason'] ?? null,
                 'created_by' => $request->user()->id,
             ]);
 
+        // AUD-02: a manual fee is audited like any charge (an item charge is audited by Folios::charge).
+        if ($item === null && $line->wasRecentlyCreated) {
+            $this->auditor->record('hotel.folio.charge', $hotelFolio, null, ['line_id' => $line->id, 'kind' => $line->kind, 'amount_minor' => $line->amount_minor, 'description' => $line->description]);
+        }
+
         return response()->json(['data' => FolioResource::line($line)], 201);
+    }
+
+    /** HOT-21: the price the charge dialog pre-fills, from the item and the default price list (null when there is none), and whether the user may change it. */
+    public function itemPrice(ItemPriceRequest $request): JsonResponse
+    {
+        $folio = Folio::query()->findOrFail($request->validated('folio_id'));
+        $listed = $this->prices->for($folio, Item::query()->findOrFail($request->validated('item_id')), (string) $request->validated('qty', '1'));
+
+        return response()->json(['data' => [
+            'amount_minor' => $listed === null ? null : (string) $listed->money->minor(),
+            'currency' => $folio->currency,
+            'tax_inclusive' => $listed?->taxInclusive ?? false,
+            'can_override' => $this->access->can($request->user(), 'hotel.rate.override', $folio->branch_id),
+        ]]);
     }
 
     public function pay(PaymentFolioRequest $request, Folio $hotelFolio): JsonResponse
@@ -135,6 +186,10 @@ class FolioController
         if ($hotelLine->folio_id !== $hotelFolio->id) {
             throw HotelError::make(404, 'line_unknown');
         }
+
+        // RBAC-06: a void is money taken off the guest's bill, so it keeps to the same limit as a refund (the role's max_refund_amount; an Owner has none).
+        // There is no separate void limit yet: when one is added to LimitRules it is read here first. Over the limit, a user with a higher limit does it.
+        $this->payments->assertRefundLimit($hotelFolio, $request->user(), abs($hotelLine->amount_minor), 'void_above_limit');
 
         return response()->json(['data' => FolioResource::line($this->folios->void($hotelLine, $request->validated('reason'), $request->user()))], 201);
     }

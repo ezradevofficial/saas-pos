@@ -36,7 +36,7 @@ class NightAuditController
     /** 201 for an audit made now, 200 for a date already audited (idempotent, HOT-30). */
     public function store(RunNightAuditRequest $request): JsonResponse
     {
-        $result = $this->audits->run($request->validated('branch_id'), $request->user(), $request->validated('business_date'));
+        $result = $this->audits->run($request->validated('branch_id'), $request->user(), $request->validated('business_date'), $request->boolean('close_early'));
 
         return NightAuditResource::make($result['run'])->response()->setStatusCode($result['created'] ? 201 : 200);
     }

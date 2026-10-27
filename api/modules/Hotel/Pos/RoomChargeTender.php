@@ -43,6 +43,13 @@ final class RoomChargeTender implements TenderProvider
         // A refund is a credit to the folio: only the room must exist.
         $found = $this->rooms->lookup($use->branchId, $room, $use->kind === TenderUse::SALE ? $use->currency : null, $use->kind === TenderUse::SALE ? (int) $use->amountMinor : null);
 
+        // The till charged the folio it knew; another stay's folio in the room now is not theirs to pay (HOT-22).
+        $folio = (string) ($use->tender['folio_id'] ?? '');
+
+        if ($found['folio_id'] !== null && $folio !== '' && $folio !== $found['folio_id']) {
+            return ['room_charge_folio_changed'];
+        }
+
         return $found['allowed'] || ($use->kind === TenderUse::REFUND && $found['reason'] === 'not_in_house')
             ? []
             : ['room_charge_'.$found['reason']];

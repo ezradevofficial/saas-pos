@@ -83,7 +83,7 @@ export default function NightAudit() {
   const businessDate = query.data?.meta?.business_date
   const selected = rows.find((row) => row.id === picked) ?? rows[0] ?? null
   const run = useMutation({
-    mutationFn: () => api.post('hotel/night-audits', { branch_id: branchId, business_date: businessDate }),
+    mutationFn: () => api.post('hotel/night-audits', { branch_id: branchId, business_date: businessDate, close_early: true }),
     onSuccess: async (response) => {
       toast.success(t('hotel.audit.done', { date: response.data.business_date }))
       setPicked(response.data.id)

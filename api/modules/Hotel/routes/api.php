@@ -103,6 +103,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('hotel/folios', [FolioController::class, 'index']);
     Route::get('hotel/folios/{hotel_folio}', [FolioController::class, 'show']);
     Route::get('hotel/folios/{hotel_folio}/print', [FolioController::class, 'print']);
+    Route::get('hotel/item-price', [FolioController::class, 'itemPrice']);
     Route::post('hotel/folios/{hotel_folio}/charges', [FolioController::class, 'charge']);
     Route::post('hotel/folios/{hotel_folio}/payments', [FolioController::class, 'pay']);
     Route::post('hotel/folios/{hotel_folio}/payments/{hotel_payment}/check', [FolioController::class, 'checkPayment']);

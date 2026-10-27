@@ -130,22 +130,36 @@ export function ChargeDialog({ folio, onClose }) {
   const [item, setItem] = useState(null)
   const [qty, setQty] = useState('1')
   const [price, setPrice] = useState('')
+  const [priceKey, setPriceKey] = useState(0)
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [reason, setReason] = useState('')
   const fee = mode === 'fee'
+  // HOT-21: the price comes from the item and price list; only a holder of the override permission may change it.
+  const listPrice = useQuery({
+    queryKey: [...hotelKey, 'item-price', folio.id, item?.id],
+    queryFn: () => api.get(`hotel/item-price?folio_id=${folio.id}&item_id=${item.id}`),
+    enabled: !fee && Boolean(item),
+  })
+  const canOverride = listPrice.data?.data?.can_override === true
+  const listed = listPrice.data?.data?.amount_minor ?? null
+  useEffect(() => {
+    setPrice(listed ?? '')
+    setPriceKey((key) => key + 1)
+  }, [listed, item?.id])
+  const overridden = !fee && listed !== null && price !== '' && String(price) !== String(listed)
   const save = useMutation({
     mutationFn: () =>
       api.post(
         `hotel/folios/${folio.id}/charges`,
         fee
           ? { amount_minor: amount, description: description.trim(), ...(reason.trim() ? { reason: reason.trim() } : {}) }
-          : { item_id: item.id, qty, unit_price_minor: price, ...(description.trim() ? { description: description.trim() } : {}), ...(reason.trim() ? { reason: reason.trim() } : {}) },
+          : { item_id: item.id, qty, ...(listed === null || overridden ? { unit_price_minor: price } : {}), ...(description.trim() ? { description: description.trim() } : {}), ...(reason.trim() ? { reason: reason.trim() } : {}) },
       ),
     onSuccess: () => refresh(t('hotel.charge.posted')),
   })
   const errors = formErrors(save.error, ['item_id', 'qty', 'unit_price_minor', 'amount_minor', 'description', 'reason'])
-  const ready = fee ? amount && description.trim() : item && price && /^\d+(\.\d+)?$/.test(qty) && Number(qty) > 0
+  const ready = fee ? amount && description.trim() : item && listPrice.isSuccess && price && /^\d+(\.\d+)?$/.test(qty) && Number(qty) > 0 && (!overridden || reason.trim())
   return (
     <Dialog open title={t('hotel.charge.title')} onClose={onClose} footer={<Footer onClose={onClose} action={t('hotel.charge.post')} loading={save.isPending} disabled={!ready} onConfirm={() => save.mutate()} />}>
       <div className="flex flex-col gap-3">
@@ -162,8 +176,10 @@ export function ChargeDialog({ folio, onClose }) {
             <ItemPicker label={t('hotel.charge.itemLabel')} value={item} required error={errors.fields.item_id} onChange={setItem} />
             <div className="grid gap-3 sm:grid-cols-2">
               <TextField label={t('hotel.charge.qty')} inputMode="decimal" value={qty} error={errors.fields.qty} onChange={(event) => setQty(event.target.value)} />
-              <MoneyInput label={t('hotel.charge.unitPrice')} currency={folio.currency} value={price} error={errors.fields.unit_price_minor} onChange={(next) => setPrice(next ?? '')} />
+              <MoneyInput key={priceKey} label={t('hotel.charge.unitPrice')} currency={folio.currency} value={price} disabled={!item || !canOverride} error={errors.fields.unit_price_minor} onChange={(next) => setPrice(next ?? '')} />
             </div>
+            {item && listPrice.isSuccess && listed === null ? <Alert tone="warning" title={canOverride ? t('hotel.charge.noListPriceTyped') : t('hotel.charge.noListPrice')} /> : null}
+            {item && listPrice.isSuccess && listed !== null && !canOverride ? <p className="text-caption text-ink-muted">{t('hotel.charge.listPriceOnly')}</p> : null}
             <TextField label={t('hotel.charge.descriptionOptional')} value={description} maxLength={240} error={errors.fields.description} onChange={(event) => setDescription(event.target.value)} />
           </>
         )}
