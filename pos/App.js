@@ -18,6 +18,7 @@ import { ChangePinScreen } from './src/screens/ChangePinScreen';
 import { PosProvider } from './src/pos/PosProvider';
 import { RestaurantProvider } from './src/restaurant/RestaurantProvider';
 import { VanSalesProvider } from './src/vansales/VanSalesProvider';
+import { SalonProvider } from './src/salon/SalonProvider';
 import { PosScreen } from './src/screens/pos/PosScreen';
 import { PairingScreen } from './src/screens/PairingScreen';
 import { RiderScreen } from './src/screens/rider/RiderScreen';
@@ -95,7 +96,9 @@ function Root() {
   return (
     <PosProvider>
       <RestaurantProvider>
-        <VanSalesProvider>{screen}</VanSalesProvider>
+        <VanSalesProvider>
+          <SalonProvider>{screen}</SalonProvider>
+        </VanSalesProvider>
       </RestaurantProvider>
     </PosProvider>
   );

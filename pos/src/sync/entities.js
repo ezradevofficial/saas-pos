@@ -158,3 +158,13 @@ registerEntity('fuel_prices', { table: 'fuel_prices' });
 registerEntity('fuel_tanks', { table: 'fuel_tanks' });
 registerEntity('fuel_vehicles', { table: 'fuel_vehicles', columns: (row) => ({ registration: normalised(row.registration), party_id: row.party_id ?? null }) });
 registerEntity('fuel_vouchers', { table: 'fuel_vouchers', columns: (row) => ({ code: normalised(row.code) }) });
+
+// The Salon module's entities (SAL-29, served only while the tenant has it, RBAC-08): the company's rules, staff and
+// resources with their duty spans, the service menu, a week of the branch's appointments, the walk-in queue and the
+// live packages of the clients on the schedule. Snapshots, server wins, read-only (the till's changes go up as records).
+registerEntity('salon_settings', { table: 'salon_settings' });
+registerEntity('salon_staff', { table: 'salon_staff' });
+registerEntity('salon_services', { table: 'salon_services' });
+registerEntity('salon_schedule', { table: 'salon_schedule' });
+registerEntity('salon_queue', { table: 'salon_queue' });
+registerEntity('salon_packages', { table: 'salon_packages' });

@@ -96,6 +96,14 @@ export const VAN_SALES_CREDIT_REVIEW = 'van_sales.credit.review'
 export const VAN_SALES_COLLECTION_VIEW = 'van_sales.collection.view'
 export const VAN_SALES_REPORT_VIEW = 'van_sales.report.view'
 export const VAN_SALES_SETTINGS_EDIT = 'van_sales.settings.edit'
+// Salon module (docs/modules/salon.md, SAL-28): who may open each page (the API checks again at the place).
+export const SALON_APPOINTMENT_VIEW = ['salon.appointment.view', 'salon.appointment.view_own']
+export const SALON_SERVICE_VIEW = 'salon.service.view'
+export const SALON_STAFF_VIEW = ['salon.staff.view', 'salon.resource.view']
+export const SALON_CLIENT_VIEW = ['salon.client.view', 'salon.package.view', 'salon.exception.view']
+export const SALON_COMMISSION_VIEW = ['salon.commission.view', 'salon.commission.view_own']
+export const SALON_REPORT_VIEW = 'salon.report.view'
+export const SALON_SETTINGS_VIEW = ['salon.settings.edit', 'salon.online.view']
 export const MANUFACTURING_SETTINGS_VIEW = ['manufacturing.settings.edit', 'manufacturing.bom.view', 'manufacturing.order.view']
 // HR module (docs/modules/hr.md, Screens; RBAC-09): who may open each page (the API checks again at the employee's place).
 export const HR_EMPLOYEE_VIEW = 'hr.employee.view'
@@ -351,6 +359,20 @@ export const NAV_GROUPS = [
       { to: '/van-sales/collections', icon: 'payments', label: (t) => t('nav.vanSalesCollections'), permission: VAN_SALES_COLLECTION_VIEW, module: 'van_sales' },
       { to: '/van-sales/reports', icon: 'chart', label: (t) => t('nav.vanSalesReports'), permission: VAN_SALES_REPORT_VIEW, module: 'van_sales' },
       { to: '/van-sales/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.vanSalesSettings'), permission: VAN_SALES_SETTINGS_EDIT, module: 'van_sales' },
+    ],
+  },
+  {
+    // Salon (docs/modules/salon.md): only while the Salon module is active (SAL-01, RBAC-08).
+    id: 'salon',
+    label: (t) => t('nav.groups.salon'),
+    items: [
+      { to: '/salon/calendar', icon: 'clock', label: (t) => t('nav.salonCalendar'), permission: SALON_APPOINTMENT_VIEW, module: 'salon' },
+      { to: '/salon/services', icon: 'items', label: (t) => t('nav.salonServices'), permission: SALON_SERVICE_VIEW, module: 'salon' },
+      { to: '/salon/staff', icon: 'users', label: (t) => t('nav.salonStaff'), permission: SALON_STAFF_VIEW, module: 'salon' },
+      { to: '/salon/clients', icon: 'customers', label: (t) => t('nav.salonClients'), permission: SALON_CLIENT_VIEW, module: 'salon' },
+      { to: '/salon/commissions', icon: 'payments', label: (t) => t('nav.salonCommissions'), permission: SALON_COMMISSION_VIEW, module: 'salon' },
+      { to: '/salon/reports', icon: 'chart', label: (t) => t('nav.salonReports'), permission: SALON_REPORT_VIEW, module: 'salon' },
+      { to: '/salon/settings', needsCompany: true, icon: 'settings', label: (t) => t('nav.salonSettings'), permission: SALON_SETTINGS_VIEW, module: 'salon' },
     ],
   },
   {

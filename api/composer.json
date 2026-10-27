@@ -67,7 +67,8 @@
             "Modules\\Pharmacy\\Tests\\": "modules/Pharmacy/tests/",
             "Modules\\Hotel\\Tests\\": "modules/Hotel/tests/",
             "Modules\\FuelStation\\Tests\\": "modules/FuelStation/tests/",
-            "Modules\\VanSales\\Tests\\": "modules/VanSales/tests/"
+            "Modules\\VanSales\\Tests\\": "modules/VanSales/tests/",
+            "Modules\\Salon\\Tests\\": "modules/Salon/tests/"
         }
     },
     "scripts": {

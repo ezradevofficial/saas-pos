@@ -68,10 +68,14 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * `fuel_vouchers`, server-wins and read-only, and local `fuel_shifts`: the
  * forecourt shifts kept on this till (open or closed; uploads go through the
  * outbox).
+ * v16 (Salon module, SAL-29): the synced `salon_settings`, `salon_staff` (staff and resources, with
+ * their duty spans), `salon_services`, `salon_schedule` (a week of appointments), `salon_queue` and
+ * `salon_packages`, and local `salon_records`: what the till makes (appointments, day steps, queue
+ * changes), one row each, pending until the server stored it (or rejected, parked with its code).
  *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -218,6 +222,26 @@ export const schema = appSchema({
         { name: 'run_id', type: 'string', isIndexed: true },
         { name: 'customer_id', type: 'string', isOptional: true, isIndexed: true },
         // pending | stored | rejected
+        { name: 'state', type: 'string', isIndexed: true },
+        { name: 'seq', type: 'number', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        data,
+      ],
+    }),
+    // v16: the Salon module's synced entities and what the till makes (SAL-29).
+    tableSchema({ name: 'salon_settings', columns: [data, seenAt] }),
+    tableSchema({ name: 'salon_staff', columns: [data, seenAt] }),
+    tableSchema({ name: 'salon_services', columns: [data, seenAt] }),
+    tableSchema({ name: 'salon_schedule', columns: [data, seenAt] }),
+    tableSchema({ name: 'salon_queue', columns: [data, seenAt] }),
+    tableSchema({ name: 'salon_packages', columns: [data, seenAt] }),
+    tableSchema({
+      name: 'salon_records',
+      columns: [
+        // appointment | event | queue | mark
+        { name: 'kind', type: 'string', isIndexed: true },
+        { name: 'appointment_id', type: 'string', isIndexed: true },
+        // pending | stored | rejected | local
         { name: 'state', type: 'string', isIndexed: true },
         { name: 'seq', type: 'number', isIndexed: true },
         { name: 'created_at', type: 'number' },

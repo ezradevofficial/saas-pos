@@ -14,6 +14,7 @@ use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\DueTenants;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
 use App\Core\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
@@ -127,6 +128,12 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/shop/{store}/orders/{number}/proof-photo' => 'ECOM-41: the proof of delivery photo of a delivered order, with its 40-character tracking token (sha256) or the session of its customer; the storefront API (ECOM-05 to ECOM-08): no tenant token; the store is found by its host and handle through a security-definer function that returns only the tenant id of a live store (ADR 002), every query under that tenant RLS; rate-limited (DeliveryTrackingTest)',
         'GET api/v1/ecommerce/proof-photos/{path}' => 'ECOM-41: temporary signed URL for one proof photo and one user; the controller enters the tenant the path names and checks that user may still see the delivery (DeliveryTrackingTest)',
         'GET api/v1/shop-media/{image}' => 'ECOM-02: an item image of a published product behind a temporary signed URL (the signature is the credential); the signed tenant is entered (ShopImageController)',
+        // Salon (docs/modules/salon.md): the public booking page of an outlet, tested by modules/Salon/tests/OnlineBookingTest.php.
+        'GET api/v1/salon-booking/{code}' => 'SAL-15: the public menu of one outlet; the 12-character page code is the credential, its tenant found by a security-definer function that returns only the id; shows only the outlet\'s online services and public name; rate-limited per IP',
+        'GET api/v1/salon-booking/{code}/slots' => 'SAL-15: free times of one outlet\'s online services; the page code is the credential (as above); shows times only, never who is booked; rate-limited per IP',
+        'POST api/v1/salon-booking/{code}/appointments' => 'SAL-15, SAL-16: a guest books a visit; the page code is the credential (as above); stores only guest rows of that outlet, takes an Idempotency-Key, refuses a contact that books too often; rate-limited per IP',
+        'GET api/v1/salon-booking/{code}/appointments/{number}' => 'SAL-15: a guest reads their own booking; the page code and the appointment number plus the phone they booked with are the credential; answers 404 for anything else; rate-limited per IP',
+        'POST api/v1/salon-booking/{code}/appointments/{number}/pay' => 'SAL-16: a guest pays the deposit of their own booking with M-Pesa; the page code, the number and the booking phone are the credential; rate-limited per IP',
         // CRM (docs/modules/crm.md): the public lead form, tested by modules/CRM/tests/LeadsTest.php.
         'POST api/v1/crm/forms/{token}' => 'CRM-06: a public web form posting a lead; the 40-character form token (stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id; answers only {received: true} (or 404); rate-limited per IP and per form',
         'DELETE api/v1/supplier-portal/bid/files/{file}' => 'PRC-09: removes one of the session bidder\'s own unsubmitted uploads; the supplier portal (PRC-07): no tenant user token; the portal session bearer token (`pts_` + 48 characters, stored as sha256) is the credential, its tenant found by a security-definer function that returns only the id, and every query bound to that session\'s tender and bidder under that tenant\'s RLS; rate-limited (ProcurementPortalTest)',
@@ -264,6 +271,20 @@ class TenantIsolationTest extends TestCase
         'vs_collection' => 'vs_collection',
         'vs_count' => 'vs_count',
         'vs_sale' => 'vs_sale',
+        // Salon (docs/modules/salon.md): a service, a package type, a stylist, a chair, a visit, a queue entry, time off, a rule, a package, an exception, a batch and a deposit; a client is a customer party.
+        'salon_service' => 'salon_service',
+        'salon_ptype' => 'salon_ptype',
+        'salon_staff' => 'salon_staff',
+        'salon_resource' => 'salon_resource',
+        'salon_appointment' => 'salon_appointment',
+        'salon_queue' => 'salon_queue',
+        'salon_timeoff' => 'salon_timeoff',
+        'salon_rule' => 'salon_rule',
+        'salon_package' => 'salon_package',
+        'salon_exception' => 'salon_exception',
+        'salon_batch' => 'salon_batch',
+        'salon_payment' => 'salon_payment',
+        'salon_client' => 'customer',
         // HR (docs/modules/hr.md): an employee linked to the Owner and what hangs off them.
         // Pharmacy (docs/modules/pharmacy.md): an item with a profile, its lot, a receipt, a pending write-off, a recall, a prescription (with an image) and a dispense.
         'pharmacy_item' => 'pharmacy_item',
@@ -548,6 +569,15 @@ class TenantIsolationTest extends TestCase
         'tip_item_id' => 'item',
         'into_order_id' => 'rest_order',
         'merged_into_id' => 'rest_order',
+        // Salon: the service, stylist, chair, visit and queue entry a booking, rule, seat or device record names, the fee item of the settings, the client (a customer).
+        'salon_client_id' => 'customer',
+        'service_id' => 'salon_service',
+        'staff_id' => 'salon_staff',
+        'preferred_staff_id' => 'salon_staff',
+        'resource_id' => 'salon_resource',
+        'appointment_id' => 'salon_appointment',
+        'entry_id' => 'salon_queue',
+        'fee_item_id' => 'item',
         // Van sales: the van, route, stop, run and visit a record names, and the rep (a user).
         'van_id' => 'vs_van',
         'route_id' => 'vs_route',
@@ -747,7 +777,9 @@ class TenantIsolationTest extends TestCase
         // Restaurant: the filters of the orders, tickets, tables and reports.
         'company_id' => 'company', 'branch_id' => 'branch', 'station_id' => 'rest_station', 'table_id' => 'rest_table', 'waiter_id' => 'user', 'tank_id' => 'fuel_tank', 'pump_id' => 'fuel_pump', 'shift_id' => 'fuel_shift', 'attendant_id' => 'user', 'product_id' => 'fuel_product', 'room_type' => 'hotel_room_type', 'rate_plan_id' => 'hotel_rate_plan', 'assigned_to' => 'user', 'folio_id' => 'hotel_folio',
         // Van sales: the filters of the vans, routes, runs, collections, counts and reports.
-        'van_id' => 'vs_van', 'route_id' => 'vs_route', 'rep_id' => 'user', 'customer_id' => 'customer'];
+        'van_id' => 'vs_van', 'route_id' => 'vs_route', 'rep_id' => 'user', 'customer_id' => 'customer',
+        // Salon: the filters of the visits, tips, commissions, batches and reports.
+        'staff_id' => 'salon_staff', 'service_id' => 'salon_service', 'batch_id' => 'salon_batch'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
     public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id',
@@ -755,6 +787,8 @@ class TenantIsolationTest extends TestCase
         'location_id', 'company_id', 'branch_id', 'station_id', 'table_id', 'waiter_id', 'since', 'archived',
         // Van sales: the filters of the vans, routes, plan, runs, collections, credit reviews, counts and reports.
         'van_id', 'route_id', 'rep_id', 'customer_id', 'review_status', 'date',
+        // Salon: the visits, calendar, availability, queue, clients, commissions, tips, batches and reports (SAL-04 to SAL-27).
+        'staff_id', 'client_id', 'service_id', 'batch_id', 'service_ids', 'unbatched',
         // Pharmacy: the lots, register, dispenses and reports (PHA-24), the profile list and FEFO (PHA-07).
         'item_id', 'location_id', 'with_empty', 'expires_within', 'class', 'product_kind', 'review', 'with_prescription',
         // Hotel: the rooms, rates, availability, reservations, folios, tasks, guests and reports (HOT-04 to HOT-31).
@@ -1860,6 +1894,9 @@ class TenantIsolationTest extends TestCase
         $documentLines = [['description' => 'Hijack', 'item_id' => $tenant->id('item'), 'account_id' => $tenant->id('acc_account'), 'qty' => '1', 'unit_price' => '10.00',
             'tax_code_id' => $tenant->id('tax_code'), 'cost_centre_id' => $tenant->id('cost_centre'), 'department_id' => $tenant->id('department'), 'project_id' => $tenant->id('project')]];
         $assignment = ['role_id' => $tenant->id('role'), 'scope_type' => 'location', 'scope_id' => $tenant->id('location')];
+        // SAL-04: a visit's time, as the outlet keeps it, $days from today.
+        $salonToday = app(TenantContext::class)->run($tenant->tenantId, fn () => CompanyClock::today($tenant->id('company')));
+        $salonAt = fn (string $time, int $days) => CarbonImmutable::parse("{$salonToday} {$time}:00", 'Africa/Nairobi')->addDays($days)->utc()->toIso8601String();
         $procurementLines = [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'cost_centre_id' => $tenant->id('cost_centre'), 'project_id' => $tenant->id('project')]];
         // CRM-18: a quote line of the shared item's box (its list price), tax from core.
         $crmLines = [['item_id' => $tenant->id('item'), 'uom_id' => $tenant->id('uom_box'), 'qty' => '1', 'tax_code_id' => $tenant->id('tax_code')]];
@@ -1887,6 +1924,40 @@ class TenantIsolationTest extends TestCase
                     'id' => (string) Str::uuid7(), 'item_id' => $tenant->id('item'), 'name' => 'Hijack line', 'qty' => '1', 'unit_price_minor' => '1000', 'tax_code_id' => $tenant->id('tax_code'),
                     'created_at' => now()->subMinutes(4)->toIso8601String(),
                 ]],
+            ]]],
+            // Salon (docs/modules/salon.md): bodies naming A's own company, outlet, items, stylists, chair, services, client and payment method.
+            'PUT api/v1/salon/companies/{company}/settings' => ['tip_item_id' => $tenant->id('salon_item_tip'), 'fee_item_id' => $tenant->id('salon_item_fee'), 'slot_minutes' => 15],
+            'POST api/v1/salon/services' => ['company_id' => $tenant->id('company'), 'item_id' => $tenant->id('salon_item_spare_a'), 'duration_minutes' => 20, 'name' => 'Isolation service'],
+            'PUT api/v1/salon/services/{salon_service}' => ['item_id' => $tenant->id('salon_item_spare_c'), 'duration_minutes' => 30],
+            'POST api/v1/salon/package-types' => ['company_id' => $tenant->id('company'), 'item_id' => $tenant->id('salon_item_spare_b'), 'name' => 'Isolation package', 'sessions' => 3, 'service_ids' => [$tenant->id('salon_service')]],
+            'POST api/v1/salon/staff' => ['company_id' => $tenant->id('company'), 'name' => 'Isolation stylist', 'branch_id' => $tenant->id('branch')],
+            'PUT api/v1/salon/staff/{salon_staff}' => ['branch_id' => $tenant->id('branch'), 'title' => 'Lead stylist'],
+            'PUT api/v1/salon/staff/{salon_staff}/hours' => ['hours' => array_map(fn (int $day) => ['branch_id' => $tenant->id('branch'), 'weekday' => $day, 'kind' => 'work', 'start' => '00:00', 'end' => '23:59'], range(1, 7))],
+            'POST api/v1/salon/resources' => ['branch_id' => $tenant->id('branch'), 'name' => 'Isolation chair'],
+            'PUT api/v1/salon/branches/{branch}/online' => ['location_id' => $tenant->id('location'), 'enabled' => true],
+            'POST api/v1/salon/appointments' => [
+                'branch_id' => $tenant->id('branch'), 'salon_client_id' => $tenant->id('customer'), 'starts_at' => $salonAt('11:00', 3),
+                'lines' => [['service_id' => $tenant->id('salon_service'), 'staff_id' => $tenant->id('salon_staff_other'), 'resource_id' => $tenant->id('salon_resource')]],
+            ],
+            'POST api/v1/salon/appointments/{salon_appointment}/move' => [
+                'starts_at' => $salonAt('14:00', 1), 'lines' => [['id' => $tenant->id('salon_line'), 'staff_id' => $tenant->id('salon_staff'), 'resource_id' => $tenant->id('salon_resource')]],
+            ],
+            'POST api/v1/salon/appointments/{salon_appointment}/deposit' => ['payment_method_id' => $tenant->id('payment_method'), 'amount_minor' => '5000', 'mode' => 'direct'],
+            'POST api/v1/salon/appointments/{salon_appointment}/deposit/refund' => ['payment_method_id' => $tenant->id('payment_method'), 'amount_minor' => '2000'],
+            'POST api/v1/salon/queue' => ['branch_id' => $tenant->id('branch'), 'guest_name' => 'Isolation walk-in', 'service_ids' => [$tenant->id('salon_service')]],
+            'POST api/v1/salon/queue/{salon_queue}/seat' => ['staff_id' => $tenant->id('salon_staff_other'), 'resource_id' => $tenant->id('salon_resource')],
+            'POST api/v1/salon/clients' => ['company_id' => $tenant->id('company'), 'name' => 'Isolation client'],
+            'PUT api/v1/salon/clients/{salon_client}' => ['company_id' => $tenant->id('company'), 'preferred_staff_id' => $tenant->id('salon_staff'), 'preferences' => 'Isolation check'],
+            'POST api/v1/salon/commission-rules' => [
+                'company_id' => $tenant->id('company'), 'staff_id' => $tenant->id('salon_staff'), 'service_id' => $tenant->id('salon_service'), 'applies_to' => 'service', 'kind' => 'percent', 'rate' => '15', 'effective_from' => '2027-01-01',
+            ],
+            'PUT api/v1/salon/commission-rules/{salon_rule}' => ['staff_id' => $tenant->id('salon_staff'), 'service_id' => $tenant->id('salon_service'), 'kind' => 'percent', 'rate' => '25'],
+            'POST api/v1/salon/commission-batches' => [
+                'company_id' => $tenant->id('company'), 'branch_id' => $tenant->id('branch'), 'period_start' => now()->subDays(30)->toDateString(), 'period_end' => now()->toDateString(), 'currency' => 'KES',
+            ],
+            'POST api/v1/salon/device/sync' => ['appointments' => [[
+                'id' => (string) Str::uuid7(), 'user_id' => $tenant->id('user'), 'actor_proof' => TwoTenants::actorProof($tenant, $tenant->id('user')), 'starts_at' => $salonAt('11:00', 4),
+                'lines' => [['service_id' => $tenant->id('salon_service'), 'staff_id' => $tenant->id('salon_staff_other')]],
             ]]],
             // Van sales (docs/modules/van-sales.md): a van, a route, its stops, a load and a device's records, each naming A's own rows.
             'POST api/v1/van-sales/vans' => ['branch_id' => $tenant->id('branch'), 'name' => 'Control van', 'rep_id' => $tenant->id('user')],

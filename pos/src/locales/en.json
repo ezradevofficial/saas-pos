@@ -1503,5 +1503,125 @@
       "limit_currency_differs": "The credit limit is in {{currency}}. Pay this sale in {{currency}} to use credit.",
       "over_limit": "This is above the available credit of {{amount}}. Take a lower amount on credit."
     }
+  },
+  "salon": {
+    "menu": {
+      "day": "Appointments",
+      "queue": "Walk-in queue",
+      "sell": "Quick sale"
+    },
+    "status": {
+      "booked": "Booked",
+      "checked_in": "Checked in",
+      "in_service": "In service",
+      "completed": "Done, to pay",
+      "paid": "Paid",
+      "cancelled": "Cancelled",
+      "no_show": "No-show"
+    },
+    "day": {
+      "title": "Appointments",
+      "unnamed": "Client",
+      "today": "Today",
+      "pickDay": "Day",
+      "pickStaff": "Staff",
+      "everyone": "Everyone",
+      "summary": "{{total}} appointments, {{done}} done",
+      "empty": "No appointments on this day.",
+      "walkIn": "New walk-in",
+      "queue": "Queue ({{count}})",
+      "depositHeld": "Deposit held {{amount}}",
+      "feeDue": "Fee due {{amount}}",
+      "alerts": "This client has notes or allergies. Read them before you start.",
+      "alertsShort": "Notes to read",
+      "waiting": "Waiting to send",
+      "nothingToDo": "Nothing more to do here.",
+      "rejectedTitle": "{{count}} records were refused by the server",
+      "rejectedRetry": "Send again"
+    },
+    "actions": {
+      "checkIn": "Check in",
+      "start": "Start service",
+      "finish": "Finish service",
+      "charge": "Charge",
+      "chargeFee": "Charge the fee {{amount}}",
+      "noShow": "Mark as no-show",
+      "cancel": "Cancel appointment"
+    },
+    "walkIn": {
+      "bookTitle": "Book a walk-in now",
+      "queueTitle": "Add to the queue",
+      "book": "Book now",
+      "join": "Add to queue",
+      "name": "Name",
+      "phone": "Phone (optional)",
+      "services": "Services",
+      "minutes": "{{count}} min",
+      "chosen": "Chosen",
+      "choose": "Choose",
+      "staff": "Staff",
+      "anyone": "Anyone free"
+    },
+    "queue": {
+      "title": "Walk-in queue",
+      "count": "{{count}} waiting",
+      "add": "Add a walk-in",
+      "empty": "Nobody is waiting.",
+      "seat": "Seat",
+      "leave": "Remove",
+      "since": "since {{time}}",
+      "wait": "about {{count}} min",
+      "seatTitle": "Seat {{name}}",
+      "free": "Free now"
+    },
+    "checkout": {
+      "title": "Charge the visit",
+      "feeTitle": "Charge the fee",
+      "deposit": "Deposit available: {{amount}}",
+      "package": "{{name}}: {{count}} sessions left, {{amount}} each",
+      "creditHelp": "Pay with Salon credit on the next screen to use the deposit first, then a package session.",
+      "tip": "Tip ({{currency}})",
+      "noTip": "No tip",
+      "total": "Total",
+      "charge": "Charge {{amount}}",
+      "fee": {
+        "no_show": "No-show fee",
+        "late_cancel": "Late cancellation fee"
+      }
+    },
+    "errors": {
+      "failed": "This could not be done. Try again.",
+      "appointment_unknown": "This appointment is not on the till. Sync and try again.",
+      "appointment_closed": "This appointment is closed. It can no longer be changed.",
+      "step_unknown": "This step is not known.",
+      "services_required": "Choose at least one service.",
+      "client_required": "Enter the client’s name.",
+      "service_unknown": "Choose a service from the menu.",
+      "staff_unqualified": "This person does not do this service.",
+      "outside_hours": "This person does not work at this time.",
+      "staff_off": "This person is on a break or off at this time.",
+      "slot_taken": "This time is taken. Choose another time or person.",
+      "resource_taken": "This chair or room is taken at this time.",
+      "no_staff": "Nobody is free for this service now.",
+      "already_paid": "This visit is already paid.",
+      "no_lines": "This appointment has no services to charge.",
+      "no_fee_due": "There is no fee to charge.",
+      "fee_item_missing": "The fee item is not set up. Ask a manager to choose it in the salon settings.",
+      "tip_item_missing": "The tip item is not set up. Ask a manager to choose it in the salon settings.",
+      "item_missing": "A service of this visit is not in the till’s items. Sync and try again.",
+      "mobile_paid": "A mobile payment is on the current sale. Finish it first.",
+      "queue_entry_closed": "This person is no longer waiting.",
+      "actor_unverified": "The server could not verify who did this. Sign in again and send it again.",
+      "not_permitted": "This person is not allowed to do this.",
+      "id_conflict": "This record was already used for something else.",
+      "upload_rejected": "The server accepted none of the records.",
+      "no_appointment": "Salon credit is used when charging an appointment from the appointments screen.",
+      "amount": "Enter an amount above zero.",
+      "currency_mismatch": "This appointment is in {{currency}}. Pay in {{currency}}.",
+      "deposit_empty": "The deposit is used up. A fee cannot be paid with a package.",
+      "customer_required": "Choose the customer first to use a package.",
+      "package_none": "This customer has no package session to use.",
+      "package_covers_nothing": "No package of this customer covers the services left to pay."
+    }
   }
 }

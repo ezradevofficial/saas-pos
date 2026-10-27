@@ -226,5 +226,28 @@ export const migrations = schemaMigrations({
         createTable({ name: 'fuel_shifts', columns: [{ name: 'status', type: 'string', isIndexed: true }, { name: 'opened_at', type: 'number' }, data] }),
       ],
     },
+    {
+      // Salon module (SAL-29): the synced schedule data and what the till makes.
+      toVersion: 16,
+      steps: [
+        createTable({ name: 'salon_settings', columns: [data, seenAt] }),
+        createTable({ name: 'salon_staff', columns: [data, seenAt] }),
+        createTable({ name: 'salon_services', columns: [data, seenAt] }),
+        createTable({ name: 'salon_schedule', columns: [data, seenAt] }),
+        createTable({ name: 'salon_queue', columns: [data, seenAt] }),
+        createTable({ name: 'salon_packages', columns: [data, seenAt] }),
+        createTable({
+          name: 'salon_records',
+          columns: [
+            { name: 'kind', type: 'string', isIndexed: true },
+            { name: 'appointment_id', type: 'string', isIndexed: true },
+            { name: 'state', type: 'string', isIndexed: true },
+            { name: 'seq', type: 'number', isIndexed: true },
+            { name: 'created_at', type: 'number' },
+            data,
+          ],
+        }),
+      ],
+    },
   ],
 });
