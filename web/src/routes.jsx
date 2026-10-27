@@ -34,6 +34,16 @@ import {
   RESTAURANT_SETTINGS_EDIT,
   RESTAURANT_STATION_VIEW,
   RESTAURANT_TICKET_VIEW,
+  VAN_SALES_COLLECTION_VIEW,
+  VAN_SALES_CREDIT_REVIEW,
+  VAN_SALES_CREDIT_VIEW,
+  VAN_SALES_LOAD_VIEW,
+  VAN_SALES_RECONCILIATION_VIEW,
+  VAN_SALES_REPORT_VIEW,
+  VAN_SALES_ROUTE_VIEW,
+  VAN_SALES_RUN_VIEW,
+  VAN_SALES_SETTINGS_EDIT,
+  VAN_SALES_VAN_VIEW,
   STORES_ISSUE_VIEW,
   STORES_LEDGER_VIEW,
   STORES_REPORT_VIEW,
@@ -193,6 +203,21 @@ const RestaurantPendingVoids = lazy(() => import('./pages/restaurant/PendingVoid
 const RestaurantReports = lazy(() => import('./pages/restaurant/Reports'))
 const RestaurantSettings = lazy(() => import('./pages/restaurant/RestaurantSettings'))
 const RestaurantStations = lazy(() => import('./pages/restaurant/Stations'))
+const VanSalesVans = lazy(() => import('./pages/vansales/Vans'))
+const VanSalesRoutes = lazy(() => import('./pages/vansales/Routes'))
+const VanSalesRouteDetail = lazy(() => import('./pages/vansales/RouteDetail'))
+const VanSalesPlan = lazy(() => import('./pages/vansales/Plan'))
+const VanSalesLoads = lazy(() => import('./pages/vansales/Loads'))
+const VanSalesRuns = lazy(() => import('./pages/vansales/Runs'))
+const VanSalesRunDetail = lazy(() => import('./pages/vansales/RunDetail'))
+const VanSalesReconciliations = lazy(() => import('./pages/vansales/Reconciliations'))
+const VanSalesReconciliationDetail = lazy(() => import('./pages/vansales/ReconciliationDetail'))
+const VanSalesAccounts = lazy(() => import('./pages/vansales/Accounts').then((module) => ({ default: module.Accounts })))
+const VanSalesAccountDetail = lazy(() => import('./pages/vansales/Accounts').then((module) => ({ default: module.AccountDetail })))
+const VanSalesCreditReviews = lazy(() => import('./pages/vansales/CreditReviews'))
+const VanSalesCollections = lazy(() => import('./pages/vansales/Collections'))
+const VanSalesReports = lazy(() => import('./pages/vansales/Reports'))
+const VanSalesSettings = lazy(() => import('./pages/vansales/VanSalesSettings'))
 const RecipeCosting = lazy(() => import('./pages/manufacturing/RecipeCosting'))
 const MfgYield = lazy(() => import('./pages/manufacturing/Yield'))
 const FaAssetDetail = lazy(() => import('./pages/fixedAssets/AssetDetail'))
@@ -796,6 +821,24 @@ export const routes = [
         ['/restaurant/modifiers', RESTAURANT_MODIFIER_VIEW, <RestaurantModifiers key="rest-modifiers" />],
         ['/restaurant/reports', RESTAURANT_REPORT_VIEW, <RestaurantReports key="rest-reports" />],
         ['/restaurant/settings', RESTAURANT_SETTINGS_EDIT, <RestaurantSettings key="rest-settings" />],
+      ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
+      // Van sales (docs/modules/van-sales.md): the API answers 403 module_inactive without the module.
+      ...[
+        ['/van-sales/vans', VAN_SALES_VAN_VIEW, <VanSalesVans key="vs-vans" />],
+        ['/van-sales/routes', VAN_SALES_ROUTE_VIEW, <VanSalesRoutes key="vs-routes" />],
+        ['/van-sales/routes/:routeId', VAN_SALES_ROUTE_VIEW, <VanSalesRouteDetail key="vs-route" />],
+        ['/van-sales/plan', VAN_SALES_ROUTE_VIEW, <VanSalesPlan key="vs-plan" />],
+        ['/van-sales/loads', VAN_SALES_LOAD_VIEW, <VanSalesLoads key="vs-loads" />],
+        ['/van-sales/runs', VAN_SALES_RUN_VIEW, <VanSalesRuns key="vs-runs" />],
+        ['/van-sales/runs/:runId', VAN_SALES_RUN_VIEW, <VanSalesRunDetail key="vs-run" />],
+        ['/van-sales/reconciliations', VAN_SALES_RECONCILIATION_VIEW, <VanSalesReconciliations key="vs-reconciliations" />],
+        ['/van-sales/reconciliations/:reconciliationId', VAN_SALES_RECONCILIATION_VIEW, <VanSalesReconciliationDetail key="vs-reconciliation" />],
+        ['/van-sales/accounts', VAN_SALES_CREDIT_VIEW, <VanSalesAccounts key="vs-accounts" />],
+        ['/van-sales/accounts/:customerId', VAN_SALES_CREDIT_VIEW, <VanSalesAccountDetail key="vs-account" />],
+        ['/van-sales/credit-reviews', VAN_SALES_CREDIT_REVIEW, <VanSalesCreditReviews key="vs-credit-reviews" />],
+        ['/van-sales/collections', VAN_SALES_COLLECTION_VIEW, <VanSalesCollections key="vs-collections" />],
+        ['/van-sales/reports', VAN_SALES_REPORT_VIEW, <VanSalesReports key="vs-reports" />],
+        ['/van-sales/settings', VAN_SALES_SETTINGS_EDIT, <VanSalesSettings key="vs-settings" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // HR (docs/modules/hr.md, Screens): the API answers 403 module_inactive without the module.
       ...[

@@ -1148,5 +1148,175 @@
         "failed": "L’action n’a pas abouti. Actualisez et réessayez."
       }
     }
+  },
+  "vansales": {
+    "menu": {
+      "day": "Journée de tournée",
+      "sell": "Vente rapide"
+    },
+    "kinds": {
+      "run": "Journée",
+      "visit": "Visite",
+      "collection": "Encaissement",
+      "count": "Comptage"
+    },
+    "status": {
+      "pending": "À faire",
+      "visited": "Visité",
+      "sold": "Vendu",
+      "no_sale": "Sans vente",
+      "skipped": "Passé"
+    },
+    "noSale": {
+      "closed": "Magasin fermé",
+      "no_need": "Pas de besoin",
+      "has_stock": "A du stock",
+      "no_money": "Pas d'argent",
+      "credit_hold": "Crédit bloqué",
+      "not_found": "Client introuvable",
+      "other": "Autre"
+    },
+    "day": {
+      "title": "Journée de tournée",
+      "startTitle": "Démarrer la journée",
+      "startHelp": "Choisissez la tournée du jour. Vous pouvez démarrer sans connexion.",
+      "noneToday": "Aucune tournée n'est prévue aujourd'hui. Choisissez-en une quand même ou démarrez sans tournée.",
+      "route": "Tournée",
+      "noRoute": "Sans tournée",
+      "routeNotToday": "{{name}} (pas aujourd'hui)",
+      "start": "Démarrer la journée",
+      "summary": "{{done}} arrêts sur {{total}} faits, {{sold}} avec vente",
+      "loads": "Bons de chargement",
+      "confirmLoadCount": "Confirmer le chargement ({{count}})",
+      "visitOther": "Visiter un autre client",
+      "endDay": "Comptage de fin de journée",
+      "noLoad": "Aucun bon de chargement n'est encore confirmé. Vous pouvez vendre; confirmez le chargement dès que vous êtes en ligne.",
+      "stale": "Cette journée a commencé à une date antérieure et reste ouverte. Comptez le camion pour la clôturer.",
+      "noStopsToday": "Aucun arrêt n'est prévu aujourd'hui sur cette tournée.",
+      "noRouteRun": "Cette journée n'a pas de tournée. Visitez des clients avec le bouton ci-dessus.",
+      "otherTitle": "Visiter un autre client",
+      "otherSearch": "Nom ou téléphone du client",
+      "rejectedTitle": "{{count}} enregistrements refusés par le serveur",
+      "rejectedRetry": "Réessayer"
+    },
+    "load": {
+      "title": "Bons de chargement",
+      "none": "Aucun bon de chargement pour l'instant.",
+      "sheet": "Chargement {{number}}",
+      "released": "Envoyé : {{qty}}",
+      "received": "Reçu",
+      "confirm": "Confirmer le chargement",
+      "confirmed": "Chargement {{number}} confirmé.",
+      "offline": "Vous êtes hors ligne. Confirmer un chargement demande une connexion; le bon reste tel quel. Réessayez une fois en ligne.",
+      "status": {
+        "awaiting_approval": "En attente d'approbation",
+        "approved": "Approuvé",
+        "released": "À confirmer",
+        "confirmed": "Confirmé",
+        "rejected": "Refusé",
+        "cancelled": "Annulé"
+      }
+    },
+    "stop": {
+      "back": "Arrêt",
+      "status": "Visite",
+      "noRun": "Démarrez la journée avant de vendre ou d'encaisser.",
+      "credit": "Crédit",
+      "noAccount": "Aucun compte de crédit n'est encore synchronisé pour ce client.",
+      "noLimit": "Aucune limite de crédit n'est définie. La vente à crédit est refusée pour ce client.",
+      "limit": "Limite {{amount}}",
+      "balance": "Solde {{amount}}",
+      "available": "Disponible {{amount}}",
+      "sell": "Vendre",
+      "collect": "Encaisser un paiement",
+      "return": "Retour ou échange",
+      "noSale": "Sans vente",
+      "skip": "Passer l'arrêt",
+      "note": "Note",
+      "noSaleTitle": "Pourquoi rien n'a été vendu ?",
+      "noSaleReason": "Motif",
+      "noSaleSave": "Enregistrer sans vente",
+      "returnTitle": "Retour ou échange",
+      "returnHelp": "Choisissez la vente. Pour un échange, reprenez d'abord la marchandise, puis vendez le remplacement.",
+      "returnNone": "Ce client n'a aucune vente dans la tournée du jour.",
+      "returnItems": "Reprendre des articles",
+      "exchange": "Vendre le remplacement"
+    },
+    "checkin": {
+      "title": "Enregistrer votre arrivée",
+      "body": "Votre entreprise demande une position à votre arrivée chez un client. L'application la lit une seule fois, seulement quand elle est ouverte, et ne vous suit jamais entre-temps. Vous pouvez refuser et continuer.",
+      "allow": "Autoriser une fois à l'arrivée",
+      "notNow": "Pas maintenant"
+    },
+    "collect": {
+      "title": "Encaisser un paiement",
+      "balance": "Solde dû",
+      "method": "Mode de paiement",
+      "currency": "Devise",
+      "amount": "Montant",
+      "amountInvalid": "Saisissez un montant, par exemple 1500.00.",
+      "reference": "Code M-Pesa",
+      "referenceHelp": "Facultatif. Saisissez le code du message de confirmation.",
+      "save": "Encaisser {{amount}}",
+      "saveEmpty": "Encaisser un paiement",
+      "saved": "Reçu {{number}} enregistré : {{amount}}. Il sera envoyé dès que vous serez en ligne.",
+      "aboveTitle": "Plus que le solde",
+      "aboveBody": "Le montant dépasse le solde de {{balance}}. Le serveur le conserve et le signale pour contrôle.",
+      "aboveConfirm": "Encaisser quand même"
+    },
+    "count": {
+      "title": "Comptage de fin de journée",
+      "noRun": "Il n'y a pas de journée à compter.",
+      "stock": "Stock du camion",
+      "equation": "Chargement = vendu + retourné + endommagé + écart",
+      "figures": "Chargement {{load}} · vendu {{sold}}",
+      "returned": "Retourné (bon état)",
+      "damaged": "Endommagé",
+      "line": "Chargement {{load_qty}} = vendu {{sold_qty}} + retourné {{returned_qty}} + endommagé {{damaged_qty}} + écart {{variance_qty}}",
+      "balanced": "Équilibré",
+      "variance": "Écart",
+      "qtyInvalid": "Saisissez une quantité avec 6 décimales au plus.",
+      "noItems": "Aucun article n'a été chargé ni vendu aujourd'hui.",
+      "money": "Espèces et mobile money",
+      "kind": {
+        "cash": "Espèces {{currency}}",
+        "mobile_money": "Argent mobile {{currency}}"
+      },
+      "expected": "Attendu {{amount}}",
+      "counted": "Compté",
+      "moneyVariance": "Différence {{amount}}",
+      "noMoney": "Aucun encaissement en espèces ou en mobile money aujourd'hui.",
+      "submit": "Envoyer le comptage",
+      "queued": "Comptage enregistré. Il sera envoyé dès que vous serez en ligne.",
+      "recount": "Comptez à nouveau le camion et envoyez un nouveau comptage.",
+      "parked": "Le serveur a refusé le comptage ({{code}}). Contactez votre superviseur.",
+      "outcome": {
+        "queued": "Comptage en attente d'envoi",
+        "parked": "Comptage refusé",
+        "balanced": "Équilibré, la journée est clôturée",
+        "approved": "Approuvé, la journée est clôturée",
+        "pending": "En attente d'approbation du superviseur",
+        "rejected": "Rejeté, recomptez"
+      }
+    },
+    "errors": {
+      "failed": "Cela n'a pas fonctionné. Réessayez.",
+      "offline": "Vous êtes hors ligne. Réessayez une fois en ligne.",
+      "run_open": "Une journée est déjà ouverte. Comptez le camion pour la clôturer d'abord.",
+      "record_exists": "Ceci est déjà enregistré.",
+      "visit_unknown": "Cette visite est introuvable. Revenez en arrière et rouvrez l'arrêt.",
+      "method_invalid": "Choisissez espèces ou mobile money.",
+      "amount": "Saisissez un montant supérieur à zéro.",
+      "confirm_failed": "Le chargement n'a pas pu être confirmé. Réessayez.",
+      "actor_unverified": "Votre connexion n'a pas pu être vérifiée. Reconnectez-vous en ligne, puis réessayez.",
+      "load_not_released": "Ce chargement n'est pas encore libéré.",
+      "load_confirmed": "Ce chargement est déjà confirmé.",
+      "load_not_open": "Ce chargement ne peut plus être confirmé.",
+      "van_unknown": "Cet appareil n'est lié à aucun camion.",
+      "credit_without_customer": "Choisissez un client avant de vendre à crédit.",
+      "no_credit_limit": "Ce client n'a pas de limite de crédit : le crédit est refusé.",
+      "limit_currency_differs": "La limite de crédit est en {{currency}}. Réglez cette vente en {{currency}} pour utiliser le crédit.",
+      "over_limit": "Ce montant dépasse le crédit disponible de {{amount}}. Mettez un montant plus bas à crédit."
+    }
   }
 }

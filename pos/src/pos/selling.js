@@ -121,6 +121,21 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
     topUp,
     ensureRanges,
 
+    /**
+     * VAN-14, NUM-02: a document that is not a sale but takes the next number of the receipt range (a
+     * route collection). `write(number, isoTime)` returns `{ operations, result }`: the rows to commit and
+     * what to resolve; the number's counter is committed in the same write, so a number is never used twice.
+     */
+    numbered: ({ timeZone, write }) =>
+      serial(async () => {
+        const at = serverNow();
+        const number = await draw(DOCUMENT_TYPES.receipt, at, timeZone);
+        const { operations, result } = await write(number, new Date(at).toISOString());
+        await posStore.write([...operations, posStore.prepareCounters(DOCUMENT_TYPES.receipt, number.used)]);
+        afterDraw(number, DOCUMENT_TYPES.receipt, timeZone);
+        return result;
+      }),
+
     /** POS-04: open a shift with an opening float per currency. */
     openShift: ({ user, actorProof, openingFloat }) =>
       serial(async () => {
@@ -231,7 +246,7 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
           payments,
           change: result.change,
           changeRate: result.changeRate,
-          extensions: computed.extensions,
+          extensions: withTenderExtensions(computed.extensions, tenders),
         });
         const sale = {
           ...payload,
@@ -332,6 +347,19 @@ export function createSelling({ engine, posStore, api, now = () => Date.now(), s
         return record;
       }),
   };
+}
+
+/**
+ * A tender provider may add to the sale's extensions (`tender.extension`, extensions.js): each key is
+ * merged over what the cart's adjusters gave, so a module's data from the cart and from its tenders meet
+ * in one object (Van sales: the run and visit, then the credit decision).
+ */
+export function withTenderExtensions(extensions, tenders) {
+  const merged = { ...extensions };
+  for (const tender of tenders ?? []) {
+    for (const [key, value] of Object.entries(tender.extension ?? {})) merged[key] = { ...merged[key], ...value };
+  }
+  return merged;
 }
 
 /** The sale's base currency and the rate the till used to it (null rate: the sale is in the base currency). */
