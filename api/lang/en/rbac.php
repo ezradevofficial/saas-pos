@@ -29,6 +29,7 @@ return [
             'stores' => 'Stores',
             'fixed_assets' => 'Fixed assets',
             'manufacturing' => 'Manufacturing',
+            'pharmacy' => 'Pharmacy and agrovet',
         ],
         'resources' => [
             'accounting' => [
@@ -76,6 +77,17 @@ return [
                 'tax' => 'Tax book',
                 'transfer' => 'Asset transfers',
                 'value' => 'Asset values',
+            ],
+            'pharmacy' => [
+                'settings' => 'Pharmacy settings',
+                'item' => 'Pharmacy item profiles',
+                'lot' => 'Lots and expiry',
+                'writeoff' => 'Write-offs',
+                'recall' => 'Recalls',
+                'prescription' => 'Prescriptions',
+                'dispense' => 'Restricted dispensing',
+                'register' => 'Controlled-drug register',
+                'report' => 'Pharmacy reports',
             ],
             'manufacturing' => [
                 'bom' => 'Bills of materials',
@@ -282,6 +294,8 @@ return [
         'cashier' => 'Cashier',
         'waiter' => 'Waiter',
         'storekeeper' => 'Storekeeper',
+        'pharmacist' => 'Pharmacist',
+        'pharmacy_technician' => 'Pharmacy technician',
         'accountant' => 'Accountant',
         'hr_officer' => 'HR Officer',
         'payroll_officer' => 'Payroll Officer',
