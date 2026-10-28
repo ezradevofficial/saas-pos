@@ -74,11 +74,12 @@ class PlatformBillingTest extends TestCase
         $operatorInvoice = $this->inTenant(fn () => BillingInvoice::query()->findOrFail($invoice)->operator_invoice_id);
         $this->postJson("/api/v1/platform/invoices/{$operatorInvoice}/mark-paid", ['reference' => 'EQUITY-0091'], $billing)->assertOk()
             ->assertJsonPath('data.status', 'paid')->assertJsonPath('data.paid_via', 'bank_transfer');
-        $this->assertSame(Subscription::ACTIVE, $this->subscription()->status);
+        // SUB-03: paid during the trial, it stays a trial (subscribed) until the trial ends.
+        $this->assertSame([Subscription::TRIAL, '2026-11-30'], [$this->subscription()->status, $this->subscription()->current_period_start->toDateString()]);
         $this->assertTrue($this->audited('platform.invoice.mark_paid'));
         $this->postJson("/api/v1/platform/invoices/{$operatorInvoice}/mark-paid", ['reference' => 'EQUITY-0091'], $billing)->assertStatus(422);
 
-        // A trial that has become a paid subscription is not extended.
+        // A trial subscribed to (its first period set) is not extended.
         $this->postJson("/api/v1/platform/tenants/{$tenant}/trial", ['trial_ends_at' => '2026-12-30T00:00:00Z', 'reason' => 'Customer asked for more time'], $billing)->assertStatus(422);
     }
 

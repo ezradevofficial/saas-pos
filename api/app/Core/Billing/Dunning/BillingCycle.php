@@ -23,6 +23,13 @@ use Illuminate\Support\Facades\DB;
  *
  * - Reminders 7 and 3 days before the due date (the trial end, or the
  *   period end), and on the due date (`billing.reminder_days`); each once.
+ * - "Subscribe now" during the trial (subscribeNow) issues the first
+ *   invoice at once, due at the trial end, for the first paid period: it
+ *   starts when the trial ends, never on the day of subscribing, so no
+ *   trial day is charged. Until then the subscription stays in its trial
+ *   (subscribed); paying early never moves the period. When the period
+ *   starts the subscription is active if that invoice is paid, else it
+ *   stays in trial and dunning follows from the due date (SUB-03, SUB-05).
  * - On the due date the next period starts: a change waiting for the
  *   period end applies, prices are those of the day (then locked for the
  *   period), overage of the period that ended is added (LIM-05), and the
@@ -61,6 +68,7 @@ class BillingCycle
         }
 
         $this->remind($subscription, $at);
+        $this->startSubscribedPeriod($subscription, $at);
         $invoice = $this->renew($subscription, $at);
 
         // SUB-04: a saved default method requests the new invoice before dunning looks at it.
@@ -73,8 +81,11 @@ class BillingCycle
     }
 
     /**
-     * The Owner subscribes during the trial: the first invoice is issued
-     * now for a period starting today; it falls due when the trial ends.
+     * SUB-03: the Owner subscribes during the trial. The first invoice is
+     * issued now and falls due when the trial ends; its period starts on
+     * the trial end's day (as the cycle's own first invoice does), so the
+     * trial days stay free. Subscribing after the trial has ended (before
+     * the cycle invoiced it) starts the period today.
      */
     public function subscribeNow(Subscription $subscription, CarbonImmutable $at): BillingInvoice
     {
@@ -82,9 +93,11 @@ class BillingCycle
             throw self::alreadySubscribed();
         }
 
-        $due = $subscription->trial_ends_at === null ? $at : CarbonImmutable::instance($subscription->trial_ends_at)->max($at);
+        $trialEnd = $subscription->trial_ends_at === null ? $at : CarbonImmutable::instance($subscription->trial_ends_at)->utc();
+        $due = $trialEnd->max($at);
+        $start = $trialEnd->startOfDay()->max($at->utc()->startOfDay());
         // A racing request (or the cycle) started the period first: nothing is issued twice.
-        $invoice = $this->startPeriod($subscription, $at->utc()->startOfDay(), $due, 'first') ?? throw self::alreadySubscribed();
+        $invoice = $this->startPeriod($subscription, $start, $due, 'first') ?? throw self::alreadySubscribed();
         $this->accounts->sync($subscription->fresh());
 
         return $invoice;
@@ -112,8 +125,55 @@ class BillingCycle
         return $invoice;
     }
 
+    /**
+     * A subscribed trial (SUB-03): the trial is over and the first paid
+     * period has begun. Paid already: active from today. Still open: the
+     * subscription stays in trial and the first invoice's due-date notice
+     * goes out; dunning makes it past due once overdue.
+     */
+    private function startSubscribedPeriod(Subscription $subscription, CarbonImmutable $at): void
+    {
+        if ($subscription->status !== Subscription::TRIAL || ! $subscription->hasPeriod() || $subscription->inSubscribedTrial($at)) {
+            return;
+        }
+
+        $first = $this->openFirstInvoice();
+
+        if ($first === null) {
+            $subscription->fill(['status' => Subscription::ACTIVE])->save();
+
+            return;
+        }
+
+        // The due-date notice, as the cycle's own first invoice sends it on that day.
+        $this->notifyOnce($subscription, CarbonImmutable::instance($first->due_at)->utc(), 0, BillingNotices::RENEWAL_DUE, (int) $first->total_minor);
+    }
+
+    /** The first invoice of a subscribed trial, while it is unpaid. */
+    private function openFirstInvoice(): ?BillingInvoice
+    {
+        return BillingInvoice::query()->where('kind', 'first')->where('status', BillingInvoice::OPEN)->orderBy('issued_at')->first();
+    }
+
     private function remind(Subscription $subscription, CarbonImmutable $at): void
     {
+        // A subscribed trial whose first invoice is open: remind of that invoice, due at the trial end.
+        $first = $subscription->status === Subscription::TRIAL && $subscription->hasPeriod() ? $this->openFirstInvoice() : null;
+
+        if ($first !== null) {
+            $due = CarbonImmutable::instance($first->due_at)->utc();
+
+            foreach ((array) config('billing.reminder_days', [7, 3, 0]) as $days) {
+                $days = (int) $days;
+
+                if ($days !== 0 && $at->lessThan($due) && $at->greaterThanOrEqualTo($due->subDays($days))) {
+                    $this->notifyOnce($subscription, $due, $days, BillingNotices::TRIAL_ENDING, (int) $first->total_minor);
+                }
+            }
+
+            return;
+        }
+
         $due = $subscription->nextDueAt();
 
         if ($due === null || $at->greaterThanOrEqualTo($due)) {
@@ -131,7 +191,7 @@ class BillingCycle
         }
     }
 
-    private function notifyOnce(Subscription $subscription, CarbonImmutable $due, int $days): void
+    private function notifyOnce(Subscription $subscription, CarbonImmutable $due, int $days, ?string $event = null, ?int $amount = null): void
     {
         $key = $due->toDateString().':'.$days;
         $sent = $subscription->reminders_sent ?? [];
@@ -141,10 +201,10 @@ class BillingCycle
         }
 
         $trial = ! $subscription->hasPeriod() && $subscription->status === Subscription::TRIAL;
-        $this->notices->send($trial ? BillingNotices::TRIAL_ENDING : BillingNotices::RENEWAL_DUE, [
+        $this->notices->send($event ?? ($trial ? BillingNotices::TRIAL_ENDING : BillingNotices::RENEWAL_DUE), [
             'days' => (string) $days,
             'date' => BillingNotices::date($due),
-            'amount' => $this->notices->money($this->nextAmount($subscription, $due), $subscription->currency),
+            'amount' => $this->notices->money($amount ?? $this->nextAmount($subscription, $due), $subscription->currency),
         ]);
 
         $subscription->forceFill(['reminders_sent' => array_slice([...$sent, $key], -12)])->saveQuietly();
@@ -153,6 +213,13 @@ class BillingCycle
     /** @return array{date: ?string, amount_minor: ?int} the next invoice's due date and amount */
     public function nextInvoice(Subscription $subscription): array
     {
+        // A subscribed trial: the first invoice, issued already, falls due at the trial end.
+        $first = $subscription->status === Subscription::TRIAL && $subscription->hasPeriod() ? $this->openFirstInvoice() : null;
+
+        if ($first !== null) {
+            return ['date' => CarbonImmutable::instance($first->due_at)->utc()->toDateString(), 'amount_minor' => (int) $first->total_minor];
+        }
+
         $due = $subscription->nextDueAt();
 
         return ['date' => $due?->toDateString(), 'amount_minor' => $due === null ? null : $this->nextAmount($subscription, $due)];

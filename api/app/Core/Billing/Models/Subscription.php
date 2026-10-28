@@ -17,7 +17,8 @@ use Illuminate\Support\Carbon;
  * was sold at, so price changes reach it only at renewal. Downgrades and
  * cycle changes wait in `pending_change` for the period end.
  *
- * Statuses: trial (no payment yet), active, past_due (an invoice unpaid
+ * Statuses: trial (the free trial; subscribed when its first period is
+ * already set, starting at the trial end), active, past_due (an invoice unpaid
  * after its due date: the grace period), read_only (grace over: writes
  * refused, the POS keeps selling until `pos_stops_at`), suspended and
  * cancelled (set by staff; not reached by dunning). Every change is
@@ -124,6 +125,16 @@ class Subscription extends Model
     public function hasPeriod(): bool
     {
         return $this->current_period_start !== null;
+    }
+
+    /**
+     * SUB-03: subscribed during the trial ("Subscribe now"), the trial still
+     * running: the first paid period is set and invoiced, and starts when
+     * the trial ends.
+     */
+    public function inSubscribedTrial(CarbonImmutable $at): bool
+    {
+        return $this->status === self::TRIAL && $this->hasPeriod() && $this->trial_ends_at !== null && $at->lessThan($this->trial_ends_at);
     }
 
     /** The date the next invoice falls due: the trial end before any period, else the period end. */

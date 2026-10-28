@@ -5605,7 +5605,8 @@
       "past_due": "Past due",
       "read_only": "Read-only",
       "suspended": "Suspended",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "trialSubscribed": "Trial, subscribed"
     },
     "cycles": {
       "monthly": "Monthly",
@@ -5654,8 +5655,10 @@
       "monthly": "Monthly cost",
       "pending": "Changes from {{date}}",
       "cancelPending": "Keep the current plan",
-      "subscribeText": "Your trial ends on {{date}}. Subscribe now to get your first invoice; it falls due when the trial ends.",
-      "subscribe": "Subscribe now"
+      "subscribeText": "Your trial ends on {{date}}. Subscribe now and your first invoice is issued today. It falls due when the trial ends, and its period starts then, so your trial days stay free.",
+      "subscribe": "Subscribe now",
+      "firstPeriod": "First period",
+      "subscribedText": "You’ve subscribed. Your trial runs until {{date}}. Your first period starts then, and its invoice falls due that day."
     },
     "change": {
       "title": "Change plan",
@@ -5676,7 +5679,9 @@
       "confirm": "Confirm change",
       "confirmCharge": "Confirm and pay {{amount}}",
       "done": "Your plan was changed.",
-      "doneInvoice": "Your plan was changed. Invoice {{number}} is ready to pay below."
+      "doneInvoice": "Your plan was changed. Invoice {{number}} is ready to pay below.",
+      "upgradeFirst": "This takes effect now. You pay the difference for your first period, which starts on {{date}}.",
+      "scheduledFirst": "This takes effect on {{date}}, at the end of your first period."
     },
     "pay": {
       "title": "Pay invoice {{number}}",
@@ -5802,7 +5807,8 @@
       "daysLeft_other": "Trial · {{count}} days left",
       "ended": "Trial ended",
       "help": "No payment needed during your free trial.",
-      "endedHelp": "Your free trial has ended. Choose how to pay to keep using every module."
+      "endedHelp": "Your free trial has ended. Choose how to pay to keep using every module.",
+      "subscribedHelp": "Subscribed: your first period starts on {{date}}."
     },
     "welcome": {
       "title": "Start your free trial",

@@ -88,7 +88,8 @@ class SubscriptionBillingTest extends TestCase
         $invoice = $this->inTenant(fn () => BillingInvoice::query()->findOrFail($response->json('data.id')));
 
         // The tenant's copy: dates, number, total, the seller.
-        $this->assertSame(['first', 'open', 390000, '2026-11-01', '2026-12-01', '2026-11-15'], [
+        // SUB-03: issued today, due at the trial end; the period starts at the trial end, so no trial day is charged.
+        $this->assertSame(['first', 'open', 390000, '2026-11-15', '2026-12-15', '2026-11-15'], [
             $invoice->kind, $invoice->status, $invoice->total_minor, $invoice->period_start->toDateString(), $invoice->period_end->toDateString(), $invoice->due_at->toDateString(),
         ]);
         $this->assertMatchesRegularExpression('/^INV-2026-0+1$/', $invoice->number);
@@ -113,8 +114,11 @@ class SubscriptionBillingTest extends TestCase
         $this->assertSame('paid', $this->operatorInvoice($operatorInvoice->id)->status);
         $this->assertSame('paid', $this->inTenant(fn () => $invoice->fresh()->status));
         $subscription = $this->subscription();
-        $this->assertSame([Subscription::ACTIVE, '2026-11-01', '2026-12-01'], [$subscription->status, $subscription->current_period_start->toDateString(), $subscription->current_period_end->toDateString()]);
+        $this->assertSame([Subscription::TRIAL, '2026-11-15', '2026-12-15'], [$subscription->status, $subscription->current_period_start->toDateString(), $subscription->current_period_end->toDateString()]);
         $this->assertContains('core.subscription.payment_received', $this->ownerNotices());
+        // Active once the trial ends.
+        $this->cycle('2026-11-15 09:00:00');
+        $this->assertSame(Subscription::ACTIVE, $this->subscription()->status);
         $intent = $this->inOperator(fn () => PaymentIntent::query()->sole());
         $this->assertSame(['billing.invoice', $operatorInvoice->id, 'fake', null], [$intent->reference_type, $intent->reference, $intent->driver, $intent->created_by]);
 
@@ -315,7 +319,7 @@ class SubscriptionBillingTest extends TestCase
         $this->payWithMpesa($first->json('data.id'))->assertJsonPath('data.status', 'succeeded');
 
         // The renewal's overage (KES 166.67) rounds to KES 167; every line and the total are whole shillings.
-        $this->cycle('2026-12-01 06:00:00');
+        $this->cycle('2026-12-15 06:00:00');
         $renewal = collect($this->invoices())->firstWhere('kind', 'renewal');
         $this->assertSame(16700, collect($renewal->lines)->firstWhere('type', 'overage')['amount']);
         foreach ($renewal->lines as $line) {
@@ -483,6 +487,8 @@ class SubscriptionBillingTest extends TestCase
 
     public function test_staff_mark_a_bank_transfer_paid_and_the_tenant_is_active_at_once(): void
     {
+        // The trial is over (SUB-03: paid during the trial, it would stay a trial until its end).
+        $this->inTenant(fn () => $this->subscription()->fill(['trial_ends_at' => CarbonImmutable::now()])->save());
         $invoice = $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated()->json('data.id');
         $operatorInvoiceId = $this->inTenant(fn () => BillingInvoice::query()->findOrFail($invoice)->operator_invoice_id);
 
