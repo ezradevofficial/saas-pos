@@ -91,6 +91,12 @@ class TenantIsolationTest extends TestCase
         'GET api/v1/branding/assets/{path}' => 'BR-02: a signed URL for one public brand asset; the controller enters the tenant the path names and serves the file only if that tenant has it',
         'GET api/v1/closed-tenant-exports/{export}/download' => 'NFR-08, EXP-02: the signed link emailed to a closed tenant\'s Owners; the controller checks the signature (403) and its expiry (410), enters the signed tenant and serves only its closing export, while the tenant is closed and to an active Owner',
         'GET api/v1/tenant-exports/{export}/download' => 'EXP-02: temporary signed URL for one full export and its requesting Owner; the controller enters the signed tenant and serves the zip only to that user while they are an active Owner',
+        // SUB-04: the providers' webhooks for the platform's own billing, at the URLs the owner registered in their dashboards.
+        'POST api/v1/billing/paystack/webhook' => 'Paystack billing webhook: rejected (401) without a valid HMAC SHA512 signature; the payment is then re-verified with Paystack and applied only to the operator tenant\'s own intent, by its UUID reference; answers nothing about any tenant',
+        'POST api/v1/billing/pawapay/deposits' => 'pawaPay billing deposit callback: names only a depositId; the deposit is re-checked with pawaPay\'s API and applied only to the operator tenant\'s own intent; answers nothing about any tenant',
+        'POST api/v1/billing/pawapay/refunds' => 'pawaPay billing refund callback: names only a refundId, re-checked with pawaPay and applied only in the operator tenant; answers nothing',
+        'POST api/v1/billing/pawapay/payouts' => 'pawaPay billing payout callback: acknowledged only; reads and writes nothing',
+        'POST api/v1/billing/pawapay/checkouts' => 'pawaPay checkout callback (the dashboard requires the URL; checkouts are not used): acknowledged only; reads and writes nothing',
         'POST api/v1/payments/callbacks/{token}/{kind}' => 'a payment provider\'s callback: the 48-character callback token names one payment method (its tenant found by a security-definer function), the caller must be the provider\'s address, and it answers only "Accepted"',
         'GET api/v1/catalogue' => 'ONB-03: the global plan catalogue of a country (no tenant data, global tables); rate-limited',
         'POST api/v1/catalogue/quote' => 'ONB-03: prices a selection against the global catalogue; reads no tenant row; rate-limited',
