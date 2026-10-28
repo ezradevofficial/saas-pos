@@ -46,6 +46,7 @@ return [
         'payment_method_archived' => 'This payment method was removed. Choose another one.',
         'payment_method_unknown' => 'Choose one of your saved payment methods.',
         'provider_unavailable' => 'This payment method isn’t available yet. Choose another one or contact support.',
+        'payer_email_missing' => 'Add an email address to your profile, then pay again. The card checkout needs it for the receipt.',
         'payment_in_progress' => 'A payment of this invoice is still waiting for the payer. Approve it on the phone, or wait for it to finish, then try again.',
         'payment_failed' => 'The payment didn’t go through. Try again or use another method.',
         'already_subscribed' => 'You’ve already subscribed. Your invoices are listed below.',

@@ -66,6 +66,9 @@ final class SubscriptionPresenter
             'next_invoice' => ['date' => $next['date'], 'amount' => $money($next['amount_minor'])],
             'default_payment_method_id' => $subscription->default_payment_method_id,
             'wallets' => (array) config("billing.wallets.{$subscription->country}", []),
+            // The checkout behind "card": Paystack (M-Pesa or card, a card is saved by paying), else a hosted page.
+            'checkout_provider' => (string) config('billing.drivers.card_aggregator'),
+            'card_setup' => config('billing.drivers.card_aggregator') !== 'paystack',
         ];
     }
 

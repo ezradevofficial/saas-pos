@@ -22,6 +22,7 @@ return [
         'phone_invalid' => 'Enter a valid mobile number, for example 0712 345 678.',
         'receipt_used' => 'This payment code was already used for another sale. Check the code on the customer’s message.',
         'receipt_invalid' => 'Enter the payment code from the customer’s message: 6 to 20 letters and digits.',
+        'phone_provider_mismatch' => 'This number belongs to another mobile money operator. Choose that operator, or enter the number of the one you chose.',
         'unreachable' => 'The payment provider couldn’t be reached. Try again, or take another payment method.',
         'amount_mismatch' => 'The amount the provider reports is not the amount of the payment. Check it in the back office.',
         'no_result' => 'The payment provider sent no result. Check the refund with the provider before paying it again.',
@@ -42,6 +43,11 @@ return [
     ],
 
     // Sent to Safaricom: the text on the customer's phone (13 characters at most) and the refund remark.
+    // Sent to pawaPay: the text on the customer's phone (4 to 22 letters, digits and spaces).
+    'pawapay' => [
+        'description' => 'Payment',
+    ],
+
     'daraja' => [
         'description' => 'Payment',
         'refund_remarks' => 'Refund',

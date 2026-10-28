@@ -46,23 +46,26 @@ return [
     'vodacom_mpesa_cd' => [
         'type' => 'mobile_money',
         'countries' => ['CD'],
-        'driver' => 'manual',
-        'settings' => ['merchant_id'],
-        'secrets' => ['api_key'],
+        // pawaPay (v2 deposits); the business enters its own API token.
+        'driver' => 'pawapay',
+        'settings' => [],
+        'secrets' => ['api_token'],
     ],
     'orange_money_cd' => [
         'type' => 'mobile_money',
         'countries' => ['CD'],
-        'driver' => 'manual',
-        'settings' => ['merchant_id'],
-        'secrets' => ['api_key'],
+        // pawaPay (v2 deposits); the business enters its own API token.
+        'driver' => 'pawapay',
+        'settings' => [],
+        'secrets' => ['api_token'],
     ],
     'airtel_money_cd' => [
         'type' => 'mobile_money',
         'countries' => ['CD'],
-        'driver' => 'manual',
-        'settings' => ['merchant_id'],
-        'secrets' => ['api_key'],
+        // pawaPay (v2 deposits); the business enters its own API token.
+        'driver' => 'pawapay',
+        'settings' => [],
+        'secrets' => ['api_token'],
     ],
     'afrimoney_cd' => [
         'type' => 'mobile_money',
@@ -74,6 +77,8 @@ return [
     'card_aggregator' => [
         'type' => 'card',
         'countries' => ['KE', 'CD'],
+        // The platform's own billing collects through this method (Paystack in
+        // Kenya, config/billing.php `drivers`): `api_key` is the Paystack secret key.
         'driver' => 'manual',
         'settings' => ['merchant_id'],
         'secrets' => ['api_key'],

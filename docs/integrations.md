@@ -252,20 +252,83 @@ entities. Enter their details the way any business does:
    the company's own effective-dated rate. **Owner input**: confirm that
    prices are tax-inclusive, and enter the rate. Until then, the tax is
    left out and the invoices are held for attention.
-4. **Payment methods** of the operator companies:
-   - **M-Pesa**: the operator's Daraja method (above); `BILLING_DRIVER_MPESA_KE` overrides the adapter;
-   - **Airtel Money** (KE, CD), **Orange Money** (CD) and **Afrimoney** (CD), adapters `airtel_money`, `orange_money` and `afrimoney`;
-   - **cards**, through a generic hosted checkout (adapter `card_hosted`).
-   The wallet and card adapters report themselves unconfigured until
-   their merchant APIs are chosen.
+4. **Payment methods** of the operator companies (owner decision 2026-10-28):
+   - **Kenya, Paystack** (`BILLING_DRIVER_CARD=paystack`, the default outside local and testing): M-Pesa and cards on Paystack's page, on the operator's `card_aggregator` method. A card paid with a reusable authorization is saved (last four digits, brand and expiry only) and renewals charge it automatically ([Paystack](#paystack-kenya-subscription-billing)).
+   - **Kenya, M-Pesa through Daraja** stays selectable: the operator's Daraja method (above); `BILLING_DRIVER_MPESA_KE` overrides the adapter.
+   - **DRC, pawaPay**: Vodacom M-Pesa, Airtel and Orange, in CDF and USD ([pawaPay](#pawapay-drc-billing-and-tills)).
+   - **Airtel Money** (KE) and **Afrimoney** (CD) keep their adapters `airtel_money` and `afrimoney`, which report themselves unconfigured until a merchant API is chosen.
 
 | Variable | What | Default |
 | --- | --- | --- |
-| `BILLING_DRIVER_MPESA_KE`, `BILLING_DRIVER_AIRTEL_KE`, `BILLING_DRIVER_AIRTEL_CD`, `BILLING_DRIVER_ORANGE_CD`, `BILLING_DRIVER_AFRIMONEY_CD`, `BILLING_DRIVER_CARD` | The adapter collecting each provider for the operator | `fake` in local and testing; otherwise the real adapter (M-Pesa: the method's Daraja adapter) |
+| `BILLING_DRIVER_MPESA_KE`, `BILLING_DRIVER_AIRTEL_KE`, `BILLING_DRIVER_VODACOM_CD`, `BILLING_DRIVER_AIRTEL_CD`, `BILLING_DRIVER_ORANGE_CD`, `BILLING_DRIVER_AFRIMONEY_CD`, `BILLING_DRIVER_CARD` | The adapter collecting each provider for the operator | `fake` in local and testing; otherwise the real adapter (M-Pesa: the method's Daraja adapter; Vodacom, Airtel and Orange CD: `pawapay`; card: `paystack`) |
 | `AIRTEL_MONEY_BASE_URL`, `AIRTEL_MONEY_CLIENT_ID`, `AIRTEL_MONEY_CLIENT_SECRET` | Airtel Money merchant API | owner input |
 | `ORANGE_MONEY_BASE_URL`, `ORANGE_MONEY_MERCHANT_KEY`, `ORANGE_MONEY_CLIENT_SECRET` | Orange Money merchant API | owner input |
 | `AFRIMONEY_BASE_URL`, `AFRIMONEY_MERCHANT_ID`, `AFRIMONEY_API_KEY` | Afrimoney merchant API | owner input |
 | `BILLING_CARD_BASE_URL`, `BILLING_CARD_MERCHANT_ID`, `BILLING_CARD_API_KEY` | Hosted card checkout: card details stay on the provider's page; the platform keeps only its token | owner input |
+
+### Paystack (Kenya subscription billing)
+
+SUB-04. Paystack takes M-Pesa and cards for KES invoices. "Pay" on a KES
+invoice offers it when `PAYSTACK_SECRET_KEY` is set (or the operator's
+`card_aggregator` method holds the key as its `api_key` secret:
+encrypted, never returned by the API). It initialises a transaction with
+the invoice's exact amount in minor units, our payment id as the
+reference and the callback URL, then sends the payer to
+`authorization_url`.
+
+| Variable | What |
+| --- | --- |
+| `PAYSTACK_SECRET_KEY` | Secret key. Fallback for the operator only; also signs and verifies the webhook |
+| `PAYSTACK_PUBLIC_KEY` | Public key (not used by the API; kept for a future inline checkout) |
+| `PAYSTACK_BASE_URL` | `https://api.paystack.co` |
+| `PAYSTACK_CALLBACK_URL` | Default `FRONTEND_URL` + `/settings/subscription/paystack-return` |
+
+URLs to register in the Paystack dashboard (Settings → API Keys & Webhooks):
+
+- **Callback URL** (browser return): `https://app.curaafrya.com/settings/subscription/paystack-return`. A web page that polls our API for the outcome; it never marks anything paid.
+- **Webhook URL**: `https://<API host>/api/v1/billing/paystack/webhook` (`POST`). The request is accepted only with a valid `x-paystack-signature` (HMAC SHA512 of the raw body with the secret key); otherwise 401. A `charge.success` event makes us call Paystack's `transaction/verify`; the invoice is paid only when Paystack confirms `success` with exactly the invoice's currency and amount. Repeated events change nothing.
+
+Cards: a successful card payment with a reusable authorization is saved as a
+payment method (last four digits, brand, expiry; the authorization code and
+the payer's email are encrypted). Renewals call `charge_authorization` and
+are verified the same way.
+
+### pawaPay (DRC billing and tills)
+
+SUB-04, MD-04. pawaPay v2 deposits for `VODACOM_MPESA_COD`, `AIRTEL_COD`
+and `ORANGE_COD`, in CDF (whole francs) and USD (two decimals). The
+customer picks the operator and types the phone number; we validate it with
+pawaPay's predict-provider, request a deposit (the `depositId` is a UUIDv4
+derived from our payment id, so a retry never charges twice) and the screen
+says "Approve the request on the phone" while it polls, with the same
+time-outs as the M-Pesa push.
+
+| Variable | What |
+| --- | --- |
+| `PAWAPAY_API_TOKEN` | The operator's API token (billing). Fallback for the operator only |
+| `PAWAPAY_BASE_URL` | `https://api.sandbox.pawapay.io` (production: `https://api.pawapay.io`) |
+| `PAWAPAY_VERIFY_SIGNATURES` | `true` once "signed callbacks" are enabled in the pawaPay dashboard: RFC 9421 signatures are then verified (401 otherwise) |
+
+URLs to register in the pawaPay dashboard (all `POST`; deposits and refunds
+re-check with pawaPay's API, never trusting the body; payouts and checkouts
+are acknowledged):
+
+- `https://<API host>/api/v1/billing/pawapay/deposits`
+- `https://<API host>/api/v1/billing/pawapay/refunds`
+- `https://<API host>/api/v1/billing/pawapay/payouts`
+- `https://<API host>/api/v1/billing/pawapay/checkouts`
+
+Each DRC business uses its **own** pawaPay account for its tills: in Payment
+methods, Vodacom M-Pesa, Airtel Money and Orange Money (DRC) take an
+`api_token` secret (encrypted). The business's callback URLs (the method's
+callbacks page: `pawapay-deposit` and `pawapay-refund`) carry the method's
+unguessable token. The POS charge is a payment intent like the M-Pesa push.
+A business never uses the operator's token.
+
+Sandbox test numbers for deposits (DRC): Vodacom `243813456789` completes;
+`243813456019` PAYER_LIMIT_REACHED; `...029` PAYER_NOT_FOUND; `...039`
+PAYMENT_NOT_APPROVED; `...049` INSUFFICIENT_BALANCE; `...069` OTHER_ERROR;
+`...129` never answers. Airtel and Orange use `24397...` and `24389...`.
 
 - **Bank transfer** (Enterprise): platform staff with the billing role mark
   the invoice paid in the console, with the bank's reference.

@@ -484,6 +484,7 @@ const Guide = lazy(() => import('./pages/developers/DeveloperPages').then((m) =>
 const SupportAccess = lazy(() => import('./pages/settings/SupportAccess'))
 const SupportEnter = lazy(() => import('./pages/auth/SupportEnter'))
 const Subscription = lazy(() => import('./pages/settings/Subscription'))
+const PaystackReturn = lazy(() => import('./pages/settings/subscription/PaystackReturn'))
 const Imports = lazy(() => import('./pages/settings/Imports'))
 const ImportWizard = lazy(() => import('./pages/settings/imports/ImportWizard'))
 const Domains = lazy(() => import('./pages/settings/Domains'))
@@ -1156,6 +1157,8 @@ export const routes = [
       // EXP-02: the full data export (Owners only; the API also checks the Owner role).
       // SUB-02..SUB-06: the plan, invoices and payment methods.
       { path: '/settings/subscription', element: <RequirePermission permission="core.subscription.view" tenantWide><Subscription /></RequirePermission> },
+      // SUB-04: where Paystack sends the payer back; it shows the outcome our API verified.
+      { path: '/settings/subscription/paystack-return', element: <RequirePermission permission="core.subscription.view" tenantWide><PaystackReturn /></RequirePermission> },
       // LIM-01, LIM-02: usage against the plan (Owners only).
       { path: '/settings/usage', element: <RequirePermission owner><Usage /></RequirePermission> },
       { path: '/settings/data-export', element: <RequirePermission permission="core.tenant.export" tenantWide><DataExport /></RequirePermission> },

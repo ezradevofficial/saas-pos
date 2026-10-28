@@ -102,4 +102,35 @@ return [
             '196.201.214.200,196.201.214.206,196.201.213.114,196.201.214.207,196.201.214.208,196.201.213.44,196.201.212.127,196.201.212.138,196.201.212.129,196.201.212.136,196.201.212.74,196.201.212.69'
         ))))),
     ],
+
+    // SUB-04: Paystack (Kenya billing: M-Pesa and card, saved-card renewals).
+    // The operator's credentials normally live on its `card_aggregator`
+    // payment method (encrypted); these env values are the fallback for the
+    // operator only. Never logged, never returned by the API.
+    'paystack' => [
+        'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+        // The browser return page the owner registered in Paystack's dashboard.
+        'callback_url' => env('PAYSTACK_CALLBACK_URL', rtrim((string) env('FRONTEND_URL', env('APP_URL')), '/').'/settings/subscription/paystack-return'),
+        'timeout' => 20,
+    ],
+
+    // pawaPay (DRC: Vodacom M-Pesa, Airtel, Orange; CDF and USD). Billing
+    // uses the operator's token (a payment method secret `api_token`, else
+    // PAWAPAY_API_TOKEN); each business's POS uses its own method's token.
+    'pawapay' => [
+        'base_url' => env('PAWAPAY_BASE_URL', 'https://api.sandbox.pawapay.io'),
+        'api_token' => env('PAWAPAY_API_TOKEN'),
+        // Verify RFC 9421 signatures on callbacks (enable "signed callbacks" in the pawaPay dashboard first).
+        'verify_signatures' => (bool) env('PAWAPAY_VERIFY_SIGNATURES', false),
+        'timeout' => 20,
+        // Provider keys (config/payment_providers.php) => pawaPay provider codes.
+        'providers' => [
+            'vodacom_mpesa_cd' => 'VODACOM_MPESA_COD',
+            'airtel_money_cd' => 'AIRTEL_COD',
+            'orange_money_cd' => 'ORANGE_COD',
+        ],
+        'country_code' => '243',
+    ],
 ];

@@ -156,6 +156,18 @@
     [
       "aws_secret_access_key: \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\"",
       "aws_secret_access_key: \"[redacted]\""
+    ],
+    [
+      "Paystack refused sk_test_0123456789abcdef0123456789abcdef01234567",
+      "Paystack refused [token]"
+    ],
+    [
+      "charge with AUTH_8dfhjjdt5f failed",
+      "charge with [token] failed"
+    ],
+    [
+      "pawaPay deposit for 243813456789 timed out",
+      "pawaPay deposit for [phone] timed out"
     ]
   ],
   "objects": [

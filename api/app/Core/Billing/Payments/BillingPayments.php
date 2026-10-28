@@ -21,9 +21,12 @@ use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Payments\Contracts\HostedCheckout;
 use App\Core\Payments\Contracts\PaymentProvider;
 use App\Core\Payments\Models\PaymentIntent;
+use App\Core\Payments\Pawapay\PawapayProvider;
 use App\Core\Payments\PaymentIntents;
 use App\Core\Payments\PaymentProviderRegistry;
+use App\Core\Payments\Paystack\PaystackProvider;
 use App\Core\Payments\Phones;
+use App\Core\Payments\ProviderResult;
 use App\Core\Platform\PlatformAuditor;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -90,6 +93,8 @@ class BillingPayments
         }
         $customerId = $this->tenants->require();
         $id = (string) Str::uuid7();
+        // Paystack needs the payer's email: the saved card's, else the person paying.
+        $email = $saved?->customer_email ?? $by?->email;
 
         // The customer's row first: a settlement arriving at once finds it.
         $payment = BillingPayment::create([
@@ -105,7 +110,7 @@ class BillingPayments
         ]);
 
         try {
-            $intent = $this->operator->run(function () use ($invoice, $provider, $phone, $token, $customerId, $id) {
+            $intent = $this->operator->run(function () use ($invoice, $provider, $phone, $token, $customerId, $id, $email) {
                 $operatorInvoice = OperatorInvoice::query()->findOrFail($invoice->operator_invoice_id);
 
                 if ($operatorInvoice->customer_tenant_id !== $customerId || ! $operatorInvoice->isOpen()) {
@@ -114,6 +119,7 @@ class BillingPayments
 
                 [$method, $driver] = $this->collector($operatorInvoice->company_id, $provider);
                 $card = $provider === self::CARD;
+                $initiate = $this->initiator($driver, $method, $token, $email);
 
                 return $this->intents->request($method, $driver, [
                     'id' => $id,
@@ -127,7 +133,7 @@ class BillingPayments
                     'phone' => $phone,
                     'reference_type' => Invoicing::REFERENCE_TYPE,
                     'reference' => $operatorInvoice->id,
-                ], $token !== null && $driver instanceof HostedCheckout ? fn (PaymentIntent $intent) => $driver->charge($intent, $method, $token) : null);
+                ], $initiate);
             });
         } catch (\Throwable $e) {
             // Never left pending: the request did not start.
@@ -137,6 +143,28 @@ class BillingPayments
         }
 
         return $this->mirror($payment->fresh(), $intent);
+    }
+
+    /**
+     * How the provider is asked for the money, when not by its plain initiate():
+     * Paystack opens its checkout for the payer's email or charges the saved
+     * card's authorization; other hosted card providers charge their token.
+     *
+     * @return (callable(PaymentIntent): ProviderResult)|null
+     */
+    private function initiator(PaymentProvider $driver, PaymentMethod $method, ?string $token, ?string $email): ?callable
+    {
+        if ($driver instanceof PaystackProvider) {
+            if (blank($email)) {
+                throw new ApiException(422, 'payer_email_missing', __('billing.errors.payer_email_missing'));
+            }
+
+            return $token !== null
+                ? fn (PaymentIntent $intent) => $driver->chargeAuthorization($intent, $method, $token, $email)
+                : fn (PaymentIntent $intent) => $driver->checkout($intent, $method, $email);
+        }
+
+        return $token !== null && $driver instanceof HostedCheckout ? fn (PaymentIntent $intent) => $driver->charge($intent, $method, $token) : null;
     }
 
     /** Ask the provider where an open payment stands (the screen polls this), then show it. */
@@ -205,12 +233,55 @@ class BillingPayments
 
             if ($payment !== null) {
                 $this->mirror($payment, $intent);
+                $this->keepCard($payment, $intent);
             }
 
             if ($invoice->status === BillingInvoice::PAID) {
                 $this->copyPaid($invoice);
             }
         });
+    }
+
+    /**
+     * SUB-04: a card paid on Paystack's page with a reusable authorization is
+     * saved as a payment method (brand, last4 and expiry only; the
+     * authorization code encrypted), once, for renewals. In the customer's context.
+     */
+    private function keepCard(BillingPayment $payment, PaymentIntent $intent): void
+    {
+        if ($intent->driver !== 'paystack' || $intent->status !== 'succeeded' || $payment->payment_method_id !== null) {
+            return;
+        }
+
+        $card = PaystackProvider::takeAuthorization((string) $intent->id);
+        $subscription = Subscription::query()->first();
+
+        if ($card === null || $subscription === null) {
+            return;
+        }
+
+        $label = mb_substr(trim(ucfirst(strtolower($card['brand'])).' •••• '.$card['last4'].($card['exp_month'] !== '' ? ' · '.$card['exp_month'].'/'.substr($card['exp_year'], -2) : '')), 0, 60);
+        $email = $payment->created_by === null ? null : User::query()->find($payment->created_by)?->email;
+
+        $method = BillingPaymentMethod::query()->whereNull('archived_at')->where('provider', self::CARD)->where('label', $label)->first();
+
+        if ($method !== null) {
+            $method->fill(['token' => $card['code'], 'customer_email' => $email ?? $method->customer_email])->save();
+        } else {
+            $method = BillingPaymentMethod::create([
+                'kind' => BillingPaymentMethod::CARD,
+                'provider' => self::CARD,
+                'label' => $label,
+                'token' => $card['code'],
+                'customer_email' => $email,
+                'is_default' => false,
+                'auto_renew' => true,
+                'created_by' => $payment->created_by,
+            ]);
+            $this->defaultIfFirst($subscription, $method, false);
+        }
+
+        $payment->fill(['payment_method_id' => $method->id])->save();
     }
 
     /** In the operator's context, the invoice locked: an extra payment recorded once, alerted in the console and the platform audit. */
@@ -369,8 +440,11 @@ class BillingPayments
 
         $name = config("billing.drivers.{$provider}") ?: $this->registry->driverName($method);
 
-        // A real adapter collects only through a method the operator switched on (configured).
-        if ($name !== 'fake' && ! $method->active) {
+        // A real adapter collects only through a method the operator switched on (configured),
+        // or with the operator's environment credentials (Paystack, pawaPay).
+        $environment = ($name === 'paystack' && filled(config('payments.paystack.secret_key'))) || ($name === 'pawapay' && filled(config('payments.pawapay.api_token')));
+
+        if ($name !== 'fake' && ! $method->active && ! $environment) {
             throw new ApiException(422, 'provider_unavailable', __('billing.errors.provider_unavailable'), ['provider' => [__('billing.errors.provider_unavailable')]]);
         }
 
@@ -414,7 +488,11 @@ class BillingPayments
             throw new ApiException(422, 'provider_unavailable', __('billing.errors.provider_unavailable'), ['provider' => [__('billing.errors.provider_unavailable')]]);
         }
 
-        $normalised = $subscription->country === 'KE' ? Phones::kenyanMobile($phone) : preg_replace('/\D/', '', $phone);
+        $normalised = match ($subscription->country) {
+            'KE' => Phones::kenyanMobile($phone),
+            'CD' => PawapayProvider::msisdn($phone),
+            default => preg_replace('/\D/', '', $phone),
+        };
 
         if ($normalised === null || strlen((string) preg_replace('/\D/', '', $normalised)) < 9 || strlen((string) $normalised) > 16) {
             throw new ApiException(422, 'phone_invalid', __('payments.errors.phone_invalid'), ['phone' => [__('payments.errors.phone_invalid')]]);

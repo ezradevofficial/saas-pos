@@ -176,6 +176,10 @@ MAIL_FROM_ADDRESS=<no-reply@domain>
 MAIL_FROM_NAME="\${APP_NAME}"
 
 MPESA_BASE_URL=https://sandbox.safaricom.co.ke
+PAYSTACK_SECRET_KEY=<Paystack secret key>
+PAYSTACK_PUBLIC_KEY=<Paystack public key>
+PAWAPAY_API_TOKEN=<pawaPay API token>
+PAWAPAY_BASE_URL=https://api.sandbox.pawapay.io
 ETIMS_BASE_URL=<OSCU sandbox base URL from KRA>
 
 BACKUPS_ENABLED=false
@@ -205,6 +209,19 @@ Required everywhere (`app:preflight` fails without them outside local and testin
 | `HR_DIGEST_KEY` | a random 32-byte key, `base64:…`, separate from `APP_KEY` (docs/modules/hr.md) |
 | `TRUSTED_PROXIES` | `none` (no load balancer, Cloudflare DNS only) |
 | `PAYMENTS_CALLBACK_URL`, `MPESA_*`, `ETIMS_*` | docs/integrations.md; Daraja sandbox and the KRA sandbox for now |
+| `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_CALLBACK_URL` (optional) | Kenya subscription billing (docs/integrations.md). The secret key never goes in the repo, a log or a ticket |
+| `PAWAPAY_API_TOKEN`, `PAWAPAY_BASE_URL`, `PAWAPAY_VERIFY_SIGNATURES` | DRC subscription billing; `PAWAPAY_BASE_URL` is the sandbox until go-live |
+
+Register these in the providers' dashboards (replace the host with `APP_URL`'s API host; the first is on the web app):
+
+| Provider | Setting | URL |
+| --- | --- | --- |
+| Paystack | Callback URL | `https://app.curaafrya.com/settings/subscription/paystack-return` |
+| Paystack | Webhook URL | `https://<API host>/api/v1/billing/paystack/webhook` |
+| pawaPay | Deposit callback | `https://<API host>/api/v1/billing/pawapay/deposits` |
+| pawaPay | Refund callback | `https://<API host>/api/v1/billing/pawapay/refunds` |
+| pawaPay | Payout callback | `https://<API host>/api/v1/billing/pawapay/payouts` |
+| pawaPay | Checkout callback | `https://<API host>/api/v1/billing/pawapay/checkouts` |
 
 Must **not** be set in production: `PAYROLL_PACK_DIR` (test statutory packs; allowed on staging only, and the guard refuses it elsewhere), `PAYMENTS_ALLOW_FAKE`, `PAYMENTS_DRIVER_*=fake`, `BILLING_DRIVER_*=fake`, `FISCAL_ALLOW_FAKE`, `NOTIFICATIONS_*_DRIVER=fake`.
 

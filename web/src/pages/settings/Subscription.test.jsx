@@ -1,5 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
+import { browser } from '@/lib/browser'
+import { chooseOption, optionTexts } from '@/test/combobox'
 import { mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
@@ -246,5 +248,78 @@ describe('Subscription banner (SUB-05, ONB-04)', () => {
     await screen.findAllByRole('navigation')
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('subscription/status'))
     expect(screen.queryByText('Choose a plan')).not.toBeInTheDocument()
+  })
+
+  // SUB-04: Kenya pays through Paystack (M-Pesa or card on its page); a card is saved by paying, so there is no "Add card".
+  describe('Paystack and pawaPay (SUB-04)', () => {
+    const PAYSTACK = { ...SUBSCRIPTION, checkout_provider: 'paystack', card_setup: false }
+
+    it('offers Paystack for a shilling invoice, sends the payer to its page, and hides "Add card"', async () => {
+      mockRoutes(api, routes(PAYSTACK), { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+      const go = vi.spyOn(browser, 'go').mockImplementation(() => {})
+      api.post.mockResolvedValue({ data: { id: 'p-9', status: 'pending', label: 'Card', redirect_url: 'https://checkout.paystack.com/abc123' } })
+      renderApp('/settings/subscription')
+
+      expect(await screen.findByText('INV-2026-000002')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Add card' })).not.toBeInTheDocument()
+      fireEvent.click(await screen.findByRole('button', { name: 'Pay invoice INV-2026-000002' }))
+      const dialog = await screen.findByRole('dialog')
+      chooseOption('Pay with', 'Card or M-Pesa, on Paystack’s page')
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Pay KES 3,900.00' }))
+
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('subscription/invoices/i-1/pay', { provider: 'card_aggregator' }))
+      await waitFor(() => expect(go).toHaveBeenCalledWith('https://checkout.paystack.com/abc123'))
+      go.mockRestore()
+    })
+
+    it('does not offer Paystack for an invoice that is not in shillings', async () => {
+      const usd = { ...INVOICE, currency: 'USD', total: { amount_minor: 4850, currency: 'USD' } }
+      mockRoutes(api, [[/^subscription\/invoices/, { data: [usd], meta: { total: 1, from: 1, to: 1, current_page: 1, last_page: 1, per_page: 25 } }], ...routes({ ...PAYSTACK, country: 'CD', currency: 'USD', wallets: ['vodacom_mpesa_cd', 'airtel_money_cd', 'orange_money_cd'] })], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+      renderApp('/settings/subscription')
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Pay invoice INV-2026-000002' }))
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByLabelText('Pay with')).toBeInTheDocument()
+      expect(optionTexts('Pay with').some((text) => /Paystack/.test(text))).toBe(false)
+    })
+
+    it('lets a Congolese customer pick Vodacom M-Pesa, Airtel or Orange and type the phone, then asks to approve on the phone', async () => {
+      const cd = { ...SUBSCRIPTION, country: 'CD', currency: 'CDF', checkout_provider: 'pawapay', card_setup: true, wallets: ['vodacom_mpesa_cd', 'airtel_money_cd', 'orange_money_cd'], default_payment_method_id: null }
+      const invoice = { ...INVOICE, currency: 'CDF', total: { amount_minor: 135000, currency: 'CDF' } }
+      mockRoutes(api, [
+        ['subscription/payment-methods', { data: [] }],
+        [/^subscription\/payments\//, { data: { id: 'p-2', status: 'pending', label: '2438•••••789', amount: invoice.total } }],
+        [/^subscription\/invoices/, { data: [invoice], meta: { total: 1, from: 1, to: 1, current_page: 1, last_page: 1, per_page: 25 } }],
+        ...routes(cd),
+      ], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+      api.post.mockResolvedValue({ data: { id: 'p-2', status: 'pending', label: '2438•••••789', redirect_url: null } })
+      renderApp('/settings/subscription')
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Pay invoice INV-2026-000002' }))
+      const dialog = await screen.findByRole('dialog')
+      expect(optionTexts('Pay with').map((text) => text.replace(/, another number$/, ''))).toEqual(['M-Pesa (Vodacom)', 'Airtel Money', 'Orange Money', 'Card, on the card provider’s page'])
+      chooseOption('Pay with', /Orange Money/)
+      fireEvent.change(within(dialog).getByLabelText('Phone number'), { target: { value: '0893456789' } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Pay CDF 135,000' }))
+
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('subscription/invoices/i-1/pay', { provider: 'orange_money_cd', phone: '0893456789' }))
+      expect(await within(dialog).findByText(/Approve the request on the phone 2438•••••789/)).toBeInTheDocument()
+    })
+
+    it('shows the outcome our API verified on the Paystack return page and never marks anything paid itself', async () => {
+      mockRoutes(api, routes(PAYSTACK), { permissions: tenantWide(['core.subscription.view']) })
+      renderApp('/settings/subscription/paystack-return?reference=019a0000-0000-7000-8000-000000000001&trxref=019a0000-0000-7000-8000-000000000001')
+
+      expect(await screen.findByText('Payment received. Thank you.')).toBeInTheDocument()
+      expect(api.get).toHaveBeenCalledWith('subscription/payments/019a0000-0000-7000-8000-000000000001')
+      expect(api.post).not.toHaveBeenCalled()
+    })
+
+    it('says so when the return address has no payment', async () => {
+      mockRoutes(api, routes(PAYSTACK), { permissions: tenantWide(['core.subscription.view']) })
+      renderApp('/settings/subscription/paystack-return?reference=nope')
+
+      expect(await screen.findByText(/We couldn’t find this payment/)).toBeInTheDocument()
+    })
   })
 })

@@ -88,7 +88,7 @@ class PaymentMethodApiTest extends TestCase
         $vodacom = collect($this->methods($cd))->firstWhere('provider', 'vodacom_mpesa_cd');
         $this->assertSame('M-Pesa Vodacom', $vodacom['name']);
         $this->assertFalse($vodacom['configured']);
-        $this->assertSame(['merchant_id', 'api_key'], $vodacom['missing']);
+        $this->assertSame(['api_token'], $vodacom['missing']);
     }
 
     public function test_seeding_again_never_recreates_an_entry_the_company_ever_had(): void

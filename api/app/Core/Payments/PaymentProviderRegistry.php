@@ -14,6 +14,8 @@ use App\Core\Payments\Drivers\FakeProvider;
 use App\Core\Payments\Drivers\HostedCardProvider;
 use App\Core\Payments\Drivers\ManualProvider;
 use App\Core\Payments\Drivers\OrangeMoneyProvider;
+use App\Core\Payments\Pawapay\PawapayProvider;
+use App\Core\Payments\Paystack\PaystackProvider;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
 use RuntimeException;
@@ -42,6 +44,9 @@ class PaymentProviderRegistry
         'orange_money' => OrangeMoneyProvider::class,
         'afrimoney' => AfrimoneyProvider::class,
         'card_hosted' => HostedCardProvider::class,
+        // Kenya billing (Paystack) and DRC billing and tills (pawaPay).
+        'paystack' => PaystackProvider::class,
+        'pawapay' => PawapayProvider::class,
     ];
 
     public function __construct(
