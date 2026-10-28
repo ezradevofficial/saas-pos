@@ -163,7 +163,12 @@
       "fuel_voucher_expired": "Voucher expired",
       "fuel_voucher_currency": "Voucher in another currency",
       "fuel_voucher_overdrawn": "Voucher overdrawn",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "attendant_unverified": "Attendant not verified",
+      "flagged_sales": "Flagged sales",
+      "test_above_tolerance": "Pump test above the tolerance",
+      "discount": "Discount given",
+      "vehicle_fuel_differs": "Fuel differs from the vehicle’s"
     },
     "setup": {
       "title": "Forecourt set-up",
