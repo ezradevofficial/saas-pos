@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
-import { formErrors } from '@/api/formErrors'
+import { fieldErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Checkbox, Dialog, ListView, Money, Select, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
@@ -30,6 +30,7 @@ import {
   samePlan,
   unitsFor,
 } from './subscription/subscriptionData'
+
 
 const day = (value, locale) => (value ? formatCalendarDate(value, locale) : '')
 
@@ -185,7 +186,7 @@ function ChangePlan({ subscription, catalogue, done, onDone }) {
       return { ...current, bundle: key || null, modules: bundle ? [...new Set([...current.modules, ...bundle.modules])].sort() : current.modules }
     })
   const result = quote.data?.data
-  const errors = formErrors(quote.error)
+  const errors = fieldErrors(quote.error)
 
   return (
     <Card title={t('subscription.change.title')} subtitle={t('subscription.change.subtitle')}>
@@ -336,7 +337,7 @@ function PayDialog({ invoice, subscription, methods, onClose }) {
       setPaymentId(response.data.id)
     },
   })
-  const errors = formErrors(pay.error)
+  const errors = fieldErrors(pay.error)
   // Paystack takes M-Pesa and cards in shillings only; another invoice currency has no checkout there.
   const paystack = subscription.checkout_provider === 'paystack'
   const cardOptions = paystack
@@ -469,7 +470,7 @@ function PaymentMethods({ subscription, methods, canManage, onAction }) {
   const addCard = useMutation({ mutationFn: () => api.post('subscription/payment-methods', { kind: 'card' }), onMutate: onAction, onSuccess: (response) => browser.go(response.data.redirect_url) })
   const makeDefault = useMutation({ mutationFn: (id) => api.post(`subscription/payment-methods/${id}/default`), onMutate: onAction, onSuccess: refresh })
   const remove = useMutation({ mutationFn: (id) => api.post(`subscription/payment-methods/${id}/archive`), onMutate: onAction, onSuccess: refresh })
-  const errors = formErrors(add.error)
+  const errors = fieldErrors(add.error)
   const failure = addCard.error ?? makeDefault.error ?? remove.error
 
   return (

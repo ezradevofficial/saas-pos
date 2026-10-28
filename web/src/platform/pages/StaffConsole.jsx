@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '@/api/errorMessage'
-import { formErrors } from '@/api/formErrors'
+import { fieldErrors } from '@/api/formErrors'
 import { Alert, Button, DataTable, Dialog, Select, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatDateTime } from '@/lib/dates'
@@ -70,7 +70,7 @@ function InviteDialog({ roleOptions, onClose }) {
   const [values, setValues] = useState({ name: '', email: '', role: 'support' })
   const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
   const invite = useMutation({ mutationFn: () => platformApi.post('platform/staff', values), onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }) })
-  const errors = formErrors(invite.error)
+  const errors = fieldErrors(invite.error)
   const link = invite.data?.data?.setup_url
   return (
     <Dialog

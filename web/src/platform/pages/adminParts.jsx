@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '@/api/errorMessage'
-import { formErrors } from '@/api/formErrors'
+import { fieldErrors } from '@/api/formErrors'
 import { Alert, Button, Dialog } from '@/components/ds'
 import { Field } from '@/components/ds/Field'
 import { Textarea } from '@/components/ui/textarea'
@@ -45,7 +45,7 @@ export function ReasonDialog({ title, description, confirmLabel, confirmVariant 
   const { t } = useTranslation()
   const [reason, setReason] = useState('')
   const action = useMutation({ mutationFn: () => send(reason.trim()), onSuccess: (data) => onDone?.(data) })
-  const errors = formErrors(action.error)
+  const errors = fieldErrors(action.error)
   const short = reason.trim().length < 10
   return (
     <Dialog

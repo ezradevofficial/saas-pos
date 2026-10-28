@@ -28,3 +28,13 @@ export function formErrors(error, fields, aliases = {}) {
 
   return { fields: fieldMessages, form }
 }
+
+/**
+ * Each field's first message from a refused request, keyed by the API's field
+ * names: for forms that show some fields inline and the rest in an Alert.
+ * @param {unknown} error
+ * @returns {Record<string, string>}
+ */
+export function fieldErrors(error) {
+  return formErrors(error, Object.keys(error?.errors ?? {})).fields
+}
