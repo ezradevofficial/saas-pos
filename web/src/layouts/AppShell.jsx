@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { TrialBanner } from '@/components/onboarding/TrialBanner'
 import { NotificationBell } from './NotificationBell'
+import { QuickSearchProvider, useQuickSearch } from './QuickSearchProvider'
 import { LogoMark, Sidebar } from './Sidebar'
 import { SubscriptionBanner } from './SubscriptionBanner'
 import { SupportBanners } from './SupportBanners'
@@ -19,7 +20,16 @@ import { UsageBanner } from './UsageBanner'
  * 768px the sidebar becomes a top bar whose menu button opens it in a sheet.
  */
 export function AppShell() {
+  return (
+    <QuickSearchProvider>
+      <Shell />
+    </QuickSearchProvider>
+  )
+}
+
+function Shell() {
   const { t } = useTranslation()
+  const { openSearch } = useQuickSearch()
   const [menuOpen, setMenuOpen] = useState(false)
   // A page whose route says `handle: { wide: true }` (the workflow canvas) uses the full width.
   const wide = useMatches().some((match) => match.handle?.wide)
@@ -63,6 +73,14 @@ export function AppShell() {
           </Sheet>
           <LogoMark />
           <span className="min-w-0 flex-1 truncate text-h3 text-sidebar-ink-active">{t('app.name')}</span>
+          <Button
+            variant="ghost"
+            aria-label={t('quickSearch.open')}
+            onClick={openSearch}
+            className="size-icon-btn px-0 text-sidebar-ink hover:bg-sidebar-active hover:text-sidebar-ink-active"
+          >
+            <Icon name="search" size={18} />
+          </Button>
           <NotificationBell />
         </header>
 

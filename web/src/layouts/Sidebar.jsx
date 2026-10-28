@@ -25,6 +25,7 @@ import { brandLogo, sidebarIsDark } from '@/theme/brandLogo'
 import { useTheme } from '@/theme/ThemeProvider'
 import { CompanySwitcher } from './CompanySwitcher'
 import { NotificationBell } from './NotificationBell'
+import { useQuickSearch } from './QuickSearchProvider'
 import { useNavigation } from './useNavigation'
 
 const itemClasses = ({ isActive }) =>
@@ -160,6 +161,34 @@ function AccountMenu() {
   )
 }
 
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform ?? '')
+
+/** LAY-01: the quick search box under the logo; Ctrl+K or ⌘K opens the same palette from anywhere. */
+function SearchBox({ onNavigate }) {
+  const { t } = useTranslation()
+  const { openSearch } = useQuickSearch()
+  return (
+    <button
+      type="button"
+      aria-keyshortcuts={IS_MAC ? 'Meta+K' : 'Control+K'}
+      onClick={() => {
+        onNavigate?.()
+        openSearch()
+      }}
+      className={cn(
+        'flex h-control w-full items-center gap-2 rounded-md border border-sidebar-border px-2 text-left text-body text-sidebar-ink transition-colors',
+        'hover:bg-sidebar-active hover:text-sidebar-ink-active',
+      )}
+    >
+      <Icon name="search" />
+      <span className="min-w-0 flex-1 truncate">{t('quickSearch.label')}</span>
+      <kbd className="font-sans text-caption" aria-hidden="true">
+        {IS_MAC ? '⌘K' : 'Ctrl K'}
+      </kbd>
+    </button>
+  )
+}
+
 /**
  * Sidebar content, shared by the desktop sidebar and the phone sheet. The
  * bell sits in the logo block; on phones the top bar carries it instead.
@@ -173,6 +202,7 @@ export function Sidebar({ onNavigate, showBell = true, className }) {
   return (
     <div className={cn('flex h-full min-h-0 flex-col gap-4 bg-sidebar px-3 py-4', className)}>
       <LogoBlock showBell={showBell} />
+      <SearchBox onNavigate={onNavigate} />
       <CompanySwitcher />
       <nav aria-label={t('nav.label')} className="-mt-2 flex min-h-0 flex-1 flex-col overflow-y-auto">
         {groups.map((group) => (
