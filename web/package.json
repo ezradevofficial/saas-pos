@@ -8,6 +8,7 @@
     "build": "vite build && node scripts/bundle-budget.mjs",
     "lint": "oxlint",
     "manual:screenshots": "node scripts/manual-screenshots.mjs",
+    "manual:screenshots:pos": "node scripts/manual-pos-screenshots.mjs",
     "preview": "vite preview",
     "test": "vitest"
   },

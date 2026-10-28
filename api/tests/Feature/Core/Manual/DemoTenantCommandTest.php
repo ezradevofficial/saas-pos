@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Manual;
 
 use App\Core\Identity\Models\User;
+use App\Core\Manual\Demo\DemoApi;
 use App\Core\Manual\DemoTenantCommand;
 use App\Core\Rbac\RoleTemplates;
 use App\Core\Tenancy\Models\Branch;
@@ -27,8 +28,8 @@ class DemoTenantCommandTest extends TestCase
 
     public function test_it_creates_one_user_per_role_template_and_can_run_again(): void
     {
-        $this->artisan('manual:demo-tenant')->assertExitCode(0);
-        $this->artisan('manual:demo-tenant')->assertExitCode(0);
+        $this->artisan('manual:demo-tenant', ['--only' => ['inventory']])->assertExitCode(0);
+        $this->artisan('manual:demo-tenant', ['--only' => ['inventory']])->assertExitCode(0);
 
         app(TenantContext::class)->run(DemoTenantCommand::TENANT_ID, function () {
             $templates = array_column(app(RoleTemplates::class)->all(), 'key');
@@ -40,8 +41,8 @@ class DemoTenantCommandTest extends TestCase
             $this->assertTrue(password_verify(DemoTenantCommand::PASSWORD, $owner->getAuthPassword()));
         });
 
-        $this->postJson('/api/v1/auth/sign-in', ['login' => 'demo-owner@demo.example.com', 'password' => DemoTenantCommand::PASSWORD])
-            ->assertOk()
-            ->assertJsonStructure(['token']);
+        // The sample data goes in through the application's own API: two branches' stock, once.
+        $stock = (new DemoApi('demo-owner@demo.example.com', DemoTenantCommand::PASSWORD))->rows('inventory/stock');
+        $this->assertCount(24, $stock);
     }
 }

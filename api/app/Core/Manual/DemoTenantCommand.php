@@ -4,6 +4,8 @@ namespace App\Core\Manual;
 
 use App\Core\Audit\AuditContext;
 use App\Core\Identity\Models\User;
+use App\Core\Manual\Demo\DemoApi;
+use App\Core\Manual\Demo\DemoData;
 use App\Core\Onboarding\Models\OnboardingState;
 use App\Core\Onboarding\Onboarding;
 use App\Core\Onboarding\Sample\SampleData;
@@ -39,7 +41,7 @@ class DemoTenantCommand extends Command
     /** Roles that work across the company; every other template is held at the main branch. */
     private const WIDE = ['owner', 'admin', 'accountant', 'hr_officer', 'payroll_officer', 'procurement_officer', 'approver', 'read_only_auditor', 'employee_self_service'];
 
-    protected $signature = 'manual:demo-tenant';
+    protected $signature = 'manual:demo-tenant {--only=* : Seed only these data sections (for example inventory), after the tenant}';
 
     protected $description = 'Create (or top up) the demo tenant the manual screenshots are taken in; local and testing only';
 
@@ -82,6 +84,8 @@ class DemoTenantCommand extends Command
             }
         }));
 
+        (new DemoData(new DemoApi($this->email('owner'), self::PASSWORD), $this))->run($this->option('only'));
+
         $this->info('Demo tenant ready. Sign in as '.$this->email('owner').' with the password '.self::PASSWORD.'.');
 
         return self::SUCCESS;
@@ -99,7 +103,7 @@ class DemoTenantCommand extends Command
         app(AuditContext::class)->actingAs($owner->id, [], function () {
             $onboarding = app(Onboarding::class);
             $onboarding->chooseBusinessType('retail');
-            $onboarding->chooseModules(['modules' => ['pos', 'inventory', 'loyalty'], 'quantities' => ['outlet' => 2, 'device' => 4, 'employee' => 30], 'cycle' => 'monthly']);
+            $onboarding->chooseModules(['modules' => ['pos', 'inventory', 'loyalty'], 'quantities' => ['outlet' => 4, 'device' => 12, 'employee' => 30], 'cycle' => 'monthly']);
         });
     }
 

@@ -82,7 +82,7 @@ The PDF is set in Geist (SIL Open Font License, files and licence in `api/resour
 
 Each topic with a web screen gets a picture of that screen, in English and French: `docs/manual/images/{locale}/{topic-id}.png`, cropped to the main content area, 1280 px wide, PNG. The images are committed. In the app the Help reader shows the picture (`GET /api/v1/manual/topics/{id}/image`, only for a user who can see the topic) and the PDF embeds it.
 
-POS topics (`pos:` screens only) and signed-out pages (sign-up, verify, two-factor enrolment) have no picture: the POS is an Expo app and cannot be captured this way.
+Topics that name a POS screen (`pos:`) are captured from the Expo app running on the web (react-native-web, 1280x800, a tablet size). Signed-out pages (sign-up, verify, two-factor enrolment) and the hotel housekeeping screen (its user cannot sign in at a till) have no picture.
 
 To refresh them, from a local setup (never a shared database):
 
@@ -90,16 +90,19 @@ To refresh them, from a local setup (never a shared database):
 cd api && php artisan manual:demo-tenant     # once; safe to repeat. Local and testing only.
 php artisan serve --port=8008                # API
 cd ../web && npm run dev                     # web app on 3008
+npm run web --workspace pos                  # POS on the web, port 3009 (for the POS pictures)
 npx playwright install chromium              # first time only
-npm run manual:screenshots                   # both languages
-npm run manual:screenshots -- --locale=fr --topic=pos-sell   # one topic
+npm run manual:screenshots                   # back-office screens, both languages
+npm run manual:screenshots:pos               # POS screens, both languages
+npm run manual:screenshots -- --locale=fr --topic=pos-sell   # one topic (the same options work for :pos)
 ```
 
-- `manual:demo-tenant` creates the tenant "Demo Trading" (one company, two branches, every module, sample items and customers) and one user per role template, `demo-{role}@demo.example.com` (underscores become hyphens), all with the password `Demo-Harbour-4242` and no second factor. It refuses to run unless `APP_ENV` is `local` or `testing`. The script never reads a code from the mail log.
-- The script signs in as `demo-owner@demo.example.com`, sets the user's language to `en` or `fr`, opens the topic's route and saves the picture. It uses the Chromium that Playwright installs (headless).
+- `manual:demo-tenant` creates the tenant "Demo Trading" (one company, two branches, every module) and one user per role template, `demo-{role}@demo.example.com` (underscores become hyphens), all with the password `Demo-Harbour-4242`, no second factor and the till PIN `739152`. It refuses to run unless `APP_ENV` is `local` or `testing`. It never reads a code from the mail log.
+- It then fills the tenant with Kenyan sample data through the application's own API, signed in as demo users, so every rule and approval applies (`api/app/Core/Manual/Demo`, one section per module: stock at both branches, a purchase order received and one waiting for approval, POS sales and shifts, a chart of accounts with journals, employees with a payroll run and leave requests, hotel rooms and reservations, restaurant tables and open orders, pharmacy lots, a van route and load, a petrol and diesel forecourt with a shift variance, salon staff and appointments). Run one section with `--only=hotel`. Every section checks what exists first, so a repeat run adds nothing.
+- The web script signs in as `demo-owner@demo.example.com`, sets the user's language to `en` or `fr`, opens the topic's route and saves the picture. A topic that names a "new" or "invite" form is captured with the form filled in. It uses the Chromium that Playwright installs (headless).
+- The POS script pairs tills named "Manual till en" and "Manual till fr" (made once, paired again on each run) and a van till at the van's location, signs in with the PIN, and follows the steps in `web/scripts/manual-pos-recipes.mjs`. A recipe signs in as a user, reaches the screen and leaves it there. Run it with the fuel, salon and van topics last: the recipes close the shifts they open.
 - Install `pngquant` (or set `MANUAL_PNGQUANT` to its path) before a refresh: the images then shrink to about a third. Without it they are only re-compressed.
-- `MANUAL_WEB_URL`, `MANUAL_API_URL` and `MANUAL_DEMO_PASSWORD` override the defaults.
-- Lists in the demo tenant that have no records (hotel, payroll, fuel and so on) show their empty state. Add records to the demo tenant if a topic needs a fuller picture, then run the script again.
+- `MANUAL_WEB_URL`, `MANUAL_POS_URL`, `MANUAL_API_URL`, `MANUAL_DEMO_PASSWORD` and `MANUAL_DEMO_PIN` override the defaults.
 - Commit the changed images with the topic change. Check a few by eye: a screen that shows an error or a spinner means the demo data or a route changed.
 
 The Owner and Admin share the owner and admin guides: the topics list `[owner, admin]`. Topics only the Owner can do (choosing modules, changing the plan) list `[owner]`.

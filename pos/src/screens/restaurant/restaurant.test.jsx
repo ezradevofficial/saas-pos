@@ -316,6 +316,8 @@ describe('the bill and split payment (REST-13, REST-14, REST-16)', () => {
     expect(await screen.findByTestId('part-1')).toBeOnTheScreen();
     expect(within(screen.getByTestId('part-1')).getByText('KES 382.80')).toBeOnTheScreen();
     expect(within(screen.getByTestId('part-2')).getByText('KES 382.80')).toBeOnTheScreen();
+    // Nothing is paid yet, so the bill must not say every part is paid.
+    expect(screen.queryByText('Every part is paid.')).not.toBeOnTheScreen();
 
     // Part 1 through the normal payment screen.
     await fireEvent.press(within(screen.getByTestId('part-1')).getByRole('button', { name: 'Charge KES 382.80' }));

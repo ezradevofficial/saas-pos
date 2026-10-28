@@ -12,7 +12,7 @@ import { computeCart } from '../../pos/cart';
 import { parseAmount } from '../../pos/input';
 import { usePosActions, usePosData } from '../../pos/PosProvider';
 import { scaled } from '../../restaurant/bill';
-import { buildPlan, closingProblem, partCart, unpaidParts } from '../../restaurant/closing';
+import { buildPlan, closingProblem, partCart } from '../../restaurant/closing';
 import { liveLines } from '../../restaurant/orderModel';
 import { useOrder, useRestaurant } from '../../restaurant/context';
 import { useMoneyText } from '../pos/format';
@@ -99,7 +99,6 @@ export function BillScreen({ orderId, onBack, onPay, onDone }) {
 
   const paidIds = new Set((order.local.paid ?? []).map((entry) => entry.sale_id));
   const problem = closingProblem(order, settings, catalogue, { tipMinor });
-  const open = unpaidParts(order);
   const firstUnpaid = plan ? plan.parts.findIndex((part) => !paidIds.has(part.saleId)) : -1;
   const closed = order.local.closed === 'paid';
   const whole = orderBill(order, settings, catalogue, tipMinor);
@@ -260,7 +259,7 @@ export function BillScreen({ orderId, onBack, onPay, onDone }) {
                 );
               })}
             </View>
-            {open.length === 0 && plan.parts.length ? <Text className="font-sans text-caption text-ink-muted">{t('restaurant.bill.allPaid')}</Text> : null}
+            {plan.parts.length > 0 && plan.parts.every((part) => paidIds.has(part.saleId)) ? <Text className="font-sans text-caption text-ink-muted">{t('restaurant.bill.allPaid')}</Text> : null}
           </View>
         ) : null}
 

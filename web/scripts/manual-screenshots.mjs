@@ -50,9 +50,36 @@ function frontMatter(source) {
   return meta
 }
 
-/** The first web route of the topic that needs no id and is not a signed-out page. */
+/** The topic's screen: a "new" or "invite" form when it names one (it is filled in), else its first page that needs no id. */
 function routeFor(meta) {
-  return (meta.screens ?? []).find((screen) => screen.startsWith('/') && !screen.includes(':') && !SKIP.has(screen)) ?? null
+  const routes = (meta.screens ?? []).filter((screen) => screen.startsWith('/') && !screen.includes(':') && !SKIP.has(screen))
+  return routes.find((route) => /\/(new|invite)$/.test(route)) ?? routes[0] ?? null
+}
+
+/** What a name field holds on the forms the manual shows. */
+const NAMES = { 'inventory-add-item': 'Cooking oil 5 L', 'rbac-create-role': 'Shift lead', 'hr-hire-employee': 'Amina Hassan', 'rbac-invite-user': 'Amina Hassan' }
+
+/** Fills the text, email, phone, date and number fields of a form with sample values, so the picture shows it in use. */
+async function fillForm(page, id) {
+  const fields = page.locator('main input:visible, main textarea:visible')
+  const count = await fields.count()
+  for (let i = 0; i < count; i += 1) {
+    const field = fields.nth(i)
+    const info = await field.evaluate((el) => ({ type: el.type, value: el.value, readOnly: el.readOnly || el.disabled, label: (el.labels?.[0]?.innerText ?? el.getAttribute('aria-label') ?? '').toLowerCase() }))
+    if (info.readOnly || info.value || ['checkbox', 'radio', 'hidden', 'search', 'file', 'password', 'button', 'submit'].includes(info.type)) continue
+    // Optional extras (a middle name, a biometric reference) stay empty.
+    if (/middle|second pr|biometric|biom[eé]trique|reference|r[eé]f[eé]rence/.test(info.label)) continue
+    let value = null
+    if (info.type === 'email' || /e-?mail|courriel/.test(info.label)) value = 'amina.hassan@demotrading.example.com'
+    else if (info.type === 'tel' || /phone|t[eé]l[eé]phone|mobile/.test(info.label)) value = '0722 123 456'
+    else if (info.type === 'date') value = new Date().toISOString().slice(0, 10)
+    else if (/first name|pr[eé]nom/.test(info.label)) value = 'Amina'
+    else if (/last name|nom de famille/.test(info.label)) value = 'Hassan'
+    else if (/\bcode\b|sku/.test(info.label)) value = 'OIL-5L'
+    else if (/name|nom/.test(info.label)) value = NAMES[id] ?? 'Amina Hassan'
+    else if (info.type === 'number' || /qty|quantit|price|prix|amount|montant/.test(info.label)) value = '10'
+    if (value !== null) await field.fill(value).catch(() => {})
+  }
 }
 
 /** Quantises to a small palette with pngquant when it is installed (flat UI colours lose nothing visible). */
@@ -110,7 +137,7 @@ async function setLocale(token, locale) {
 }
 
 const browser = await chromium.launch({ headless: true })
-const summary = { saved: 0, skipped: [], failed: [] }
+const summary = { saved: 0, skipped: [], failed: [], problems: [] }
 
 try {
   const token = await session('demo-owner@demo.example.com')
@@ -123,21 +150,29 @@ try {
       window.localStorage.setItem('app.locale', l)
     }, [token, locale])
     const page = await context.newPage()
+    // Console errors, uncaught errors and server errors are reported with the topic, so an app bug does not hide in a picture.
+    let current = ''
+    const report = (what) => summary.problems.push(`${locale}/${current}: ${what}`.slice(0, 300))
+    page.on('console', (message) => message.type() === 'error' && report(`console: ${message.text()}`))
+    page.on('pageerror', (error) => report(`page error: ${error.message}`))
+    page.on('response', (response) => response.status() >= 500 && report(`${response.status()} ${response.url()}`))
     await mkdir(join(manual, 'images', locale), { recursive: true })
 
     for (const path of await files(join(manual, locale))) {
       const meta = frontMatter(await readFile(path, 'utf8'))
-      if (args.topic && meta.id !== args.topic) continue
+      if (args.topic && !args.topic.split(',').includes(meta.id)) continue
       const route = routeFor(meta)
       if (!route) {
         summary.skipped.push(`${locale}/${meta.id}`)
         continue
       }
+      current = meta.id
       try {
         await page.goto(`${webUrl}${route}`, { waitUntil: 'networkidle' })
         const main = page.locator('main').first()
         await main.waitFor({ state: 'visible', timeout: 15000 })
         await page.waitForTimeout(600)
+        if (/\/(new|invite)$/.test(route)) await fillForm(page, meta.id)
         await page.evaluate(() => document.fonts.ready)
         const box = await main.boundingBox()
         // Crop below the last element, not to the page's minimum height, so a short screen has no empty band.
@@ -164,3 +199,4 @@ try {
 console.log(`Saved ${summary.saved} images.`)
 console.log(`No web screen (POS or signed-out): ${summary.skipped.length} topics.`)
 if (summary.failed.length) console.log(`Failed:\n${summary.failed.join('\n')}`)
+if (summary.problems.length) console.log(`Problems seen in the app:\n${[...new Set(summary.problems)].join('\n')}`)

@@ -83,6 +83,9 @@ class VanSalesServiceProvider extends ServiceProvider
             $sources->register($source);
         }
 
+        // VAN-05: the till's staff list carries `van_sales.` permissions, or a rep cannot start the day.
+        $sources->tillPermissionPrefix('van_sales.');
+
         // VAN-10, VAN-16: sales and refunds at a van join its run; a void takes them back.
         Event::listen(SaleCompleted::class, [HandleSales::class, 'completed']);
         Event::listen(SaleVoided::class, [HandleSales::class, 'voided']);
