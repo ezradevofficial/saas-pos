@@ -9,6 +9,7 @@ use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Lcobucci\JWT\UnencryptedToken;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Concerns\BuildsMarketplace;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
@@ -71,6 +72,8 @@ class AppRateLimitsTest extends TestCase
         return ['Authorization' => 'Bearer '.$token, 'Accept' => 'application/json'];
     }
 
+    // Fifty full tenants: about 15 to 30 minutes on CI, so it runs in the slow job (API-02, API-03).
+    #[Group('slow')]
     public function test_an_app_serving_fifty_tenants_from_one_address_with_expired_tokens_keeps_working(): void
     {
         config(['api.rate_limits.failed_auth_per_token' => 3]);
