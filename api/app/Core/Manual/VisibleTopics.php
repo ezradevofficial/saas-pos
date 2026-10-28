@@ -10,8 +10,10 @@ use Illuminate\Support\Collection;
 /**
  * The manual topics one user may read in the app (RBAC-08, RBAC-04): the
  * topic's module is core or one the tenant has active, and the user holds at
- * least one of the topic's permissions at any scope. A topic with no
- * permissions is for every signed-in user.
+ * least one of the topic's permissions at any scope. A topic is about doing
+ * something, so its `.view` permissions count only when it lists nothing
+ * else: a cashier who can see the tills does not get "Add and pair a till".
+ * A topic with no permissions is for every signed-in user.
  */
 class VisibleTopics
 {
@@ -44,7 +46,9 @@ class VisibleTopics
             return true;
         }
 
-        foreach ($topic->permissions as $permission) {
+        $actions = array_values(array_filter($topic->permissions, fn (string $p) => ! str_ends_with($p, '.view')));
+
+        foreach ($actions ?: $topic->permissions as $permission) {
             if ($this->resolver->can($user, $permission)) {
                 return true;
             }
