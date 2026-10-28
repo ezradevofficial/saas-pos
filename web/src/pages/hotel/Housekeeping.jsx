@@ -8,6 +8,7 @@ import { formErrors } from '@/api/formErrors'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Dialog, Select, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
+import { formatCalendarDate } from '@/lib/dates'
 import { formatInteger } from '@/lib/format'
 import { useLocale } from '@/lib/useLocale'
 import { BranchSwitch, Day, NoProperty, StateBadge } from './HotelParts'
@@ -108,7 +109,7 @@ export default function Housekeeping() {
     <>
       <PageHeader
         title={t('hotel.hk.title')}
-        description={data ? t('hotel.hk.description', { date: data.business_date }) : t('hotel.hk.descriptionPlain')}
+        description={data ? t('hotel.hk.description', { date: formatCalendarDate(data.business_date, locale) }) : t('hotel.hk.descriptionPlain')}
         actions={
           can(HK_ASSIGN) && data ? (
             <Button variant="primary" icon="plus" onClick={() => setDialog({ kind: 'task' })}>

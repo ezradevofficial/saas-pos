@@ -7,6 +7,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, DataTable, Dialog, KpiTile } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
+import { formatCalendarDate } from '@/lib/dates'
 import { formatInteger } from '@/lib/format'
 import { moneyText } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
@@ -72,6 +73,7 @@ function Snapshot({ audit }) {
 /** HOT-30: the night audit of a property: the history, a manual run, and each night's snapshot. */
 export default function NightAudit() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const { can } = usePermissions()
   const queryClient = useQueryClient()
   const choice = useBranchChoice()
@@ -81,11 +83,13 @@ export default function NightAudit() {
   const query = useQuery({ queryKey: [...hotelKey, 'night-audits', branchId], queryFn: () => api.get(`hotel/night-audits?branch=${branchId}`), enabled: Boolean(branchId) })
   const rows = query.data?.data ?? []
   const businessDate = query.data?.meta?.business_date
+  // L10N-01: a date reads as "28 Oct 2026" or "28 oct. 2026", never as the ISO text the API sends.
+  const businessDay = businessDate ? formatCalendarDate(businessDate, locale) : null
   const selected = rows.find((row) => row.id === picked) ?? rows[0] ?? null
   const run = useMutation({
     mutationFn: () => api.post('hotel/night-audits', { branch_id: branchId, business_date: businessDate, close_early: true }),
     onSuccess: async (response) => {
-      toast.success(t('hotel.audit.done', { date: response.data.business_date }))
+      toast.success(t('hotel.audit.done', { date: formatCalendarDate(response.data.business_date, locale) }))
       setPicked(response.data.id)
       setConfirming(false)
       await queryClient.invalidateQueries({ queryKey: hotelKey })
@@ -101,7 +105,7 @@ export default function NightAudit() {
     <>
       <PageHeader
         title={t('hotel.audit.title')}
-        description={businessDate ? t('hotel.audit.description', { date: businessDate }) : t('hotel.audit.descriptionPlain')}
+        description={businessDate ? t('hotel.audit.description', { date: businessDay }) : t('hotel.audit.descriptionPlain')}
         actions={
           can(AUDIT_RUN) && choice.branch ? (
             <Button variant="primary" onClick={() => setConfirming(true)}>
@@ -124,7 +128,7 @@ export default function NightAudit() {
         >
           <div className="flex flex-col gap-3">
             {run.error ? <Alert tone="danger" title={errorMessage(run.error)} /> : null}
-            <p className="text-body text-ink-muted">{t('hotel.audit.confirmHelp', { date: businessDate ?? '' })}</p>
+            <p className="text-body text-ink-muted">{t('hotel.audit.confirmHelp', { date: businessDay ?? '' })}</p>
           </div>
         </Dialog>
       ) : null}
