@@ -8,5 +8,5 @@ add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 # Styles: 'unsafe-inline' is needed for tenant themes, applied at run time as CSS variables
 # on elements (BR-01). No inline scripts. connect-src names the API and, when Sentry is on,
-# its ingest host. img-src allows the API's signed media URLs and presigned Object Storage URLs (MD-02).
-add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://@API_DOMAIN@ https://*.linodeobjects.com; font-src 'self' data:; connect-src 'self' https://@API_DOMAIN@ https://*.ingest.sentry.io; frame-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+# its ingest hosts (EU and US regions too: this organisation's DSN is on ingest.de.sentry.io). img-src allows the API's signed media URLs and presigned Object Storage URLs (MD-02).
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://@API_DOMAIN@ https://*.linodeobjects.com; font-src 'self' data:; connect-src 'self' https://@API_DOMAIN@ https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io; frame-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
