@@ -24,7 +24,7 @@ describe('Sign up and verify', () => {
     expect(contactPayload('+254 712 345-678')).toEqual({ phone: '+254712345678' })
   })
 
-  it('creates the account, then verifies the code and lands on home', async () => {
+  it('creates the account, then verifies the code and goes straight to onboarding', async () => {
     api.post.mockImplementation(async (path) => {
       if (path === 'auth/sign-up') return { challenge_id: 'ch-1', destination_masked: 'a***@example.com' }
       if (path === 'auth/verify') return { token: 'fresh', user: OWNER, two_factor_enrollment_required: false }
@@ -52,7 +52,8 @@ describe('Sign up and verify', () => {
     fill('6-digit code', '123 456')
     fireEvent.click(screen.getByRole('button', { name: 'Verify and continue' }))
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    // ONB-02: never through the dashboard first.
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/onboarding/))
     expect(api.post).toHaveBeenCalledWith('auth/verify', expect.objectContaining({ challenge_id: 'ch-1', code: '123456' }))
     expect(getToken()).toBe('fresh')
   })
