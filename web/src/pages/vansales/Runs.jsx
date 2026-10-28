@@ -6,10 +6,13 @@ import { errorMessage } from '@/api/errorMessage'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Pager, PerCurrency, Status } from './VanSalesParts'
 import { RUN_STATUSES, statusLabel, useRoutes, useUsers, useVans, usePagedList } from './vansalesData'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 /** VAN-06: the vans' selling days, filtered; open one for its visits, sales and count. */
 export default function Runs() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const navigate = useNavigate()
   const { active: vans } = useVans()
   const { active: routes } = useRoutes()
@@ -19,7 +22,7 @@ export default function Runs() {
   const all = (label, rows) => [{ value: '', label }, ...rows]
   const { query, rows, meta, page, setPage } = usePagedList('runs', 'van-sales/runs', filters)
   const columns = [
-    { key: 'date', label: t('vansales.runs.date'), render: (run) => run.run_date },
+    { key: 'date', label: t('vansales.runs.date'), render: (run) => formatCalendarDate(run.run_date, locale) },
     { key: 'van', label: t('vansales.runs.van'), render: (run) => run.van_name },
     { key: 'route', label: t('vansales.runs.route'), render: (run) => run.route_name ?? '' },
     { key: 'rep', label: t('vansales.runs.rep'), render: (run) => run.rep_name },

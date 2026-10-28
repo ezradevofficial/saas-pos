@@ -163,7 +163,12 @@
       "fuel_voucher_expired": "Bon expiré",
       "fuel_voucher_currency": "Bon dans une autre devise",
       "fuel_voucher_overdrawn": "Bon dépassé",
-      "refunded": "Remboursé"
+      "refunded": "Remboursé",
+      "attendant_unverified": "Pompiste non vérifié",
+      "flagged_sales": "Ventes signalées",
+      "test_above_tolerance": "Test de pompe au-dessus de la tolérance",
+      "discount": "Remise accordée",
+      "vehicle_fuel_differs": "Carburant différent de celui du véhicule"
     },
     "setup": {
       "title": "Configuration de la station",

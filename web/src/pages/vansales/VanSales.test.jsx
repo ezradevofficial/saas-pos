@@ -36,7 +36,7 @@ const RECONCILIATION = {
     { kind: 'cash', currency: 'KES', expected_minor: '1250000', counted_minor: '1200000', variance_minor: '-50000' },
     { kind: 'mobile_money', currency: 'KES', expected_minor: '300000', counted_minor: '300000', variance_minor: '0' },
   ],
-  unload: { status: 'requested', number: 'TR-0007' },
+  unload: { status: 'approved', number: 'TR-0007' },
 }
 
 const REVIEW = { id: 'cr-1', sale_id: 'sale-1', run_id: 'run-1', van_name: 'Van 1', rep_name: 'Peter Mwangi', customer_id: 'p-1', customer_name: 'Mama Njeri', currency: 'KES', total_minor: '500000', credit_minor: '500000', limit_minor: '300000', balance_before_minor: '100000', flags: ['over_limit', 'credit_offline'], sold_at: '2026-10-27T09:30:00Z', review_status: 'pending', reviewed_by_name: null, reviewed_at: null, review_note: null }
@@ -165,6 +165,17 @@ describe('Van sales', () => {
       await waitFor(() => expect(api.put).toHaveBeenCalledWith('van-sales/routes/r-1/stops', { stops: [{ customer_id: 'p-1' }, { customer_id: 'p-3' }] }))
     })
 
+    it('numbers the stops from 1 and disables moving the first one up (VAN-04)', async () => {
+      setup()
+      renderApp('/van-sales/routes/r-1')
+      expect(await screen.findByText('Mama Njeri')).toBeInTheDocument()
+      const rows = screen.getAllByRole('row').slice(1)
+      expect(within(rows[0]).getAllByRole('cell')[0]).toHaveTextContent('1')
+      expect(within(rows[1]).getAllByRole('cell')[0]).toHaveTextContent('2')
+      expect(screen.getByRole('button', { name: 'Move Mama Njeri up' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Move Baba Otieno down' })).toBeDisabled()
+    })
+
     it('keeps a stop with its own days when saving', async () => {
       setup()
       api.put.mockResolvedValue({ data: ROUTE_DETAIL })
@@ -246,6 +257,13 @@ describe('Van sales', () => {
       expect(screen.getByRole('link', { name: 'Open the count' })).toHaveAttribute('href', '/van-sales/reconciliations/rc-1')
     })
 
+    it('shows the run day as a date in the user\u2019s language, not as the ISO text (L10N-01)', async () => {
+      setup()
+      renderApp('/van-sales/runs')
+      expect(await screen.findByText('27 Oct 2026')).toBeInTheDocument()
+      expect(screen.queryByText('2026-10-27')).not.toBeInTheDocument()
+    })
+
     it('shows positions only to users who may track visits, and only on request', async () => {
       setup()
       renderApp('/van-sales/runs/run-1')
@@ -298,11 +316,26 @@ describe('Van sales', () => {
       await waitFor(() => expect(api.post).toHaveBeenCalledWith('van-sales/reconciliations/rc-1/unload/receive', { lines: [{ item_id: 'i-1', qty_received: '2' }] }))
     })
 
+    it('waits for the unload transfer to be approved before offering to receive it (VAN-23)', async () => {
+      setup({ extra: [[/^van-sales\/reconciliations\/rc-1$/, { data: { ...RECONCILIATION, unload: { status: 'awaiting_approval', number: 'TR-0007' } } }]] })
+      renderApp('/van-sales/reconciliations/rc-1')
+      expect(await screen.findByText('Waiting for the transfer to be approved before it can be received.')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Receive unload' })).not.toBeInTheDocument()
+    })
+
     it('hides the unload from users without the permission', async () => {
       setup({ without: ['van_sales.unload.receive'] })
       renderApp('/van-sales/reconciliations/rc-1')
       await screen.findByText('TR-0007', { exact: false })
       expect(screen.queryByRole('button', { name: 'Receive unload' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('reports (VAN-25)', () => {
+    it('labels each credit tile with a phrase, not a bare currency code that the amount repeats', async () => {
+      setup({ extra: [[/^van-sales\/reports\/summary\?/, { data: { from: '2026-10-21', to: '2026-10-27', rows: [], cash_variances: [], stock_variances: [], credit_outstanding: [{ currency: 'KES', amount_minor: '48000' }] } }]] })
+      renderApp('/van-sales/reports')
+      expect(await screen.findByText('Owed in KES')).toBeInTheDocument()
     })
   })
 

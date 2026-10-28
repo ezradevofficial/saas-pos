@@ -1,10 +1,11 @@
 // FUEL-02 to FUEL-38: the fuel station back office: prices (minor units, withdraw), variance review (pending list,
 // the workflow state and who cannot approve), meter resets (own_reset), tank dips and reconciliation, deliveries,
 // vouchers (issue, void), calibration charts, flagged sales, reports, and the module and permission gating of the menu.
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { chooseOption, waitForOption } from '@/test/combobox'
 import { apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
+import { Flags } from './FuelParts'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -236,6 +237,13 @@ describe('Fuel station back office', () => {
     expect(await screen.findByText('Voucher FV-1234 issued.')).toBeInTheDocument()
   })
 
+  it('shows a voucher\u2019s expiry as a date in the user\u2019s language (L10N-01)', async () => {
+    setup([[/^fuel\/vouchers\?/, page([{ ...VOUCHER, expires_on: '2027-03-31' }])]])
+    renderApp('/fuel/vouchers')
+    expect(await screen.findByText('31 Mar 2027')).toBeInTheDocument()
+    expect(screen.queryByText('2027-03-31')).not.toBeInTheDocument()
+  })
+
   it('voids a voucher with a reason and keeps its redemptions listed (FUEL-21)', async () => {
     setup([['fuel/vouchers/v-1', { data: VOUCHER }]])
     api.post.mockResolvedValue({ data: { ...VOUCHER, status: 'void', void_reason: 'Lost card' } })
@@ -353,5 +361,17 @@ describe('Fuel station back office', () => {
       expect(screen.queryByRole('link', { name: 'Fuel prices' })).not.toBeInTheDocument()
       expect(screen.queryByRole('link', { name: 'Fuel vouchers' })).not.toBeInTheDocument()
     })
+  })
+})
+
+// FUEL-13, FUEL-18, L10N-02: every review flag a shift, settlement or sale can carry is worded, never shown as a code.
+describe('review flags', () => {
+  it('words the till session, attendant and settlement flags', () => {
+    const codes = ['before_sign_in', 'session_stale', 'attendant_unverified', 'flagged_sales', 'test_above_tolerance', 'discount', 'vehicle_fuel_differs']
+    render(<Flags flags={codes.map((code) => ({ code }))} />)
+    for (const code of codes) expect(screen.queryByText(code)).not.toBeInTheDocument()
+    expect(screen.getByText('Before sign-in')).toBeInTheDocument()
+    expect(screen.getByText('Attendant not verified')).toBeInTheDocument()
+    expect(screen.getByText('Flagged sales')).toBeInTheDocument()
   })
 })

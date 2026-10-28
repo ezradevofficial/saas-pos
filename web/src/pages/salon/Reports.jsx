@@ -26,7 +26,7 @@ export default function Reports() {
   const data = query.data?.data
   const minutes = (value) => t('salon.reports.minutes', { count: value })
   const tables = {
-    utilisation: (
+    utilisation: () => (
       <DataTable
         caption={t('salon.reports.utilisation')}
         columns={[
@@ -41,7 +41,7 @@ export default function Reports() {
         emptyText={t('salon.reports.empty')}
       />
     ),
-    services: (
+    services: () => (
       <div className="flex flex-col gap-4">
         {Object.entries(data?.currencies ?? {}).map(([currency, rows]) => (
           <DataTable
@@ -59,7 +59,7 @@ export default function Reports() {
         {data && !Object.keys(data.currencies).length ? <p className="text-ink-muted">{t('salon.reports.empty')}</p> : null}
       </div>
     ),
-    noshows: data ? (
+    noshows: () => (data ? (
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <KpiTile label={t('salon.reports.kept')} value={String(data.total.kept)} />
@@ -80,8 +80,8 @@ export default function Reports() {
           emptyText={t('salon.reports.empty')}
         />
       </div>
-    ) : null,
-    commissions: (
+    ) : null),
+    commissions: () => (
       <DataTable
         caption={t('salon.reports.commissions')}
         columns={[
@@ -95,7 +95,7 @@ export default function Reports() {
         emptyText={t('salon.reports.empty')}
       />
     ),
-    liability: (
+    liability: () => (
       <div className="flex flex-col gap-4">
         {Object.entries(data?.currencies ?? {}).map(([currency, row]) => (
           <div key={currency} className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -127,7 +127,7 @@ export default function Reports() {
           </div>
         ) : null}
         <QueryNotes query={query} />
-        {data ? tables[tab] : null}
+        {data ? tables[tab]() : null}
       </div>
     </>
   )

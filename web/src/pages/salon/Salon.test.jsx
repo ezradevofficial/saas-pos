@@ -45,10 +45,11 @@ const ALL = [
   'salon.settings.view', 'salon.settings.edit', 'salon.online.view', 'salon.online.manage', 'salon.report.view',
 ]
 
-function setup({ without = [] } = {}) {
+function setup({ without = [], extra = [] } = {}) {
   mockRoutes(
     api,
     [
+      ...extra,
       [/^salon\/services/, { data: [SERVICE] }],
       [/^salon\/package-types/, { data: [] }],
       [/^salon\/staff/, { data: [STAFF] }],
@@ -168,6 +169,14 @@ describe('Salon', () => {
     })
   })
 
+  describe('reports (SAL-27)', () => {
+    it('shows the utilisation of the staff on opening, whatever the other reports would need', async () => {
+      setup({ extra: [[/^salon\/reports\/utilisation/, { data: { staff: [{ staff_id: 'st-1', staff_name: 'Wanjiru', branch_name: 'Main', available_minutes: 480, booked_minutes: 240, served_minutes: 180, utilisation_percent: 50 }] } }]] })
+      renderApp('/salon/reports')
+      expect(await screen.findByText('Wanjiru')).toBeInTheDocument()
+    })
+  })
+
   describe('commissions (SAL-23)', () => {
     it('hides approving from someone without the permission', async () => {
       setup({ without: ['salon.commission.approve'] })
@@ -176,6 +185,15 @@ describe('Salon', () => {
       const dialog = await screen.findByRole('dialog')
       await within(dialog).findByText('Wanjiru')
       expect(within(dialog).queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
+    })
+
+    it('words the batch period as dates in the user\u2019s language, not ISO text (L10N-01)', async () => {
+      setup()
+      renderApp('/salon/commissions')
+      expect(await screen.findByText('1 Oct 2026 \u2013 31 Oct 2026')).toBeInTheDocument()
+      fireEvent.click(await screen.findByRole('button', { name: 'Open batch SCB-2026-00001' }))
+      const dialog = await screen.findByRole('dialog')
+      expect(await within(dialog).findByText('Period 1 Oct 2026 to 31 Oct 2026')).toBeInTheDocument()
     })
 
     it('shows why the server refuses a self-approval', async () => {

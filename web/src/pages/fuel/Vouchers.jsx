@@ -12,6 +12,8 @@ import { useDebounced } from '@/lib/useDebounced'
 import { usePharmacyCompanyChoice } from '../pharmacy/pharmacyData'
 import { Amount, FilterBar, FormFooter, FuelList, PartyPicker, RecordStatus } from './FuelParts'
 import { FUEL_TYPES, fuelKey, VOUCHER_MANAGE, VOUCHER_STATUSES } from './fuelData'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 const FIELDS = ['company_id', 'value_minor', 'currency', 'code', 'party_id', 'fuel_type', 'expires_on']
 
@@ -108,6 +110,7 @@ function VoucherDialog({ onClose }) {
 /** FUEL-21: the fuel vouchers with their balance and status; issued by people who hold the manage permission. */
 export default function Vouchers() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const navigate = useNavigate()
   const { can } = usePermissions()
   const [typed, setTyped] = useState('')
@@ -120,7 +123,7 @@ export default function Vouchers() {
     { key: 'value', label: t('fuel.vouchers.value'), align: 'end', render: (row) => <Amount minor={row.value_minor} currency={row.currency} /> },
     { key: 'balance', label: t('fuel.vouchers.balance'), align: 'end', render: (row) => <Amount minor={row.balance_minor} currency={row.currency} className="font-medium text-ink" /> },
     { key: 'fuel', label: t('fuel.fields.fuelType'), render: (row) => (row.fuel_type ? t(`fuel.types.${row.fuel_type}`, { defaultValue: row.fuel_type }) : t('fuel.vehicles.anyFuel')) },
-    { key: 'expires', label: t('fuel.vouchers.expiresOn'), render: (row) => row.expires_on ?? '' },
+    { key: 'expires', label: t('fuel.vouchers.expiresOn'), render: (row) => formatCalendarDate(row.expires_on, locale) ?? '' },
     { key: 'status', label: t('fuel.columns.status'), render: (row) => <RecordStatus status={row.status} /> },
   ]
   return (

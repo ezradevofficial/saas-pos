@@ -9,6 +9,8 @@ import { Alert, Button, Card, DataTable, KpiTile, Money } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Flags, PerCurrency, QueryNotes, Status, TextLink, When } from './VanSalesParts'
 import { RECONCILIATION_VIEW, VISIT_TRACK, vanSalesKey } from './vansalesData'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 /** VAN-24: the check-in points of a run, read only with the tracking permission and only on request. */
 function Positions({ runId }) {
@@ -40,6 +42,7 @@ function Positions({ runId }) {
 /** VAN-06, VAN-09, VAN-10, VAN-17: one run with its visits, sales, collections, loads and count. */
 export default function RunDetail() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const { runId } = useParams()
   const { can } = usePermissions()
   const query = useQuery({ queryKey: [...vanSalesKey, 'run', runId], queryFn: () => api.get(`van-sales/runs/${runId}`) })
@@ -79,7 +82,7 @@ export default function RunDetail() {
   return (
     <>
       <TextLink to="/van-sales/runs">{t('vansales.runs.back')}</TextLink>
-      <PageHeader title={run ? t('vansales.runs.detailTitle', { van: run.van_name, date: run.run_date }) : t('vansales.runs.title')} description={run ? `${run.rep_name}${run.route_name ? ` · ${run.route_name}` : ''}` : undefined} />
+      <PageHeader title={run ? t('vansales.runs.detailTitle', { van: run.van_name, date: formatCalendarDate(run.run_date, locale) }) : t('vansales.runs.title')} description={run ? `${run.rep_name}${run.route_name ? ` · ${run.route_name}` : ''}` : undefined} />
       <div className="flex flex-col gap-6">
         <QueryNotes query={query} />
         {run ? (

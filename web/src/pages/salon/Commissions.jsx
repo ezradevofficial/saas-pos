@@ -8,6 +8,8 @@ import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, DataTable, Dialog, Money, MoneyInput, Select, Tabs, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { saveFile } from '@/lib/files'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 import { ActionsLabel, PlaceBar, QueryNotes, ReasonDialog, Status, When } from './SalonParts'
 import {
   COMMISSION_APPROVE,
@@ -25,6 +27,7 @@ import {
 /** SAL-23, SAL-24: a batch: its payouts per staff member and the steps from draft to export. */
 function BatchDialog({ id, onClose }) {
   const { t } = useTranslation()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const { can } = usePermissions()
   const query = useQuery({ queryKey: [...salonKey, 'batch', id], queryFn: () => api.get(`salon/commission-batches/${id}`) })
@@ -59,7 +62,7 @@ function BatchDialog({ id, onClose }) {
           {batch ? (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-ink-muted">{t('salon.commissions.period', { from: batch.period_start, to: batch.period_end })}</p>
+                <p className="text-ink-muted">{t('salon.commissions.period', { from: formatCalendarDate(batch.period_start, locale), to: formatCalendarDate(batch.period_end, locale) })}</p>
                 <Status status={batch.status} />
               </div>
               <DataTable caption={t('salon.commissions.payouts')} columns={columns} rows={batch.payouts} />
@@ -228,6 +231,7 @@ function useListQuery(name, path, params) {
 /** SAL-20 to SAL-24: rules, the ledger, tips and batches. */
 export default function Commissions() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const { can } = usePermissions()
   const place = useSalonPlace()
@@ -243,7 +247,7 @@ export default function Commissions() {
   const canRule = can(COMMISSION_RULE)
   const batchColumns = [
     { key: 'number', label: t('salon.commissions.number'), render: (row) => row.number },
-    { key: 'period', label: t('salon.commissions.periodShort'), render: (row) => `${row.period_start} – ${row.period_end}` },
+    { key: 'period', label: t('salon.commissions.periodShort'), render: (row) => `${formatCalendarDate(row.period_start, locale)} – ${formatCalendarDate(row.period_end, locale)}` },
     { key: 'staff', label: t('salon.commissions.staffCount'), align: 'end', render: (row) => row.staff_count },
     { key: 'total', label: t('salon.commissions.total'), align: 'end', render: (row) => <Money amount={row.total_minor} currency={row.currency} /> },
     { key: 'status', label: t('salon.fields.status'), render: (row) => <Status status={row.status} /> },
@@ -278,8 +282,8 @@ export default function Commissions() {
     { key: 'staff', label: t('salon.commissions.staff'), render: (row) => row.staff_name ?? t('salon.rules.everyone') },
     { key: 'service', label: t('salon.rules.service'), render: (row) => (row.applies_to === 'product' ? '' : (row.service_name ?? t('salon.rules.everyService'))) },
     { key: 'value', label: t('salon.rules.value'), align: 'end', render: (row) => (row.kind === 'percent' ? `${row.rate}%` : <Money amount={row.amount_minor} currency={row.currency} />) },
-    { key: 'from', label: t('salon.rules.from'), render: (row) => row.effective_from },
-    { key: 'to', label: t('salon.rules.to'), render: (row) => row.effective_to ?? '' },
+    { key: 'from', label: t('salon.rules.from'), render: (row) => formatCalendarDate(row.effective_from, locale) },
+    { key: 'to', label: t('salon.rules.to'), render: (row) => formatCalendarDate(row.effective_to, locale) ?? '' },
     {
       key: 'actions',
       label: <ActionsLabel />,

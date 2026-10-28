@@ -64,7 +64,7 @@ export function Flags({ flags }) {
     <ul aria-label={t('fuel.flagsLabel')} className="flex flex-wrap gap-x-3 gap-y-1">
       {codes.map((code) => (
         <li key={code}>
-          <StatusBadge tone="warning">{t(`fuel.flags.${code}`, { defaultValue: code })}</StatusBadge>
+          <StatusBadge tone="warning">{t(`fuel.flags.${code}`, { defaultValue: t(`pos.flags.${code}`, { defaultValue: code }) })}</StatusBadge>
         </li>
       ))}
     </ul>

@@ -82,7 +82,7 @@ function StopsEditor({ route, canEdit }) {
             </Button>
           </div>
         ) : null}
-        <DataTable caption={t('vansales.stops.title')} columns={columns.map((column) => ({ ...column, render: (row) => column.render(row, stops.indexOf(row)) }))} rows={stops.map((stop) => ({ ...stop, id: stop.key }))} emptyText={t('vansales.stops.empty')} />
+        <DataTable caption={t('vansales.stops.title')} columns={columns.map((column) => ({ ...column, render: (row) => column.render(row, stops.findIndex((stop) => stop.key === row.key)) }))} rows={stops.map((stop) => ({ ...stop, id: stop.key }))} emptyText={t('vansales.stops.empty')} />
         {canEdit ? (
           <div>
             <Button variant="primary" loading={save.isPending} onClick={() => save.mutate()}>
