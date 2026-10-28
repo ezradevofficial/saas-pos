@@ -328,6 +328,15 @@
       "payment_method_order_invalid": "The list changed while you were reordering it. Reload the page and try again.",
       "dimension_in_use": "This record has active records under it. Move or archive them first.",
       "confirmation_required": "Confirm the change to continue."
+    },
+    "route": {
+      "updating": "A new version is available. Loading it…",
+      "title": "Something went wrong on this page",
+      "body": "We have been told about it. Reload the page to try again, or go back to the dashboard.",
+      "staleTitle": "This page could not load",
+      "staleBody": "The app was updated while this tab was open. Reload the page to get the new version.",
+      "reload": "Reload page",
+      "home": "Go to dashboard"
     }
   },
   "nav": {
