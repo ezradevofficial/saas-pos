@@ -25,7 +25,7 @@ class ManualServiceProvider extends ServiceProvider
         RateLimiter::for(self::PDF_LIMITER, fn (Request $request) => Limit::perMinute(6)->by('user|'.$request->user()?->getAuthIdentifier()));
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ManualBuildCommand::class]);
+            $this->commands([ManualBuildCommand::class, DemoTenantCommand::class]);
         }
     }
 }

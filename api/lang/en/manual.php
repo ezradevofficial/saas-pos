@@ -9,6 +9,7 @@ return [
     'errors' => [
         'topic_not_found' => 'This help topic does not exist. Go back to the help page and pick another topic.',
     ],
+    'screenshot_alt' => 'Screenshot of :title',
     'contents' => 'Contents',
     'page' => 'Page :number',
     'modules' => [

@@ -3,6 +3,7 @@
 namespace App\Core\Manual;
 
 use Dompdf\Dompdf;
+use Dompdf\FontMetrics;
 use Dompdf\Frame;
 use Dompdf\Options;
 use Illuminate\Support\Collection;
@@ -15,14 +16,24 @@ use InvalidArgumentException;
  * contents with page numbers, then the topics grouped by module.
  *
  * Quiet and black on white (BR-01): text in black, captions and hairlines
- * in the light theme's `ink-muted` and `border` tokens, Geist where the
- * PDF engine has it and Helvetica where it does not. Pages are numbered
+ * in the light theme's `ink-muted` and `border` tokens, set in Geist (OFL,
+ * resources/fonts; Helvetica only if the font files are missing). The PDF
+ * engine cannot switch on OpenType features, so the figures that must line
+ * up (page numbers in the contents and footer) use Geist Mono. A topic's
+ * screenshot sits under its title. Pages are numbered
  * from the contents page on. The contents are filled in on a second pass,
  * once the first has shown which page each module and topic landed on.
  */
 class ManualBuilder
 {
     /** Used when design/tokens.json cannot be read. */
+    /** family, CSS weight and style, file in resources/fonts: the faces registered with the PDF engine. */
+    private const FONTS = [
+        ['Geist', 'normal', 'normal', 'Geist-Regular.ttf'],
+        ['Geist', 'bold', 'normal', 'Geist-SemiBold.ttf'],
+        ['Geist Mono', 'normal', 'normal', 'GeistMono-Regular.ttf'],
+    ];
+
     private const FALLBACK_TOKENS = ['ink-muted' => '#65656d', 'border' => '#ebebe8'];
 
     public function __construct(
@@ -85,7 +96,7 @@ class ManualBuilder
 
             foreach ($moduleTopics as $topic) {
                 $contents .= '<tr><td class="toc-topic"><a href="#t-'.e($topic->id).'">'.e($topic->title).'</a></td><td class="toc-page">'.$this->pageLabel($pages, 't-'.$topic->id).'</td></tr>';
-                $chapters .= '<h2 id="t-'.e($topic->id).'">'.e($topic->title).'</h2>'.$this->markdown($topic, $name, $locale);
+                $chapters .= '<h2 id="t-'.e($topic->id).'">'.e($topic->title).'</h2>'.$this->image($topic, $locale).$this->markdown($topic, $name, $locale);
             }
         }
 
@@ -113,7 +124,8 @@ class ManualBuilder
         table.toc td { padding: 1.6mm 0; border-bottom: 0.5pt solid {$tokens['border']}; vertical-align: top; }
         table.toc tr.toc-module td { padding-top: 5mm; font-weight: bold; }
         table.toc td.toc-topic { padding-left: 5mm; }
-        table.toc td.toc-page { width: 14mm; text-align: right; color: {$tokens['ink-muted']}; }
+        table.toc td.toc-page { width: 14mm; text-align: right; color: {$tokens['ink-muted']}; font-family: "Geist Mono", "Courier New", monospace; font-size: 9pt; }
+        img.shot { width: 100%; border: 0.5pt solid {$tokens['border']}; margin: 0 0 4mm 0; page-break-inside: avoid; }
         h1.chapter { page-break-before: always; font-size: 20pt; font-weight: bold; margin: 0 0 8mm 0; }
         h2 { page-break-after: avoid; font-size: 13pt; font-weight: bold; margin: 9mm 0 3mm 0; }
         h3 { page-break-after: avoid; font-size: 10.5pt; font-weight: bold; margin: 5mm 0 1.5mm 0; }
@@ -141,6 +153,20 @@ class ManualBuilder
         </body>
         </html>
         HTML;
+    }
+
+    /** The topic's screenshot as an `img` under its title (embedded, so the PDF needs no file access), or nothing. */
+    public function image(Topic $topic, string $locale): string
+    {
+        $path = $this->library->imagePath($topic, $locale);
+
+        if ($path === null) {
+            return '';
+        }
+
+        $alt = $topic->imageAlt ?? Lang::get('manual.screenshot_alt', ['title' => $topic->title], $locale);
+
+        return '<img class="shot" alt="'.e($alt).'" src="data:image/png;base64,'.base64_encode((string) file_get_contents($path)).'">';
     }
 
     /** The topic's body as safe HTML (raw HTML escaped, unsafe links off), with the product name filled in. */
@@ -181,10 +207,19 @@ class ManualBuilder
         $options->setIsRemoteEnabled(false);
         $options->setIsPhpEnabled(false);
         $options->setIsJavascriptEnabled(false);
-        $options->setChroot($sandbox);
+        $fonts = $this->fontsPath();
+        $options->setChroot([$sandbox, $fonts]);
         $options->setTempDir($sandbox);
+        // The registered faces are copied here once and reused by every build.
+        $options->setFontDir($sandbox.DIRECTORY_SEPARATOR.'fonts');
+        $options->setFontCache($sandbox.DIRECTORY_SEPARATOR.'fonts');
+
+        if (! is_dir($options->getFontDir())) {
+            @mkdir($options->getFontDir(), 0700, true);
+        }
 
         $pdf = new Dompdf($options);
+        $geist = $this->registerFonts($pdf->getFontMetrics(), $fonts);
         $pdf->setCallbacks([[
             'event' => 'begin_frame',
             'f' => function (Frame $frame, $canvas) use (&$pages) {
@@ -205,14 +240,15 @@ class ManualBuilder
 
         $canvas = $pdf->getCanvas();
         $metrics = $pdf->getFontMetrics();
-        $font = $metrics->getFont('Helvetica');
+        $font = $metrics->getFont($geist ? 'Geist' : 'Helvetica');
+        $mono = $metrics->getFont($geist ? 'Geist Mono' : 'Helvetica');
         $color = $this->rgb($this->tokens()['ink-muted']);
         $guide ??= $this->guideLabel($locale, $role);
         $left = $this->appName().'  ·  '.$guide;
         $size = 8;
 
         // Page numbers from the contents page on; the cover stays clean.
-        $canvas->page_script(function (int $number, int $count, $canvas, $metrics) use ($font, $color, $left, $size, $locale) {
+        $canvas->page_script(function (int $number, int $count, $canvas, $metrics) use ($font, $mono, $color, $left, $size, $locale) {
             if ($number < 2) {
                 return;
             }
@@ -222,7 +258,7 @@ class ManualBuilder
             $margin = 57;
 
             $canvas->text($margin, $y, $left, $font, $size, $color);
-            $canvas->text($canvas->get_width() - $margin - $metrics->getTextWidth($label, $font, $size), $y, $label, $font, $size, $color);
+            $canvas->text($canvas->get_width() - $margin - $metrics->getTextWidth($label, $mono, $size), $y, $label, $mono, $size, $color);
         });
 
         $pdf->addInfo('Title', Lang::get('manual.title', [], $locale).' - '.$guide);
@@ -256,6 +292,25 @@ class ManualBuilder
         $name = Lang::has($key, $locale) ? Lang::get($key, [], $locale) : Str::headline($role);
 
         return Lang::get('manual.guide_for', ['role' => $name], $locale);
+    }
+
+    private function fontsPath(): string
+    {
+        return resource_path('fonts');
+    }
+
+    /** Registers Geist with the PDF engine; false (Helvetica is used) when a font file is missing. */
+    private function registerFonts(FontMetrics $metrics, string $directory): bool
+    {
+        foreach (self::FONTS as [$family, $weight, $style, $file]) {
+            $path = $directory.DIRECTORY_SEPARATOR.$file;
+
+            if (! is_file($path) || ! $metrics->registerFont(['family' => $family, 'weight' => $weight, 'style' => $style], $path)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function moduleLabel(string $module, string $locale): string

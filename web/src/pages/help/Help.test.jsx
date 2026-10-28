@@ -65,6 +65,24 @@ describe('Help', () => {
     expect(api.get).toHaveBeenCalledWith('manual/topics/pos-sell?locale=en')
   })
 
+  it('shows the topic screenshot, fetched with the token', async () => {
+    mockApi(api, {
+      extra: {
+        [TOPIC_PATH]: { data: TOPICS },
+        'manual/topics/pos-sell?locale=en': { data: { ...TOPICS[2], html: '<p>Tap a product.</p>', image_url: 'http://localhost:8008/api/v1/manual/topics/pos-sell/image?locale=en', image_alt: 'Screenshot of Sell items' } },
+      },
+    })
+    const blob = new Blob(['png'], { type: 'image/png' })
+    api.download.mockResolvedValue({ blob, filename: null })
+    URL.createObjectURL = vi.fn(() => 'blob:shot')
+    URL.revokeObjectURL = vi.fn()
+    renderApp('/help?topic=pos-sell')
+
+    const image = await screen.findByRole('img', { name: 'Screenshot of Sell items' })
+    expect(image).toHaveAttribute('src', 'blob:shot')
+    expect(api.download).toHaveBeenCalledWith('manual/topics/pos-sell/image?locale=en')
+  })
+
   it('downloads the guide of the topics the user can see', async () => {
     setup()
     const blob = new Blob(['%PDF-1.7'], { type: 'application/pdf' })

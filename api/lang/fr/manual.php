@@ -9,6 +9,7 @@ return [
     'errors' => [
         'topic_not_found' => "Cette rubrique d'aide n'existe pas. Revenez à la page d'aide et choisissez une autre rubrique.",
     ],
+    'screenshot_alt' => 'Capture d’écran : :title',
     'contents' => 'Sommaire',
     'page' => 'Page :number',
     'modules' => [

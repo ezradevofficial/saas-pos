@@ -33,27 +33,31 @@ class ManualBuildTest extends TestCase
     }
 
     #[DataProvider('locales')]
-    public function test_a_cashier_guide_is_a_valid_pdf_with_every_topic_title(string $locale): void
+    public function test_a_cashier_guide_is_a_valid_pdf_set_in_geist_with_every_topic_title(string $locale): void
     {
-        $pdf = app(ManualBuilder::class)->pdf($locale, 'cashier');
+        $builder = app(ManualBuilder::class);
+        $pdf = $builder->pdf($locale, 'cashier');
 
         $this->assertStringStartsWith('%PDF-', $pdf);
         $this->assertStringContainsString('%%EOF', substr($pdf, -64));
 
-        $text = $this->pageText($pdf);
+        // Geist and Geist Mono are embedded, not the built-in Helvetica the body used before.
+        $this->assertMatchesRegularExpression('#/BaseFont\s*/[A-Z]{6}\+Geist-Regular#', $pdf);
+        $this->assertMatchesRegularExpression('#/BaseFont\s*/[A-Z]{6}\+GeistMono-Regular#', $pdf);
+        $this->assertGreaterThan(3, preg_match_all('#/Type\s*/Page\b#', $pdf));
+
+        // Embedded fonts store glyph ids, so the titles are read from the HTML the PDF is made from.
+        $html = $builder->html($locale, 'cashier');
         $topics = app(TopicLibrary::class)->forRole($locale, 'cashier');
 
         $this->assertGreaterThan(10, $topics->count());
 
         foreach ($topics as $topic) {
-            $this->assertStringContainsString($this->encode($topic->title), $text, "The {$locale} cashier guide lacks the title [{$topic->title}].");
+            $this->assertStringContainsString(e($topic->title), $html, "The {$locale} cashier guide lacks the title [{$topic->title}].");
         }
 
-        // The contents and the numbered pages are there, and the cover is not numbered.
-        $this->assertStringContainsString($this->encode($locale === 'fr' ? 'Sommaire' : 'Contents'), $text);
-        $this->assertStringContainsString('Page 2', $text);
-        $this->assertStringNotContainsString('Page 1)', $text);
-        $this->assertStringContainsString('Test App', $text);
+        $this->assertStringContainsString($locale === 'fr' ? 'Sommaire' : 'Contents', $html);
+        $this->assertStringContainsString('Test App', $html);
     }
 
     public static function locales(): array
@@ -116,19 +120,5 @@ class ManualBuildTest extends TestCase
         $this->expectExceptionMessage('only {{app_name}} is known');
 
         $builder->html('en', 'owner');
-    }
-
-    /** The text of every page: all compressed content streams, inflated. */
-    private function pageText(string $pdf): string
-    {
-        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $pdf, $streams);
-
-        return implode("\n", array_map(fn (string $stream) => (string) @gzuncompress($stream), $streams[1]));
-    }
-
-    /** A title as the core PDF fonts store it: Windows-1252, with octal escapes for the high bytes. */
-    private function encode(string $text): string
-    {
-        return mb_convert_encoding($text, 'Windows-1252', 'UTF-8');
     }
 }

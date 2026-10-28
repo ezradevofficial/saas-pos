@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { Alert, Button, Card, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
-import { downloadFile } from '@/lib/files'
+import { apiPathOf, downloadFile } from '@/lib/files'
 import { screenMatches } from '@/lib/helpScreens'
 import { useLocale } from '@/lib/useLocale'
 import { cn } from '@/lib/utils'
@@ -25,6 +25,36 @@ function groupByModule(topics) {
   return groups
 }
 
+/**
+ * The topic's screenshot. The image route needs the bearer token, so it is fetched
+ * through the API client and shown from an object URL (released when it changes or the topic closes).
+ */
+function TopicImage({ url, alt }) {
+  const [src, setSrc] = useState(null)
+
+  useEffect(() => {
+    let active = true
+    let objectUrl = null
+    api
+      .download(apiPathOf(url))
+      .then(({ blob }) => {
+        if (!active) return
+        objectUrl = URL.createObjectURL(blob)
+        setSrc(objectUrl)
+      })
+      .catch(() => {
+        // The text stands without the picture.
+      })
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [url])
+
+  if (!src) return null
+  return <img src={src} alt={alt} className="w-full rounded-md border border-border" />
+}
+
 /** The topic being read: its HTML comes from the API, which escapes raw HTML and refuses unsafe links. */
 function Reader({ id, locale }) {
   const { t } = useTranslation()
@@ -38,13 +68,14 @@ function Reader({ id, locale }) {
   if (topic.isError) return <Alert tone="danger">{errorMessage(topic.error)}</Alert>
   if (!topic.data) return <p role="status" className="text-body text-ink-muted">{t('common.loading')}</p>
 
-  const { title, module_label: moduleLabel, html } = topic.data.data
+  const { title, module_label: moduleLabel, html, image_url: imageUrl, image_alt: imageAlt } = topic.data.data
   return (
     <article aria-label={title} className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
         <p className="text-caption text-ink-muted">{moduleLabel}</p>
         <h2 className="text-h2 text-ink">{title}</h2>
       </header>
+      {imageUrl ? <TopicImage key={imageUrl} url={imageUrl} alt={imageAlt ?? title} /> : null}
       <div className="manual-prose" dangerouslySetInnerHTML={{ __html: html }} />
     </article>
   )
