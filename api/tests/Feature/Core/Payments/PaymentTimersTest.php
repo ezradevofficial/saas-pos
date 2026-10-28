@@ -102,6 +102,21 @@ class PaymentTimersTest extends TestCase
         $this->inTenant(fn () => $this->assertSame(0, PaymentReceipt::query()->count()));
     }
 
+    public function test_a_query_answering_4999_still_processing_keeps_the_push_pending(): void
+    {
+        // Found on staging: Daraja's STK query answers ResultCode 4999 while the prompt is still open on the phone.
+        $this->fakeDaraja([
+            'sandbox.safaricom.co.ke/mpesa/stkpushquery/*' => Http::response(['ResponseCode' => '0', 'ResultCode' => '4999', 'ResultDesc' => 'The transaction is still under processing']),
+        ]);
+        $intent = $this->intent($this->push()->assertCreated()->json('data.id'));
+
+        $this->runTimers(CarbonImmutable::now()->addSeconds(100));
+        $this->assertSame('pending', $this->intent($intent->id)->status);
+
+        $this->providerCallback('stk', $this->stkCallback($intent->provider_checkout_id, 0, 'QJK3PAID99'))->assertOk();
+        $this->assertSame('succeeded', $this->intent($intent->id)->status);
+    }
+
     public function test_a_manual_code_is_checked_and_verified_by_the_status_result(): void
     {
         $this->fakeDaraja();

@@ -20,11 +20,15 @@ use App\Core\Payments\ProviderResult;
  *   result comes to `status-result`.
  *
  * Daraja STK result codes: 0 paid; 1032 cancelled by the customer; 1037
- * and 1019 not reached or expired (timeout); anything else failed.
+ * and 1019 not reached or expired (timeout); 4999 (from the STK query)
+ * still being processed, so still pending; anything else failed.
  */
 class MpesaDarajaProvider implements PaymentProvider
 {
     public const STILL_PROCESSING = '500.001.1001';
+
+    /** The STK query's answer while the customer has the prompt open: "The transaction is still under processing". */
+    public const QUERY_STILL_PROCESSING = '4999';
 
     private const CANCELLED = ['1032'];
 
@@ -81,7 +85,7 @@ class MpesaDarajaProvider implements PaymentProvider
             return ProviderResult::pending();
         }
 
-        if (! array_key_exists('ResultCode', $answer)) {
+        if (! array_key_exists('ResultCode', $answer) || (string) $answer['ResultCode'] === self::QUERY_STILL_PROCESSING) {
             return ProviderResult::pending();
         }
 
