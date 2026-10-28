@@ -36,10 +36,16 @@ class ManualBuilder
         return $this->library->forRole($locale, $role);
     }
 
-    /** The guide as a PDF document. */
-    public function pdf(string $locale, ?string $role): string
+    /**
+     * The guide as a PDF document. $topics and $guide replace the role's
+     * topics and title when given (the in-app "my guide": exactly the topics
+     * one user can see).
+     *
+     * @param  Collection<int, Topic>|null  $topics
+     */
+    public function pdf(string $locale, ?string $role, ?Collection $topics = null, ?string $guide = null): string
     {
-        $topics = $this->topics($locale, $role);
+        $topics ??= $this->topics($locale, $role);
 
         if ($topics->isEmpty()) {
             throw new InvalidArgumentException('There are no manual topics for '.($role ?? 'the complete guide')." in [{$locale}].");
@@ -47,12 +53,12 @@ class ManualBuilder
 
         // First pass: where does each module and topic start?
         $pages = [];
-        $this->render($this->html($locale, $role, $topics, []), $locale, $role, $pages);
+        $this->render($this->html($locale, $role, $topics, [], $guide), $locale, $role, $pages, $guide);
 
         // Second pass: the contents with their page numbers.
         $ignored = [];
 
-        return $this->render($this->html($locale, $role, $topics, $pages), $locale, $role, $ignored);
+        return $this->render($this->html($locale, $role, $topics, $pages, $guide), $locale, $role, $ignored, $guide);
     }
 
     /**
@@ -61,12 +67,12 @@ class ManualBuilder
      * @param  Collection<int, Topic>|null  $topics
      * @param  array<string, int>  $pages  page of each anchor (`m-{module}`, `t-{id}`); empty on the first pass
      */
-    public function html(string $locale, ?string $role, ?Collection $topics = null, array $pages = []): string
+    public function html(string $locale, ?string $role, ?Collection $topics = null, array $pages = [], ?string $guide = null): string
     {
         $topics ??= $this->topics($locale, $role);
         $tokens = $this->tokens();
         $name = $this->appName();
-        $guide = $this->guideLabel($locale, $role);
+        $guide ??= $this->guideLabel($locale, $role);
         $modules = $topics->groupBy('module');
 
         $contents = '';
@@ -137,8 +143,8 @@ class ManualBuilder
         HTML;
     }
 
-    /** The topic's body as HTML, with the product name filled in. */
-    private function markdown(Topic $topic, string $name, string $locale): string
+    /** The topic's body as safe HTML (raw HTML escaped, unsafe links off), with the product name filled in. */
+    public function markdown(Topic $topic, string $name, string $locale): string
     {
         $body = str_replace('{{app_name}}', $name, $topic->body);
 
@@ -162,7 +168,7 @@ class ManualBuilder
      *
      * @param  array<string, int>  $pages  filled with anchor => page
      */
-    private function render(string $html, string $locale, ?string $role, array &$pages): string
+    private function render(string $html, string $locale, ?string $role, array &$pages, ?string $guide = null): string
     {
         $sandbox = sys_get_temp_dir().DIRECTORY_SEPARATOR.'manual-pdf';
 
@@ -201,7 +207,8 @@ class ManualBuilder
         $metrics = $pdf->getFontMetrics();
         $font = $metrics->getFont('Helvetica');
         $color = $this->rgb($this->tokens()['ink-muted']);
-        $left = $this->appName().'  ·  '.$this->guideLabel($locale, $role);
+        $guide ??= $this->guideLabel($locale, $role);
+        $left = $this->appName().'  ·  '.$guide;
         $size = 8;
 
         // Page numbers from the contents page on; the cover stays clean.
@@ -218,7 +225,7 @@ class ManualBuilder
             $canvas->text($canvas->get_width() - $margin - $metrics->getTextWidth($label, $font, $size), $y, $label, $font, $size, $color);
         });
 
-        $pdf->addInfo('Title', Lang::get('manual.title', [], $locale).' - '.$this->guideLabel($locale, $role));
+        $pdf->addInfo('Title', Lang::get('manual.title', [], $locale).' - '.$guide);
 
         return (string) $pdf->output();
     }
@@ -251,7 +258,7 @@ class ManualBuilder
         return Lang::get('manual.guide_for', ['role' => $name], $locale);
     }
 
-    private function moduleLabel(string $module, string $locale): string
+    public function moduleLabel(string $module, string $locale): string
     {
         $key = 'manual.modules.'.$module;
 

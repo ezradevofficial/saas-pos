@@ -400,6 +400,7 @@ class TenantIsolationTest extends TestCase
         'event_type' => 'core.notification.test', // GET notification-templates/{event_type}: a registered event type key (NOT-03); the texts shown are the caller's tenant's
         'kind' => TestLayoutKind::KEY, // LAY-06: config/{kind}: a registered configuration kind; the documents shown are the caller's tenant's
         'dashboard_source' => 'approvals.mine', // LAY-01: dashboard/sources/{dashboard_source}: a registered data source key; the data is the caller's own
+        'topic' => 'rbac-create-role', // RBAC-08: manual/topics/{topic}: a manual topic id (global files); visibility follows the caller's own modules and permissions
         'marketplace_app' => TwoTenants::MARKETPLACE_APP, // MKT-01: marketplace/apps/{marketplace_app}: a listed app, global; what the page shows of the install is the caller's
         'importer' => 'customers', // IMP-01: imports/importers/{importer}/template: a registered importer key; custom field columns are the caller's tenant's
         'component' => 'inpp', // CP-01: payroll/statutory/{company}/not-applicable/{component}: a pack component code; the company is B's

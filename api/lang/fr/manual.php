@@ -5,6 +5,10 @@ return [
     'title' => 'Guide de l’utilisateur',
     'guide_for' => 'Guide pour le rôle :role',
     'guide_all' => 'Guide complet',
+    'guide_mine' => 'Mon guide',
+    'errors' => [
+        'topic_not_found' => "Cette rubrique d'aide n'existe pas. Revenez à la page d'aide et choisissez une autre rubrique.",
+    ],
     'contents' => 'Sommaire',
     'page' => 'Page :number',
     'modules' => [

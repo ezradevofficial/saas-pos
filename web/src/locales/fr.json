@@ -565,7 +565,8 @@
     "salonClients": "Clients et forfaits",
     "salonCommissions": "Commissions",
     "salonReports": "Rapports du salon",
-    "salonSettings": "Paramètres du salon"
+    "salonSettings": "Paramètres du salon",
+    "help": "Aide"
   },
   "shell": {
     "account": "Menu du compte",
@@ -13675,5 +13676,22 @@
     "confirm": "Ne plus recevoir d’e-mails marketing",
     "doneTitle": "Vous êtes désinscrit",
     "doneText": "Vous ne recevrez plus d’offres ni de nouveautés par e-mail de cette entreprise. Pour les recevoir de nouveau, prévenez l’entreprise."
+  },
+  "help": {
+    "title": "Aide",
+    "description": "Des guides pas à pas pour les tâches que vous pouvez effectuer. Seules les rubriques qui correspondent à vos accès sont affichées.",
+    "searchLabel": "Rechercher une rubrique",
+    "searchPlaceholder": "Rechercher par titre",
+    "listLabel": "Rubriques d'aide",
+    "download": "Télécharger mon guide (PDF)",
+    "downloadFailed": "Le guide n'a pas pu être téléchargé. Réessayez dans une minute.",
+    "empty": "Aucune rubrique ne correspond à « {{query}} ». Essayez un autre mot.",
+    "none": "Il n'y a pas encore de rubrique d'aide pour vos accès.",
+    "pick": "Choisissez une rubrique pour la lire ici.",
+    "forPage": "Rubriques de cette page.",
+    "noneForPage": "Aucune rubrique n'est rédigée pour cette page. Toutes les rubriques sont affichées.",
+    "showAll": "Afficher toutes les rubriques",
+    "forThisPage": "Aide pour cette page",
+    "reader": "Rubrique"
   }
 }

@@ -153,7 +153,11 @@ export const NAV_GROUPS = [
     // APR-04: everyone has an approvals inbox; the badge counts what waits for them.
     id: 'workspace',
     label: (t) => t('nav.groups.workspace'),
-    items: [{ to: '/approvals', icon: 'approvals', label: (t) => t('nav.approvals'), badge: 'approvals', module: 'core' }],
+    items: [
+      { to: '/approvals', icon: 'approvals', label: (t) => t('nav.approvals'), badge: 'approvals', module: 'core' },
+      // The manual, filtered by the API to the user's modules and permissions (RBAC-08).
+      { to: '/help', icon: 'help', label: (t) => t('nav.help'), module: 'core' },
+    ],
   },
   {
     // POS-12, TEN-07, H2: only while the POS module is active (RBAC-08).
