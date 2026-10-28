@@ -5697,7 +5697,11 @@
       "phone": "Numéro de téléphone",
       "otherPhone": "{{provider}}, un autre numéro",
       "card": "Carte, sur la page du prestataire",
-      "cardPaystack": "Carte ou M-Pesa, sur la page de Paystack",
+      "paystack": {
+        "mpesa": "M-Pesa",
+        "airtel": "Airtel Money",
+        "card": "Carte"
+      },
       "submit": "Payer {{amount}}",
       "cancel": "Annuler",
       "close": "Fermer",

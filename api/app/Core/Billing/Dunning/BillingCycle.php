@@ -217,12 +217,40 @@ class BillingCycle
         $first = $subscription->status === Subscription::TRIAL && $subscription->hasPeriod() ? $this->openFirstInvoice() : null;
 
         if ($first !== null) {
-            return ['date' => CarbonImmutable::instance($first->due_at)->utc()->toDateString(), 'amount_minor' => (int) $first->total_minor];
+            return ['date' => CarbonImmutable::instance($first->due_at)->utc()->toDateString(), 'amount_minor' => (int) $first->total_minor, 'monthly_minor' => null];
         }
 
         $due = $subscription->nextDueAt();
 
-        return ['date' => $due?->toDateString(), 'amount_minor' => $due === null ? null : $this->nextAmount($subscription, $due)];
+        return [
+            'date' => $due?->toDateString(),
+            'amount_minor' => $due === null ? null : $this->nextAmount($subscription, $due),
+            'monthly_minor' => $due === null ? null : $this->unsubscribedMonthly($subscription, $due),
+        ];
+    }
+
+    /**
+     * SUB-02 price locking holds within a paid period only: every period start
+     * (the first invoice and each renewal, startPeriod) is priced at the
+     * catalogue of that day, never at the rows the trial began on. So a trial
+     * not subscribed yet shows, as its monthly cost, the plan at the prices
+     * its first invoice will use, not the amount stored when the trial began.
+     * Null (the stored amount stands) once a period runs.
+     */
+    private function unsubscribedMonthly(Subscription $subscription, CarbonImmutable $due): ?int
+    {
+        if ($subscription->hasPeriod()) {
+            return null;
+        }
+
+        try {
+            $plan = $subscription->pending_change === null ? $this->subscriptions->currentPlan($subscription) : Subscriptions::normalise($subscription->pending_change);
+            $quote = $this->subscriptions->price($subscription->country, $plan, [], $this->subscriptions->coupon($subscription, nextPeriod: true), $due);
+
+            return Subscriptions::monthly($quote);
+        } catch (ApiException) {
+            return null;
+        }
     }
 
     /** What the next invoice will come to: the plan due next at the day's prices. */

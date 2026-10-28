@@ -17,6 +17,8 @@ const SUBSCRIPTION = {
   period_amount: { amount_minor: 390000, currency: 'KES' }, monthly_amount: { amount_minor: 390000, currency: 'KES' },
   pending_change: null, next_invoice: { date: '2026-12-01', amount: { amount_minor: 390000, currency: 'KES' } },
   default_payment_method_id: 'm-1', wallets: ['mpesa_ke', 'airtel_ke'],
+  // SUB-04: what the operator can take now, per invoice currency (the API's answer).
+  pay_providers: { KES: ['mpesa_ke'] },
 }
 const CATALOGUE = {
   country: 'KE', currency: 'KES',
@@ -285,7 +287,7 @@ describe('Subscription banner (SUB-05, ONB-04)', () => {
 
   // SUB-04: Kenya pays through Paystack (M-Pesa or card on its page); a card is saved by paying, so there is no "Add card".
   describe('Paystack and pawaPay (SUB-04)', () => {
-    const PAYSTACK = { ...SUBSCRIPTION, checkout_provider: 'paystack', card_setup: false }
+    const PAYSTACK = { ...SUBSCRIPTION, checkout_provider: 'paystack', card_setup: false, card_choices: ['mpesa', 'airtel', 'card'], pay_providers: { KES: ['card_aggregator'] } }
 
     it('offers Paystack for a shilling invoice, sends the payer to its page, and hides "Add card"', async () => {
       mockRoutes(api, routes(PAYSTACK), { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
@@ -297,17 +299,29 @@ describe('Subscription banner (SUB-05, ONB-04)', () => {
       expect(screen.queryByRole('button', { name: 'Add card' })).not.toBeInTheDocument()
       fireEvent.click(await screen.findByRole('button', { name: 'Pay invoice INV-2026-000002' }))
       const dialog = await screen.findByRole('dialog')
-      chooseOption('Pay with', 'Card or M-Pesa, on Paystack’s page')
+      chooseOption('Pay with', 'Airtel Money')
       fireEvent.click(within(dialog).getByRole('button', { name: 'Pay KES 3,900.00' }))
 
-      await waitFor(() => expect(api.post).toHaveBeenCalledWith('subscription/invoices/i-1/pay', { provider: 'card_aggregator' }))
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('subscription/invoices/i-1/pay', { provider: 'card_aggregator', channel: 'airtel' }))
       await waitFor(() => expect(go).toHaveBeenCalledWith('https://checkout.paystack.com/abc123'))
       go.mockRestore()
     })
 
+    it('offers only what the API says the operator can take: saved methods first, then M-Pesa, Airtel Money and Card through Paystack; a saved direct M-Pesa is hidden (SUB-04)', async () => {
+      const card = { id: 'm-2', kind: 'card', provider: 'card_aggregator', label: 'Visa 4242', is_default: false, auto_renew: true }
+      const airtel = { id: 'm-3', kind: 'mobile_money', provider: 'airtel_ke', label: '2547•••••111', is_default: false, auto_renew: false }
+      mockRoutes(api, [['subscription/payment-methods', { data: [airtel, METHOD, card] }], ...routes({ ...PAYSTACK, default_payment_method_id: null })], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+      renderApp('/settings/subscription')
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Pay invoice INV-2026-000002' }))
+      await screen.findByRole('dialog')
+      const texts = optionTexts('Pay with')
+      expect(texts).toEqual(['Card · Visa 4242', 'M-Pesa', 'Airtel Money', 'Card'])
+    })
+
     it('does not offer Paystack for an invoice that is not in shillings', async () => {
       const usd = { ...INVOICE, currency: 'USD', total: { amount_minor: 4850, currency: 'USD' } }
-      mockRoutes(api, [[/^subscription\/invoices/, { data: [usd], meta: { total: 1, from: 1, to: 1, current_page: 1, last_page: 1, per_page: 25 } }], ...routes({ ...PAYSTACK, country: 'CD', currency: 'USD', wallets: ['vodacom_mpesa_cd', 'airtel_money_cd', 'orange_money_cd'] })], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+      mockRoutes(api, [[/^subscription\/invoices/, { data: [usd], meta: { total: 1, from: 1, to: 1, current_page: 1, last_page: 1, per_page: 25 } }], ...routes({ ...PAYSTACK, country: 'CD', currency: 'USD', wallets: ['vodacom_mpesa_cd', 'airtel_money_cd', 'orange_money_cd'], pay_providers: { USD: ['vodacom_mpesa_cd'] } })], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
       renderApp('/settings/subscription')
 
       fireEvent.click(await screen.findByRole('button', { name: 'Pay invoice INV-2026-000002' }))
@@ -317,7 +331,7 @@ describe('Subscription banner (SUB-05, ONB-04)', () => {
     })
 
     it('lets a Congolese customer pick Vodacom M-Pesa, Airtel or Orange and type the phone, then asks to approve on the phone', async () => {
-      const cd = { ...SUBSCRIPTION, country: 'CD', currency: 'CDF', checkout_provider: 'pawapay', card_setup: true, wallets: ['vodacom_mpesa_cd', 'airtel_money_cd', 'orange_money_cd'], default_payment_method_id: null }
+      const cd = { ...SUBSCRIPTION, country: 'CD', currency: 'CDF', checkout_provider: 'pawapay', card_setup: true, wallets: ['vodacom_mpesa_cd', 'airtel_money_cd', 'orange_money_cd'], default_payment_method_id: null, pay_providers: { CDF: ['card_aggregator', 'vodacom_mpesa_cd', 'airtel_money_cd', 'orange_money_cd'] } }
       const invoice = { ...INVOICE, currency: 'CDF', total: { amount_minor: 135000, currency: 'CDF' } }
       mockRoutes(api, [
         ['subscription/payment-methods', { data: [] }],
@@ -330,7 +344,7 @@ describe('Subscription banner (SUB-05, ONB-04)', () => {
 
       fireEvent.click(await screen.findByRole('button', { name: 'Pay invoice INV-2026-000002' }))
       const dialog = await screen.findByRole('dialog')
-      expect(optionTexts('Pay with').map((text) => text.replace(/, another number$/, ''))).toEqual(['M-Pesa (Vodacom)', 'Airtel Money', 'Orange Money', 'Card, on the card provider’s page'])
+      expect(optionTexts('Pay with').map((text) => text.replace(/, another number$/, ''))).toEqual(['Card, on the card provider’s page', 'M-Pesa (Vodacom)', 'Airtel Money', 'Orange Money'])
       chooseOption('Pay with', /Orange Money/)
       fireEvent.change(within(dialog).getByLabelText('Phone number'), { target: { value: '0893456789' } })
       fireEvent.click(within(dialog).getByRole('button', { name: 'Pay CDF 135,000' }))

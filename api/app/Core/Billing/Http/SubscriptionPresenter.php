@@ -5,6 +5,7 @@ namespace App\Core\Billing\Http;
 use App\Core\Billing\Models\BillingPayment;
 use App\Core\Billing\Models\BillingPaymentMethod;
 use App\Core\Billing\Models\Subscription;
+use App\Core\Billing\Payments\BillingPayments;
 use App\Core\Billing\PlatformSettings;
 use Carbon\CarbonImmutable;
 
@@ -37,7 +38,7 @@ final class SubscriptionPresenter
         ];
     }
 
-    /** @param array{date: ?string, amount_minor: ?int} $next */
+    /** @param array{date: ?string, amount_minor: ?int, monthly_minor?: ?int} $next */
     public static function subscription(Subscription $subscription, array $next): array
     {
         $money = fn (?int $minor) => $minor === null ? null : ['amount_minor' => $minor, 'currency' => $subscription->currency];
@@ -55,7 +56,8 @@ final class SubscriptionPresenter
             'current_period_start' => $subscription->current_period_start?->toDateString(),
             'current_period_end' => $subscription->current_period_end?->toDateString(),
             'period_amount' => $money($subscription->period_amount_minor),
-            'monthly_amount' => $money($subscription->monthly_amount_minor),
+            // What the customer will be charged a month: see BillingCycle::nextInvoice (a trial not subscribed yet is priced at today's catalogue, like its first invoice).
+            'monthly_amount' => $money($next['monthly_minor'] ?? $subscription->monthly_amount_minor),
             'pending_change' => $subscription->pending_change === null ? null : [
                 'modules' => $subscription->pending_change['modules'] ?? [],
                 'quantities' => (object) ($subscription->pending_change['quantities'] ?? []),
@@ -66,8 +68,12 @@ final class SubscriptionPresenter
             'next_invoice' => ['date' => $next['date'], 'amount' => $money($next['amount_minor'])],
             'default_payment_method_id' => $subscription->default_payment_method_id,
             'wallets' => (array) config("billing.wallets.{$subscription->country}", []),
+            // SUB-04: per invoice currency, the providers the operator can take now (card checkout first, then wallets).
+            'pay_providers' => (object) app(BillingPayments::class)->available($subscription),
             // The checkout behind "card": Paystack (M-Pesa or card, a card is saved by paying), else a hosted page.
             'checkout_provider' => (string) config('billing.drivers.card_aggregator'),
+            // Paystack checkout choices (M-Pesa, Airtel Money, card), each sending its own channels.
+            'card_choices' => config('billing.drivers.card_aggregator') === 'paystack' ? array_keys((array) config('billing.paystack_choices')) : [],
             'card_setup' => config('billing.drivers.card_aggregator') !== 'paystack',
         ];
     }

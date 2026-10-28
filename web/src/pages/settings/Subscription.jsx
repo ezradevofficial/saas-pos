@@ -326,11 +326,17 @@ export function PaymentProgress({ paymentId, onFinished }) {
 function PayDialog({ invoice, subscription, methods, onClose }) {
   const { t } = useTranslation()
   const locale = useLocale()
-  const [choice, setChoice] = useState(() => methods.find((m) => m.is_default)?.id ?? (methods[0]?.id || `wallet:${subscription.wallets[0]}`))
+  // SUB-04: the API says what the operator can take now for this invoice's currency (card checkout, then wallets); nothing else is offered.
+  const offered = subscription.pay_providers?.[invoice.total.currency] ?? []
+  const savedMethods = methods.filter((method) => offered.includes(method.provider))
+  const wallets = offered.filter((provider) => provider !== 'card_aggregator')
+  const paystackChoice = subscription.checkout_provider === 'paystack' ? subscription.card_choices?.[0] : null
+  const [choice, setChoice] = useState(() => savedMethods.find((m) => m.is_default)?.id ?? savedMethods[0]?.id ?? (offered.includes('card_aggregator') ? (paystackChoice ? `paystack:${paystackChoice}` : 'card') : wallets[0] ? `wallet:${wallets[0]}` : ''))
   const [phone, setPhone] = useState('')
   const [paymentId, setPaymentId] = useState(null)
   const pay = useMutation({
     mutationFn: () => {
+      if (choice.startsWith('paystack:')) return api.post(`subscription/invoices/${invoice.id}/pay`, { provider: 'card_aggregator', channel: choice.slice(9) })
       if (choice === 'card') return api.post(`subscription/invoices/${invoice.id}/pay`, { provider: 'card_aggregator' })
       if (choice.startsWith('wallet:')) return api.post(`subscription/invoices/${invoice.id}/pay`, { provider: choice.slice(7), phone })
       return api.post(`subscription/invoices/${invoice.id}/pay`, { payment_method_id: choice })
@@ -341,15 +347,15 @@ function PayDialog({ invoice, subscription, methods, onClose }) {
     },
   })
   const errors = fieldErrors(pay.error)
-  // Paystack takes M-Pesa and cards in shillings only; another invoice currency has no checkout there.
   const paystack = subscription.checkout_provider === 'paystack'
-  const cardOptions = paystack
-    ? invoice.total.currency === 'KES' ? [{ value: 'card', label: t('subscription.pay.cardPaystack') }] : []
-    : [{ value: 'card', label: t('subscription.pay.card') }]
   const options = [
-    ...methods.map((method) => ({ value: method.id, label: `${t(`subscription.providers.${method.provider}`)} · ${method.label}` })),
-    ...subscription.wallets.map((provider) => ({ value: `wallet:${provider}`, label: t('subscription.pay.otherPhone', { provider: t(`subscription.providers.${provider}`) }) })),
-    ...cardOptions,
+    ...savedMethods.map((method) => ({ value: method.id, label: `${t(`subscription.providers.${method.provider}`)} · ${method.label}` })),
+    ...(offered.includes('card_aggregator')
+      ? paystack
+        ? (subscription.card_choices ?? []).map((choice) => ({ value: `paystack:${choice}`, label: t(`subscription.pay.paystack.${choice}`) }))
+        : [{ value: 'card', label: t('subscription.pay.card') }]
+      : []),
+    ...wallets.map((provider) => ({ value: `wallet:${provider}`, label: t('subscription.pay.otherPhone', { provider: t(`subscription.providers.${provider}`) }) })),
   ]
 
   return (
