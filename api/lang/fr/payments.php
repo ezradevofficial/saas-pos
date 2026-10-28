@@ -18,6 +18,8 @@ return [
         'provider_refused' => 'Le fournisseur de paiement a refusé la demande. Vérifiez les informations et réessayez, ou prenez un autre moyen de paiement.',
         'declined' => 'Le client a refusé le paiement sur son téléphone. Demandez-lui de réessayer, ou prenez un autre moyen de paiement.',
         'not_reached' => 'Le téléphone du client n’a pas répondu à temps. Demandez-lui de vérifier son téléphone et réessayez.',
+        'checkout_abandoned' => 'La page de paiement n’a pas été terminée à temps. Relancez le paiement.',
+        'checkout_superseded' => 'Cette page de paiement a été remplacée par un nouveau choix de paiement.',
         'provider_auth' => 'Le fournisseur de paiement a refusé les identifiants. Vérifiez les clés du moyen de paiement dans le back-office.',
         'phone_invalid' => 'Saisissez un numéro de mobile valide, par exemple 0712 345 678.',
         'receipt_used' => 'Ce code de paiement a déjà servi pour une autre vente. Vérifiez le code dans le message du client.',

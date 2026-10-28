@@ -84,11 +84,39 @@ class BillingPayments
         [$provider, $phone, $token, $saved, $label] = $this->resolve($subscription, $how);
 
         // Never two requests for one invoice: while one may still be paid (pending, or unknown at
-        // the provider), ask where it stands; still open, a new one is refused.
+        // the provider), ask where it stands (refresh verifies a Paystack checkout with Paystack).
+        $choice = filled($how['channel'] ?? null) ? (string) $how['channel'] : null;
+
         foreach (BillingPayment::query()->where('billing_invoice_id', $invoice->id)->whereIn('status', ['pending', 'unknown'])->get() as $open) {
-            if ($this->refresh($open)->isPending()) {
-                throw new ApiException(409, 'payment_in_progress', __('billing.errors.payment_in_progress'));
+            $open = $this->refresh($open);
+
+            if (! $open->isPending()) {
+                if ($open->status === 'succeeded') {
+                    throw new ApiException(409, 'invoice_paid', __('billing.errors.invoice_paid'));
+                }
+
+                continue;
             }
+
+            $openIntent = $this->operator->run(fn () => PaymentIntent::query()->find($open->id));
+
+            // A Paystack page the payer left: the same choice resumes it; another choice replaces it.
+            if ($openIntent !== null && $openIntent->driver === 'paystack' && $openIntent->mode === 'checkout') {
+                if ($saved === null && $open->provider === $provider && ($openIntent->provider_data['choice'] ?? null) === $choice && is_string($open->redirect_url) && $open->redirect_url !== '') {
+                    return $open;
+                }
+
+                if (is_string($open->redirect_url) && $open->redirect_url !== '') {
+                    $this->supersede($open);
+
+                    continue;
+                }
+
+                throw new ApiException(409, 'payment_in_progress', __('billing.errors.payment_in_progress_card'));
+            }
+
+            // Phone prompts (pawaPay, Daraja): the payer approves on the phone, or it times out.
+            throw new ApiException(409, 'payment_in_progress', __('billing.errors.payment_in_progress'));
         }
 
         if (! $invoice->fresh()->isOpen()) {
@@ -115,7 +143,7 @@ class BillingPayments
         ]);
 
         try {
-            $intent = $this->operator->run(function () use ($invoice, $provider, $phone, $token, $customerId, $id, $email, $channels) {
+            $intent = $this->operator->run(function () use ($invoice, $provider, $phone, $token, $customerId, $id, $email, $channels, $choice) {
                 $operatorInvoice = OperatorInvoice::query()->findOrFail($invoice->operator_invoice_id);
 
                 if ($operatorInvoice->customer_tenant_id !== $customerId || ! $operatorInvoice->isOpen()) {
@@ -136,6 +164,7 @@ class BillingPayments
                     'currency' => $operatorInvoice->currency,
                     'amount_minor' => $operatorInvoice->total_minor,
                     'phone' => $phone,
+                    'provider_data' => $card && $driver instanceof PaystackProvider ? ['choice' => $choice] : [],
                     'reference_type' => Invoicing::REFERENCE_TYPE,
                     'reference' => $operatorInvoice->id,
                 ], $initiate);
@@ -148,6 +177,30 @@ class BillingPayments
         }
 
         return $this->mirror($payment->fresh(), $intent);
+    }
+
+    /**
+     * The payer chose differently: the old Paystack page is closed on our side (SUB-04, AUD-01). Marked
+     * `timeout` (superseded), not cancelled: Paystack's link may still be paid, and a late success is
+     * then settled or kept as an overpayment for staff (never two payments of one invoice, NFR-06).
+     */
+    private function supersede(BillingPayment $payment): void
+    {
+        $this->operator->run(function () use ($payment) {
+            $intent = PaymentIntent::query()->find($payment->id);
+
+            if ($intent !== null) {
+                $this->intents->apply($intent, new ProviderResult('timeout', resultCode: 'superseded', message: __('payments.errors.checkout_superseded')));
+            }
+        });
+
+        $fresh = BillingPayment::query()->find($payment->id);
+
+        if ($fresh !== null) {
+            $before = ['status' => $fresh->status];
+            $this->mirror($fresh, $this->operator->run(fn () => PaymentIntent::query()->findOrFail($payment->id)));
+            app(Auditor::class)->record('core.billing_payment.superseded', $fresh, $before, ['status' => $fresh->status]);
+        }
     }
 
     /**

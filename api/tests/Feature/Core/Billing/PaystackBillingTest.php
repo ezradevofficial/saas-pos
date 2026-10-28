@@ -8,7 +8,9 @@ use App\Core\Billing\Models\BillingPayment;
 use App\Core\Billing\Models\BillingPaymentMethod;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Payments\Models\PaymentIntent;
+use App\Core\Payments\PaymentIntents;
 use App\Core\Payments\Paystack\PaystackProvider;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -230,6 +232,130 @@ class PaystackBillingTest extends TestCase
     }
 
     /** Http::fake adds stubs after the earlier ones, where the first match wins: start from a clean factory. */
+    private function payAgain(BillingInvoice $invoice, array $body): TestResponse
+    {
+        return $this->postJson("/api/v1/subscription/invoices/{$invoice->id}/pay", $body, $this->headersFor());
+    }
+
+    /** Paystack's verify: success (exact amount) for the references in $paid, still on the page for the others. */
+    private function fakeVerifyPaid(array $paid, int $amount): void
+    {
+        $this->fake([
+            'api.paystack.co/transaction/initialize' => Http::response(['status' => true, 'data' => ['authorization_url' => 'https://checkout.paystack.com/next'.count($paid), 'access_code' => 'ac2']]),
+            'api.paystack.co/transaction/verify/*' => function (Request $request) use ($paid, $amount) {
+                $reference = basename(parse_url($request->url(), PHP_URL_PATH));
+
+                return Http::response(['status' => true, 'data' => in_array($reference, $paid, true)
+                    ? ['status' => 'success', 'id' => crc32($reference), 'amount' => $amount, 'currency' => 'KES', 'reference' => $reference, 'channel' => 'mobile_money']
+                    : ['status' => 'abandoned', 'reference' => $reference]]);
+            },
+        ]);
+    }
+
+    public function test_pay_again_with_the_same_choice_resumes_the_open_checkout_instead_of_refusing(): void
+    {
+        $this->fake(['api.paystack.co/transaction/initialize' => Http::response(['status' => true, 'data' => ['authorization_url' => 'https://checkout.paystack.com/abc123', 'access_code' => 'ac1']])]);
+        $invoice = $this->subscribed();
+        $first = $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'mpesa'])->assertCreated()->json('data');
+
+        $this->fakeVerifyPaid([], $invoice->total_minor);
+        $again = $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'mpesa'])->assertSuccessful();
+
+        $again->assertJsonPath('data.id', $first['id'])->assertJsonPath('data.redirect_url', 'https://checkout.paystack.com/abc123')->assertJsonPath('data.status', 'pending');
+        $this->assertSame(1, $this->inOperator(fn () => PaymentIntent::query()->count()));
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/transaction/initialize'));
+    }
+
+    public function test_a_different_choice_closes_the_old_checkout_audited_and_starts_a_new_one(): void
+    {
+        $this->fake(['api.paystack.co/transaction/initialize' => Http::response(['status' => true, 'data' => ['authorization_url' => 'https://checkout.paystack.com/abc123', 'access_code' => 'ac1']])]);
+        $invoice = $this->subscribed();
+        $old = $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'mpesa'])->assertCreated()->json('data.id');
+
+        $this->fakeVerifyPaid([], $invoice->total_minor);
+        $new = $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'card'])->assertCreated()->json('data');
+
+        $this->assertNotSame($old, $new['id']);
+        $this->assertSame('https://checkout.paystack.com/next0', $new['redirect_url']);
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), '/transaction/verify/'.$old));
+        $intent = $this->inOperator(fn () => PaymentIntent::query()->findOrFail($old));
+        $this->assertSame(['timeout', 'superseded'], [$intent->status, $intent->result_code]);
+        $this->assertNotSame('succeeded', $this->inTenant(fn () => BillingPayment::query()->findOrFail($old)->status));
+        $this->assertSame(1, $this->inTenant(fn () => AuditEntry::query()->where('action', 'core.billing_payment.superseded')->count()));
+        $this->assertSame('open', $this->operatorInvoice($invoice->operator_invoice_id)->status);
+    }
+
+    public function test_a_different_choice_when_the_old_checkout_turns_out_paid_settles_it_and_says_the_invoice_is_paid(): void
+    {
+        $this->fake(['api.paystack.co/transaction/initialize' => Http::response(['status' => true, 'data' => ['authorization_url' => 'https://checkout.paystack.com/abc123', 'access_code' => 'ac1']])]);
+        $invoice = $this->subscribed();
+        $old = $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'mpesa'])->assertCreated()->json('data.id');
+
+        $this->fakeVerifyPaid([$old], $invoice->total_minor);
+        $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'card'])->assertStatus(409)->assertJsonPath('code', 'invoice_paid');
+
+        $this->assertSame('paid', $this->operatorInvoice($invoice->operator_invoice_id)->status);
+        $this->assertSame('paid', $this->inTenant(fn () => $invoice->fresh()->status));
+        $this->assertSame(1, $this->inOperator(fn () => PaymentIntent::query()->count()));
+    }
+
+    public function test_if_both_checkouts_get_paid_the_second_is_kept_as_an_overpayment_never_a_second_settlement(): void
+    {
+        $this->fake(['api.paystack.co/transaction/initialize' => Http::response(['status' => true, 'data' => ['authorization_url' => 'https://checkout.paystack.com/abc123', 'access_code' => 'ac1']])]);
+        $invoice = $this->subscribed();
+        $old = $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'mpesa'])->assertCreated()->json('data.id');
+        $this->fakeVerifyPaid([], $invoice->total_minor);
+        $new = $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'card'])->assertCreated()->json('data.id');
+
+        // The new one is paid; then Paystack reports the old link paid as well.
+        $this->fakeVerifyPaid([$new, $old], $invoice->total_minor);
+        $this->webhook($new)->assertOk();
+        $this->webhook($old)->assertOk();
+
+        $operatorInvoice = $this->operatorInvoice($invoice->operator_invoice_id);
+        $this->assertSame('paid', $operatorInvoice->status);
+        $this->assertSame([$old], array_column($operatorInvoice->overpayments ?? [], 'intent_id'));
+        $this->assertSame(1, $this->inTenant(fn () => AuditEntry::query()->where('action', 'core.billing_invoice.paid')->count()));
+    }
+
+    public function test_an_abandoned_checkout_is_verified_and_released_after_the_link_lifetime_unless_paid(): void
+    {
+        config(['payments.paystack.checkout_minutes' => 30]);
+        $this->fake(['api.paystack.co/transaction/initialize' => Http::response(['status' => true, 'data' => ['authorization_url' => 'https://checkout.paystack.com/abc123', 'access_code' => 'ac1']])]);
+        $invoice = $this->subscribed();
+        $abandoned = $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'mpesa'])->assertCreated()->json('data.id');
+
+        $this->fakeVerifyPaid([], $invoice->total_minor);
+        $run = fn (int $minutes) => $this->inOperator(fn () => app(PaymentIntents::class)->processTimers(CarbonImmutable::now()->addMinutes($minutes)));
+
+        // Within the link's life: asked, still waiting, not released.
+        $run(10);
+        $this->assertSame('pending', $this->inOperator(fn () => PaymentIntent::query()->findOrFail($abandoned)->status));
+
+        // Past it: verified with Paystack, then released.
+        $run(31);
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), '/transaction/verify/'.$abandoned));
+        $intent = $this->inOperator(fn () => PaymentIntent::query()->findOrFail($abandoned));
+        $this->assertSame(['timeout', 'abandoned'], [$intent->status, $intent->result_code]);
+        $this->assertSame('timeout', $this->inTenant(fn () => BillingPayment::query()->findOrFail($abandoned)->status));
+
+        // Paying again starts a fresh checkout.
+        $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'mpesa'])->assertCreated();
+    }
+
+    public function test_an_old_checkout_found_paid_by_the_expiry_job_pays_the_invoice(): void
+    {
+        $this->fake(['api.paystack.co/transaction/initialize' => Http::response(['status' => true, 'data' => ['authorization_url' => 'https://checkout.paystack.com/abc123', 'access_code' => 'ac1']])]);
+        $invoice = $this->subscribed();
+        $reference = $this->payAgain($invoice, ['provider' => 'card_aggregator', 'channel' => 'mpesa'])->assertCreated()->json('data.id');
+
+        $this->fakeVerifyPaid([$reference], $invoice->total_minor);
+        $this->inOperator(fn () => app(PaymentIntents::class)->processTimers(CarbonImmutable::now()->addMinutes(31)));
+
+        $this->assertSame('succeeded', $this->inOperator(fn () => PaymentIntent::query()->findOrFail($reference)->status));
+        $this->assertSame('paid', $this->operatorInvoice($invoice->operator_invoice_id)->status);
+    }
+
     private function fake(array $stubs): void
     {
         Http::swap(new Factory);

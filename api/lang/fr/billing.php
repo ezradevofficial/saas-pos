@@ -48,6 +48,8 @@ return [
         'provider_unavailable' => 'Ce moyen de paiement n’est pas encore disponible. Choisissez-en un autre ou contactez le support.',
         'payer_email_missing' => 'Ajoutez une adresse e-mail à votre profil, puis payez à nouveau. Le paiement par carte en a besoin pour le reçu.',
         'payment_in_progress' => 'Un paiement de cette facture attend encore le payeur. Validez-le sur le téléphone, ou attendez qu’il se termine, puis réessayez.',
+        'payment_in_progress_card' => 'Un paiement par carte ou portefeuille de cette facture est encore en cours de confirmation. Patientez un instant, puis réessayez.',
+        'invoice_paid' => 'Cette facture est déjà payée. Actualisez pour voir son statut.',
         'payment_failed' => 'Le paiement n’a pas abouti. Réessayez ou utilisez un autre moyen.',
         'already_subscribed' => 'Vous êtes déjà abonné. Vos factures figurent ci-dessous.',
         'subscribed_change_plan' => 'Vous êtes déjà abonné : la formule se change dans Paramètres, Abonnement.',

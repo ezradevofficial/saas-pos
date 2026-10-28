@@ -48,6 +48,8 @@ return [
         'provider_unavailable' => 'This payment method isn’t available yet. Choose another one or contact support.',
         'payer_email_missing' => 'Add an email address to your profile, then pay again. The card checkout needs it for the receipt.',
         'payment_in_progress' => 'A payment of this invoice is still waiting for the payer. Approve it on the phone, or wait for it to finish, then try again.',
+        'payment_in_progress_card' => 'A card or wallet payment of this invoice is still being confirmed. Wait a moment, then try again.',
+        'invoice_paid' => 'This invoice has already been paid. Refresh to see its status.',
         'payment_failed' => 'The payment didn’t go through. Try again or use another method.',
         'already_subscribed' => 'You’ve already subscribed. Your invoices are listed below.',
         'subscribed_change_plan' => 'You’ve already subscribed, so the plan is changed in Settings, Subscription.',
