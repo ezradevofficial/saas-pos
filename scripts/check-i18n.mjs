@@ -291,6 +291,44 @@ if (existsSync(appJsonFile)) {
   }
 }
 
+// The user manual (docs/manual): every topic file exists in en and fr with the same
+// id and front matter lists. The API test (ManualTopicsTest) also checks that the
+// permissions and roles are real.
+{
+  const manual = join(root, 'docs/manual')
+  const topicFiles = (locale) => {
+    const base = join(manual, locale)
+    const walk = (dir) =>
+      readdirSync(dir).flatMap((entry) => {
+        const full = join(dir, entry)
+        return statSync(full).isDirectory() ? walk(full) : entry.endsWith('.md') ? [relative(base, full)] : []
+      })
+    return existsSync(base) ? walk(base).sort() : []
+  }
+  const meta = (locale, file) => {
+    const match = readFileSync(join(manual, locale, file), 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/)
+    if (!match) return null
+    return Object.fromEntries(match[1].split(/\r?\n/).filter((line) => line.includes(':')).map((line) => [line.slice(0, line.indexOf(':')), line.slice(line.indexOf(':') + 1).trim()]))
+  }
+  if (existsSync(manual)) {
+    const en = topicFiles('en')
+    const fr = topicFiles('fr')
+    for (const file of en) if (!fr.includes(file)) errors.push(`manual: ${file} is in docs/manual/en but not in fr`)
+    for (const file of fr) if (!en.includes(file)) errors.push(`manual: ${file} is in docs/manual/fr but not in en`)
+    for (const file of en.filter((name) => fr.includes(name))) {
+      const a = meta('en', file)
+      const b = meta('fr', file)
+      if (!a || !b || !a.id) {
+        errors.push(`manual: ${file} needs front matter with an id in both languages`)
+        continue
+      }
+      for (const key of ['id', 'module', 'order', 'permissions', 'roles', 'screens']) {
+        if (a[key] !== b[key]) errors.push(`manual: ${file} has a different "${key}" in en ("${a[key]}") and fr ("${b[key]}")`)
+      }
+    }
+  }
+}
+
 if (errors.length > 0) {
   console.error(`i18n check failed (${errors.length}):\n- ${errors.join('\n- ')}`)
   process.exit(1)
