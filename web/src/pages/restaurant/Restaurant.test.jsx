@@ -95,7 +95,7 @@ describe('Restaurant', () => {
       fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'T9' } })
       fireEvent.change(within(dialog).getByLabelText('Left (0 to 99)'), { target: { value: '40' } })
       fireEvent.click(within(dialog).getByRole('button', { name: 'Save table' }))
-      await waitFor(() => expect(api.post).toHaveBeenCalledWith('restaurant/tables', { area_id: 'a-1', name: 'T9', seats: 4, x: 40, y: 0, width: 10, height: 10, shape: 'square' }))
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('restaurant/tables', { location_id: 'l-1', area_id: 'a-1', name: 'T9', seats: 4, x: 40, y: 0, width: 10, height: 10, shape: 'square' }))
     })
 
     it('sets the manual status of a table when saving it', async () => {

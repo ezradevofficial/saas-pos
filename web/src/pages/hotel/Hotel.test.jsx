@@ -3,7 +3,7 @@
 // room charges to resolve, guests (ID masked), and the module and permission gating of the menu.
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
-import { todayIn } from '@/lib/dates'
+import { formatCalendarDate, todayIn } from '@/lib/dates'
 import { chooseOption, waitForOption } from '@/test/combobox'
 import { mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 import { addDays } from './hotelData'
@@ -118,6 +118,9 @@ describe('Hotel back office', () => {
     api.post.mockResolvedValue({ data: { ...ROOM, status: 'out_of_order' } })
     renderApp('/hotel/rooms')
     const row = (await screen.findByText('101')).closest('tr')
+    // The page subtitle says what the page is for; it is not the form's "Description" label.
+    expect(screen.queryByText(/^Description$/)).not.toBeInTheDocument()
+    expect(screen.getByText(/^The rooms of a property/)).toBeInTheDocument()
     expect(screen.getAllByText('Floor 1').length).toBeGreaterThan(0)
     expect(within(row).getByText('Vacant and clean').closest('[data-tone]')).toHaveAttribute('data-tone', 'success')
     fireEvent.click(within(row).getByRole('button', { name: 'Status of room 101' }))
@@ -246,6 +249,8 @@ describe('Hotel back office', () => {
     api.post.mockResolvedValue({ data: LINE({ id: 'l-5', line_no: 5, kind: 'fee', description: 'Parking', amount_minor: '2500' }) })
     renderApp('/hotel/folios/f-1')
     const minibar = (await screen.findByText('Minibar')).closest('tr')
+    // The night's description is server-written text; its ISO date reads as a date.
+    expect(screen.getByText(`Room 101, night of ${formatCalendarDate('2026-10-27', 'en')}`)).toBeInTheDocument()
     expect(within(minibar).getByText('Voided')).toBeInTheDocument()
     expect(screen.getByText('Reversal')).toBeInTheDocument()
     const deposit = screen.getByText('Deposit (Cash)').closest('tr')
@@ -327,6 +332,7 @@ describe('Hotel back office', () => {
     api.post.mockResolvedValue({ data: { id: 'k-1', status: 'in_progress' } })
     renderApp('/hotel/housekeeping')
     expect(await screen.findByText('Floor 1')).toBeInTheDocument()
+    expect(screen.getByText(`Rooms by floor on business date ${formatCalendarDate(TODAY, 'en')}.`)).toBeInTheDocument()
     expect(screen.getByText('Check-out clean')).toBeInTheDocument()
     expect(screen.getByText('Arriving today')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Start cleaning room 101' }))
@@ -338,12 +344,15 @@ describe('Hotel back office', () => {
     api.post.mockResolvedValue({ data: { ...AUDIT, id: 'a-2', business_date: TODAY, scheduled: false } })
     renderApp('/hotel/night-audit')
     expect(await screen.findByText('75 %')).toBeInTheDocument()
+    // The business date in the subtitle is written as a date, not as the API's ISO text.
+    expect(screen.getByText(`The business date is ${formatCalendarDate(TODAY, 'en')}. The audit posts the night’s room charges, flags no-shows and rolls the date.`)).toBeInTheDocument()
     expect(screen.getByText('KES 15,000.00')).toBeInTheDocument()
     expect(screen.getByText('Overstays')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Run night audit' }))
     const dialog = await screen.findByRole('dialog', { name: 'Run the night audit now' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Run audit' }))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('hotel/night-audits', { branch_id: 'br-1', business_date: TODAY, close_early: true }))
+    expect(await screen.findByText(`Night audit of ${formatCalendarDate(TODAY, 'en')} done.`)).toBeInTheDocument()
   })
 
   it('resolves a room charge that could not be posted by moving it to a folio (HOT-22)', async () => {

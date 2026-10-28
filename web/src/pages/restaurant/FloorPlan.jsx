@@ -79,7 +79,7 @@ function TableDialog({ table, area, areas, location, onClose }) {
   const save = useMutation({
     mutationFn: async () => {
       const body = { area_id: form.area_id, name: form.name.trim(), seats, x: numbers.x, y: numbers.y, width: numbers.width, height: numbers.height, shape: form.shape }
-      const saved = table?.id ? await api.put(`restaurant/tables/${table.id}`, body) : await api.post('restaurant/tables', body)
+      const saved = table?.id ? await api.put(`restaurant/tables/${table.id}`, body) : await api.post('restaurant/tables', { location_id: location.id, ...body })
       const id = table?.id ?? saved?.data?.id
       if (id && form.status !== (table?.manual_status ?? 'free')) await api.post(`restaurant/tables/${id}/status`, { status: form.status })
       return saved

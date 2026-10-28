@@ -8,6 +8,7 @@ import { errorMessage } from '@/api/errorMessage'
 import { usePermissions } from '@/auth/usePermissions'
 import { Alert, Button, Card, Checkbox, DataTable, KpiTile } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
+import { formatDatesIn } from '@/lib/dates'
 import { moneyText } from '@/lib/money'
 import { useLocale } from '@/lib/useLocale'
 import { ChargeDialog, PaymentDialog, RefundDialog, SettleDialog, TransferDialog } from './FolioDialogs'
@@ -93,7 +94,7 @@ export default function FolioDetail() {
       wrap: true,
       render: (row) => (
         <div className="flex flex-col gap-1">
-          <span className={reversers.has(row.id) ? 'text-ink-muted line-through' : undefined}>{row.description}</span>
+          <span className={reversers.has(row.id) ? 'text-ink-muted line-through' : undefined}>{formatDatesIn(row.description, locale)}</span>
           {marker(row)}
           {row.flags.includes('tax_rate_needed') ? <span className="text-caption text-warning">{t('hotel.folio.taxRateNeeded')}</span> : null}
         </div>
