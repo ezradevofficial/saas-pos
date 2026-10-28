@@ -89,7 +89,7 @@ class BillingOnboardingTest extends TestCase
         $this->artisan('onboarding:expire-trials')->assertSuccessful();
 
         $invoice = $this->inTenant(fn () => BillingInvoice::query()->sole());
-        $this->assertSame(['first', '2026-11-15', 590000], [$invoice->kind, $invoice->period_start->toDateString(), $invoice->total_minor]);
+        $this->assertSame(['first', '2026-11-15', 540000], [$invoice->kind, $invoice->period_start->toDateString(), $invoice->total_minor]);
         $this->assertTrue($this->inTenant(fn () => app(ModuleRegistry::class)->isActive('pos')));
     }
 

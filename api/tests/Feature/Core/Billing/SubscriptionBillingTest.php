@@ -164,24 +164,24 @@ class SubscriptionBillingTest extends TestCase
         $this->travelToDay('2026-11-21 10:00:00');
         $plan = [...self::STARTER, 'modules' => ['inventory', 'loyalty', 'payroll', 'pos'], 'quantities' => ['outlet' => 1, 'employee' => 20]];
 
-        // Payroll for 20 employees is KES 3,000 a month; 10 of 30 days are left: KES 1,000.00.
+        // Payroll for 20 employees is KES 2,000 a month; 10 of 30 days are left: KES 666.67.
         $quote = $this->postJson('/api/v1/subscription/quote', $plan, $this->headersFor())->assertOk();
         $quote->assertJsonPath('data.kind', 'upgrade')->assertJsonPath('data.effective', 'now')
-            ->assertJsonPath('data.charge_now', 100000)->assertJsonPath('data.period_days', 30)->assertJsonPath('data.remaining_days', 10)
-            ->assertJsonPath('data.current.total', 390000)->assertJsonPath('data.new.total', 690000);
+            ->assertJsonPath('data.charge_now', 66700)->assertJsonPath('data.period_days', 30)->assertJsonPath('data.remaining_days', 10)
+            ->assertJsonPath('data.current.total', 390000)->assertJsonPath('data.new.total', 590000);
 
         // A confirm with an amount the quote no longer gives is refused with the fresh quote.
         $this->postJson('/api/v1/subscription/change', [...$plan, 'expected_charge' => 90000], $this->headersFor())
-            ->assertStatus(409)->assertJsonPath('code', 'quote_changed')->assertJsonPath('quote.charge_now', 100000);
+            ->assertStatus(409)->assertJsonPath('code', 'quote_changed')->assertJsonPath('quote.charge_now', 66700);
 
-        $change = $this->postJson('/api/v1/subscription/change', [...$plan, 'expected_charge' => 100000], $this->headersFor())->assertOk();
-        $change->assertJsonPath('data.invoice.kind', 'upgrade')->assertJsonPath('data.invoice.total.amount_minor', 100000);
+        $change = $this->postJson('/api/v1/subscription/change', [...$plan, 'expected_charge' => 66700], $this->headersFor())->assertOk();
+        $change->assertJsonPath('data.invoice.kind', 'upgrade')->assertJsonPath('data.invoice.total.amount_minor', 66700);
 
         $subscription = $this->subscription();
-        $this->assertSame([690000, ['inventory', 'loyalty', 'payroll', 'pos']], [$subscription->period_amount_minor, $subscription->modules]);
+        $this->assertSame([590000, ['inventory', 'loyalty', 'payroll', 'pos']], [$subscription->period_amount_minor, $subscription->modules]);
         $upgrade = $this->invoices()[1];
-        $this->assertSame([100000, '2026-11-21', '2026-12-01'], [$upgrade->total_minor, $upgrade->period_start->toDateString(), $upgrade->period_end->toDateString()]);
-        $this->assertEquals([['type' => 'proration', 'quantity' => 10, 'period_days' => 30, 'amount' => 100000]], array_map(fn ($l) => array_intersect_key($l, array_flip(['type', 'quantity', 'period_days', 'amount'])), $upgrade->lines));
+        $this->assertSame([66700, '2026-11-21', '2026-12-01'], [$upgrade->total_minor, $upgrade->period_start->toDateString(), $upgrade->period_end->toDateString()]);
+        $this->assertEquals([['type' => 'proration', 'quantity' => 10, 'period_days' => 30, 'amount' => 66700]], array_map(fn ($l) => array_intersect_key($l, array_flip(['type', 'quantity', 'period_days', 'amount'])), $upgrade->lines));
         $this->assertTrue($this->inTenant(fn () => AuditEntry::query()->where('action', 'core.subscription.change')->exists()));
     }
 
@@ -307,11 +307,11 @@ class SubscriptionBillingTest extends TestCase
         });
         (new CatalogueCoupon(['code' => 'THREE-PERCENT', 'kind' => 'percent', 'percent' => 3]))->save();
 
-        // Starter + Payroll for 15 employees (KES 2,250) less 3 %: KES 184.50 rounds to KES 185.
+        // Starter + Payroll for 15 employees (KES 1,500, the minimum) less 3 %: KES 162.
         $plan = [...self::STARTER, 'modules' => ['inventory', 'loyalty', 'payroll', 'pos'], 'quantities' => ['employee' => 15, 'outlet' => 1], 'coupon' => 'THREE-PERCENT'];
         $this->postJson('/api/v1/subscription/change', [...$plan, 'expected_charge' => 0], $this->headersFor())->assertOk();
         $first = $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated();
-        $this->assertSame(615000 - 18500, $first->json('data.total.amount_minor'));
+        $this->assertSame(540000 - 16200, $first->json('data.total.amount_minor'));
         $this->payWithMpesa($first->json('data.id'))->assertJsonPath('data.status', 'succeeded');
 
         // The renewal's overage (KES 166.67) rounds to KES 167; every line and the total are whole shillings.

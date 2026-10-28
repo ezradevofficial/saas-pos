@@ -317,6 +317,8 @@ The proposal prices a one-outlet shop on POS + Inventory + Loyalty at KES 3,900 
 - Payroll: Sage launched Kenyan cloud payroll at KES 100 per employee per month ([Business Daily](https://www.businessdailyafrica.com/bd/corporate/companies/accounting-software-firm-sage-launches-new-product-2146616)); Workpay charges per employee per month.
 - Accounting: QuickBooks Online lists at USD 38–275 a month, Xero USD 20–78, Zoho Books from USD 20 ([NerdWallet](https://www.nerdwallet.com/article/small-business/quickbooks-pricing), [Beancount](https://beancount.io/blog/2026/07/26/quickbooks-online-price-increase-2026-cost-breakdown-guide)).
 
+**Decision, 2026-10-28:** the owner set every module and bundle price from market research. The method, the competitor table with sources and dates, and a reason for each price are in [docs/pricing-research-2026-10.md](pricing-research-2026-10.md). Prices sit at or slightly below comparable local tools. The yearly price is 2 months free. The catalogue bills KES (Kenya) and USD (DRC); CDF is not a billing currency. The fuel station price rests on thin evidence and is reviewed after the first pilot station.
+
 **À la carte prices (monthly)**
 
 | Module | Unit | Kenya (KES) | DRC (USD) |
@@ -327,14 +329,20 @@ The proposal prices a one-outlet shop on POS + Inventory + Loyalty at KES 3,900 
 | Stores | per outlet/warehouse | 1,000 | 8 |
 | Loyalty, promotions and credit | per outlet | 1,000 | 8 |
 | E-commerce and delivery | per online store | 2,500 | 20 |
-| Accounting Essentials | per company | 3,500 | 28 |
-| Accounting Pro (multi-currency, budgets, consolidation) | per company | 7,000 | 55 |
+| Accounting Essentials | per company | 2,500 | 20 |
+| Accounting Pro (multi-currency, budgets, consolidation) | per company | 6,000 | 45 |
 | Procurement (incl. tenders and bidding) | per company | 3,000 | 25 |
 | CRM and sales | per company | 2,000 | 15 |
 | Fixed assets | per company | 1,500 | 12 |
 | Manufacturing / production | per company | 4,000 | 30 |
-| HR (incl. shifts and attendance) | per employee (min. 1,500 / 12) | 100 | 1.00 |
-| Payroll | per employee (min. 2,000 / 15) | 150 | 1.50 |
+| HR (incl. shifts and attendance) | per employee (min. 1,000 / 8) | 70 | 0.50 |
+| Payroll | per employee (min. 1,500 / 12) | 100 | 0.80 |
+| Restaurant and bar | per outlet | 2,000 | 15 |
+| Pharmacy and agrovet | per outlet | 3,000 | 25 |
+| Hotel and lodging | per outlet | 4,500 | 35 |
+| Fuel station | per outlet | 6,000 | 45 |
+| Van sales | per device (one van) | 2,500 | 20 |
+| Salon and services | per outlet | 2,000 | 15 |
 | Brand Pack (Starter only: custom domain, emails/SMS under their name, no "Powered by") | per tenant | 1,500 | 12 |
 
 **Bundles (monthly)**
@@ -342,10 +350,10 @@ The proposal prices a one-outlet shop on POS + Inventory + Loyalty at KES 3,900 
 | Bundle | Includes | Kenya (KES) | DRC (USD) |
 | --- | --- | --- | --- |
 | Starter | 1 outlet: POS, Inventory, Loyalty | 3,900 | 30 |
-| Business | 1 outlet: POS, Inventory, Stores, Loyalty, Accounting Essentials, Procurement; extra outlets at the outlet rate | 9,900 + 4,000 per extra outlet | 79 + 32 per extra outlet |
+| Business | 1 outlet: POS, Inventory, Stores, Loyalty, Accounting Essentials, Procurement; extra outlets at the outlet rate | 9,200 + 4,000 per extra outlet | 74 + 32 per extra outlet |
 | Enterprise | Everything, unlimited workflows, consolidation, priority support | From 40,000 (quoted) | From 320 (quoted) |
 
-HR and Payroll stay per employee in every bundle. Annual payment gives 2 months free. One-time paid onboarding (data migration, training) is offered to mid-size and enterprise accounts.
+The vertical modules (restaurant, pharmacy, hotel, fuel station, van sales, salon) are not in a bundle and are sold à la carte. HR and Payroll stay per employee in every bundle. Annual payment gives 2 months free. One-time paid onboarding (data migration, training) is offered to mid-size and enterprise accounts.
 
 ### 8.5 Support model (tiered by plan)
 

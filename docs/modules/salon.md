@@ -16,9 +16,9 @@ tables `salon_*`), sold and switched on per tenant like every other module
 (catalogue key `salon`, per outlet, requires POS, RBAC-08). Routes, menus,
 permissions, sync sources, listeners and jobs exist only while the tenant's
 subscription has it. The `salon` business type suggests it by default.
-**Price to set:** the catalogue row is a placeholder equal to Inventory's
-(KES 1,500.00 and USD 12.00 per outlet per month) until the owner sets it; a
-price change is a new catalogue price row.
+**Price:** KES 2,000.00 and USD 15.00 per outlet per month, set from market
+research (docs/pricing-research-2026-10.md); a price change is a new catalogue
+price row.
 
 - **A visit is a normal POS sale.** The appointment is the plan; the till
   sells it (services, add-ons, products, a tip) through `POST pos/sales`, so
@@ -167,7 +167,7 @@ Device records: appointment (a walk-in or booking made at the till) `{id, user_i
 
 ## Decisions to confirm
 
-1. The catalogue price is a placeholder (price to set).
+1. The catalogue price is set from market research (docs/pricing-research-2026-10.md).
 2. Approval of commission batches is Salon's own step (builder, submitter and anyone paid in the batch are refused) and is not routed through the workflow engine.
 3. Tips are reported per staff but not exported to payroll; paying them out is outside this module.
 4. Accounting has no salon-specific postings: a deposit or package is a payment of the sale like any other, and deferring its revenue is not done. Package liability is reported by Salon.
