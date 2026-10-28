@@ -148,6 +148,7 @@ check "https: TLS ask denied publicly" has "$site" 'location = /api/v1/tls/ask \
 check "https: an internal listener on 127.0.0.1:8080 only" has "$site" 'listen 127\.0\.0\.1:8080;'
 check "https: headers in every web location" test "$(grep -c 'include /etc/nginx/snippets/app-web-headers.conf' "$site")" = 3
 check "headers: CSP names the API" has "$headers" "connect-src 'self' https://api\.example\.test"
+check "headers: CSP allows Sentry's EU ingest host" has "$headers" "https://\*\.ingest\.de\.sentry\.io"
 check "headers: HSTS" has "$headers" 'Strict-Transport-Security "max-age=31536000; includeSubDomains"'
 check "headers: frame-ancestors none" has "$headers" "frame-ancestors 'none'"
 check "https: http2 on the listen lines (nginx 1.24)" test "$(grep -c 'listen 443 ssl http2;' "$site")" = 2
