@@ -699,6 +699,7 @@ class TenantIsolationTest extends TestCase
         'directory_id' => 'AUTH-11: an Entra ID directory (tenant) GUID at Microsoft, never a row',
         'idp_entity_id' => 'AUTH-11: a SAML identity provider\'s entity id (a URI it names itself), free text, never a row',
         'session_id' => 'AUTH-07: a till sign-in session the device names itself (actor_proof); looked up only for that device under its tenant, never a reference to another row',
+        'op_id' => 'HOT-29 (NFR-04): an idempotency key the housekeeper\'s device generates for one queued change, kept in a cache entry keyed by tenant and user, never a row',
     ];
 
     /**
