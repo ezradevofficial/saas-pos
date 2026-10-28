@@ -67,6 +67,30 @@ class Numbering
         return $found ?? $this->seedDefault($definition);
     }
 
+    /**
+     * NUM-01: make sure $company has its own format (so its own counter) for $type.
+     * Created once, race-safe; a format already set for the company is kept as it is.
+     */
+    public function ensureCompanyFormat(string $type, string $companyId, string $pattern, string $reset, bool $gapless): NumberFormat
+    {
+        Pattern::parse($pattern);
+        $this->type($type);
+
+        return $this->db()->transaction(function (Connection $db) use ($type, $companyId, $pattern, $reset, $gapless) {
+            $created = $db->affectingStatement(
+                'insert into number_formats (id, document_type, company_id, pattern, reset, gapless, created_at, updated_at) values (?, ?, ?, ?, ?, ?, now(), now()) on conflict do nothing',
+                [(string) Str::uuid7(), $type, $companyId, $pattern, $reset, $gapless],
+            );
+            $format = NumberFormat::query()->where('document_type', $type)->where('company_id', $companyId)->whereNull('branch_id')->firstOrFail();
+
+            if ($created === 1) {
+                $this->auditor->record('core.number_format.create', $format, null, $format->only(['document_type', 'company_id', 'pattern', 'reset', 'gapless']));
+            }
+
+            return $format;
+        });
+    }
+
     /** The next number of $type for the document described by $context. */
     public function next(string $type, NumberContext $context): IssuedNumber
     {

@@ -19,6 +19,11 @@ return [
         // ONB-04: the trial length defaults to onboarding.trial_days (ONBOARDING_TRIAL_DAYS).
     ],
 
+    // NUM-01, SUB-03: each operator selling company has its own gapless yearly series;
+    // {COUNTRY} becomes the company's country code (KE-INV-2026-000001, CD-INV-2026-000001).
+    // Invoices issued before this keep their INV-YYYY-NNNNNN numbers.
+    'invoice_number_pattern' => env('BILLING_INVOICE_NUMBER_PATTERN', '{COUNTRY}-INV-{YYYY}-{000001}'),
+
     // SUB-05: reminders, in days before the due date (0: on the due date).
     'reminder_days' => [7, 3, 0],
 
