@@ -4,7 +4,7 @@ title: Invite a user
 module: core
 order: 90
 permissions: [core.user.view, core.user.invite, core.role.assign]
-roles: [owner, admin]
+roles: [owner, admin, branch_manager]
 screens: [/settings/users, /settings/users/invite]
 ---
 An invitation lets a person join with a password of their own and the roles you give here.

@@ -4,7 +4,7 @@ title: Donner un rôle à une personne
 module: core
 order: 100
 permissions: [core.user.view, core.role.view, core.role.assign]
-roles: [owner, admin]
+roles: [owner, admin, branch_manager]
 screens: [/settings/users, /settings/users/:userId]
 ---
 Un rôle dit ce qu'une personne peut faire. L'endroit où vous le donnez dit où il s'applique. C'est ainsi qu'un caissier de la succursale A est refusé à la succursale B.
