@@ -45,10 +45,11 @@ const ALL = [
   'salon.settings.view', 'salon.settings.edit', 'salon.online.view', 'salon.online.manage', 'salon.report.view',
 ]
 
-function setup({ without = [] } = {}) {
+function setup({ without = [], extra = [] } = {}) {
   mockRoutes(
     api,
     [
+      ...extra,
       [/^salon\/services/, { data: [SERVICE] }],
       [/^salon\/package-types/, { data: [] }],
       [/^salon\/staff/, { data: [STAFF] }],
@@ -165,6 +166,14 @@ describe('Salon', () => {
       const dialog = await screen.findByRole('dialog', { name: /SAL-WL-2026-00001/ })
       fireEvent.click(await within(dialog).findByRole('button', { name: 'Check in' }))
       await waitFor(() => expect(api.post).toHaveBeenCalledWith('salon/appointments/ap-1/check-in', {}))
+    })
+  })
+
+  describe('reports (SAL-27)', () => {
+    it('shows the utilisation of the staff on opening, whatever the other reports would need', async () => {
+      setup({ extra: [[/^salon\/reports\/utilisation/, { data: { staff: [{ staff_id: 'st-1', staff_name: 'Wanjiru', branch_name: 'Main', available_minutes: 480, booked_minutes: 240, served_minutes: 180, utilisation_percent: 50 }] } }]] })
+      renderApp('/salon/reports')
+      expect(await screen.findByText('Wanjiru')).toBeInTheDocument()
     })
   })
 
