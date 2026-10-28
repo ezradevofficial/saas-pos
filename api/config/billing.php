@@ -48,16 +48,19 @@ return [
     'drivers' => array_filter([
         'mpesa_ke' => env('BILLING_DRIVER_MPESA_KE', $development ? 'fake' : null),
         'airtel_ke' => env('BILLING_DRIVER_AIRTEL_KE', $development ? 'fake' : 'airtel_money'),
-        'airtel_money_cd' => env('BILLING_DRIVER_AIRTEL_CD', $development ? 'fake' : 'airtel_money'),
-        'orange_money_cd' => env('BILLING_DRIVER_ORANGE_CD', $development ? 'fake' : 'orange_money'),
+        // DRC wallets go through pawaPay (owner decision 2026-10-28).
+        'vodacom_mpesa_cd' => env('BILLING_DRIVER_VODACOM_CD', $development ? 'fake' : 'pawapay'),
+        'airtel_money_cd' => env('BILLING_DRIVER_AIRTEL_CD', $development ? 'fake' : 'pawapay'),
+        'orange_money_cd' => env('BILLING_DRIVER_ORANGE_CD', $development ? 'fake' : 'pawapay'),
         'afrimoney_cd' => env('BILLING_DRIVER_AFRIMONEY_CD', $development ? 'fake' : 'afrimoney'),
-        'card_aggregator' => env('BILLING_DRIVER_CARD', $development ? 'fake' : 'card_hosted'),
+        // Kenya: Paystack (M-Pesa and card, saved-card renewals); `mpesa_ke` stays on Daraja.
+        'card_aggregator' => env('BILLING_DRIVER_CARD', $development ? 'fake' : 'paystack'),
     ]),
 
     // Wallets a tenant may pay with, per billing country (provider keys of config/payment_providers.php).
     'wallets' => [
         'KE' => ['mpesa_ke', 'airtel_ke'],
-        'CD' => ['airtel_money_cd', 'orange_money_cd', 'afrimoney_cd'],
+        'CD' => ['vodacom_mpesa_cd', 'airtel_money_cd', 'orange_money_cd', 'afrimoney_cd'],
     ],
 
     // Hosted card checkout (`card_hosted`): owner input once an aggregator is chosen.

@@ -5636,6 +5636,7 @@
     },
     "providers": {
       "mpesa_ke": "M-Pesa",
+      "vodacom_mpesa_cd": "M-Pesa (Vodacom)",
       "airtel_ke": "Airtel Money",
       "airtel_money_cd": "Airtel Money",
       "orange_money_cd": "Orange Money",
@@ -5683,12 +5684,20 @@
       "upgradeFirst": "This takes effect now. You pay the difference for your first period, which starts on {{date}}.",
       "scheduledFirst": "This takes effect on {{date}}, at the end of your first period."
     },
+    "paystackReturn": {
+      "title": "Payment status",
+      "description": "Paystack sent you back. This page shows what we confirmed with Paystack.",
+      "card": "Your payment",
+      "unknown": "We couldn’t find this payment. Open Subscription to see your invoices.",
+      "back": "Back to subscription"
+    },
     "pay": {
       "title": "Pay invoice {{number}}",
       "method": "Pay with",
       "phone": "Phone number",
       "otherPhone": "{{provider}}, another number",
       "card": "Card, on the card provider’s page",
+      "cardPaystack": "Card or M-Pesa, on Paystack’s page",
       "submit": "Pay {{amount}}",
       "cancel": "Cancel",
       "close": "Close",

@@ -4,6 +4,7 @@
 
 use App\Core\Billing\Http\Controllers\BillingInvoiceController;
 use App\Core\Billing\Http\Controllers\BillingPaymentMethodController;
+use App\Core\Billing\Http\Controllers\BillingWebhookController;
 use App\Core\Billing\Http\Controllers\PlatformDealController;
 use App\Core\Billing\Http\Controllers\PlatformTenantController;
 use App\Core\Billing\Http\Controllers\SubscriptionController;
@@ -13,6 +14,7 @@ use App\Core\Billing\Models\BillingPaymentMethod;
 use App\Core\Identity\Http\Middleware\EnsureFullAccessToken;
 use App\Core\Identity\Http\Middleware\EnsureUserToken;
 use App\Core\Localisation\Http\ApplyTenantLocale;
+use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Platform\Http\Middleware\EnsurePlatformAccess;
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +47,16 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::post('payment-methods/card/complete', [BillingPaymentMethodController::class, 'completeCard'])->middleware('throttle:10,1');
     Route::post('payment-methods/{billing_payment_method}/default', [BillingPaymentMethodController::class, 'makeDefault']);
     Route::post('payment-methods/{billing_payment_method}/archive', [BillingPaymentMethodController::class, 'archive']);
+});
+
+// SUB-04: provider webhooks for the platform's billing (public: Paystack's
+// signature or pawaPay's optional signature, then the provider is asked again).
+Route::middleware('throttle:'.PaymentsServiceProvider::CALLBACK_LIMITER)->prefix('billing')->group(function () {
+    Route::post('paystack/webhook', [BillingWebhookController::class, 'paystack']);
+    Route::post('pawapay/deposits', [BillingWebhookController::class, 'pawapayDeposits']);
+    Route::post('pawapay/refunds', [BillingWebhookController::class, 'pawapayRefunds']);
+    Route::post('pawapay/payouts', [BillingWebhookController::class, 'pawapayAcknowledge']);
+    Route::post('pawapay/checkouts', [BillingWebhookController::class, 'pawapayAcknowledge']);
 });
 
 // Platform console (staff tokens only): tenants, subscriptions, invoices, settings.

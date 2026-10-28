@@ -22,6 +22,7 @@ return [
         'phone_invalid' => 'Saisissez un numéro de mobile valide, par exemple 0712 345 678.',
         'receipt_used' => 'Ce code de paiement a déjà servi pour une autre vente. Vérifiez le code dans le message du client.',
         'receipt_invalid' => 'Saisissez le code de paiement du message du client : 6 à 20 lettres et chiffres.',
+        'phone_provider_mismatch' => 'Ce numéro appartient à un autre opérateur de mobile money. Choisissez cet opérateur, ou saisissez le numéro de celui que vous avez choisi.',
         'unreachable' => 'Le fournisseur de paiement est injoignable. Réessayez, ou prenez un autre moyen de paiement.',
         'amount_mismatch' => 'Le montant indiqué par le fournisseur n’est pas celui du paiement. Vérifiez-le dans le back-office.',
         'no_result' => 'Le fournisseur de paiement n’a envoyé aucun résultat. Vérifiez le remboursement auprès du fournisseur avant de le refaire.',
@@ -39,6 +40,11 @@ return [
         'register_unsupported' => 'Seuls les moyens M-Pesa enregistrent leurs URL auprès du fournisseur.',
         'not_configured' => 'Saisissez d’abord les paramètres et identifiants du moyen de paiement.',
         'register_failed' => 'Safaricom a refusé d’enregistrer les URL. Vérifiez le shortcode et les produits de l’application sur le portail Daraja, puis réessayez.',
+    ],
+
+    // Envoyé à pawaPay : le texte sur le téléphone du client (4 à 22 lettres, chiffres et espaces).
+    'pawapay' => [
+        'description' => 'Paiement',
     ],
 
     'daraja' => [

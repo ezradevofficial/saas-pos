@@ -46,6 +46,7 @@ return [
         'payment_method_archived' => 'Ce moyen de paiement a été retiré. Choisissez-en un autre.',
         'payment_method_unknown' => 'Choisissez l’un de vos moyens de paiement enregistrés.',
         'provider_unavailable' => 'Ce moyen de paiement n’est pas encore disponible. Choisissez-en un autre ou contactez le support.',
+        'payer_email_missing' => 'Ajoutez une adresse e-mail à votre profil, puis payez à nouveau. Le paiement par carte en a besoin pour le reçu.',
         'payment_in_progress' => 'Un paiement de cette facture attend encore le payeur. Validez-le sur le téléphone, ou attendez qu’il se termine, puis réessayez.',
         'payment_failed' => 'Le paiement n’a pas abouti. Réessayez ou utilisez un autre moyen.',
         'already_subscribed' => 'Vous êtes déjà abonné. Vos factures figurent ci-dessous.',

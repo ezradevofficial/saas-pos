@@ -287,7 +287,7 @@ function ChangePlan({ subscription, catalogue, done, onDone }) {
 }
 
 /** Poll one payment until it is final; card checkouts open the provider's page. */
-function PaymentProgress({ paymentId, onFinished }) {
+export function PaymentProgress({ paymentId, onFinished }) {
   const { t } = useTranslation()
   const refresh = useRefreshBilling()
   const finished = useRef(false)
@@ -337,10 +337,15 @@ function PayDialog({ invoice, subscription, methods, onClose }) {
     },
   })
   const errors = formErrors(pay.error)
+  // Paystack takes M-Pesa and cards in shillings only; another invoice currency has no checkout there.
+  const paystack = subscription.checkout_provider === 'paystack'
+  const cardOptions = paystack
+    ? invoice.total.currency === 'KES' ? [{ value: 'card', label: t('subscription.pay.cardPaystack') }] : []
+    : [{ value: 'card', label: t('subscription.pay.card') }]
   const options = [
     ...methods.map((method) => ({ value: method.id, label: `${t(`subscription.providers.${method.provider}`)} · ${method.label}` })),
     ...subscription.wallets.map((provider) => ({ value: `wallet:${provider}`, label: t('subscription.pay.otherPhone', { provider: t(`subscription.providers.${provider}`) }) })),
-    { value: 'card', label: t('subscription.pay.card') },
+    ...cardOptions,
   ]
 
   return (
@@ -477,9 +482,11 @@ function PaymentMethods({ subscription, methods, canManage, onAction }) {
             <Button icon="plus" onClick={() => setAdding(true)}>
               {t('subscription.methods.addWallet')}
             </Button>
-            <Button icon="plus" loading={addCard.isPending} onClick={() => addCard.mutate()}>
-              {t('subscription.methods.addCard')}
-            </Button>
+            {subscription.card_setup === false ? null : (
+              <Button icon="plus" loading={addCard.isPending} onClick={() => addCard.mutate()}>
+                {t('subscription.methods.addCard')}
+              </Button>
+            )}
           </div>
         ) : null
       }

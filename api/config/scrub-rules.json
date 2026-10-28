@@ -346,6 +346,18 @@
       "replace": "[token]"
     },
     {
+      "name": "paystack_key",
+      "pattern": "\\b[sp]k_(live|test)_[A-Za-z0-9]{20,}",
+      "flags": "",
+      "replace": "[token]"
+    },
+    {
+      "name": "paystack_authorization",
+      "pattern": "\\bAUTH_[A-Za-z0-9]{6,}\\b",
+      "flags": "",
+      "replace": "[token]"
+    },
+    {
       "name": "webhook_secret",
       "pattern": "whsec_[A-Za-z0-9+/=]{20,}",
       "flags": "",

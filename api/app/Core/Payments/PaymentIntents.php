@@ -7,6 +7,7 @@ use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Payments\Contracts\PaymentProvider;
+use App\Core\Payments\Contracts\PresetsRequestId;
 use App\Core\Payments\Events\PaymentIntentSettled;
 use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Payments\Models\PaymentReceipt;
@@ -268,7 +269,7 @@ class PaymentIntents
                 'reference' => $data['reference'],
                 'original_intent_id' => $original->id,
                 // Known before the call: the result callback can name it even if the call times out.
-                'provider_request_id' => $data['id'],
+                'provider_request_id' => $provider instanceof PresetsRequestId ? $provider->requestIdFor($data['id']) : $data['id'],
                 'status' => 'pending',
                 'expires_at' => CarbonImmutable::now()->addHours((int) config('payments.payout_give_up_hours', 24)),
                 'created_by' => $data['created_by'] ?? null,
@@ -600,6 +601,8 @@ class PaymentIntents
 
         $intent = PaymentIntent::create([
             ...$attributes,
+            // pawaPay's depositId, known before the call so a late callback finds the intent.
+            ...($provider instanceof PresetsRequestId ? ['provider_request_id' => $provider->requestIdFor((string) $attributes['id'])] : []),
             'driver' => $provider->name(),
             'status' => 'pending',
             'account_reference' => strtoupper(substr(str_replace('-', '', (string) $attributes['id']), -12)),
@@ -625,6 +628,29 @@ class PaymentIntents
     public function check(PaymentIntent $intent): PaymentIntent
     {
         if (! in_array($intent->status, ['pending', 'unknown'], true) || $intent->mode === 'payout') {
+            return $intent;
+        }
+
+        $method = PaymentMethod::query()->findOrFail($intent->payment_method_id);
+
+        try {
+            $result = $this->registry->driver($intent->driver)->status($intent, $method);
+        } catch (ProviderUnavailable) {
+            return $intent;
+        }
+
+        return $result->isPending() ? $intent : $this->apply($intent, $result);
+    }
+
+    /**
+     * A provider's callback says something happened to $intent: ask the
+     * provider (never trust the callback body) and apply its answer, also
+     * to an intent already timed out (a late payment). Idempotent: a final
+     * status does not change again. Returns the intent as it now stands.
+     */
+    public function recheck(PaymentIntent $intent): PaymentIntent
+    {
+        if (! $intent->isPending() && ! in_array($intent->status, PaymentIntent::RECOVERABLE, true)) {
             return $intent;
         }
 

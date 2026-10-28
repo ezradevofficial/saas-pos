@@ -34,6 +34,8 @@ class CallbackTokens
         'b2c-timeout',     // B2C queue time-out
         'status-result',   // transaction status result
         'status-timeout',  // transaction status queue time-out
+        'pawapay-deposit', // pawaPay deposit result (the business's own pawaPay callback URL)
+        'pawapay-refund',  // pawaPay refund result
     ];
 
     public function __construct(
@@ -57,7 +59,12 @@ class CallbackTokens
     {
         $token = $this->token($method);
 
-        return collect(self::KINDS)->mapWithKeys(fn (string $kind) => [$kind => self::urlFor($token, $kind)])->all();
+        // A pawaPay method shows its own two URLs; every other method the M-Pesa ones.
+        $pawapay = config("payment_providers.{$method->provider}.driver") === 'pawapay';
+
+        return collect(self::KINDS)
+            ->filter(fn (string $kind) => str_starts_with($kind, 'pawapay-') === $pawapay)
+            ->mapWithKeys(fn (string $kind) => [$kind => self::urlFor($token, $kind)])->all();
     }
 
     public function token(PaymentMethod $method): string

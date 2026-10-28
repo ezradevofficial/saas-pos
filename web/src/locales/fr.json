@@ -5636,6 +5636,7 @@
     },
     "providers": {
       "mpesa_ke": "M-Pesa",
+      "vodacom_mpesa_cd": "M-Pesa (Vodacom RDC)",
       "airtel_ke": "Airtel Money",
       "airtel_money_cd": "Airtel Money",
       "orange_money_cd": "Orange Money",
@@ -5683,12 +5684,20 @@
       "upgradeFirst": "Le changement prend effet maintenant. Vous payez la différence pour votre première période, qui commence le {{date}}.",
       "scheduledFirst": "Le changement prend effet le {{date}}, à la fin de votre première période."
     },
+    "paystackReturn": {
+      "title": "État du paiement",
+      "description": "Paystack vous a renvoyé ici. Cette page montre ce que nous avons confirmé auprès de Paystack.",
+      "card": "Votre paiement",
+      "unknown": "Nous n’avons pas trouvé ce paiement. Ouvrez Abonnement pour voir vos factures.",
+      "back": "Retour à l’abonnement"
+    },
     "pay": {
       "title": "Régler la facture {{number}}",
       "method": "Payer avec",
       "phone": "Numéro de téléphone",
       "otherPhone": "{{provider}}, un autre numéro",
       "card": "Carte, sur la page du prestataire",
+      "cardPaystack": "Carte ou M-Pesa, sur la page de Paystack",
       "submit": "Payer {{amount}}",
       "cancel": "Annuler",
       "close": "Fermer",
