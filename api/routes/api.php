@@ -73,6 +73,8 @@ use App\Core\Layouts\Http\Controllers\DashboardSourceController;
 use App\Core\Layouts\Http\Controllers\FormLayoutCatalogueController;
 use App\Core\Limits\Http\Controllers\UsageController;
 use App\Core\Localisation\Http\ApplyTenantLocale;
+use App\Core\Manual\Http\Controllers\ManualController;
+use App\Core\Manual\ManualServiceProvider;
 use App\Core\MasterData\CreditLimits\CreditLimitChange;
 use App\Core\MasterData\CreditLimits\Http\Controllers\CreditLimitChangeController;
 use App\Core\MasterData\Dimensions\Dimensions;
@@ -750,6 +752,10 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
         ->middleware('throttle:'.DashboardSources::LIMITER);
     // LAY-03: the forms whose layouts may be designed, and one form's fields and default layout.
     Route::get('form-layouts', FormLayoutCatalogueController::class);
+    // RBAC-08: the user manual, filtered to the tenant's modules and the user's permissions.
+    Route::get('manual/topics', [ManualController::class, 'index']);
+    Route::get('manual/topics/{topic}', [ManualController::class, 'show'])->where('topic', '[a-z0-9][a-z0-9_-]{0,99}');
+    Route::get('manual/my-guide.pdf', [ManualController::class, 'pdf'])->middleware('throttle:'.ManualServiceProvider::PDF_LIMITER);
     // CF-01..CF-03: custom field definitions per entity (core.custom_field.view|manage),
     // the form schema and lookup candidates (scoped to what the user sees), and file uploads.
     // IMP-01..IMP-03: the import wizard (core.import.run plus the importer's own permissions).

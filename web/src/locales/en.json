@@ -565,7 +565,8 @@
     "salonClients": "Clients and packages",
     "salonCommissions": "Commissions",
     "salonReports": "Salon reports",
-    "salonSettings": "Salon settings"
+    "salonSettings": "Salon settings",
+    "help": "Help"
   },
   "shell": {
     "account": "Account menu",
@@ -13675,5 +13676,22 @@
     "confirm": "Stop marketing emails",
     "doneTitle": "You are unsubscribed",
     "doneText": "You won’t get offers or news by email from this business any more. To get them again, tell the business."
+  },
+  "help": {
+    "title": "Help",
+    "description": "Step-by-step guides for the tasks you can do. You see only the topics that match your access.",
+    "searchLabel": "Search topics",
+    "searchPlaceholder": "Search by title",
+    "listLabel": "Help topics",
+    "download": "Download my guide (PDF)",
+    "downloadFailed": "The guide could not be downloaded. Try again in a minute.",
+    "empty": "No topics match \"{{query}}\". Try a different word.",
+    "none": "There are no help topics for your access yet.",
+    "pick": "Choose a topic to read it here.",
+    "forPage": "Showing the topics for this page.",
+    "noneForPage": "No topic is written for this page yet. Showing all topics.",
+    "showAll": "Show all topics",
+    "forThisPage": "Help for this page",
+    "reader": "Topic"
   }
 }

@@ -5,6 +5,10 @@ return [
     'title' => 'User guide',
     'guide_for' => 'Guide for :role',
     'guide_all' => 'Complete guide',
+    'guide_mine' => 'My guide',
+    'errors' => [
+        'topic_not_found' => 'This help topic does not exist. Go back to the help page and pick another topic.',
+    ],
     'contents' => 'Contents',
     'page' => 'Page :number',
     'modules' => [

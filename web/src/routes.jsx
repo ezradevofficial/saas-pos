@@ -190,6 +190,7 @@ const ModulePicker = lazy(() => import('./pages/onboarding/ModulePicker'))
 const SetupOverview = lazy(() => import('./pages/onboarding/Setup').then((m) => ({ default: m.SetupOverview })))
 const SetupStep = lazy(() => import('./pages/onboarding/Setup').then((m) => ({ default: m.SetupStep })))
 const Inbox = lazy(() => import('./pages/notifications/Inbox'))
+const Help = lazy(() => import('./pages/help/Help'))
 const AdjustmentDetail = lazy(() => import('./pages/inventory/AdjustmentDetail'))
 const AdjustmentForm = lazy(() => import('./pages/inventory/AdjustmentForm'))
 const Adjustments = lazy(() => import('./pages/inventory/Adjustments'))
@@ -1181,6 +1182,8 @@ export const routes = [
       { path: '/settings/sessions', element: <Sessions /> },
       // NOT-01, NOT-03, NOT-04, NOT-06: the inbox, one's own settings, and the admin's texts and log.
       { path: '/notifications', element: <Inbox /> },
+      // The user manual: topics for the modules and permissions the user has (RBAC-08, L10N-01).
+      { path: '/help', element: <Help /> },
       { path: '/settings/notifications', element: <NotificationPreferences /> },
       {
         path: '/settings/notification-templates',
