@@ -4,6 +4,7 @@ namespace Modules\Restaurant\Tests;
 
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Sync\DeviceScope;
+use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\Models\Tenant;
 use Modules\Restaurant\Models\Area;
 use Modules\Restaurant\Models\ModifierGroup;
@@ -35,6 +36,16 @@ class SyncSourcesTest extends TestCase
     private function rows(object $source, $till = null): array
     {
         return $this->inTenant(fn () => $source->rows(DeviceScope::of($till ?? $this->till)));
+    }
+
+    public function test_a_waiters_row_on_the_till_carries_the_restaurant_permissions(): void
+    {
+        // Without the `restaurant.` till prefix the till hid "open order" from every waiter (REST-19).
+        $staff = collect($this->getJson('/api/v1/sync/pull?entities[]=staff', $this->tillHeaders())->assertOk()->json('entities.staff.upserts'))->firstWhere('id', $this->waiter->id);
+
+        $this->assertContains('restaurant.order.create', $staff['permissions']);
+        $this->assertContains('restaurant.order.send', $staff['permissions']);
+        $this->assertContains('van_sales.', app(SyncSources::class)->tillPermissionPrefixes());
     }
 
     public function test_the_floor_plan_lists_the_locations_tables_with_their_area(): void

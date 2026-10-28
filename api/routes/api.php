@@ -755,6 +755,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     // RBAC-08: the user manual, filtered to the tenant's modules and the user's permissions.
     Route::get('manual/topics', [ManualController::class, 'index']);
     Route::get('manual/topics/{topic}', [ManualController::class, 'show'])->where('topic', '[a-z0-9][a-z0-9_-]{0,99}');
+    Route::get('manual/topics/{topic}/image', [ManualController::class, 'image'])->where('topic', '[a-z0-9][a-z0-9_-]{0,99}');
     Route::get('manual/my-guide.pdf', [ManualController::class, 'pdf'])->middleware('throttle:'.ManualServiceProvider::PDF_LIMITER);
     // CF-01..CF-03: custom field definitions per entity (core.custom_field.view|manage),
     // the form schema and lookup candidates (scoped to what the user sees), and file uploads.

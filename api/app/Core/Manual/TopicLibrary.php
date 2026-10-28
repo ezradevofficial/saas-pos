@@ -14,6 +14,9 @@ use InvalidArgumentException;
  */
 class TopicLibrary
 {
+    /** Screenshots live in docs/manual/images/{locale}/{file}, beside the locale folders. */
+    public const IMAGES = 'images';
+
     private const LISTS = ['permissions', 'roles', 'screens'];
 
     private const REQUIRED = ['id', 'title', 'module', 'permissions', 'roles', 'screens'];
@@ -23,7 +26,10 @@ class TopicLibrary
     /** The locales that have a folder of topics. @return list<string> */
     public function locales(): array
     {
-        $found = array_map('basename', glob($this->root.'/*', GLOB_ONLYDIR) ?: []);
+        $found = array_values(array_filter(
+            array_map('basename', glob($this->root.'/*', GLOB_ONLYDIR) ?: []),
+            fn (string $name) => $name !== self::IMAGES,
+        ));
         sort($found);
 
         return $found;
@@ -84,6 +90,22 @@ class TopicLibrary
         return ltrim(substr($topic->path, strlen($this->root.'/'.$locale)), '/');
     }
 
+    /**
+     * The topic's screenshot on disk, or null: the `image:` file, or
+     * `{id}.png` when it exists. Only plain `.png` names inside the
+     * locale's image folder are served.
+     */
+    public function imagePath(Topic $topic, string $locale): ?string
+    {
+        if ($topic->image === null || ! preg_match('/\A[a-z0-9][a-z0-9_-]*\.png\z/', $topic->image) || ! preg_match('/\A[a-z]{2}\z/', $locale)) {
+            return null;
+        }
+
+        $path = $this->root.'/'.self::IMAGES.'/'.$locale.'/'.$topic->image;
+
+        return is_file($path) ? $path : null;
+    }
+
     private static function moduleRank(string $module): int
     {
         return $module === 'core' ? 0 : 1;
@@ -124,6 +146,9 @@ class TopicLibrary
             throw new InvalidArgumentException("Manual topic [{$name}] has no body.");
         }
 
+        $image = isset($meta['image']) && $meta['image'] !== '' ? $meta['image'] : $meta['id'].'.png';
+        $locale = basename($directory);
+
         return new Topic(
             id: $meta['id'],
             title: $meta['title'],
@@ -134,6 +159,8 @@ class TopicLibrary
             order: (int) ($meta['order'] ?? 1000),
             body: $body,
             path: $path,
+            image: is_file($this->root.'/'.self::IMAGES.'/'.$locale.'/'.$image) ? $image : null,
+            imageAlt: isset($meta['image_alt']) && $meta['image_alt'] !== '' ? $meta['image_alt'] : null,
         );
     }
 

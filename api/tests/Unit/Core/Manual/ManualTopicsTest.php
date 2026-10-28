@@ -6,6 +6,8 @@ use App\Core\Manual\Topic;
 use App\Core\Manual\TopicLibrary;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\RoleTemplates;
+use FontLib\Font;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 // The user manual's topics (docs/manual): written once in English and French,
@@ -80,17 +82,62 @@ class ManualTopicsTest extends TestCase
         }
     }
 
-    public function test_topics_use_only_the_app_name_placeholder_and_characters_the_pdf_font_can_print(): void
+    public function test_topics_use_only_the_app_name_placeholder_and_characters_geist_can_print(): void
     {
+        $font = Font::load(resource_path('fonts/Geist-Regular.ttf'));
+        $font->parse();
+        $glyphs = $font->getUnicodeCharMap();
+
         foreach (['en', 'fr'] as $locale) {
             foreach ($this->library->all($locale) as $topic) {
                 $text = $topic->title."\n".$topic->body;
 
                 $this->assertStringNotContainsString('{{ app_name', $text, "{$topic->id}: write {{app_name}} without spaces.");
                 $this->assertSame(0, preg_match('/\{\{(?!app_name\}\})/', $text), "{$topic->id} ({$locale}): only the {{app_name}} placeholder is known.");
-                $this->assertSame($text, mb_convert_encoding(mb_convert_encoding($text, 'Windows-1252', 'UTF-8'), 'UTF-8', 'Windows-1252'), "{$topic->id} ({$locale}) has a character outside Windows-1252, which the PDF font cannot print.");
+
+                foreach (array_unique(mb_str_split($text)) as $character) {
+                    if (preg_match('/[\p{Cc}\s]/u', $character)) {
+                        continue;
+                    }
+
+                    $this->assertArrayHasKey(mb_ord($character), $glyphs, "{$topic->id} ({$locale}) has the character [{$character}], which Geist cannot print.");
+                }
             }
         }
+    }
+
+    public function test_the_fuel_delivery_and_meter_reset_topics_exist_with_real_permissions(): void
+    {
+        foreach (['fuel-record-a-delivery', 'fuel-request-a-meter-reset'] as $id) {
+            foreach (['en', 'fr'] as $locale) {
+                $this->assertTrue($this->library->all($locale)->contains(fn (Topic $topic) => $topic->id === $id && $topic->module === 'fuel'), "{$locale} lacks {$id}.");
+            }
+        }
+    }
+
+    public function test_screenshots_are_found_by_name_or_by_the_image_key_and_never_outside_the_image_folder(): void
+    {
+        $root = sys_get_temp_dir().'/manual-library-test-'.bin2hex(random_bytes(4));
+        mkdir($root.'/en/core', 0775, true);
+        mkdir($root.'/images/en', 0775, true);
+        $front = "---\nid: %s\ntitle: T\nmodule: core\npermissions: []\nroles: [owner]\nscreens: []\n%s---\nBody.\n";
+        file_put_contents($root.'/en/core/auto.md', sprintf($front, 'auto', ''));
+        file_put_contents($root.'/en/core/named.md', sprintf($front, 'named', "image: other.png\nimage_alt: A picture\n"));
+        file_put_contents($root.'/en/core/escape.md', sprintf($front, 'escape', "image: ../../secret.png\n"));
+        file_put_contents($root.'/images/en/auto.png', 'x');
+        file_put_contents($root.'/images/en/other.png', 'x');
+        file_put_contents($root.'/secret.png', 'x');
+
+        $library = new TopicLibrary($root);
+        $topics = $library->all('en')->keyBy('id');
+
+        $this->assertSame(['en'], $library->locales());
+        $this->assertSame($root.'/images/en/auto.png', $library->imagePath($topics['auto'], 'en'));
+        $this->assertSame($root.'/images/en/other.png', $library->imagePath($topics['named'], 'en'));
+        $this->assertSame('A picture', $topics['named']->imageAlt);
+        $this->assertNull($library->imagePath($topics['escape'], 'en'));
+
+        File::deleteDirectory($root);
     }
 
     public function test_the_two_guides_this_pass_delivers_are_complete(): void

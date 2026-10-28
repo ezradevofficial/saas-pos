@@ -144,10 +144,13 @@ class ManualApiTest extends TestCase
         preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $pdf, $streams);
         $text = implode("\n", array_map(fn (string $stream) => (string) @gzuncompress($stream), $streams[1]));
 
-        $this->assertStringContainsString('Sell items', $text);
-        $this->assertStringContainsString('My guide', $text);
-        $this->assertStringNotContainsString('Find and download payslips', $text);
-        $this->assertStringNotContainsString('Create a role and set its limits', $text);
+        // Geist is embedded, so the text is stored as UTF-16BE character codes.
+        $utf16 = fn (string $text) => mb_convert_encoding($text, 'UTF-16BE', 'UTF-8');
+
+        $this->assertStringContainsString($utf16('Sell items'), $text);
+        $this->assertStringContainsString($utf16('My guide'), $text);
+        $this->assertStringNotContainsString($utf16('Find and download payslips'), $text);
+        $this->assertStringNotContainsString($utf16('Create a role and set its limits'), $text);
     }
 
     public function test_the_guide_pdf_is_built_in_french_too(): void

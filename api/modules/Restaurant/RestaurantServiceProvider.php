@@ -66,6 +66,9 @@ class RestaurantServiceProvider extends ServiceProvider
             $sources->register($source);
         }
 
+        // REST-19: the till's staff list carries `restaurant.` permissions, or a waiter cannot open or send an order.
+        $sources->tillPermissionPrefix('restaurant.');
+
         // REST-16: sales that paid an order settle it; a voided one takes the settlement back.
         Event::listen(SaleCompleted::class, [HandleSales::class, 'completed']);
         Event::listen(SaleVoided::class, [HandleSales::class, 'voided']);
