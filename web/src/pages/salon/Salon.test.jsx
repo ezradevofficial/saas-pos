@@ -178,6 +178,15 @@ describe('Salon', () => {
       expect(within(dialog).queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
     })
 
+    it('words the batch period as dates in the user\u2019s language, not ISO text (L10N-01)', async () => {
+      setup()
+      renderApp('/salon/commissions')
+      expect(await screen.findByText('1 Oct 2026 \u2013 31 Oct 2026')).toBeInTheDocument()
+      fireEvent.click(await screen.findByRole('button', { name: 'Open batch SCB-2026-00001' }))
+      const dialog = await screen.findByRole('dialog')
+      expect(await within(dialog).findByText('Period 1 Oct 2026 to 31 Oct 2026')).toBeInTheDocument()
+    })
+
     it('shows why the server refuses a self-approval', async () => {
       setup()
       api.post.mockRejectedValue(apiError(403, 'self_approval', 'You cannot decide a batch you built, submitted or are paid in. Ask someone else to do it.'))
