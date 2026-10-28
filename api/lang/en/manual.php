@@ -10,5 +10,17 @@ return [
     'modules' => [
         'core' => 'Account and administration',
         'pos' => 'Point of sale',
+        'inventory' => 'Inventory',
+        'stores' => 'Stores',
+        'procurement' => 'Procurement',
+        'accounting' => 'Accounting',
+        'hr' => 'HR',
+        'payroll' => 'Payroll',
+        'restaurant' => 'Restaurant',
+        'pharmacy' => 'Pharmacy',
+        'hotel' => 'Hotel',
+        'van_sales' => 'Van sales',
+        'fuel' => 'Fuel station',
+        'salon' => 'Salon',
     ],
 ];

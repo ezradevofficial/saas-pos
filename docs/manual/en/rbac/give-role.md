@@ -4,7 +4,7 @@ title: Give a person a role
 module: core
 order: 100
 permissions: [core.user.view, core.role.view, core.role.assign]
-roles: [owner, admin]
+roles: [owner, admin, branch_manager]
 screens: [/settings/users, /settings/users/:userId]
 ---
 A role says what a person can do. Where you give it says where it applies. This is how a cashier at Branch A is refused at Branch B.
