@@ -76,7 +76,7 @@ cp pos/.env.example pos/.env
 
 | What | Command | Port |
 | --- | --- | --- |
-| API | `npm run dev:api` (or `cd api && php artisan serve --port=8008`) | 8008 |
+| API | `npm run dev:api` (or `cd api && PHP_CLI_SERVER_WORKERS=4 php artisan serve --port=8008 --no-reload`: four workers, so the pages' parallel requests are not served one at a time; restart it after editing `.env`) | 8008 |
 | Queue workers (Horizon: `default`, `notifications`, `automation`) | `cd api && php artisan horizon` (dashboard at `http://localhost:8008/horizon`, local only) | |
 | Scheduler (timers, digests, automation scans, rates) | `cd api && php artisan schedule:work` | |
 | Web app | `npm run dev:web` (`strictPort`) | 3008 |

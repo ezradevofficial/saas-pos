@@ -155,6 +155,53 @@ describe('Subscription page (SUB-02..SUB-06)', () => {
     expect(screen.queryByText(/starter|inventory/)).not.toBeInTheDocument()
   })
 
+  it('shows a trial subscribed early as a trial, with its first period from the trial end (SUB-03)', async () => {
+    const early = { ...SUBSCRIPTION, status: 'trial', trial_days_left: 14, subscribed: true, first_period_start: '2026-11-15', current_period_start: '2026-11-15', current_period_end: '2026-12-15', next_invoice: { date: '2026-11-15', amount: { amount_minor: 390000, currency: 'KES' } } }
+    const trial = { state: 'trial', ends_at: '2026-11-15T08:00:00Z', days_left: 14 }
+    mockRoutes(api, [['onboarding/trial', { data: trial }], ...routes(early, { status: 'trial', subscribed: true, first_period_start: '2026-11-15' })], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+    renderApp('/settings/subscription')
+
+    expect(await screen.findByText('Trial, subscribed')).toBeInTheDocument()
+    // The trial bar keeps the days left and says the tenant has subscribed.
+    expect(await screen.findByText('Trial · 14 days left')).toBeInTheDocument()
+    expect(await screen.findByText('Subscribed: your first period starts on 15 Nov 2026.')).toBeInTheDocument()
+    expect(screen.getByText('First period')).toBeInTheDocument()
+    expect(screen.getByText('15 Nov 2026 to 15 Dec 2026')).toBeInTheDocument()
+    expect(screen.getByText(/You’ve subscribed. Your trial runs until 15 Nov 2026/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Subscribe now' })).not.toBeInTheDocument()
+    // The banner's status comes with the subscription: it is not requested again.
+    expect(api.get.mock.calls.filter(([path]) => path === 'subscription/status')).toHaveLength(1)
+  })
+
+  it('never quotes, or offers to confirm, a plan the owner has not changed (SUB-02)', async () => {
+    // The subscription stores no quantities; the editor shows one outlet. Untouched, that is no change.
+    mockRoutes(api, routes({ ...SUBSCRIPTION, quantities: {} }), { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+    api.post.mockImplementation(async (path) => {
+      if (path === 'subscription/quote') return { data: { ...QUOTE, kind: 'none', effective: null, effective_on: null, charge_now: 0 } }
+      throw new Error(path)
+    })
+    renderApp('/settings/subscription')
+
+    expect(await screen.findByRole('checkbox', { name: 'Payroll' })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(api.post).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Confirm change' })).not.toBeInTheDocument()
+
+    // The API says nothing differs: the confirm stays disabled.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Payroll' }))
+    expect(await screen.findByText('This is your current plan.', {}, { timeout: 3000 })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm change' })).toBeDisabled()
+  })
+
+  it('downloads no invoice by itself when the page loads after a payment', async () => {
+    renderApp('/settings/subscription?payment=p-1')
+
+    expect(await screen.findByText('Payment received. Thank you.')).toBeInTheDocument()
+    expect(await screen.findByText('INV-2026-000002')).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(api.download).not.toHaveBeenCalled()
+  })
+
   it('hides plan changes and payments from those who may only see the subscription', async () => {
     mockRoutes(api, routes(), { permissions: tenantWide(['core.subscription.view']) })
     renderApp('/settings/subscription')

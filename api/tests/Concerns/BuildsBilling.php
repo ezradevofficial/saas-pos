@@ -60,9 +60,15 @@ trait BuildsBilling
         return $this->inOperator(fn () => OperatorInvoice::query()->findOrFail($id));
     }
 
-    /** Subscribe from the trial and pay the first invoice with the fake M-Pesa: an active subscription from today. */
+    /**
+     * Subscribe at the trial's end and pay the first invoice with the fake
+     * M-Pesa: an active subscription from today. The trial is made to end
+     * now first: subscribing earlier starts the period at the trial end
+     * (SUB-03), and the subscription stays in trial until then.
+     */
     protected function activate(): BillingInvoice
     {
+        $this->inTenant(fn () => Subscription::query()->firstOrFail()->fill(['trial_ends_at' => CarbonImmutable::now()])->save());
         $invoice = $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated()->json('data.id');
         $this->payWithMpesa($invoice);
 

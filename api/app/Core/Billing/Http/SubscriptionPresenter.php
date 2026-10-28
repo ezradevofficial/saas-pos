@@ -25,6 +25,9 @@ final class SubscriptionPresenter
         return [
             'status' => $subscription->status,
             'trial_ends_at' => $trialEnds?->toIso8601String(),
+            // SUB-03: subscribed during the trial; the first paid period starts at the trial end.
+            'subscribed' => $subscription->status !== Subscription::TRIAL || $subscription->hasPeriod(),
+            'first_period_start' => $subscription->status === Subscription::TRIAL ? $subscription->current_period_start?->toDateString() : null,
             'trial_days_left' => $subscription->status === Subscription::TRIAL && $trialEnds !== null ? max(0, (int) ceil($now->diffInSeconds($trialEnds, false) / 86400)) : null,
             'past_due_since' => $subscription->past_due_since?->toIso8601String(),
             'read_only_on' => $subscription->status === Subscription::PAST_DUE && $subscription->past_due_since !== null

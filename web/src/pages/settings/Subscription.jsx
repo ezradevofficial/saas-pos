@@ -52,6 +52,8 @@ function Overview({ subscription, catalogue, canManage, onAction }) {
   const subscribe = useMutation({ mutationFn: () => api.post('subscription/subscribe'), onMutate: onAction, onSuccess: refresh })
   const cancelPending = useMutation({ mutationFn: () => api.post('subscription/pending/cancel'), onMutate: onAction, onSuccess: refresh })
   const pending = subscription.pending_change
+  // SUB-03: subscribed during the trial; the first period starts at the trial end.
+  const subscribedTrial = subscription.status === 'trial' && Boolean(subscription.current_period_start)
   const modules = subscription.modules.filter((key) => !(subscription.bundle && catalogue?.bundles?.find((b) => b.key === subscription.bundle)?.modules?.includes(key)))
 
   return (
@@ -62,7 +64,7 @@ function Overview({ subscription, catalogue, canManage, onAction }) {
             {[subscription.bundle ? nameOf(catalogue, subscription.bundle, 'bundle') : null, ...modules.map((key) => nameOf(catalogue, key))].filter(Boolean).join(' + ') ||
               t('subscription.overview.noModules')}
           </span>
-          <StatusBadge tone={STATUS_TONES[subscription.status] ?? 'neutral'}>{t(`subscription.status.${subscription.status}`)}</StatusBadge>
+          <StatusBadge tone={STATUS_TONES[subscription.status] ?? 'neutral'}>{subscribedTrial ? t('subscription.status.trialSubscribed') : t(`subscription.status.${subscription.status}`)}</StatusBadge>
         </div>
         <dl className="grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1">
@@ -78,7 +80,7 @@ function Overview({ subscription, catalogue, canManage, onAction }) {
             </dd>
           </div>
           <div className="flex flex-col gap-1">
-            <dt className="text-caption text-ink-muted">{t('subscription.overview.period')}</dt>
+            <dt className="text-caption text-ink-muted">{subscribedTrial ? t('subscription.overview.firstPeriod') : t('subscription.overview.period')}</dt>
             <dd className="text-ink">
               {subscription.current_period_start
                 ? t('subscription.overview.periodRange', { from: day(subscription.current_period_start, locale), to: day(subscription.current_period_end, locale) })
@@ -116,6 +118,8 @@ function Overview({ subscription, catalogue, canManage, onAction }) {
           </Alert>
         ) : null}
 
+        {subscribedTrial ? <p className="text-ink">{t('subscription.overview.subscribedText', { date: day(subscription.trial_ends_at, locale) })}</p> : null}
+
         {subscription.status === 'trial' && !subscription.current_period_start && canManage ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface-100 p-4">
             <p className="text-ink">{t('subscription.overview.subscribeText', { date: day(subscription.trial_ends_at, locale) })}</p>
@@ -147,8 +151,12 @@ function ChangePlan({ subscription, catalogue, done, onDone }) {
     setEditedCoupon(next)
   }
   const wanted = useMemo(() => cleanPlan(plan, catalogue), [plan, catalogue])
+  // The subscription's own plan, cleaned the same way: an untouched editor (whose units get a quantity
+  // where the subscription stores none) is never a change (SUB-02).
+  const current = useMemo(() => cleanPlan(planOf(subscription), catalogue), [subscription, catalogue])
   const body = useDebounced(JSON.stringify({ ...wanted, coupon: coupon.trim() || null }), 400)
-  const dirty = !samePlan(wanted, subscription) || coupon.trim() !== ''
+  const dirty = !samePlan(wanted, current) || coupon.trim() !== ''
+  const subscribedTrial = subscription.status === 'trial' && Boolean(subscription.current_period_start)
 
   const quote = useQuery({
     queryKey: [...SUBSCRIPTION_KEY, 'quote', body],
@@ -237,11 +245,13 @@ function ChangePlan({ subscription, catalogue, done, onDone }) {
           <div className="flex flex-col gap-3 rounded-md border border-border bg-surface-100 p-4" aria-live="polite">
             <p className="text-ink">
               {result.kind === 'upgrade'
-                ? t('subscription.change.upgrade', { days: result.remaining_days, period: result.period_days })
+                ? subscribedTrial
+                  ? t('subscription.change.upgradeFirst', { date: day(subscription.current_period_start, locale) })
+                  : t('subscription.change.upgrade', { days: result.remaining_days, period: result.period_days })
                 : result.kind === 'trial'
                   ? t('subscription.change.trial')
                   : result.kind === 'scheduled'
-                    ? t('subscription.change.scheduled', { date: day(result.effective_on, locale) })
+                    ? t(subscribedTrial ? 'subscription.change.scheduledFirst' : 'subscription.change.scheduled', { date: day(result.effective_on, locale) })
                     : t('subscription.change.none')}
             </p>
             <dl className="grid gap-3 sm:grid-cols-2">
@@ -259,13 +269,12 @@ function ChangePlan({ subscription, catalogue, done, onDone }) {
               </div>
             </dl>
             {result.new.coupon?.applied ? <p className="text-caption text-ink-muted">{t('subscription.change.couponApplied', { code: result.new.coupon.code })}</p> : null}
-            {result.kind !== 'none' ? (
-              <div>
-                <Button variant="pay" loading={change.isPending} disabled={quote.isFetching} onClick={() => change.mutate()}>
-                  {result.charge_now > 0 ? t('subscription.change.confirmCharge', { amount: formatMoney(result.charge_now, result.currency, locale) }) : t('subscription.change.confirm')}
-                </Button>
-              </div>
-            ) : null}
+            <div>
+              {/* Nothing differs (kind `none`): nothing to confirm (SUB-02). */}
+              <Button variant="pay" loading={change.isPending} disabled={quote.isFetching || result.kind === 'none'} onClick={() => change.mutate()}>
+                {result.charge_now > 0 ? t('subscription.change.confirmCharge', { amount: formatMoney(result.charge_now, result.currency, locale) }) : t('subscription.change.confirm')}
+              </Button>
+            </div>
           </div>
         ) : null}
         {change.error ? <Alert tone="danger" title={errorMessage(change.error)} /> : null}
@@ -592,8 +601,9 @@ export default function Subscription() {
   const [changed, setChanged] = useState(null)
   const clearChanged = () => setChanged(null)
 
+  // The banner's status comes with the subscription: no second request for it.
   useEffect(() => {
-    if (data) queryClient.invalidateQueries({ queryKey: STATUS_KEY })
+    if (data) queryClient.setQueryData(STATUS_KEY, { data })
   }, [data, queryClient])
 
   return (

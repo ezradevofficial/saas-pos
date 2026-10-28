@@ -120,9 +120,9 @@ class Subscriptions
      * @param  array<string, string>  $locked
      * @return array<string, mixed> the quote, plus `price_ids` (the rows it used)
      */
-    public function price(string $country, array $plan, array $locked, ?Coupon $coupon, ?CarbonImmutable $on = null): array
+    public function price(string $country, array $plan, array $locked, ?Coupon $coupon, ?CarbonImmutable $on = null, ?CatalogueSnapshot $snapshot = null): array
     {
-        $snapshot = $this->snapshot($country, $locked, $on ?? CarbonImmutable::now());
+        $snapshot ??= $this->snapshot($country, $locked, $on ?? CarbonImmutable::now());
 
         try {
             $quote = $this->calculator->quote($snapshot, new QuoteRequest($plan['modules'], $plan['quantities'], $plan['cycle'], $plan['bundle'], $coupon));
@@ -182,14 +182,19 @@ class Subscriptions
             $coupon = $this->catalogue->coupon($couponCode);
         }
 
-        $current = $this->price($subscription->country, $this->currentPlan($subscription), $subscription->price_ids ?? [], $this->coupon($subscription), $at);
-        $new = $this->price($subscription->country, $plan, $subscription->price_ids ?? [], $coupon, $at);
+        // Both sides are priced from one catalogue snapshot (the same country, locked rows and day).
+        $snapshot = $this->snapshot($subscription->country, $subscription->price_ids ?? [], $at);
+        $current = $this->price($subscription->country, $this->currentPlan($subscription), $subscription->price_ids ?? [], $this->coupon($subscription), $at, $snapshot);
+        $new = $this->price($subscription->country, $plan, $subscription->price_ids ?? [], $coupon, $at, $snapshot);
 
         if ($coupon !== null && $couponCode !== null && trim($couponCode) !== '' && ! ($new['coupon']['applied'] ?? false)) {
             throw new ApiException(422, 'coupon_not_applicable', __('billing.errors.coupon_not_applicable'), ['coupon' => [__('billing.errors.coupon_not_applicable')]]);
         }
 
-        $same = self::samePlan($subscription, $plan) && ($couponCode === null || trim($couponCode) === '');
+        // SUB-02: a plan that bills exactly as the current one is no change, whatever quantities it spells out
+        // for units no line counts (or a quantity it gives as the default the current plan leaves out).
+        $same = (self::samePlan($subscription, $plan) || self::sameBilling($this->currentPlan($subscription), $plan, $current, $new))
+            && ($couponCode === null || trim($couponCode) === '');
         [$periodDays, $remaining] = $this->days($subscription, $at);
         $charge = 0;
 
@@ -259,13 +264,16 @@ class Subscriptions
 
                 if ($quote['kind'] === 'upgrade' && $quote['charge_now'] > 0) {
                     $now = CarbonImmutable::now();
+                    // SUB-03: in a subscribed trial the difference is for the whole first period, which starts
+                    // (and falls due) at the trial end, like the first invoice.
+                    $subscribedTrial = $subscription->inSubscribedTrial($now);
                     $invoice = $this->invoicing->issue(
                         $subscription,
                         'upgrade',
                         $this->invoicing->prorationLines($quote['charge_now'], $quote['remaining_days'], $quote['period_days']),
-                        $now->startOfDay(),
+                        $now->startOfDay()->max(CarbonImmutable::parse($subscription->current_period_start->toDateString(), 'UTC')),
                         CarbonImmutable::parse($subscription->current_period_end->toDateString(), 'UTC'),
-                        $now,
+                        $subscribedTrial ? CarbonImmutable::instance($subscription->trial_ends_at) : $now,
                     );
                 }
             } else {
@@ -372,13 +380,15 @@ class Subscriptions
     /**
      * SUB-06: an invoice of the subscription was paid. With no other
      * invoice overdue, the subscription is active again at once (from
-     * trial, past due or read-only).
+     * trial, past due or read-only); a trial still running keeps its trial.
      */
     public function paid(Subscription $subscription, BillingInvoice $invoice): Subscription
     {
-        $overdue = BillingInvoice::query()->where('status', BillingInvoice::OPEN)->where('due_at', '<=', CarbonImmutable::now()->subDay())->exists();
+        $now = CarbonImmutable::now();
+        $overdue = BillingInvoice::query()->where('status', BillingInvoice::OPEN)->where('due_at', '<=', $now->subDay())->exists();
 
-        if (! $overdue && in_array($subscription->status, [Subscription::TRIAL, Subscription::PAST_DUE, Subscription::READ_ONLY], true)) {
+        // SUB-03: paid during a subscribed trial, it stays a trial until the trial ends (the cycle then makes it active).
+        if (! $overdue && ! $subscription->inSubscribedTrial($now) && in_array($subscription->status, [Subscription::TRIAL, Subscription::PAST_DUE, Subscription::READ_ONLY], true)) {
             $subscription->fill([
                 'status' => Subscription::ACTIVE,
                 'past_due_since' => null,
@@ -491,6 +501,43 @@ class Subscriptions
     private static function samePlan(Subscription $subscription, array $plan): bool
     {
         return self::normalise(['modules' => $subscription->modules, 'quantities' => $subscription->quantities ?? [], 'cycle' => $subscription->cycle, 'bundle' => $subscription->bundle]) == $plan;
+    }
+
+    /**
+     * Whether $plan bills exactly as $current: the same modules, bundle and
+     * cycle, the same total, and the same priced lines (unit, quantity,
+     * billable count, amount). A line only one side has must be free and
+     * count nothing billable (POS devices the outlets include, spelled out).
+     */
+    private static function sameBilling(array $current, array $plan, array $currentQuote, array $newQuote): bool
+    {
+        if ([$current['modules'], $current['bundle'], $current['cycle']] !== [$plan['modules'], $plan['bundle'], $plan['cycle']]
+            || (int) $currentQuote['total'] !== (int) $newQuote['total']) {
+            return false;
+        }
+
+        $lines = function (array $quote): array {
+            $keyed = [];
+
+            foreach ($quote['lines'] as $line) {
+                $keyed["{$line['type']}:{$line['key']}"] = [$line['unit'] ?? null, (int) $line['quantity'], (int) $line['billable'], (int) $line['amount']];
+            }
+
+            return $keyed;
+        };
+        $before = $lines($currentQuote);
+        $after = $lines($newQuote);
+
+        foreach (array_unique([...array_keys($before), ...array_keys($after)]) as $key) {
+            $one = $before[$key] ?? null;
+            $other = $after[$key] ?? null;
+
+            if ($one !== null && $other !== null ? $one !== $other : (($one ?? $other)[2] !== 0 || ($one ?? $other)[3] !== 0)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** @return array<string, string> "module:key" / "bundle:key" => price row id of each priced line */

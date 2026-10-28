@@ -5605,7 +5605,8 @@
       "past_due": "En retard",
       "read_only": "Lecture seule",
       "suspended": "Suspendu",
-      "cancelled": "Résilié"
+      "cancelled": "Résilié",
+      "trialSubscribed": "Essai, abonné"
     },
     "cycles": {
       "monthly": "Mensuel",
@@ -5654,8 +5655,10 @@
       "monthly": "Coût mensuel",
       "pending": "Changements à partir du {{date}}",
       "cancelPending": "Garder la formule actuelle",
-      "subscribeText": "Votre essai se termine le {{date}}. Abonnez-vous maintenant pour recevoir votre première facture ; elle est due à la fin de l’essai.",
-      "subscribe": "S’abonner maintenant"
+      "subscribeText": "Votre essai se termine le {{date}}. Abonnez-vous maintenant : votre première facture est émise aujourd’hui. Elle est due à la fin de l’essai, et sa période commence à ce moment-là : vos jours d’essai restent gratuits.",
+      "subscribe": "S’abonner maintenant",
+      "firstPeriod": "Première période",
+      "subscribedText": "Vous êtes abonné. Votre essai dure jusqu’au {{date}}. Votre première période commence alors, et sa facture est due ce jour-là."
     },
     "change": {
       "title": "Changer de formule",
@@ -5676,7 +5679,9 @@
       "confirm": "Confirmer le changement",
       "confirmCharge": "Confirmer et payer {{amount}}",
       "done": "Votre formule a été modifiée.",
-      "doneInvoice": "Votre formule a été modifiée. La facture {{number}} est à régler ci-dessous."
+      "doneInvoice": "Votre formule a été modifiée. La facture {{number}} est à régler ci-dessous.",
+      "upgradeFirst": "Le changement prend effet maintenant. Vous payez la différence pour votre première période, qui commence le {{date}}.",
+      "scheduledFirst": "Le changement prend effet le {{date}}, à la fin de votre première période."
     },
     "pay": {
       "title": "Régler la facture {{number}}",
@@ -5802,7 +5807,8 @@
       "daysLeft_other": "Essai · {{count}} jours restants",
       "ended": "Essai terminé",
       "help": "Aucun paiement pendant votre essai gratuit.",
-      "endedHelp": "Votre essai gratuit est terminé. Choisissez un moyen de paiement pour continuer à utiliser tous les modules."
+      "endedHelp": "Votre essai gratuit est terminé. Choisissez un moyen de paiement pour continuer à utiliser tous les modules.",
+      "subscribedHelp": "Abonné : votre première période commence le {{date}}."
     },
     "welcome": {
       "title": "Commencez votre essai gratuit",

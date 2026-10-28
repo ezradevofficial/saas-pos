@@ -71,7 +71,11 @@ class AppBilling implements AddOnCharges
     {
         $subscription = $this->subscriptions->current();
 
-        if ($subscription === null || ! $subscription->hasPeriod() || ! in_array($subscription->status, [Subscription::ACTIVE, Subscription::PAST_DUE], true)) {
+        $now = CarbonImmutable::now();
+
+        // A subscribed trial (SUB-03) is charged too: its first period is invoiced already.
+        if ($subscription === null || ! $subscription->hasPeriod()
+            || ! (in_array($subscription->status, [Subscription::ACTIVE, Subscription::PAST_DUE], true) || $subscription->inSubscribedTrial($now))) {
             return;
         }
 
@@ -81,7 +85,6 @@ class AppBilling implements AddOnCharges
             return;
         }
 
-        $now = CarbonImmutable::now();
         [$periodDays, $remaining] = $this->subscriptions->days($subscription, $now);
         $charge = $this->calculator->prorate(0, $amount, $periodDays, $remaining, (int) config("billing.rounding_minor.{$subscription->currency}", 1));
 
@@ -101,9 +104,9 @@ class AppBilling implements AddOnCharges
                 'period_days' => $periodDays,
                 'amount' => $charge,
             ]],
-            $now->startOfDay(),
+            $now->startOfDay()->max(CarbonImmutable::parse($subscription->current_period_start->toDateString(), 'UTC')),
             CarbonImmutable::parse($subscription->current_period_end->toDateString(), 'UTC'),
-            $now,
+            $subscription->inSubscribedTrial($now) ? CarbonImmutable::instance($subscription->trial_ends_at) : $now,
         );
     }
 

@@ -9,7 +9,7 @@ use Dompdf\Options;
 /**
  * TPL-04: a document as a PDF through dompdf, hardened like the list
  * exports (no remote files, no PHP, no JavaScript, local files confined
- * to an empty directory). A4 and A5 use their page size; a thermal
+ * to an empty directory and the bundled fonts), set in Geist (PdfFonts). A4 and A5 use their page size; a thermal
  * receipt is one page as long as its content (measured on a first pass).
  */
 class PdfRenderer
@@ -83,10 +83,12 @@ class PdfRenderer
         $options->setIsRemoteEnabled(false);
         $options->setIsPhpEnabled(false);
         $options->setIsJavascriptEnabled(false);
-        $options->setChroot($sandbox);
         $options->setTempDir($sandbox);
+        // Geist, as the templates ask for it (TPL-04, BR-01); DejaVu Sans stays the fallback.
+        PdfFonts::configure($options, $sandbox);
 
         $pdf = new Dompdf($options);
+        PdfFonts::register($pdf->getFontMetrics());
 
         if ($onFrame !== null) {
             $pdf->setCallbacks([['event' => 'end_frame', 'f' => fn (Frame $frame) => $onFrame($frame)]]);
