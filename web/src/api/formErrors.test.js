@@ -1,5 +1,5 @@
 import { ApiError } from './client'
-import { formErrors } from './formErrors'
+import { fieldErrors, formErrors } from './formErrors'
 
 describe('formErrors', () => {
   it('puts field messages under the form fields', () => {
@@ -34,3 +34,15 @@ describe('formErrors', () => {
     expect(formErrors(null, ['login'])).toEqual({ fields: {}, form: null })
   })
 })
+
+describe('fieldErrors', () => {
+  it('keys each field by the API name and never throws, with or without field errors', () => {
+    expect(fieldErrors(null)).toEqual({})
+    expect(fieldErrors({ status: 422, message: 'No.', errors: { modules: ['Sold only with a bundle.'], 'quantities.outlet': ['Too many.', 'Also this.'] } })).toEqual({
+      modules: 'Sold only with a bundle.',
+      'quantities.outlet': 'Too many.',
+    })
+    expect(fieldErrors({ status: 500, message: 'Something went wrong.' })).toEqual({})
+  })
+})
+

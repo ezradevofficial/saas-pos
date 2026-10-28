@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '@/api/errorMessage'
-import { formErrors } from '@/api/formErrors'
+import { fieldErrors } from '@/api/formErrors'
 import { Alert, Button, Card, DataTable, Dialog, Select, StatusBadge, TextField } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { formatCalendarDate } from '@/lib/dates'
@@ -83,7 +83,7 @@ function LoadDialog({ onClose, onLoaded }) {
       onLoaded(response.data.id)
     },
   })
-  const errors = formErrors(load.error)
+  const errors = fieldErrors(load.error)
   const submit = () => {
     try {
       setParseError(null)

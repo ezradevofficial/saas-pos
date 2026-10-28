@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 import { errorMessage } from '@/api/errorMessage'
-import { formErrors } from '@/api/formErrors'
+import { fieldErrors } from '@/api/formErrors'
 import { Alert, Button, Card, DataTable, Dialog, Money, Select, StatusBadge, TextField } from '@/components/ds'
 import { decimalToMinor } from '@/lib/money'
 import { PageHeader } from '@/layouts/PageHeader'
@@ -211,7 +211,7 @@ function GraceDialog({ open, onClose, tenantId, current }) {
       onClose()
     },
   })
-  const errors = formErrors(save.error)
+  const errors = fieldErrors(save.error)
   return (
     <Dialog
       open={open}
@@ -240,7 +240,7 @@ function MarkPaidDialog({ invoice, onClose }) {
       onClose()
     },
   })
-  const errors = formErrors(mark.error)
+  const errors = fieldErrors(mark.error)
   return (
     <Dialog
       open

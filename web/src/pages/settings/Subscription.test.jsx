@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/api/client'
 import { browser } from '@/lib/browser'
 import { chooseOption, optionTexts } from '@/test/combobox'
-import { mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
+import { apiError, mockRoutes, renderApp, resetSession, signedIn, tenantWide } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -89,6 +89,23 @@ describe('Subscription page (SUB-02..SUB-06)', () => {
 
     fireEvent.click(confirm)
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('subscription/change', expect.objectContaining({ expected_charge: 100000, bundle: 'starter' })))
+  })
+
+  it('shows a refused quote as a message instead of crashing the page (SUB-02)', async () => {
+    api.post.mockImplementation(async (path) => {
+      if (path === 'subscription/quote') {
+        throw apiError(422, 'addon_requires_bundle', 'Brand Pack is sold only with a bundle. Choose a bundle that offers it.', {
+          modules: ['Brand Pack is sold only with a bundle. Choose a bundle that offers it.'],
+        })
+      }
+      throw new Error(path)
+    })
+    renderApp('/settings/subscription')
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Payroll' }))
+
+    expect(await screen.findByText('Brand Pack is sold only with a bundle. Choose a bundle that offers it.', {}, { timeout: 3000 })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Subscription' })).toBeInTheDocument()
   })
 
   it('pays an open invoice with the saved M-Pesa wallet and follows it to paid', async () => {
