@@ -87,4 +87,11 @@ describe('DataTable', () => {
     expect(body).toHaveClass('opacity-60')
     expect(body).toHaveAttribute('aria-busy', 'true')
   })
+
+  it('scrolls sideways inside its card instead of clipping a wide last column', () => {
+    const { container } = render(<DataTable columns={columns} rows={[{ id: 'a', number: 'PO-1', total: '1' }]} />)
+    const frame = container.firstElementChild
+    expect(frame).toHaveClass('overflow-x-auto', 'min-w-0', 'max-w-full')
+    expect(frame).not.toHaveClass('overflow-hidden')
+  })
 })

@@ -26,7 +26,7 @@ export function DataTable({ columns = [], rows = [], caption, emptyText, selecte
   const sortable = typeof onSort === 'function'
 
   return (
-    <div className={cn('overflow-hidden rounded-lg border border-border bg-surface-200', className)}>
+    <div className={cn('w-full min-w-0 max-w-full overflow-x-auto rounded-lg border border-border bg-surface-200', className)}>
       <Table className="text-body">
         {caption ? <TableCaption className="sr-only">{caption}</TableCaption> : null}
         <TableHeader>

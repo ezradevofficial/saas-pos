@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 export function Card({ title, subtitle, actions, children, className }) {
   const hasBody = children !== undefined && children !== null && children !== false
   return (
-    <CardPrimitive className={cn('gap-0 overflow-visible rounded-lg border border-border bg-surface-200 py-0 text-body text-ink ring-0', className)}>
+    <CardPrimitive className={cn('min-w-0 gap-0 overflow-visible rounded-lg border border-border bg-surface-200 py-0 text-body text-ink ring-0', className)}>
       {title || actions ? (
         <header className={cn('flex items-start justify-between gap-4 px-5 py-4', hasBody && 'border-b border-border')}>
           <div className="min-w-0">
@@ -17,7 +17,7 @@ export function Card({ title, subtitle, actions, children, className }) {
           {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
         </header>
       ) : null}
-      {hasBody ? <CardContent className="p-5">{children}</CardContent> : null}
+      {hasBody ? <CardContent className="min-w-0 p-5">{children}</CardContent> : null}
     </CardPrimitive>
   )
 }
