@@ -367,3 +367,15 @@
 @utility min-h-tile {
   min-height: calc(var(--space-12) * 2);
 }
+
+/* iOS Safari zooms into any field whose text is under 16px when it is tapped.
+   On phones and touch screens, fields use 16px (a platform threshold, not a
+   design value), so focusing one never zooms and pinch-zoom stays allowed.
+   Unlayered on purpose: it must win over the text-size utilities on fields. */
+@media (max-width: 767px), (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}

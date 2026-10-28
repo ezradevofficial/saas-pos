@@ -5706,7 +5706,9 @@
       "approveOnPhone": "Approve the request on the phone {{label}}. This page updates by itself.",
       "checkout": "Finish the payment on the card provider’s page.",
       "succeeded": "Payment received. Thank you.",
-      "failed": "The payment didn’t go through. Try again or use another method."
+      "failed": "The payment didn’t go through. Try again or use another method.",
+      "declined": "You declined the payment on your phone. Pay again when you are ready, or choose another method.",
+      "timeout": "Your phone didn’t answer in time. Check it is on and has signal, then pay again."
     },
     "invoices": {
       "title": "Invoices",
