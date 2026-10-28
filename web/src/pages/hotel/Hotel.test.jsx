@@ -249,6 +249,8 @@ describe('Hotel back office', () => {
     api.post.mockResolvedValue({ data: LINE({ id: 'l-5', line_no: 5, kind: 'fee', description: 'Parking', amount_minor: '2500' }) })
     renderApp('/hotel/folios/f-1')
     const minibar = (await screen.findByText('Minibar')).closest('tr')
+    // The night's description is server-written text; its ISO date reads as a date.
+    expect(screen.getByText(`Room 101, night of ${formatCalendarDate('2026-10-27', 'en')}`)).toBeInTheDocument()
     expect(within(minibar).getByText('Voided')).toBeInTheDocument()
     expect(screen.getByText('Reversal')).toBeInTheDocument()
     const deposit = screen.getByText('Deposit (Cash)').closest('tr')

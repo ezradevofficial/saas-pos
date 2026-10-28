@@ -3,7 +3,7 @@
 // the API's print data; every value is escaped. It prints itself inside a
 // sandboxed frame (see FolioDetail.jsx). Fiscal elements are the invoice
 // number and tax lines the API gives; none are added here.
-import { formatCalendarDate, formatDateTime } from '@/lib/dates'
+import { formatCalendarDate, formatDatesIn, formatDateTime } from '@/lib/dates'
 import { formatAmount } from '@/lib/money'
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
@@ -32,7 +32,7 @@ export function folioHtml({ t, data, locale }) {
       (line) => `<tr>
         <td class="n">${escape(line.line_no)}</td>
         <td>${escape(formatCalendarDate(line.business_date, locale))}</td>
-        <td>${escape(line.description)}${reversed.has(line.id) ? ` (${escape(t('hotel.folio.reversed'))})` : ''}</td>
+        <td>${escape(formatDatesIn(line.description, locale))}${reversed.has(line.id) ? ` (${escape(t('hotel.folio.reversed'))})` : ''}</td>
         <td class="n">${escape(BigInt(line.amount_minor) > 0n ? money(line.amount_minor) : '')}</td>
         <td class="n">${escape(BigInt(line.amount_minor) < 0n ? money(String(-BigInt(line.amount_minor))) : '')}</td>
       </tr>`,
@@ -40,7 +40,7 @@ export function folioHtml({ t, data, locale }) {
     .join('')
   const invoiceRows = invoice
     ? invoice.lines
-        .map((line) => `<tr><td>${escape(line.description)}</td><td class="n">${escape(money(line.net_minor))}</td><td class="n">${escape(money(line.tax_minor))}</td><td class="n">${escape(money(line.amount_minor))}</td></tr>`)
+        .map((line) => `<tr><td>${escape(formatDatesIn(line.description, locale))}</td><td class="n">${escape(money(line.net_minor))}</td><td class="n">${escape(money(line.tax_minor))}</td><td class="n">${escape(money(line.amount_minor))}</td></tr>`)
         .join('')
     : ''
 
