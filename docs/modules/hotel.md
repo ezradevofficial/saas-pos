@@ -177,7 +177,7 @@ branch manager's role does not reach them. Guests are the company's shared regis
    before arrival, then one night) are neutral business defaults.
 4. Whether deposits are a liability until check-in (this module does so) or
    income on receipt, per the company's accountant.
-5. The module's price in the catalogue (a placeholder equal to Inventory's).
+5. The module's price in the catalogue is KES 4,500.00 and USD 35.00 per outlet per month (docs/pricing-research-2026-10.md).
 6. Payments and deposits are taken in the folio's currency only; accepting a guest's other currency at check-out (with the rate and rounding)
    is not built.
 7. KRA eTIMS and DRC DGI treatment of a folio invoice that includes charges

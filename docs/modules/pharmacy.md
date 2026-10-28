@@ -189,7 +189,7 @@ approval (PIN override), usage notes on agrochemicals.
    KE (PPB) and CD; the printed layout follows common practice until then.
 6. Whether returned medicine may be restocked (this module restocks, as
    Inventory does; the pharmacist can write it off).
-7. The `pharmacy` module's price in the catalogue (a placeholder equal to
-   Inventory's).
+7. The `pharmacy` module's price in the catalogue is KES 3,000.00 and USD 25.00
+   per outlet per month (docs/pricing-research-2026-10.md).
 8. Whether a completed sale with an expired lot should be refused at upload
    (this module keeps and flags it, since the device wins for completed sales).

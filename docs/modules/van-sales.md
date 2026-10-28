@@ -17,9 +17,9 @@ other module (catalogue key `van_sales`, per device, RBAC-08). It requires
 POS. Routes, menus, permissions, sync sources and listeners exist only while
 the tenant's subscription has it. The `van_sales` business type suggests it
 by default in the module picker.
-**Price to set:** the catalogue row is a placeholder equal to Inventory's
-(KES 1,500.00 and USD 12.00 per device, that is per van, per month) until
-the owner sets it; a price change is a new catalogue price row.
+**Price:** KES 2,500.00 and USD 20.00 per device, that is per van, per month,
+set from market research (docs/pricing-research-2026-10.md); a price change is
+a new catalogue price row.
 
 - **A van sale is a normal POS sale.** The rep sells on the van's device with
   the POS app; the sale is uploaded through `POST pos/sales`, so payments,
@@ -159,7 +159,7 @@ A result is `{id, status: stored, ...}` or `{id, status: rejected, code, field?}
 
 Errors: `van_unknown`, `route_unknown`, `run_unknown`, `run_closed`, `customer_unknown`, `rep_unknown`, `location_unknown`, `load_not_open`, `load_not_released`, `load_confirmed`, `visit_invalid`, `collection_invalid`, `receipt_range_unknown`, `receipt_number_mismatch`, `payload_mismatch`, `count_open`, `count_not_pending`, `unload_not_ready`, `inventory_required`, `upload_rejected`.
 
-**Decisions to confirm.** (1) The catalogue price is a placeholder (price to set). (2) A van's stock location is a `store` location, not a new `van` type (a new type needs a core migration and billing rules). (3) Vans are unloaded every day: stock kept on the van overnight is not supported by the equation (it must be counted as returned). (4) A stock surplus and a cash variance are recorded, not posted to stock or accounts. (5) Collection receipts share the device's `pos.receipt` range with sales. (6) The default variance approver is the Route supervisor, any one, never the rep. (7) Credit in a currency other than the customer's limit currency is flagged, not converted.
+**Decisions to confirm.** (1) The catalogue price is set from market research (docs/pricing-research-2026-10.md). (2) A van's stock location is a `store` location, not a new `van` type (a new type needs a core migration and billing rules). (3) Vans are unloaded every day: stock kept on the van overnight is not supported by the equation (it must be counted as returned). (4) A stock surplus and a cash variance are recorded, not posted to stock or accounts. (5) Collection receipts share the device's `pos.receipt` range with sales. (6) The default variance approver is the Route supervisor, any one, never the rep. (7) Credit in a currency other than the customer's limit currency is flagged, not converted.
 
 ## Deferred
 

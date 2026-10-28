@@ -37,8 +37,8 @@ book stock follows the till and the deliveries.
 - **Nothing statutory is invented** (CP-01, CP-02). VAT on fuel is the tax
   category of the fuel item (a country-pack tax code); excise, levies and
   the regulator's maximum prices are tenant data or **to confirm** below.
-- **Price to set:** the catalogue row is a placeholder equal to Inventory's
-  (KES 1,500.00 and USD 12.00 per outlet per month) until the owner sets it.
+- **Price:** KES 6,000.00 and USD 45.00 per outlet per month, set from market
+  research (docs/pricing-research-2026-10.md).
 
 ## Requirements
 
@@ -237,7 +237,7 @@ Errors: `not_a_station`, `nozzle_unknown`, `nozzle_in_use`, `meter_decreased`,
 7. Shifts run in the station's currency; foreign cash handed in at the pump
    is converted by the till when the sale is rung (POS-03), not at shift
    close.
-8. The module's price in the catalogue (a placeholder equal to Inventory's).
+8. The module's price in the catalogue is KES 6,000.00 and USD 45.00 per outlet per month (docs/pricing-research-2026-10.md); review after the first pilot station.
 9. Payments of a sale that mixes fuel and shop items are attributed to the
    fuel share pro rata (to the attendant of the first fuel line).
 10. Tank dips from a till travel only with a shift upload (open or close); a routine dip outside a shift is recorded in the back office. A device endpoint for them is not built.

@@ -33,22 +33,14 @@ class CatalogueApiTest extends TestCase
             'pos' => [250000, 2000, null, null], 'pos_device' => [50000, 400, null, null],
             'inventory' => [150000, 1200, null, null], 'stores' => [100000, 800, null, null],
             'loyalty' => [100000, 800, null, null], 'ecommerce' => [250000, 2000, null, null],
-            'accounting_essentials' => [350000, 2800, null, null], 'accounting_pro' => [700000, 5500, null, null],
+            'accounting_essentials' => [250000, 2000, null, null], 'accounting_pro' => [600000, 4500, null, null],
             'procurement' => [300000, 2500, null, null], 'crm' => [200000, 1500, null, null],
             'fixed_assets' => [150000, 1200, null, null], 'manufacturing' => [400000, 3000, null, null],
-            // Not in the concept note: a placeholder price equal to Inventory's, for the owner to confirm (docs/modules/pharmacy.md).
-            'pharmacy' => [150000, 1200, null, null],
-            // Same: a placeholder price equal to Inventory's, price to set (docs/modules/restaurant.md).
-            'restaurant' => [150000, 1200, null, null],
-            // Not in the concept note either: a placeholder equal to Inventory's, for the owner to confirm (docs/modules/hotel.md).
-            'hotel' => [150000, 1200, null, null],
-            // Not in the concept note either: a placeholder equal to Inventory's, price to set (docs/modules/fuel-station.md).
-            'fuel' => [150000, 1200, null, null],
-            // Same: a placeholder price equal to Inventory's, per device (one van), price to set (docs/modules/van-sales.md).
-            'van_sales' => [150000, 1200, null, null],
-            // Same: a placeholder price equal to Inventory's, per outlet, price to set (docs/modules/salon.md).
-            'salon' => [150000, 1200, null, null],
-            'hr' => [10000, 100, 150000, 1200], 'payroll' => [15000, 150, 200000, 1500],
+            // Market-research prices (docs/pricing-research-2026-10.md), not in the concept note's first baseline.
+            'pharmacy' => [300000, 2500, null, null], 'restaurant' => [200000, 1500, null, null],
+            'hotel' => [450000, 3500, null, null], 'fuel' => [600000, 4500, null, null],
+            'van_sales' => [250000, 2000, null, null], 'salon' => [200000, 1500, null, null],
+            'hr' => [7000, 50, 100000, 800], 'payroll' => [10000, 80, 150000, 1200],
             'brand_pack' => [150000, 1200, null, null],
         ];
         $ke = app(Catalogue::class)->snapshot('KE');
@@ -63,9 +55,17 @@ class CatalogueApiTest extends TestCase
         $this->assertSame(['employee', 'employee', 'tenant', 'online_store'], [$ke->module('hr')->unit, $ke->module('payroll')->unit, $ke->module('brand_pack')->unit, $ke->module('ecommerce')->unit]);
 
         $this->assertSame([390000, null, ['pos', 'inventory', 'loyalty'], ['brand_pack']], [$ke->bundle('starter')->amount, $ke->bundle('starter')->extraOutletAmount, $ke->bundle('starter')->modules, $ke->bundle('starter')->addons]);
-        $this->assertSame([990000, 400000, 7900, 3200], [$ke->bundle('business')->amount, $ke->bundle('business')->extraOutletAmount, $cd->bundle('business')->amount, $cd->bundle('business')->extraOutletAmount]);
+        $this->assertSame([920000, 400000, 7400, 3200], [$ke->bundle('business')->amount, $ke->bundle('business')->extraOutletAmount, $cd->bundle('business')->amount, $cd->bundle('business')->extraOutletAmount]);
         $this->assertSame([true, null], [$ke->bundle('enterprise')->quoted, $ke->bundle('enterprise')->amount]);
         $this->assertSame([10, 12], [$ke->annualMonthsCharged, $ke->monthsInCycle]);
+    }
+
+    public function test_the_market_price_migration_is_safe_to_run_again(): void
+    {
+        $before = DB::table('catalogue_prices')->count();
+        (require database_path('migrations/2027_01_13_000100_set_market_catalogue_prices.php'))->up();
+
+        $this->assertSame($before, DB::table('catalogue_prices')->count());
     }
 
     public function test_the_public_catalogue_is_in_the_countrys_currency_and_the_callers_language(): void
@@ -100,7 +100,7 @@ class CatalogueApiTest extends TestCase
         $this->quote(['modules' => ['pos'], 'bundle' => 'enterprise'])->assertOk()->assertJsonPath('data.quoted', true)->assertJsonPath('data.total', null);
 
         $this->quote(['country' => 'CD', 'modules' => ['hr'], 'quantities' => ['employee' => 5]])
-            ->assertOk()->assertJsonPath('data.currency', 'USD')->assertJsonPath('data.total', 1200)->assertJsonPath('data.lines.0.minimum_applied', true);
+            ->assertOk()->assertJsonPath('data.currency', 'USD')->assertJsonPath('data.total', 800)->assertJsonPath('data.lines.0.minimum_applied', true);
 
         // Pricing errors are translated and name the field.
         $this->quote(['modules' => ['brand_pack']])->assertUnprocessable()
