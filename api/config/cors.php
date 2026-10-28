@@ -33,7 +33,11 @@ return [
     // The web app names CSV downloads from Content-Disposition (RBAC-11).
     'exposed_headers' => ['Content-Disposition'],
 
-    'max_age' => 0,
+    // NFR-02: the web app and the API are on different hosts, so every call
+    // with an Authorization header needs a CORS preflight. Browsers may reuse
+    // a preflight answer for this many seconds (Chrome caps it at 7200); with
+    // 0 they asked again before nearly every request, doubling round trips.
+    'max_age' => (int) env('CORS_MAX_AGE', 7200),
 
     // Bearer tokens only: no cookies cross origins.
     'supports_credentials' => false,
