@@ -119,7 +119,7 @@ class TankVarianceType extends DocumentType
             'nodes' => [
                 ['id' => 'start', 'type' => 'start', 'name' => __("{$prefix}.start")],
                 ['id' => 'approve', 'type' => 'approval', 'name' => __("{$prefix}.approve"),
-                    'approval' => ['approver' => ['type' => 'role', 'role' => 'template:station_manager'], 'mode' => 'any'],
+                    'approval' => ['approver' => ['type' => 'role', 'role' => 'template:station_manager', 'also' => ['template:branch_manager']], 'mode' => 'any'],
                     'escalation' => ['after' => ['amount' => 2, 'unit' => 'business_days'], 'to' => ['type' => 'role', 'role' => 'template:admin']]],
                 ['id' => 'approved', 'type' => 'end', 'outcome' => 'approved', 'name' => __("{$prefix}.approved")],
                 ['id' => 'rejected', 'type' => 'end', 'outcome' => 'rejected', 'name' => __("{$prefix}.rejected")],
