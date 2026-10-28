@@ -16,6 +16,7 @@ use App\Core\Identity\IdentityServiceProvider;
 use App\Core\Imports\ImportsServiceProvider;
 use App\Core\Layouts\LayoutsServiceProvider;
 use App\Core\Limits\LimitsServiceProvider;
+use App\Core\Manual\ManualServiceProvider;
 use App\Core\Marketplace\MarketplaceServiceProvider;
 use App\Core\MasterData\CreditLimits\CreditLimitsServiceProvider;
 use App\Core\MasterData\MasterDataServiceProvider;
@@ -112,5 +113,7 @@ return [
     MarketplaceServiceProvider::class,
     // API-01..API-05: last, so the sandbox's set-up runs after every other sign-up listener.
     ApiServiceProvider::class,
+    // The printed user manual (docs/manual): `manual:build`.
+    ManualServiceProvider::class,
     HorizonServiceProvider::class,
 ];
