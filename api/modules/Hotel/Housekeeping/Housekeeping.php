@@ -116,13 +116,19 @@ class Housekeeping
      *
      * @param  array{reason?: ?string, from?: ?string, until?: ?string}  $ooo
      */
-    public function setStatus(Room $room, string $status, User $by, array $ooo = [], bool $byHousekeeper = false): Room
+    public function setStatus(Room $room, string $status, User $by, array $ooo = [], bool $byHousekeeper = false, ?string $expected = null): Room
     {
-        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($room, $status, $ooo, $byHousekeeper) {
+        return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($room, $status, $ooo, $byHousekeeper, $expected) {
             $room = Room::query()->whereKey($room->id)->lockForUpdate()->firstOrFail();
 
             if ($room->archived_at !== null) {
                 throw HotelError::make(409, 'room_archived');
+            }
+
+            // HOT-29: a change queued on a phone is made on what the housekeeper saw. If the room has
+            // moved on since (and is not already where they wanted it), the server wins.
+            if ($expected !== null && $room->status !== $expected && $room->status !== $status) {
+                throw HotelError::make(409, 'room_status_changed', ['status' => $room->status]);
             }
 
             if ($status === $room->status && $status !== Room::OUT_OF_ORDER) {

@@ -6,6 +6,7 @@ use App\Core\Exports\ListExport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Hotel\Housekeeping\Housekeeping;
+use Modules\Hotel\Housekeeping\HousekeepingOps;
 use Modules\Hotel\Http\Lists\TaskList;
 use Modules\Hotel\Http\Requests\AssignTaskRequest;
 use Modules\Hotel\Http\Requests\HousekeepingBoardRequest;
@@ -26,7 +27,7 @@ class HousekeepingController
 {
     use RespondsWithLists;
 
-    public function __construct(private readonly Access $access, private readonly Housekeeping $housekeeping) {}
+    public function __construct(private readonly Access $access, private readonly Housekeeping $housekeeping, private readonly HousekeepingOps $ops) {}
 
     public function board(HousekeepingBoardRequest $request): JsonResponse
     {
@@ -56,14 +57,15 @@ class HousekeepingController
         return $this->show($this->housekeeping->assign($hotelTask, $request->validated('assigned_to'), $request->user()));
     }
 
-    public function start(UpdateTaskRequest $request, HousekeepingTask $hotelTask): TaskResource
+    /** HOT-29: with an `op_id` (a phone replaying its offline queue) the change runs once. */
+    public function start(UpdateTaskRequest $request, HousekeepingTask $hotelTask): JsonResponse|TaskResource
     {
-        return $this->show($this->housekeeping->start($hotelTask, $request->user()));
+        return $this->ops->once($request, 'start', $hotelTask->id, fn () => $this->show($this->housekeeping->start($hotelTask, $request->user())));
     }
 
-    public function finish(UpdateTaskRequest $request, HousekeepingTask $hotelTask): TaskResource
+    public function finish(UpdateTaskRequest $request, HousekeepingTask $hotelTask): JsonResponse|TaskResource
     {
-        return $this->show($this->housekeeping->finish($hotelTask, $request->user()));
+        return $this->ops->once($request, 'finish', $hotelTask->id, fn () => $this->show($this->housekeeping->finish($hotelTask, $request->user())));
     }
 
     public function inspect(InspectTaskRequest $request, HousekeepingTask $hotelTask): TaskResource
