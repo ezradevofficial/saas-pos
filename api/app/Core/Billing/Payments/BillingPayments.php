@@ -18,8 +18,10 @@ use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
+use App\Core\MasterData\PaymentMethods\PaymentProviders;
 use App\Core\Payments\Contracts\HostedCheckout;
 use App\Core\Payments\Contracts\PaymentProvider;
+use App\Core\Payments\Drivers\UnconfiguredProvider;
 use App\Core\Payments\Models\PaymentIntent;
 use App\Core\Payments\Pawapay\PawapayProvider;
 use App\Core\Payments\PaymentIntents;
@@ -62,6 +64,7 @@ class BillingPayments
         private readonly PaymentProviderRegistry $registry,
         private readonly Subscriptions $subscriptions,
         private readonly BillingNotices $notices,
+        private readonly PaymentProviders $providers,
     ) {}
 
     /**
@@ -95,6 +98,8 @@ class BillingPayments
         $id = (string) Str::uuid7();
         // Paystack needs the payer's email: the saved card's, else the person paying.
         $email = $saved?->customer_email ?? $by?->email;
+        // The payer's choice at Paystack (M-Pesa, Airtel Money, card) narrows its checkout to those channels.
+        $channels = $saved === null && filled($how['channel'] ?? null) ? (config('billing.paystack_choices.'.$how['channel']) ?: null) : null;
 
         // The customer's row first: a settlement arriving at once finds it.
         $payment = BillingPayment::create([
@@ -110,7 +115,7 @@ class BillingPayments
         ]);
 
         try {
-            $intent = $this->operator->run(function () use ($invoice, $provider, $phone, $token, $customerId, $id, $email) {
+            $intent = $this->operator->run(function () use ($invoice, $provider, $phone, $token, $customerId, $id, $email, $channels) {
                 $operatorInvoice = OperatorInvoice::query()->findOrFail($invoice->operator_invoice_id);
 
                 if ($operatorInvoice->customer_tenant_id !== $customerId || ! $operatorInvoice->isOpen()) {
@@ -119,7 +124,7 @@ class BillingPayments
 
                 [$method, $driver] = $this->collector($operatorInvoice->company_id, $provider);
                 $card = $provider === self::CARD;
-                $initiate = $this->initiator($driver, $method, $token, $email);
+                $initiate = $this->initiator($driver, $method, $token, $email, $channels);
 
                 return $this->intents->request($method, $driver, [
                     'id' => $id,
@@ -152,7 +157,7 @@ class BillingPayments
      *
      * @return (callable(PaymentIntent): ProviderResult)|null
      */
-    private function initiator(PaymentProvider $driver, PaymentMethod $method, ?string $token, ?string $email): ?callable
+    private function initiator(PaymentProvider $driver, PaymentMethod $method, ?string $token, ?string $email, ?array $channels = null): ?callable
     {
         if ($driver instanceof PaystackProvider) {
             if (blank($email)) {
@@ -161,7 +166,7 @@ class BillingPayments
 
             return $token !== null
                 ? fn (PaymentIntent $intent) => $driver->chargeAuthorization($intent, $method, $token, $email)
-                : fn (PaymentIntent $intent) => $driver->checkout($intent, $method, $email);
+                : fn (PaymentIntent $intent) => $driver->checkout($intent, $method, $email, $channels);
         }
 
         return $token !== null && $driver instanceof HostedCheckout ? fn (PaymentIntent $intent) => $driver->charge($intent, $method, $token) : null;
@@ -429,12 +434,83 @@ class BillingPayments
         }
     }
 
+    /**
+     * SUB-04: the providers the operator can take money with now, per invoice
+     * currency, in the order the pay dialog lists them: the card checkout
+     * (Paystack), then the direct wallets. Offered only when the operator
+     * company's method for it is on with its required secrets (or the
+     * environment key, for Paystack and pawaPay), its adapter is real (not
+     * UnconfiguredProvider) and takes the currency. The API is the source of
+     * truth: the web never lists a provider from its own constants.
+     *
+     * @return array<string, list<string>> currency => provider keys
+     */
+    public function available(Subscription $subscription): array
+    {
+        $currencies = array_values(array_unique([
+            $subscription->currency,
+            ...BillingInvoice::query()->where('status', BillingInvoice::OPEN)->pluck('currency')->all(),
+        ]));
+        $candidates = [self::CARD, ...(array) config("billing.wallets.{$subscription->country}", [])];
+
+        return $this->operator->run(function () use ($subscription, $currencies, $candidates) {
+            $company = $this->operator->company($subscription->country);
+            $out = [];
+
+            foreach ($currencies as $currency) {
+                $out[$currency] = array_values(array_filter($candidates, fn (string $provider) => $this->canCollect($company->id, $provider, (string) $currency)));
+            }
+
+            return $out;
+        });
+    }
+
+    private function canCollect(string $companyId, string $provider, string $currency): bool
+    {
+        $method = PaymentMethod::query()->where('company_id', $companyId)->where('provider', $provider)->whereNull('archived_at')->first();
+
+        if ($method === null || in_array($provider, (array) config('billing.disabled_providers', []), true)) {
+            return false;
+        }
+
+        $name = config("billing.drivers.{$provider}") ?: $this->registry->driverName($method);
+
+        try {
+            $driver = $this->registry->driver((string) $name);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        if ($driver instanceof UnconfiguredProvider) {
+            return false;
+        }
+
+        if ($name === 'paystack') {
+            // Paystack takes M-Pesa and cards in shillings only.
+            return PaystackProvider::configured($method) && $currency === 'KES';
+        }
+
+        if ($name === 'pawapay') {
+            $usable = filled(config('payments.pawapay.api_token')) || ($method->active && $this->providers->missing($method) === []);
+        } else {
+            $usable = $name === 'fake' || ($method->active && $this->providers->missing($method) === []);
+        }
+
+        $currencies = $driver->currencies();
+
+        return $usable && ($currencies === [] || array_key_exists($currency, $currencies));
+    }
+
     /** @return array{0: PaymentMethod, 1: PaymentProvider} the operator company's method for $provider and the adapter collecting it */
     private function collector(string $companyId, string $provider): array
     {
         $method = PaymentMethod::query()->where('company_id', $companyId)->where('provider', $provider)->whereNull('archived_at')->first();
 
         if ($method === null) {
+            throw new ApiException(422, 'provider_unavailable', __('billing.errors.provider_unavailable'), ['provider' => [__('billing.errors.provider_unavailable')]]);
+        }
+
+        if (in_array($provider, (array) config('billing.disabled_providers', []), true)) {
             throw new ApiException(422, 'provider_unavailable', __('billing.errors.provider_unavailable'), ['provider' => [__('billing.errors.provider_unavailable')]]);
         }
 
@@ -448,7 +524,14 @@ class BillingPayments
             throw new ApiException(422, 'provider_unavailable', __('billing.errors.provider_unavailable'), ['provider' => [__('billing.errors.provider_unavailable')]]);
         }
 
-        return [$method, $this->registry->driver($name)];
+        $driver = $this->registry->driver($name);
+
+        // An adapter still waiting for its merchant API is never asked for money (it would only fail the payment).
+        if ($driver instanceof UnconfiguredProvider) {
+            throw new ApiException(422, 'provider_unavailable', __('billing.errors.provider_unavailable'), ['provider' => [__('billing.errors.provider_unavailable')]]);
+        }
+
+        return [$method, $driver];
     }
 
     private function cardCheckout(): HostedCheckout

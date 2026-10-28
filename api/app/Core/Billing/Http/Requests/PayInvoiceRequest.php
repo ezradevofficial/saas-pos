@@ -16,6 +16,8 @@ class PayInvoiceRequest extends ManageSubscriptionRequest
             'payment_method_id' => ['nullable', 'uuid', 'required_without:provider'],
             'provider' => ['nullable', 'string', 'max:40', 'required_without:payment_method_id'],
             'phone' => ['nullable', 'string', 'max:20'],
+            // Paystack checkout: which choice the payer made (M-Pesa, Airtel Money or card); narrows the channels it offers.
+            'channel' => ['nullable', 'string', 'in:'.implode(',', array_keys((array) config('billing.paystack_choices')))],
         ];
     }
 }

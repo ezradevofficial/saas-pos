@@ -88,15 +88,17 @@ class PaystackProvider implements PaymentProvider
     }
 
     /** The checkout page for $email: pending with `redirect_url`. */
-    public function checkout(PaymentIntent $intent, PaymentMethod $method, string $email): ProviderResult
+    /** @param list<string>|null $channels Paystack `channels` (mobile_money, card) the page may offer; null: all */
+    public function checkout(PaymentIntent $intent, PaymentMethod $method, string $email, ?array $channels = null): ProviderResult
     {
-        $answer = $this->call($method, 'post', '/transaction/initialize', [
+        $answer = $this->call($method, 'post', '/transaction/initialize', array_filter([
             'email' => $email,
             'amount' => $intent->amount_minor,
             'currency' => $intent->currency,
             'reference' => (string) $intent->id,
             'callback_url' => (string) config('payments.paystack.callback_url'),
-        ]);
+            'channels' => $channels,
+        ], fn ($value) => $value !== null));
 
         $url = $answer['data']['authorization_url'] ?? null;
 

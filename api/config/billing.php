@@ -57,6 +57,18 @@ return [
         'card_aggregator' => env('BILLING_DRIVER_CARD', $development ? 'fake' : 'paystack'),
     ]),
 
+    // Owner decision 2026-10-28: Kenya pays through Paystack only. The direct Daraja (`mpesa_ke`) and
+    // Airtel (`airtel_ke`) providers are off for subscription billing (drivers kept; a business's own POS
+    // takes Daraja untouched). Local and testing keep the fake drivers on.
+    'disabled_providers' => array_values(array_filter(array_map('trim', explode(',', (string) env('BILLING_DISABLED_PROVIDERS', $development ? '' : 'mpesa_ke,airtel_ke'))))),
+
+    // The Kenyan choices at Paystack's checkout and the `channels` each sends on transaction initialize.
+    'paystack_choices' => [
+        'mpesa' => ['mobile_money'],
+        'airtel' => ['mobile_money'],
+        'card' => ['card'],
+    ],
+
     // Wallets a tenant may pay with, per billing country (provider keys of config/payment_providers.php).
     'wallets' => [
         'KE' => ['mpesa_ke', 'airtel_ke'],
