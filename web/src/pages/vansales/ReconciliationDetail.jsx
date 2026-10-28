@@ -11,6 +11,9 @@ import { cn } from '@/lib/utils'
 import { QueryNotes, Status, TextLink, When } from './VanSalesParts'
 import { isNonZero, UNLOAD_RECEIVE, vanError, vanSalesKey } from './vansalesData'
 
+// VAN-23: the unload is received once its Inventory transfer is approved (or already released).
+const READY_TO_RECEIVE = ['approved', 'released']
+
 /** VAN-23: the warehouse counts what came back and receives it in one step. */
 function UnloadDialog({ reconciliation, onClose }) {
   const { t } = useTranslation()
@@ -131,11 +134,12 @@ export default function ReconciliationDetail() {
                 ) : (
                   <span className="text-ink-muted">{t('vansales.unload.none')}</span>
                 )}
-                {unload && unload.status !== 'received' && can(UNLOAD_RECEIVE) ? (
+                {unload && READY_TO_RECEIVE.includes(unload.status) && can(UNLOAD_RECEIVE) ? (
                   <Button variant="primary" onClick={() => setUnloading(true)}>
                     {t('vansales.unload.open')}
                   </Button>
                 ) : null}
+                {unload?.status === 'awaiting_approval' ? <span className="text-ink-muted">{t('vansales.unload.awaiting')}</span> : null}
               </div>
             </Card>
           </>

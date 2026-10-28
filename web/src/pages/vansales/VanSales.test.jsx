@@ -36,7 +36,7 @@ const RECONCILIATION = {
     { kind: 'cash', currency: 'KES', expected_minor: '1250000', counted_minor: '1200000', variance_minor: '-50000' },
     { kind: 'mobile_money', currency: 'KES', expected_minor: '300000', counted_minor: '300000', variance_minor: '0' },
   ],
-  unload: { status: 'requested', number: 'TR-0007' },
+  unload: { status: 'approved', number: 'TR-0007' },
 }
 
 const REVIEW = { id: 'cr-1', sale_id: 'sale-1', run_id: 'run-1', van_name: 'Van 1', rep_name: 'Peter Mwangi', customer_id: 'p-1', customer_name: 'Mama Njeri', currency: 'KES', total_minor: '500000', credit_minor: '500000', limit_minor: '300000', balance_before_minor: '100000', flags: ['over_limit', 'credit_offline'], sold_at: '2026-10-27T09:30:00Z', review_status: 'pending', reviewed_by_name: null, reviewed_at: null, review_note: null }
@@ -307,6 +307,13 @@ describe('Van sales', () => {
       fireEvent.change(field, { target: { value: '2' } })
       fireEvent.click(within(dialog).getByRole('button', { name: 'Receive stock' }))
       await waitFor(() => expect(api.post).toHaveBeenCalledWith('van-sales/reconciliations/rc-1/unload/receive', { lines: [{ item_id: 'i-1', qty_received: '2' }] }))
+    })
+
+    it('waits for the unload transfer to be approved before offering to receive it (VAN-23)', async () => {
+      setup({ extra: [[/^van-sales\/reconciliations\/rc-1$/, { data: { ...RECONCILIATION, unload: { status: 'awaiting_approval', number: 'TR-0007' } } }]] })
+      renderApp('/van-sales/reconciliations/rc-1')
+      expect(await screen.findByText('Waiting for the transfer to be approved before it can be received.')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Receive unload' })).not.toBeInTheDocument()
     })
 
     it('hides the unload from users without the permission', async () => {

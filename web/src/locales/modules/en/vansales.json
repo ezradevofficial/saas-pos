@@ -297,6 +297,7 @@
       "cardHelp": "The good stock goes back to the warehouse by a transfer, which the storekeeper receives.",
       "number": "Transfer {{number}}",
       "none": "No unload was requested.",
+      "awaiting": "Waiting for the transfer to be approved before it can be received.",
       "open": "Receive unload",
       "title": "Receive unload",
       "help": "Count what arrived at the warehouse. Differences become transit loss in Inventory.",
