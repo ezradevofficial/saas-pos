@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { api, deviceName } from '@/api/client'
 import { formErrors } from '@/api/formErrors'
 import { useAuth } from '@/auth/AuthProvider'
@@ -14,6 +14,7 @@ export default function Verify() {
   const { t } = useTranslation()
   const { signIn } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const [challenge, setChallenge] = useState({
     id: location.state?.challengeId ?? null,
     destination: location.state?.destination ?? null,
@@ -23,7 +24,11 @@ export default function Verify() {
 
   const verify = useMutation({
     mutationFn: () => api.post('auth/verify', { challenge_id: challenge.id, code, device_name: deviceName() }),
-    onSuccess: (data) => signIn(data),
+    // ONB-02: a new account goes straight to onboarding, never through the dashboard first.
+    onSuccess: (data) => {
+      signIn(data)
+      navigate('/onboarding', { replace: true })
+    },
   })
   const resend = useMutation({
     mutationFn: () => api.post('auth/verify/resend', { challenge_id: challenge.id }),

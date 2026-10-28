@@ -1,7 +1,7 @@
 // LAY-01: the home page draws the dashboard that applies to the signed-in user.
 import { screen, waitFor } from '@testing-library/react'
 import { api } from '@/api/client'
-import { apiError, mockRoutes, renderApp, resetSession, signedIn } from '@/test/renderApp'
+import { ALL_CORE, apiError, mockRoutes, renderApp, resetSession, signedIn } from '@/test/renderApp'
 
 vi.mock('@/api/client', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -53,5 +53,32 @@ describe('Home (LAY-01)', () => {
     ])
     renderApp('/')
     expect(await screen.findByRole('region', { name: 'Approvals waiting for me' })).toBeInTheDocument()
+  })
+
+  it('never shows the dashboard for a moment while an owner\'s onboarding state loads (ONB-02)', async () => {
+    let finish
+    const onboarding = new Promise((resolve) => {
+      finish = resolve
+    })
+    const owner = ['core.onboarding.view', 'core.onboarding.modules'].map((name) => ({ name, scopes: [{ type: 'tenant', id: 't-1' }] }))
+    mockRoutes(
+      api,
+      [
+        ['config/dashboard/resolved', DASHBOARD],
+        ['onboarding', () => onboarding],
+        [/^dashboard\/sources\//, { data: { value: 0, links: [] } }],
+      ],
+      { permissions: [...ALL_CORE, ...owner] },
+    )
+    const { router } = renderApp('/')
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('config/dashboard/resolved'))
+    // Long enough for the dashboard to draw if it were going to.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(screen.queryByRole('heading', { name: 'Shop floor' })).not.toBeInTheDocument()
+
+    finish({ data: { stage: 'business' } })
+    await waitFor(() => expect(router.state.location.pathname).toBe('/onboarding/business'))
+    expect(screen.queryByRole('heading', { name: 'Shop floor' })).not.toBeInTheDocument()
   })
 })

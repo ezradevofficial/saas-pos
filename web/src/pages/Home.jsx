@@ -29,9 +29,12 @@ export default function Home() {
   // ONB-02, ONB-03: an owner who has not picked a business type or modules yet resumes there.
   const { can } = usePermissions()
   const onboarding = useOnboarding()
-  const resume = can('core.onboarding.modules') ? resumePath(onboarding.data) : null
+  const owner = can('core.onboarding.modules')
+  const resume = owner ? resumePath(onboarding.data) : null
 
   if (resume) return <Navigate to={resume} replace />
+  // The dashboard waits for the onboarding state, so an unfinished onboarding never shows it for a moment.
+  if (owner && onboarding.isLoading) return <p className="text-body text-ink-muted">{t('common.loading')}</p>
 
   // LAY-02: straight after signing in, the role's home page when it has one.
   if (location.state?.landing && home) return <Navigate to={home} replace />
