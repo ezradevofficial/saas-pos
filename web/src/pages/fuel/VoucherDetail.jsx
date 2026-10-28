@@ -9,10 +9,13 @@ import { Alert, Button, Card, DataTable } from '@/components/ds'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Amount, Back, Detail, DetailState, Flags, ReasonDialog, RecordStatus, When } from './FuelParts'
 import { fuelKey, VOUCHER_MANAGE } from './fuelData'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 /** FUEL-21: one voucher: value, balance, status and its redemptions; voiding keeps the redemptions and needs a reason. */
 export default function VoucherDetail() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const { voucherId } = useParams()
   const queryClient = useQueryClient()
   const { can } = usePermissions()
@@ -63,7 +66,7 @@ export default function VoucherDetail() {
             </Detail>
             <Detail label={t('fuel.fields.customer')}>{voucher.customer?.name ?? t('fuel.voucher.anyone')}</Detail>
             <Detail label={t('fuel.fields.fuelType')}>{voucher.fuel_type ? t(`fuel.types.${voucher.fuel_type}`, { defaultValue: voucher.fuel_type }) : t('fuel.vehicles.anyFuel')}</Detail>
-            <Detail label={t('fuel.vouchers.expiresOn')}>{voucher.expires_on ?? t('fuel.voucher.noExpiry')}</Detail>
+            <Detail label={t('fuel.vouchers.expiresOn')}>{formatCalendarDate(voucher.expires_on, locale) ?? t('fuel.voucher.noExpiry')}</Detail>
             <Detail label={t('fuel.voucher.issuedBy')}>
               <span className="flex flex-col">
                 <span>{voucher.issued_by?.name}</span>

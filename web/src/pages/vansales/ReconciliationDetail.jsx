@@ -10,6 +10,8 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { cn } from '@/lib/utils'
 import { QueryNotes, Status, TextLink, When } from './VanSalesParts'
 import { isNonZero, UNLOAD_RECEIVE, vanError, vanSalesKey } from './vansalesData'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 // VAN-23: the unload is received once its Inventory transfer is approved (or already released).
 const READY_TO_RECEIVE = ['approved', 'released']
@@ -71,6 +73,7 @@ function UnloadDialog({ reconciliation, onClose }) {
  */
 export default function ReconciliationDetail() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const { reconciliationId } = useParams()
   const { can } = usePermissions()
   const [unloading, setUnloading] = useState(false)
@@ -96,7 +99,7 @@ export default function ReconciliationDetail() {
   return (
     <>
       <TextLink to="/van-sales/reconciliations">{t('vansales.reconciliations.back')}</TextLink>
-      <PageHeader title={reconciliation ? t('vansales.reconciliations.detailTitle', { van: reconciliation.van_name, date: reconciliation.run_date }) : t('vansales.reconciliations.title')} description={reconciliation ? `${reconciliation.rep_name} · ${t('vansales.reconciliations.attemptNumber', { number: reconciliation.attempt })}` : undefined} />
+      <PageHeader title={reconciliation ? t('vansales.reconciliations.detailTitle', { van: reconciliation.van_name, date: formatCalendarDate(reconciliation.run_date, locale) }) : t('vansales.reconciliations.title')} description={reconciliation ? `${reconciliation.rep_name} · ${t('vansales.reconciliations.attemptNumber', { number: reconciliation.attempt })}` : undefined} />
       <div className="flex flex-col gap-6">
         <QueryNotes query={query} />
         {reconciliation ? (

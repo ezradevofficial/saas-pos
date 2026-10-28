@@ -9,6 +9,8 @@ import { todayIn } from '@/lib/dates'
 import { useTimeZone } from '@/lib/useTimeZone'
 import { PerCurrency, QueryNotes } from './VanSalesParts'
 import { isNonZero, useRoutes, useUsers, useVans, vanSalesKey } from './vansalesData'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 /** A calendar day (YYYY-MM-DD) `days` before another. */
 const daysBefore = (day, days) => new Date(Date.parse(`${day}T00:00:00Z`) - days * 86400000).toISOString().slice(0, 10)
@@ -41,6 +43,7 @@ function VanStock() {
 /** VAN-25: sales, strike rate, collections, variances and credit outstanding. */
 function Summary() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const today = todayIn(useTimeZone())
   const { active: vans } = useVans()
   const { active: routes } = useRoutes()
@@ -64,13 +67,13 @@ function Summary() {
     { key: 'collections', label: t('vansales.reports.collections'), align: 'end', render: (row) => <PerCurrency values={row.collections} /> },
   ]
   const cashColumns = [
-    { key: 'date', label: t('vansales.runs.date'), render: (row) => row.run_date },
+    { key: 'date', label: t('vansales.runs.date'), render: (row) => formatCalendarDate(row.run_date, locale) },
     { key: 'van', label: t('vansales.runs.van'), render: (row) => `${row.van_name} · ${row.rep_name}` },
     { key: 'kind', label: t('vansales.reconciliations.kind'), render: (row) => t(`vansales.tenderKinds.${row.kind}`, { defaultValue: row.kind }) },
     { key: 'variance', label: t('vansales.reconciliations.variance'), align: 'end', render: (row) => <Money amount={row.variance_minor} currency={row.currency} tone={isNonZero(row.variance_minor) ? 'danger' : undefined} /> },
   ]
   const stockColumns = [
-    { key: 'date', label: t('vansales.runs.date'), render: (row) => row.run_date },
+    { key: 'date', label: t('vansales.runs.date'), render: (row) => formatCalendarDate(row.run_date, locale) },
     { key: 'van', label: t('vansales.runs.van'), render: (row) => `${row.van_name}` },
     { key: 'item', label: t('vansales.reconciliations.item'), render: (row) => row.item_name },
     { key: 'variance', label: t('vansales.reconciliations.variance'), numeric: true, align: 'end', render: (row) => row.variance_qty },

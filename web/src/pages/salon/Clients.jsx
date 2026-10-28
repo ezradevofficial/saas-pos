@@ -10,6 +10,8 @@ import { PageHeader } from '@/layouts/PageHeader'
 import { TextAreaField } from '@/pages/approvals/TextAreaField'
 import { ActionsLabel, PlaceBar, QueryNotes, ReasonDialog, Status, When } from './SalonParts'
 import { CLIENT_MANAGE, CLIENT_NOTES, EXCEPTION_RESOLVE, PACKAGE_ADJUST, queryString, salonError, salonKey, useSalonPlace, useStaff } from './salonData'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 /** SAL-25: a client's profile and visit history. Allergies and formulas show only when the API sends them. */
 function ClientDialog({ partyId, company, onClose }) {
@@ -156,6 +158,7 @@ function AdjustDialog({ pack, onClose, onDone }) {
 /** SAL-18, SAL-25: clients and their notes, the packages sold and the credit exceptions. */
 export default function Clients() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const { can } = usePermissions()
   const place = useSalonPlace()
@@ -191,7 +194,7 @@ export default function Clients() {
     { key: 'customer', label: t('salon.clients.client'), render: (row) => row.customer_name },
     { key: 'left', label: t('salon.packages.left'), align: 'end', render: (row) => `${row.sessions_left} / ${row.sessions_total}` },
     { key: 'value', label: t('salon.packages.value'), align: 'end', render: (row) => <Money amount={row.remaining_minor} currency={row.currency} /> },
-    { key: 'expires', label: t('salon.packages.expires'), render: (row) => row.expires_on ?? '' },
+    { key: 'expires', label: t('salon.packages.expires'), render: (row) => formatCalendarDate(row.expires_on, locale) ?? '' },
     { key: 'status', label: t('salon.fields.status'), render: (row) => <Status status={row.status} /> },
     {
       key: 'actions',

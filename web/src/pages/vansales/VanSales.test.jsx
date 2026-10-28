@@ -257,6 +257,13 @@ describe('Van sales', () => {
       expect(screen.getByRole('link', { name: 'Open the count' })).toHaveAttribute('href', '/van-sales/reconciliations/rc-1')
     })
 
+    it('shows the run day as a date in the user\u2019s language, not as the ISO text (L10N-01)', async () => {
+      setup()
+      renderApp('/van-sales/runs')
+      expect(await screen.findByText('27 Oct 2026')).toBeInTheDocument()
+      expect(screen.queryByText('2026-10-27')).not.toBeInTheDocument()
+    })
+
     it('shows positions only to users who may track visits, and only on request', async () => {
       setup()
       renderApp('/van-sales/runs/run-1')

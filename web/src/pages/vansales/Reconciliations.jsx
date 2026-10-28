@@ -6,6 +6,8 @@ import { errorMessage } from '@/api/errorMessage'
 import { PageHeader } from '@/layouts/PageHeader'
 import { Pager, Status, When } from './VanSalesParts'
 import { isNonZero, statusLabel, usePagedList } from './vansalesData'
+import { formatCalendarDate } from '@/lib/dates'
+import { useLocale } from '@/lib/useLocale'
 
 const STATUSES = ['pending', 'balanced', 'approved', 'rejected']
 const rank = (row) => (row.status === 'pending' ? 0 : 1)
@@ -13,12 +15,13 @@ const rank = (row) => (row.status === 'pending' ? 0 : 1)
 /** VAN-19 to VAN-22: the end-of-day counts, those waiting for a decision first. */
 export default function Reconciliations() {
   const { t } = useTranslation()
+  const locale = useLocale()
   const navigate = useNavigate()
   const [status, setStatus] = useState('')
   const { query, rows, meta, page, setPage } = usePagedList('reconciliations', 'van-sales/reconciliations', { status })
   const sorted = [...rows].sort((a, b) => rank(a) - rank(b))
   const columns = [
-    { key: 'date', label: t('vansales.runs.date'), render: (row) => row.run_date },
+    { key: 'date', label: t('vansales.runs.date'), render: (row) => formatCalendarDate(row.run_date, locale) },
     { key: 'van', label: t('vansales.runs.van'), render: (row) => row.van_name },
     { key: 'rep', label: t('vansales.runs.rep'), render: (row) => row.rep_name },
     { key: 'attempt', label: t('vansales.reconciliations.attempt'), numeric: true, render: (row) => row.attempt },

@@ -237,6 +237,13 @@ describe('Fuel station back office', () => {
     expect(await screen.findByText('Voucher FV-1234 issued.')).toBeInTheDocument()
   })
 
+  it('shows a voucher\u2019s expiry as a date in the user\u2019s language (L10N-01)', async () => {
+    setup([[/^fuel\/vouchers\?/, page([{ ...VOUCHER, expires_on: '2027-03-31' }])]])
+    renderApp('/fuel/vouchers')
+    expect(await screen.findByText('31 Mar 2027')).toBeInTheDocument()
+    expect(screen.queryByText('2027-03-31')).not.toBeInTheDocument()
+  })
+
   it('voids a voucher with a reason and keeps its redemptions listed (FUEL-21)', async () => {
     setup([['fuel/vouchers/v-1', { data: VOUCHER }]])
     api.post.mockResolvedValue({ data: { ...VOUCHER, status: 'void', void_reason: 'Lost card' } })
