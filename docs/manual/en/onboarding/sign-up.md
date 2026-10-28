@@ -3,7 +3,7 @@ id: onboarding-sign-up
 title: Create your account
 module: core
 order: 10
-permissions: []
+permissions: [core.subscription.manage]
 roles: [owner]
 screens: [/welcome, /sign-up, /verify]
 ---

@@ -54,6 +54,19 @@ class ManualApiTest extends TestCase
         $this->assertStringNotContainsString('{{', $sell['excerpt']);
     }
 
+    public function test_seeing_a_screen_is_not_enough_for_a_topic_about_acting_on_it(): void
+    {
+        // The cashier template can view the tills; pairing one is the Owner's and admin's.
+        $this->asTenant($this->cashier->tenant_id, fn () => $this->assign($this->cashier, $this->role('Till viewer', ['core.device.view']), Scope::tenant()));
+
+        $ids = array_column($this->topics(), 'id');
+
+        $this->assertNotContains('organisation-pair-device', $ids);
+        $this->assertNotContains('organisation-suspend-or-unpair-device', $ids);
+        $this->assertNotContains('onboarding-sign-up', $ids);
+        $this->assertContains('pos-sell', $ids);
+    }
+
     public function test_topics_without_permissions_are_for_every_signed_in_user(): void
     {
         $nobody = $this->createUser();
@@ -164,6 +177,8 @@ class ManualApiTest extends TestCase
     public function test_the_guide_pdf_is_rate_limited(): void
     {
         $token = $this->tokenFor($this->cashier);
+        // The first build embeds the screenshots and can take a while; the limiter's minute must not run out mid-test.
+        $this->freezeTime();
 
         for ($i = 0; $i < 6; $i++) {
             $this->get('/api/v1/manual/my-guide.pdf', $this->bearer($token))->assertOk();
