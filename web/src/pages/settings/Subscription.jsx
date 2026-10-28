@@ -309,6 +309,9 @@ export function PaymentProgress({ paymentId, onFinished }) {
 
   if (!status) return <p className="text-ink-muted">{t('subscription.pay.starting')}</p>
   if (status === 'succeeded') return <Alert tone="success" title={t('subscription.pay.succeeded')} />
+  // The payer is the owner, not a till customer: their own words for a declined or unanswered prompt.
+  if (status === 'cancelled') return <Alert tone="danger" title={t('subscription.pay.declined')} />
+  if (status === 'timeout') return <Alert tone="danger" title={t('subscription.pay.timeout')} />
   if (PAYMENT_FINAL.includes(status)) return <Alert tone="danger" title={payment.data.data.message ?? t('subscription.pay.failed')} />
 
   return (

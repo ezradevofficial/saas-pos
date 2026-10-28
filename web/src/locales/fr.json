@@ -5706,7 +5706,9 @@
       "approveOnPhone": "Validez la demande sur le téléphone {{label}}. Cette page se met à jour toute seule.",
       "checkout": "Terminez le paiement sur la page du prestataire de carte.",
       "succeeded": "Paiement reçu. Merci.",
-      "failed": "Le paiement n’a pas abouti. Réessayez ou utilisez un autre moyen."
+      "failed": "Le paiement n’a pas abouti. Réessayez ou utilisez un autre moyen.",
+      "declined": "Vous avez refusé le paiement sur votre téléphone. Payez à nouveau quand vous êtes prêt, ou choisissez un autre moyen.",
+      "timeout": "Votre téléphone n’a pas répondu à temps. Vérifiez qu’il est allumé et a du réseau, puis payez à nouveau."
     },
     "invoices": {
       "title": "Factures",

@@ -120,6 +120,22 @@ describe('Subscription page (SUB-02..SUB-06)', () => {
     expect(await within(dialog).findByText('Payment received. Thank you.')).toBeInTheDocument()
   })
 
+  it('tells the owner, in their own words, that they declined the prompt on their phone', async () => {
+    mockRoutes(api, [
+      ...routes().filter(([match]) => String(match) !== String(/^subscription\/payments\//)),
+      [/^subscription\/payments\//, { data: { id: 'p-1', status: 'cancelled', message: 'The customer declined the payment on their phone. Ask them to try again, or take another payment method.' } }],
+    ], { permissions: tenantWide(['core.subscription.view', 'core.subscription.manage']) })
+    api.post.mockResolvedValue({ data: { id: 'p-1', status: 'pending', label: METHOD.label, redirect_url: null } })
+    renderApp('/settings/subscription')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pay invoice INV-2026-000002' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Pay KES 3,900.00' }))
+
+    expect(await within(dialog).findByText('You declined the payment on your phone. Pay again when you are ready, or choose another method.')).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Ask them to try again/)).not.toBeInTheDocument()
+  })
+
   it('hides the trial banner once the first invoice is paid, without a reload (ONB-04)', async () => {
     let trial = { state: 'trial', ends_at: '2026-11-15T08:00:00Z', days_left: 9 }
     const subscribed = { ...SUBSCRIPTION, status: 'trial' }
