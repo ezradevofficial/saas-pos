@@ -16,7 +16,7 @@ Do these before the first provisioning run. Each item says which step needs it.
 6. **Get the KRA sandbox values.** Register as an OSCU integrator on the KRA eTIMS sandbox. KRA gives you the API base URL (`ETIMS_BASE_URL`) and the test PIN and branch to use. Until then, eTIMS submissions wait in the fiscal queue (docs/integrations.md).
 7. **Keep the secrets.** Keep a copy of `/root/provision.env` and the API's `.env` in your password manager, and update it whenever either file changes.
 
-Not needed for staging: Sentry, an SMS provider, WhatsApp, Daraja paybill keys (each business enters its own Daraja sandbox keys in the app), a NodeBalancer or a VPC.
+Not needed for staging: an SMS provider, WhatsApp, Daraja paybill keys (each business enters its own Daraja sandbox keys in the app), a NodeBalancer or a VPC.
 
 ## Layout (staging and pilot)
 
@@ -28,7 +28,7 @@ Not needed for staging: Sentry, an SMS provider, WhatsApp, Daraja paybill keys (
 | Redis | Same host, bound to localhost, with a password |
 | Files | Linode Object Storage (private bucket); no local files directory |
 | Backups | **Off until go-live** (`BACKUPS_ENABLED=false`); WAL-G is ready to switch on (docs/backups.md) |
-| Monitoring | `app-host-watch.timer`, every 5 minutes, emails the owner; no Sentry on staging |
+| Monitoring | `app-host-watch.timer`, every 5 minutes, emails the owner; Sentry for errors (API, web; POS with the phone build) |
 | Firewall | ufw: 22, 80 and 443 only; fail2ban for SSH |
 
 There is no load balancer and no VPC, so `TRUSTED_PROXIES=none`. The later layout is under "Scale out".
@@ -118,7 +118,7 @@ Test that alerts arrive: `sudo systemctl stop php8.3-fpm`, wait for the next 5-m
 From the host (or the runner, for the public ones):
 
 ```sh
-php artisan app:preflight            # warns: no Sentry DSN (staging), no SMS driver; in production also "Backups are off"
+php artisan app:preflight            # warns: no SMS driver; in production also "Backups are off"
 php artisan health:status            # exit 0, "operational"
 php artisan horizon:status
 curl -fsS https://api.<domain>/health/live
@@ -186,7 +186,7 @@ LOG_LEVEL=info
 EOF
 ```
 
-Then add the Object Storage variables (the "Object Storage" section) and run `--steps app-dirs` to set the file's mode. `MAIL_SCHEME=smtp` on port 2525 upgrades with STARTTLS. Brevo offers it, and `app:preflight` signs in the same way, so a wrong key or a blocked port stops the deploy. Linode blocks 25, 465 and 587 on new accounts. Leave `SMS_DRIVER`, `NOTIFICATIONS_SMS_DRIVER` and `NOTIFICATIONS_WHATSAPP_DRIVER` unset: there is no SMS provider and WhatsApp is off. Leave `SENTRY_LARAVEL_DSN` unset on staging.
+Then add the Object Storage variables (the "Object Storage" section) and run `--steps app-dirs` to set the file's mode. `MAIL_SCHEME=smtp` on port 2525 upgrades with STARTTLS. Brevo offers it, and `app:preflight` signs in the same way, so a wrong key or a blocked port stops the deploy. Linode blocks 25, 465 and 587 on new accounts. Leave `SMS_DRIVER`, `NOTIFICATIONS_SMS_DRIVER` and `NOTIFICATIONS_WHATSAPP_DRIVER` unset: there is no SMS provider and WhatsApp is off. Set `SENTRY_LARAVEL_DSN` to the API project's DSN (Sentry is on for staging since 2026-10-28).
 
 Required everywhere (`app:preflight` fails without them outside local and testing):
 
@@ -213,7 +213,7 @@ Observability (warned by `app:preflight` when missing, never fatal):
 | Variable | Value |
 | --- | --- |
 | `LOG_STACK` | `json` (file) or `json_stderr` (journal); `LOG_LEVEL=info` |
-| `SENTRY_LARAVEL_DSN` | unset on staging; the API project's DSN before the pilot with real businesses |
+| `SENTRY_LARAVEL_DSN` | the API project's DSN (set on staging) |
 | `SENTRY_TRACES_SAMPLE_RATE` | unset, or e.g. `0.05` |
 | `METRICS_TOKEN` (required in production) | read on the host only, through `127.0.0.1:8080`; nginx denies `/metrics` publicly |
 | `HORIZON_PROFILE` | `single-host` here; unset once workers have a host of their own |
@@ -246,7 +246,7 @@ With backups on, a growing `pg_wal` means archiving is failing. The host watch r
 Before the first real business uses the platform. Every item is done and recorded in the ops log first:
 
 - [ ] **Backups on.** Create the backup bucket and key, generate `WALG_LIBSODIUM_KEY` and keep it in the password manager, set `BACKUPS_ENABLED=true` in `/root/provision.env` and the API's `.env`, then run `--steps tools,backups,postgres` (PostgreSQL restarts once). Check that the first base backup ran (`sudo systemctl start app-db-backup` or wait for 01:30 UTC). Then run a restore drill that passes: `sudo /usr/local/lib/app-host/restore-drill.sh` (docs/backups.md). `app:preflight` stops warning "Backups are off".
-- [ ] **Sentry DSNs** for the API, web and POS projects, before the pilot with real businesses (`SENTRY_LARAVEL_DSN`, `SENTRY_WEB_DSN`, the POS build's DSN; docs/observability.md).
+- [x] **Sentry DSNs** for the API and web projects (set 2026-10-28); the POS DSN goes into the phone build (`SENTRY_LARAVEL_DSN`, `SENTRY_WEB_DSN`, the POS build's DSN; docs/observability.md).
 - [ ] **eTIMS certified.** KRA has certified the OSCU integration. Set the production `ETIMS_BASE_URL` and each branch's live device details (docs/integrations.md).
 - [ ] **Daraja paybill keys.** Safaricom has taken the app live. Set `MPESA_BASE_URL=https://api.safaricom.co.ke`, and the operator's paybill or till keys for subscription billing. Each business enters its own live keys in the app.
 - [ ] **Rotate the Brevo and Daraja keys** used during staging and the pilot: make new ones, update the `.env` and the password manager copy, run `php artisan config:cache` and `app:preflight`, then revoke the old ones.
@@ -341,7 +341,7 @@ Bucket settings: versioning on in production (docs/backups.md), no lifecycle rul
 | secret | `STAGING_LINODE_HOST`, `STAGING_LINODE_USER`, `STAGING_LINODE_SSH_KEY`, `STAGING_LINODE_KNOWN_HOSTS`, `STAGING_DEPLOY_PATH` | the host's address, `deploy`, the deploy key's private half, the `known_hosts` line, `/srv/platform` (README, Deploy) |
 | secret | `SENTRY_AUTH_TOKEN` | optional: uploads web source maps (not on staging) |
 | variable | `STAGING_API_URL`, `APP_NAME` | `https://api.<domain>`; the display name |
-| variable | `SENTRY_WEB_DSN`, `SENTRY_ORG`, `SENTRY_WEB_PROJECT`, `SENTRY_URL` | optional: web error tracking (not on staging) |
+| variable | `SENTRY_WEB_DSN`, `SENTRY_ORG`, `SENTRY_WEB_PROJECT`, `SENTRY_URL` | web error tracking: `SENTRY_WEB_DSN` is set on staging; the others only with source maps |
 
 Protect the `staging` environment with a required reviewer once others can push.
 
