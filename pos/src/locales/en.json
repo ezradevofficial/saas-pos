@@ -1129,6 +1129,13 @@
       "finish": "Finish",
       "markClean": "Mark clean",
       "markDirty": "Mark dirty",
+      "pending": "Waiting to sync",
+      "queued": "Saved on this phone. It will be sent when you are back online.",
+      "dismiss": "Dismiss",
+      "parked": {
+        "conflict": "Room {{number}} changed while you were offline, so your change was not applied. Check the room and try again.",
+        "failed": "Your change to room {{number}} could not be sent and was not applied. Ask your manager."
+      },
       "refresh": "Refresh",
       "signOut": "Sign out",
       "empty": "You have no rooms to clean right now.",
@@ -1141,7 +1148,8 @@
       },
       "taskStatus": {
         "pending": "Not started",
-        "in_progress": "In progress"
+        "in_progress": "In progress",
+        "done": "Done"
       },
       "kind": {
         "checkout_clean": "Check-out clean",
@@ -1151,7 +1159,8 @@
         "maintenance": "Maintenance"
       },
       "errors": {
-        "offline": "You are offline. Showing the last list. Reconnect to start, finish or change a room.",
+        "offline": "You are offline. Showing the last list. Changes you make are saved on this phone and sent when you are back online.",
+        "conflict": "That room or task changed since you last looked. Refresh to see it.",
         "forbidden": "You are not allowed to update rooms. Ask your manager.",
         "unavailable": "Housekeeping is not available. Ask your manager.",
         "failed": "That did not go through. Refresh and try again."

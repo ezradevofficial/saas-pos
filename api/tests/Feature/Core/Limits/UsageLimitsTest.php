@@ -12,6 +12,8 @@ use App\Core\Limits\UsageLimits;
 use App\Core\Limits\UsageNotices;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\Models\NotificationDelivery;
+use App\Core\Onboarding\Trial\TrialStatus;
+use App\Core\Onboarding\Trial\TrialStatusProvider;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
@@ -339,13 +341,13 @@ class UsageLimitsTest extends TestCase
     {
         $this->allow([Units::OUTLET => 1]);
         $ends = CarbonImmutable::now()->addDays(9);
-        $this->app->instance(\App\Core\Onboarding\Trial\TrialStatusProvider::class, new class($ends) implements \App\Core\Onboarding\Trial\TrialStatusProvider
+        $this->app->instance(TrialStatusProvider::class, new class($ends) implements TrialStatusProvider
         {
             public function __construct(private readonly CarbonImmutable $ends) {}
 
-            public function status(): \App\Core\Onboarding\Trial\TrialStatus
+            public function status(): TrialStatus
             {
-                return \App\Core\Onboarding\Trial\TrialStatus::until($this->ends);
+                return TrialStatus::until($this->ends);
             }
         });
         $this->inTenant(fn () => $this->branchA->locations()->create(['name' => 'Second outlet', 'type' => 'outlet']));

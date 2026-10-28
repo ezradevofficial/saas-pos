@@ -4,9 +4,9 @@ namespace Modules\Hotel\Housekeeping;
 
 use App\Core\Tenancy\TenantContext;
 use Closure;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Cache;
 
 /**

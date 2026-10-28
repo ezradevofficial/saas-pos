@@ -1129,6 +1129,13 @@
       "finish": "Terminer",
       "markClean": "Marquer propre",
       "markDirty": "Marquer sale",
+      "pending": "En attente de synchronisation",
+      "queued": "Enregistré sur ce téléphone. Il sera envoyé dès que vous serez de nouveau en ligne.",
+      "dismiss": "Fermer",
+      "parked": {
+        "conflict": "La chambre {{number}} a changé pendant que vous étiez hors ligne, votre modification n’a donc pas été appliquée. Vérifiez la chambre et réessayez.",
+        "failed": "Votre modification de la chambre {{number}} n’a pas pu être envoyée et n’a pas été appliquée. Demandez à votre responsable."
+      },
       "refresh": "Actualiser",
       "signOut": "Se déconnecter",
       "empty": "Vous n’avez aucune chambre à nettoyer pour le moment.",
@@ -1141,7 +1148,8 @@
       },
       "taskStatus": {
         "pending": "Pas commencée",
-        "in_progress": "En cours"
+        "in_progress": "En cours",
+        "done": "Terminée"
       },
       "kind": {
         "checkout_clean": "Nettoyage après départ",
@@ -1151,7 +1159,8 @@
         "maintenance": "Maintenance"
       },
       "errors": {
-        "offline": "Vous êtes hors ligne. Dernière liste affichée. Reconnectez-vous pour commencer, terminer ou modifier une chambre.",
+        "offline": "Vous êtes hors ligne. Dernière liste affichée. Vos modifications sont enregistrées sur ce téléphone et envoyées dès que vous êtes de nouveau en ligne.",
+        "conflict": "Cette chambre ou cette tâche a changé depuis votre dernière consultation. Actualisez pour la voir.",
         "forbidden": "Vous n’avez pas le droit de mettre à jour les chambres. Demandez à votre responsable.",
         "unavailable": "L’entretien des chambres n’est pas disponible. Demandez à votre responsable.",
         "failed": "L’action n’a pas abouti. Actualisez et réessayez."

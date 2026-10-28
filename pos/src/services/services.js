@@ -124,7 +124,8 @@ export function createServices({ database, fetchImpl, credentialsBackend, netInf
   const riderApi = riderApiOverride ?? createApiClient({ baseUrl, getToken: () => riderCredentials.token(), getLocale: () => i18n.language, fetchImpl });
   const rider = createRider({ api: riderApi, store, credentials: riderCredentials, deleteFile: deletePhotoFile });
   // HOT-29: a housekeeper signs in as themselves, the same way (their own token, never the till's).
-  const housekeeping = createHousekeeping({ api: riderApi, credentials: riderCredentials });
+  // Offline changes wait in the durable hotel_queue table and replay on reconnect (schema v17).
+  const housekeeping = createHousekeeping({ api: riderApi, credentials: riderCredentials, database: db });
   // FUEL-09, FUEL-10, FUEL-17: forecourt shifts and meter reset requests, kept on the device and uploaded by the engine.
   const fuel = createFuel({ engine, store, database: db });
   return { database: db, store, credentials, api, engine, scheduler, pinGate, posStore, selling, restaurant, vanSales, fuel, salon, clockStore, clockGate, riderCredentials, rider, housekeeping };
