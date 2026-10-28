@@ -141,9 +141,9 @@ class ResearchedLeaveTest extends TestCase
         // The annual type includes the low-confidence under-18 days; maternity at 2/3 is medium.
         $this->assertSame([true, false, '2/3'], [$listed['annual']['low_confidence'], $listed['maternity']['low_confidence'], $listed['maternity']['pay_share']]);
         $this->assertFalse($listed['circumstantial']['low_confidence']);
-        // Sick leave: the Code gives 2/3 pay for the whole incapacity but no number of days: still "Days needed".
-        $this->assertTrue($types['sick']->needs_confirmation);
-        $this->request($worker, $types['sick'], '2026-10-26', '2026-10-27')->assertUnprocessable()->assertJsonPath('code', 'leave_days_needed');
+        // Sick leave (final research 2026-10-28): 2/3 pay (art. 105) for up to 180 calendar days (art. 60 inference, low); nothing blocks.
+        $this->assertSame(['180.00', 'calendar_days', false, true, '2/3', 'low'], [(string) $types['sick']->entitlement_days, $types['sick']->count_basis, $types['sick']->needs_confirmation, $types['sick']->paid, $types['sick']->pay_share, $types['sick']->research['confidence']]);
+        $this->request($worker, $types['sick'], '2026-03-02', '2026-03-03')->assertCreated();
 
         // Maternity 14 weeks at 2/3 of pay (art. 130): requests are taken, and Payroll withholds the other third.
         $this->assertSame(['98.00', 'calendar_days', false, true, '2/3'], [(string) $types['maternity']->entitlement_days, $types['maternity']->count_basis, $types['maternity']->needs_confirmation, $types['maternity']->paid, $types['maternity']->pay_share]);

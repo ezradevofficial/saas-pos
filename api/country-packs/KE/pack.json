@@ -1,6 +1,6 @@
 {
     "code": "KE",
-    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %). A rate with status 'researched' comes from public research (docs/country-packs-research-2026-10.md): it is used, with its confidence, research date and sources, and what it taxes says so until the owner confirms it through a pack release (ADM-04). Owner decision 2026-10-22: low-confidence research is entered too, shown as 'Researched, low confidence: not confirmed by an accountant'.",
+    "notes": "Tax code structure only. effective_from 2026-01-01 is the date this pack's data starts, not the date any law took effect. A rate of null means no figure has been confirmed from an official source; it is never guessed. Rates are percentages (12.5 = 12.5 %). A rate with status 'researched' comes from public research (docs/country-packs-research-2026-10.md): it is used, with its confidence, research date and sources, and what it taxes says so until the owner confirms it through a pack release (ADM-04). Owner decision 2026-10-22: low-confidence research is entered too, shown as 'Researched, low confidence: not externally reviewed'.",
     "sources": [
         "https://aln.africa/wp-content/uploads/2026/04/Temporary-Reduction-of-VAT-on-Selected-Petroleum-Products-Legal-Alert-ALN-Kenya-17042026.pdf",
         "https://fnjassociates.co.ke/statutory-payroll-deductions-in-kenya/",

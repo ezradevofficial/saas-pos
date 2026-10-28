@@ -23,24 +23,22 @@ class TaxBookTest extends TestCase
         $this->setUpFixedAssets();
     }
 
-    public function test_the_cd_pack_holds_no_rates_and_the_tax_book_is_refused(): void
+    public function test_the_cd_pack_holds_researched_low_confidence_rates_and_the_tax_book_works(): void
     {
-        $classes = app(TaxClasses::class)->for('CD');
-        $this->assertNotEmpty($classes);
-        $this->assertTrue(collect($classes)->every(fn (array $c) => $c['rate'] === null && $c['method'] === null && $c['needs_confirmation']), 'CD invents no rate');
+        // CP-01, CP-02, FA-20: final research 2026-10-28 (owner: no external review): straight line at the usual rates, low confidence.
+        $classes = collect(app(TaxClasses::class)->for('CD'))->keyBy('key');
+        $this->assertSame(['5', '10', '20', '33.33', '10', '10'], array_map(fn (string $k) => $classes[$k]['rate'], ['buildings', 'machinery', 'motor_vehicles', 'computers', 'furniture', 'other']));
+        $this->assertTrue($classes->every(fn (array $c) => $c['method'] === 'straight_line' && TaxClasses::confirmed($c)), 'every CD class is usable');
+        $this->assertSame('full_year', app(TaxClasses::class)->acquisitionRule('CD'));
         $this->assertNotEmpty(app(TaxClasses::class)->todo('CD'));
         $this->inTenant(fn () => $this->acme->forceFill(['country' => 'CD'])->save());
 
         $this->api('PATCH', "categories/{$this->vehicles->id}", ['tax_class' => 'motor_vehicles'])->assertOk();
         $this->api('PATCH', "categories/{$this->vehicles->id}", ['tax_class' => 'yachts'])->assertStatus(422)->assertJsonPath('code', 'tax_class_unknown');
-        $this->api('PUT', "companies/{$this->acme->id}/settings", ['tax_book' => true])->assertStatus(422)->assertJsonPath('code', 'tax_rates_unconfirmed');
-        $this->api('GET', "companies/{$this->acme->id}/tax-book?year=2026")->assertOk()->assertJsonPath('status', 'unconfirmed')
-            ->assertJsonPath('code', 'tax_rates_unconfirmed')->assertJsonPath('data', []);
+        // Rates and the acquisition rule no longer block: only categories without a tax class do.
         $settings = $this->api('GET', "companies/{$this->acme->id}/settings")->assertOk()->json('data');
-        $this->assertFalse($settings['tax_book']);
-        // The four categories without a confirmed class, then the year-of-acquisition rule.
-        $this->assertCount(5, $settings['tax_unconfirmed']);
-        $this->assertSame('acquisition_rule', end($settings['tax_unconfirmed'])['tax_class']);
+        $this->assertNotContains('acquisition_rule', array_column($settings['tax_unconfirmed'], 'tax_class'));
+        $this->assertNotContains('motor_vehicles', array_column($settings['tax_unconfirmed'], 'tax_class'));
     }
 
     public function test_the_shipped_kenyan_classes_compute_one_asset_per_class(): void

@@ -473,8 +473,8 @@ holds everything. Admin and Branch Manager hold none.
     advances and 2250 Payroll deductions payable; the CD chart gains 421
     Personnel, avances et acomptes, 428 Personnel, autres retenues à
     reverser and 438 Autres organismes sociaux (INPP and ONEM liabilities),
-    with INPP and ONEM expensed to 641. The CD choices (428, 438, 641) need
-    a DRC accountant's confirmation; the tenant can point the rule's maps
+    with INPP and ONEM expensed to 641. The CD choices (428, 438, 641) are
+    used as researched (owner: no external review); the tenant can point the rule's maps
     elsewhere. Existing charts get them with "Add the defaults".
 28. **Payroll journal lines name their component (decision, owner may
     change).** Each `payroll.run` line's description names what it is:
@@ -577,4 +577,4 @@ holds everything. Admin and Branch Manager hold none.
 - Should Essentials allow a single foreign-currency bank account (common
   in Kenya for USD receipts)? Today any foreign-currency line needs Pro.
 - The SYSCOHADA template's postable accounts beyond the minimum (decision
-  9): does the owner have a reference chart from a DRC accountant?
+  9): the SYSCOHADA defaults are used as they stand (owner decision 2026-10-28).

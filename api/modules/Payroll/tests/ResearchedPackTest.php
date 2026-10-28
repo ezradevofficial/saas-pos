@@ -213,8 +213,8 @@ class ResearchedPackTest extends TestCase
         $run = $this->getJson("/api/v1/payroll/runs/{$id}", $this->headersFor($this->officer))->assertOk()
             ->assertJsonPath('data.uses_researched_values', true)->assertJsonPath('data.uses_low_confidence_values', true)->json('data.statutory');
         $low = collect($run['researched'])->where('confidence', 'low')->pluck('component')->sort()->values()->all();
-        // INPP (the 2026 scale; the order itself was not found) and CNSS deducted from the base; IRPP and its reduction are medium.
-        $this->assertSame(['cnss', 'inpp'], $low);
+        // Only CNSS deducted from the base stays low (INPP 2026 is medium since the order was found, 2026-10-28); IRPP and its reduction are medium.
+        $this->assertSame(['cnss'], $low);
         $this->assertSame(['irpp', 'IRPP'], [collect($run['researched'])->firstWhere('component', 'ipr')['display'], collect($run['researched'])->firstWhere('component', 'ipr')['name']]);
         $statutory = $this->getJson("/api/v1/payroll/statutory/{$this->acme->id}", $this->headersFor())->assertOk()->json('data');
         $this->assertSame('IRPP', collect($statutory['components'])->firstWhere('code', 'ipr')['name']);
@@ -277,9 +277,9 @@ class ResearchedPackTest extends TestCase
             $entry = AuditEntry::query()->where('action', 'payroll.statutory.not_applicable')->sole();
             $this->assertSame(['inpp', 'CD', 'Exempted by INPP letter 2026/14', $this->owner->id], [$entry->after['component'], $entry->after['country'], $entry->after['reason'], $entry->user_id]);
         });
-        // The statutory rates page: INPP no longer missing (only the family allowance, for employees with children).
+        // The statutory rates page: INPP no longer missing, and nothing else is (the family allowance is researched).
         $pack = $this->getJson("/api/v1/payroll/statutory/{$this->acme->id}", $this->headersFor())->assertOk()->json('data');
-        $this->assertSame(['family_allowance'], array_column(array_filter($pack['components'], fn ($c) => $c['missing'] !== []), 'code'));
+        $this->assertSame([], array_column(array_filter($pack['components'], fn ($c) => $c['missing'] !== []), 'code'));
         $this->assertTrue($pack['researched']);
         $inpp = collect($pack['components'])->firstWhere('code', 'inpp');
         $this->assertSame(['needs_confirmation', null, true], [$inpp['status'], $inpp['confidence'], $inpp['may_not_apply']]);
@@ -413,9 +413,11 @@ class ResearchedPackTest extends TestCase
         $inpp = $inppOn('2025-12-31');
         $this->assertSame(['30000', '30000', '20000', '20000', '10000'], [$inpp(1), $inpp(50), $inpp(51), $inpp(300), $inpp(301)]);
 
-        // Only the family allowance still blocks (once an employee has children).
-        $missing = MissingValues::check($pack, $on, 'monthly', ['dependants' => true, 'children' => true]);
-        $this->assertSame(['family_allowance'], array_column($missing, 'component'));
+        // PAY-07, CP-01: the family allowance per child (Decree 25/22: 1/27 of the daily minimum wage, 26 days) is researched at low
+        // confidence, so an employee with children no longer blocks: CDF 20,704 a child from 2026-01-01, 13,963 from 2025-05-01.
+        $this->assertSame([], MissingValues::check($pack, $on, 'monthly', ['dependants' => true, 'children' => true]));
+        $allowance = fn (string $date, int $children) => collect($engine->compute(PayrollPack::applicable(PayrollPack::inForce($pack, CarbonImmutable::parse($date))), new StatutoryInput(gross: '1000000', taxableGross: '1000000', contributoryGross: '1000000', basic: '1000000', children: $children))->components)->keyBy('code')['family_allowance']['employee_minor'];
+        $this->assertSame(['20704', '62112', '13963'], [$allowance('2026-10-31', 1), $allowance('2026-10-31', 3), $allowance('2025-12-31', 1)]);
         $this->assertSame([], MissingValues::check($pack, $on, 'monthly', ['dependants' => true]));
         // Owner decision 2026-10-22: a researched value marked low confidence is usable.
         $pack['components'][0]['periods'][1]['confidence'] = 'low';

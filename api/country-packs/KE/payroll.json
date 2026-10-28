@@ -9,7 +9,7 @@
         "https://www.kra.go.ke/news-center/public-notices/2157-amendments-to-paye-computation-pursuant-to-the-tax-laws-amendment-act%2C-2024"
     ],
     "todo": [
-        "Confirm (accountant) every researched value, then publish it as confirmed through a pack release (ADM-04): PAYE bands, personal relief, insurance relief, the pension / post-retirement medical / mortgage interest limits, NSSF years 3 and 4, SHIF, the housing levy, NITA and the rounding rule.",
+        "Final research 2026-10-28 (owner: no external review): used as researched; corrections go through a pack release (ADM-04): PAYE bands, personal relief, insurance relief, the pension / post-retirement medical / mortgage interest limits, NSSF years 3 and 4, SHIF, the housing levy, NITA and the rounding rule.",
         "insurance_relief: sources disagree on whether SHIF qualifies; SHIF is treated as a pre-tax deduction, not an insurance-relief item. Confirm.",
         "personal_relief: applies to resident employees only; residency is not recorded yet, so every employee gets it. Confirm and add residency if needed.",
         "nssf: litigation on the NSSF Act 2013 is noted in some sources; check the phase in force before each February.",

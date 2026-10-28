@@ -94,7 +94,7 @@ Each publish (changed or not, so a run that stopped half-way is completed by the
 ### Low-confidence research (owner decision, 2026-10-22)
 
 - The owner decided to use the researched values for every statutory item
-  still blocked, knowing they are not confirmed by an accountant. This
+  still blocked; since 2026-10-28 no external review will follow and the researched values are final. This
   overrides, for those items only, CLAUDE.md's "never invent rates": each
   value still comes from a cited source, with `researched_on` and an
   honest confidence, and none is made up.
