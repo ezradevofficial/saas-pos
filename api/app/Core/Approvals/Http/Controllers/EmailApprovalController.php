@@ -46,6 +46,7 @@ class EmailApprovalController
     /** @return array<string, mixed> enough for the confirm page, nothing more */
     private function summary(ApprovalRequest $request, User $viewer): array
     {
+        app(\App\Core\Approvals\ApprovalSummary::class)->refresh($request);
         $type = app(DocumentTypeRegistry::class)->find($request->document_type);
         // RBAC-05: summary parts the type hides from the link's user.
         $hidden = $type?->hiddenSummaryFields($viewer) ?? [];

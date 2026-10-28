@@ -167,6 +167,7 @@ class ApprovalNotices
     /** @return array<string, string> */
     private function document(ApprovalRequest $request, array $hidden = []): array
     {
+        app(ApprovalSummary::class)->refresh($request);
         $type = $this->types->find($request->document_type);
         $values = new ExportValues(app()->getLocale(), 'UTC', [], $this->decimals);
 

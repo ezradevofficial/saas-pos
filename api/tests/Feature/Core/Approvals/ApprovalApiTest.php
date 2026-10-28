@@ -18,6 +18,7 @@ use RuntimeException;
 use Tests\Concerns\BuildsApprovals;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\Concerns\UsesObjectStorage;
+use Tests\Support\Workflow\TestDocuments;
 use Tests\Support\Workflow\TestRequestType;
 use Tests\TestCase;
 
@@ -75,6 +76,19 @@ class ApprovalApiTest extends TestCase
         $this->assertSame([], $this->getJson('/api/v1/approvals', $this->headersFor($this->managerA))->json('data'));
         $this->assertSame([$approval->id], array_column($this->getJson('/api/v1/approvals?status=decided', $this->headersFor($this->managerA))->json('data'), 'id'));
         $this->postJson($this->approvalUrl($approval, '/approve'), [], $this->headersFor($this->managerA))->assertUnprocessable()->assertJsonPath('code', 'approval_not_pending');
+    }
+
+    public function test_apr_04_a_pending_approval_shows_the_documents_current_amount_not_the_requested_one(): void
+    {
+        $approval = $this->submit($this->approvalGraph());
+        $this->assertSame(12000000, $this->fresh($approval)->amount_minor);
+
+        // The document changed after the approval was requested (reopened, late sales).
+        $this->inTenant(fn () => TestDocuments::update($approval->document_id, ['total' => ['amount_minor' => '5000', 'currency' => 'KES']]));
+
+        $item = $this->getJson('/api/v1/approvals', $this->headersFor($this->managerA))->assertOk()->json('data.0');
+        $this->assertSame(['amount_minor' => '5000', 'currency' => 'KES'], $item['document']['amount']);
+        $this->assertSame(5000, $this->fresh($approval)->amount_minor);
     }
 
     public function test_reject_needs_a_reason_and_follows_the_rejected_path(): void
