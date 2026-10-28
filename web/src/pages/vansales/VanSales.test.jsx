@@ -165,6 +165,17 @@ describe('Van sales', () => {
       await waitFor(() => expect(api.put).toHaveBeenCalledWith('van-sales/routes/r-1/stops', { stops: [{ customer_id: 'p-1' }, { customer_id: 'p-3' }] }))
     })
 
+    it('numbers the stops from 1 and disables moving the first one up (VAN-04)', async () => {
+      setup()
+      renderApp('/van-sales/routes/r-1')
+      expect(await screen.findByText('Mama Njeri')).toBeInTheDocument()
+      const rows = screen.getAllByRole('row').slice(1)
+      expect(within(rows[0]).getAllByRole('cell')[0]).toHaveTextContent('1')
+      expect(within(rows[1]).getAllByRole('cell')[0]).toHaveTextContent('2')
+      expect(screen.getByRole('button', { name: 'Move Mama Njeri up' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Move Baba Otieno down' })).toBeDisabled()
+    })
+
     it('keeps a stop with its own days when saving', async () => {
       setup()
       api.put.mockResolvedValue({ data: ROUTE_DETAIL })
