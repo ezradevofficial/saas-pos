@@ -75,7 +75,7 @@ class AvailabilityController
 
         return response()->json(['data' => [
             'date' => $date, 'days' => (int) $request->input('days', 1), 'timezone' => $this->places->zone($branch),
-            'staff' => $staff->map(fn (Staff $s) => ['id' => $s->id, 'name' => $s->name, 'title' => $s->title, 'color' => $s->color, 'work' => $iso($spans[$s->id]['work'] ?? []), 'off' => $iso($spans[$s->id]['off'] ?? [])])->values()->all(),
+            'staff' => $staff->map(fn (Staff $s) => ['id' => $s->id, 'name' => $s->name, 'title' => $s->title, 'color' => $s->color, 'work' => $iso($spans[$s->id]['work'] ?? []), 'off' => $iso($spans[$s->id]['off'] ?? []), 'breaks' => $iso($spans[$s->id]['breaks'] ?? []), 'time_off' => $iso($spans[$s->id]['time_off'] ?? [])])->values()->all(),
             'resources' => $this->views->resources(Resource::query()->where('branch_id', $branch->id)->whereNull('archived_at')->orderBy('name')->get()),
             'appointments' => $this->views->appointments($appointments, $request),
         ]]);

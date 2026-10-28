@@ -237,7 +237,8 @@
       "noStaff": "Aucun personnel. Ajoutez d’abord le personnel et ses horaires.",
       "notWorking": "Ne travaille pas ce jour",
       "works": "Travaille {{spans}}",
-      "off": "Absent {{spans}}"
+      "breaks": "Pause {{spans}}",
+      "timeOff": "Congé {{spans}}"
     },
     "book": {
       "title": "Réserver un rendez-vous",
