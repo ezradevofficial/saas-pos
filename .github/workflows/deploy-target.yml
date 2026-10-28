@@ -153,8 +153,15 @@ jobs:
             --exclude 'tests/' \
             --exclude 'node_modules/' \
             api/ "$DEPLOY_USER@$HOST:$DEPLOY_PATH/api/"
-          rsync -az --delete -e "$ssh_cmd" \
+          # NFR-10: earlier builds' hashed chunks stay for 14 days, so a tab
+          # opened before this deploy can still load the pages it has not
+          # visited yet (the web app also reloads once on a missing chunk).
+          # Only assets/ keeps old files; everything else mirrors the build.
+          rsync -az --delete --exclude 'assets/' -e "$ssh_cmd" \
             web/dist/ "$DEPLOY_USER@$HOST:$DEPLOY_PATH/web/"
+          rsync -az -e "$ssh_cmd" \
+            web/dist/assets/ "$DEPLOY_USER@$HOST:$DEPLOY_PATH/web/assets/"
+          $ssh_cmd "$DEPLOY_USER@$HOST" "find '$DEPLOY_PATH/web/assets' -type f -mtime +14 -delete"
           # The user manual's topics and screenshots (config/manual.php reads
           # ../docs/manual from the API); without them Help is empty and
           # "Download my guide" answers 404.

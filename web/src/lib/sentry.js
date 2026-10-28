@@ -39,3 +39,8 @@ export function setSentryTenant(id) {
   tenantId = id ?? null
   sentry?.setTag('tenant_id', tenantId ?? undefined)
 }
+
+/** Sends an error the app caught itself (a route error boundary) to Sentry, when it is on. */
+export function reportError(error, context = {}) {
+  sentry?.captureException(error, { tags: context })
+}

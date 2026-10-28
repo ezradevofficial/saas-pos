@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Suspense, useEffect, useState } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
+import { RouteError } from './components/RouteError'
 import { createQueryClient } from './api/queryClient'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { setSentryTenant } from './lib/sentry'
@@ -63,7 +64,8 @@ export function AppProviders({ queryClient, children }) {
 
 export default function App() {
   const [queryClient] = useState(createQueryClient)
-  const [router] = useState(() => createBrowserRouter(routes))
+  // NFR-10: one error boundary above every route (RouteError), so page errors reach Sentry.
+  const [router] = useState(() => createBrowserRouter([{ errorElement: <RouteError />, children: routes }]))
   return (
     <AppProviders queryClient={queryClient}>
       <Suspense fallback={null}>
