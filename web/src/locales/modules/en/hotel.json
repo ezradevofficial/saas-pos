@@ -200,6 +200,7 @@
     },
     "rooms": {
       "title": "Rooms",
+      "pageDescription": "The rooms of a property and their types. Add the room types first, then the rooms.",
       "description": "Description",
       "tabRooms": "Rooms",
       "tabTypes": "Room types",

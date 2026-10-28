@@ -118,6 +118,9 @@ describe('Hotel back office', () => {
     api.post.mockResolvedValue({ data: { ...ROOM, status: 'out_of_order' } })
     renderApp('/hotel/rooms')
     const row = (await screen.findByText('101')).closest('tr')
+    // The page subtitle says what the page is for; it is not the form's "Description" label.
+    expect(screen.queryByText(/^Description$/)).not.toBeInTheDocument()
+    expect(screen.getByText(/^The rooms of a property/)).toBeInTheDocument()
     expect(screen.getAllByText('Floor 1').length).toBeGreaterThan(0)
     expect(within(row).getByText('Vacant and clean').closest('[data-tone]')).toHaveAttribute('data-tone', 'success')
     fireEvent.click(within(row).getByRole('button', { name: 'Status of room 101' }))

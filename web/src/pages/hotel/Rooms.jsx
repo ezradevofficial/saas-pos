@@ -311,7 +311,7 @@ export default function Rooms() {
   const canManage = can(ROOM_MANAGE)
   return (
     <>
-      <PageHeader title={t('hotel.rooms.title')} description={t('hotel.rooms.description')} />
+      <PageHeader title={t('hotel.rooms.title')} description={t('hotel.rooms.pageDescription')} />
       <BranchSwitch choice={choice} />
       {choice.branch ? (
         <>

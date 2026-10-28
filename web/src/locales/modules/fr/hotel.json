@@ -200,6 +200,7 @@
     },
     "rooms": {
       "title": "Chambres",
+      "pageDescription": "Les chambres d’un établissement et leurs types. Ajoutez d’abord les types de chambre, puis les chambres.",
       "description": "Description",
       "tabRooms": "Chambres",
       "tabTypes": "Types de chambre",
