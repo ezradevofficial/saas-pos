@@ -13,6 +13,7 @@ use App\Core\Billing\Rounding;
 use App\Core\Fiscal\FiscalQueue;
 use App\Core\MasterData\Taxes\TaxCode;
 use App\Core\Numbering\NumberContext;
+use App\Core\Numbering\NumberFormat;
 use App\Core\Numbering\Numbering;
 use App\Core\Platform\PlatformDatabase;
 use App\Core\Tenancy\Models\Company;
@@ -137,6 +138,14 @@ class Invoicing
         return DB::connection(TenantContext::CONNECTION)->transaction(function () use ($subscription, $kind, $lines, $periodStart, $periodEnd, $dueAt, $customerTenantId, $customer, $issuedAt) {
             [$invoice, $seller] = $this->operator->run(function () use ($subscription, $kind, $lines, $periodStart, $periodEnd, $dueAt, $customerTenantId, $customer, $issuedAt) {
                 $company = $this->operator->company($subscription->country);
+                // NUM-01, SUB-03: each selling company counts its own invoices (KRA and DGI filings).
+                $this->numbering->ensureCompanyFormat(
+                    self::NUMBER_TYPE,
+                    $company->id,
+                    str_replace('{COUNTRY}', strtoupper((string) $company->country), (string) config('billing.invoice_number_pattern')),
+                    NumberFormat::RESET_YEARLY,
+                    true,
+                );
                 [$taxCodeId, $rate] = $this->taxFor($company, $issuedAt);
                 $lines = self::withTax($lines, $rate);
                 $positive = array_filter($lines, fn (array $line) => $line['amount'] > 0);

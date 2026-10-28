@@ -92,7 +92,7 @@ class SubscriptionBillingTest extends TestCase
         $this->assertSame(['first', 'open', 390000, '2026-11-15', '2026-12-15', '2026-11-15'], [
             $invoice->kind, $invoice->status, $invoice->total_minor, $invoice->period_start->toDateString(), $invoice->period_end->toDateString(), $invoice->due_at->toDateString(),
         ]);
-        $this->assertMatchesRegularExpression('/^INV-2026-0+1$/', $invoice->number);
+        $this->assertMatchesRegularExpression('/^KE-INV-2026-0+1$/', $invoice->number);
         // Tax included in KES 3,900.00 at 12.5 %: 433.33.
         $this->assertSame(43333, $invoice->tax_minor);
 
