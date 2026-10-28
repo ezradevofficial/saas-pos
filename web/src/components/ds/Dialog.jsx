@@ -30,8 +30,10 @@ function Body({ children, footer }) {
 /**
  * A focused window for a decision. Built on the shadcn (Radix) dialog, which
  * traps focus, closes on Escape and labels the dialog with its title.
+ * `onOpenAutoFocus(event)` lets a dialog choose where focus lands (the quick
+ * search puts it in its field).
  */
-export function Dialog({ open, title, onClose, footer, children, size = 'md', inline = false }) {
+export function Dialog({ open, title, onClose, footer, children, size = 'md', inline = false, onOpenAutoFocus }) {
   const titleId = useId()
 
   if (inline) {
@@ -51,7 +53,7 @@ export function Dialog({ open, title, onClose, footer, children, size = 'md', in
 
   return (
     <DialogPrimitive open={open} onOpenChange={(next) => (next ? undefined : onClose?.())}>
-      <DialogContent showCloseButton={false} aria-describedby={undefined} className={cn(PANEL, WIDTH[size] ?? WIDTH.md)}>
+      <DialogContent showCloseButton={false} aria-describedby={undefined} onOpenAutoFocus={onOpenAutoFocus} className={cn(PANEL, WIDTH[size] ?? WIDTH.md)}>
         <header className="flex items-center justify-between gap-4 px-5 pt-5 pb-2">
           <DialogTitle className="text-h2 text-ink">{title}</DialogTitle>
           {onClose ? (
