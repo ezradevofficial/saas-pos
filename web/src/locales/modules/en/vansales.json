@@ -310,6 +310,7 @@
       "accountsTitle": "Credit accounts",
       "accountsDescription": "What each customer owes from route sales, against their credit limit.",
       "search": "Search customers",
+      "searchPlaceholder": "Customer name",
       "accountsEmpty": "No customer owes anything from route sales.",
       "balance": "Balance",
       "limit": "Limit",

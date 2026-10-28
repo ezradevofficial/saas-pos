@@ -225,6 +225,18 @@ describe('Fuel station back office', () => {
     expect(screen.getByText('4,950.000 L')).toBeInTheDocument()
   })
 
+  it('labels the voucher and vehicle search boxes and gives them placeholders (FUEL-21)', async () => {
+    setup([[/^fuel\/vouchers\?/, page([])], [/^fuel\/vehicles\?/, page([])]])
+    renderApp('/fuel/vouchers')
+    expect(await screen.findByRole('searchbox', { name: 'Search by code' })).toHaveAttribute('placeholder', 'Voucher code')
+  })
+
+  it('labels the vehicle search box and gives it a placeholder (FUEL-21)', async () => {
+    setup([[/^fuel\/vehicles\?/, page([])]])
+    renderApp('/fuel/vehicles')
+    expect(await screen.findByRole('searchbox', { name: 'Search registration or label' })).toHaveAttribute('placeholder', 'Registration or label')
+  })
+
   it('issues a voucher with its value in minor units (FUEL-21)', async () => {
     setup([[/^fuel\/vouchers\?/, page([])]])
     api.post.mockResolvedValue({ data: VOUCHER })

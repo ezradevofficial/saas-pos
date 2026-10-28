@@ -31,7 +31,7 @@ export function Accounts() {
     <>
       <PageHeader title={t('vansales.credit.accountsTitle')} description={t('vansales.credit.accountsDescription')} />
       <div className="flex flex-col gap-5">
-        <TextField label={t('vansales.credit.search')} type="search" value={search} onChange={(event) => setSearch(event.target.value)} className="max-w-field" />
+        <TextField label={t('vansales.credit.search')} placeholder={t('vansales.credit.searchPlaceholder')} type="search" value={search} onChange={(event) => setSearch(event.target.value)} className="max-w-field" />
         {query.isError ? <QueryNotes query={query} /> : null}
         {!query.isError ? <DataTable caption={t('vansales.credit.accountsTitle')} columns={columns} rows={rows} loading={query.isPending} onRowClick={(account) => navigate(`/van-sales/accounts/${account.customer_id}`)} emptyText={t('vansales.credit.accountsEmpty')} /> : null}
       </div>
