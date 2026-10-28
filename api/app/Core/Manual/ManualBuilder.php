@@ -2,8 +2,8 @@
 
 namespace App\Core\Manual;
 
+use App\Core\DocumentTemplates\PdfFonts;
 use Dompdf\Dompdf;
-use Dompdf\FontMetrics;
 use Dompdf\Frame;
 use Dompdf\Options;
 use Illuminate\Support\Collection;
@@ -27,13 +27,6 @@ use InvalidArgumentException;
 class ManualBuilder
 {
     /** Used when design/tokens.json cannot be read. */
-    /** family, CSS weight and style, file in resources/fonts: the faces registered with the PDF engine. */
-    private const FONTS = [
-        ['Geist', 'normal', 'normal', 'Geist-Regular.ttf'],
-        ['Geist', 'bold', 'normal', 'Geist-SemiBold.ttf'],
-        ['Geist Mono', 'normal', 'normal', 'GeistMono-Regular.ttf'],
-    ];
-
     private const FALLBACK_TOKENS = ['ink-muted' => '#65656d', 'border' => '#ebebe8'];
 
     public function __construct(
@@ -207,19 +200,12 @@ class ManualBuilder
         $options->setIsRemoteEnabled(false);
         $options->setIsPhpEnabled(false);
         $options->setIsJavascriptEnabled(false);
-        $fonts = $this->fontsPath();
-        $options->setChroot([$sandbox, $fonts]);
         $options->setTempDir($sandbox);
-        // The registered faces are copied here once and reused by every build.
-        $options->setFontDir($sandbox.DIRECTORY_SEPARATOR.'fonts');
-        $options->setFontCache($sandbox.DIRECTORY_SEPARATOR.'fonts');
-
-        if (! is_dir($options->getFontDir())) {
-            @mkdir($options->getFontDir(), 0700, true);
-        }
+        // The registered faces are copied into the sandbox once and reused by every build.
+        PdfFonts::configure($options, $sandbox);
 
         $pdf = new Dompdf($options);
-        $geist = $this->registerFonts($pdf->getFontMetrics(), $fonts);
+        $geist = PdfFonts::register($pdf->getFontMetrics());
         $pdf->setCallbacks([[
             'event' => 'begin_frame',
             'f' => function (Frame $frame, $canvas) use (&$pages) {
@@ -292,25 +278,6 @@ class ManualBuilder
         $name = Lang::has($key, $locale) ? Lang::get($key, [], $locale) : Str::headline($role);
 
         return Lang::get('manual.guide_for', ['role' => $name], $locale);
-    }
-
-    private function fontsPath(): string
-    {
-        return resource_path('fonts');
-    }
-
-    /** Registers Geist with the PDF engine; false (Helvetica is used) when a font file is missing. */
-    private function registerFonts(FontMetrics $metrics, string $directory): bool
-    {
-        foreach (self::FONTS as [$family, $weight, $style, $file]) {
-            $path = $directory.DIRECTORY_SEPARATOR.$file;
-
-            if (! is_file($path) || ! $metrics->registerFont(['family' => $family, 'weight' => $weight, 'style' => $style], $path)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     public function moduleLabel(string $module, string $locale): string
