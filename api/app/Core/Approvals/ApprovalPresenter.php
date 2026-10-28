@@ -50,11 +50,14 @@ class ApprovalPresenter
         private readonly ConditionDescriber $describer,
         private readonly ApprovalClock $clock,
         private readonly FieldVisibility $visibility,
+        private readonly ApprovalSummary $summary,
     ) {}
 
     /** @return array<string, mixed> */
     public function item(ApprovalRequest $request, User $viewer, ?Collection $delegations = null): array
     {
+        // APR-04: a pending request shows the document as it is now, not as it was when requested.
+        $this->summary->refresh($request);
         $type = $this->types->find($request->document_type);
         // RBAC-05: summary parts the type hides from this viewer.
         $hidden = $type?->hiddenSummaryFields($viewer) ?? [];

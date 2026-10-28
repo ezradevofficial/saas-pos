@@ -147,6 +147,7 @@ return [
         'room_same' => 'The guest is already in this room. Choose another room.',
         'room_in_use' => 'This room has a guest or a booking. Move them first.',
         'room_status_not_allowed' => 'This room status cannot be changed this way. Housekeeping can only switch between clean and dirty.',
+        'room_status_changed' => 'This room changed while you were offline (it is now :status). Check the room and try again.',
         'room_has_guest' => 'This room has a guest in it. Check them out or move them first.',
         'room_type_in_use' => 'This room type still has rooms or bookings. Move them first.',
         'rate_plan_in_use' => 'This rate plan is used by bookings that are still open. Wait until they end.',

@@ -310,6 +310,7 @@
       "accountsTitle": "Comptes de crédit",
       "accountsDescription": "Ce que chaque client doit sur les ventes de tournée, face à sa limite de crédit.",
       "search": "Rechercher un client",
+      "searchPlaceholder": "Nom du client",
       "accountsEmpty": "Aucun client ne doit de somme sur les ventes de tournée.",
       "balance": "Solde",
       "limit": "Limite",

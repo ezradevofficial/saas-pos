@@ -5778,6 +5778,7 @@
     "perMonth": "par mois",
     "daysLeft_one": "{{count}} jour restant pour mettre à niveau",
     "daysLeft_other": "{{count}} jours restants pour mettre à niveau",
+    "trialAllowed": "Autorisé pendant votre essai, jusqu'au {{date}}",
     "paused": "L’ajout est suspendu jusqu’à la mise à niveau.",
     "upgrade": "Mettre à niveau",
     "error": "L’utilisation n’a pas pu être chargée. Actualisez la page pour réessayer.",

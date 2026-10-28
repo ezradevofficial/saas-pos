@@ -121,7 +121,7 @@ export default function Vehicles() {
         }
       />
       <FilterBar>
-        <TextField label={t('fuel.vehicles.search')} value={typed} maxLength={60} onChange={(event) => setTyped(event.target.value)} className="w-64" />
+        <TextField label={t('fuel.vehicles.search')} placeholder={t('fuel.vehicles.searchPlaceholder')} type="search" value={typed} maxLength={60} onChange={(event) => setTyped(event.target.value)} className="w-64" />
         <Checkbox label={t('fuel.vehicles.showArchived')} checked={archived} onChange={(event) => setArchived(event.target.checked)} />
       </FilterBar>
       <FuelList queryKey="vehicles" endpoint="fuel/vehicles" params={{ search, archived: archived ? 1 : '' }} columns={columns} caption={t('fuel.vehicles.title')} emptyText={search || archived ? t('fuel.vehicles.emptyFiltered') : t('fuel.vehicles.empty')} />

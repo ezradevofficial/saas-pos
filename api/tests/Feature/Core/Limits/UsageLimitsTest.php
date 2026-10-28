@@ -12,6 +12,8 @@ use App\Core\Limits\UsageLimits;
 use App\Core\Limits\UsageNotices;
 use App\Core\Notifications\Models\InAppNotification;
 use App\Core\Notifications\Models\NotificationDelivery;
+use App\Core\Onboarding\Trial\TrialStatus;
+use App\Core\Onboarding\Trial\TrialStatusProvider;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\Models\Device;
 use App\Core\Tenancy\Models\Location;
@@ -333,6 +335,30 @@ class UsageLimitsTest extends TestCase
         $this->postJson("/api/v1/locations/{$this->locationA->id}/devices", ['name' => 'Till 5'], $this->bearer($this->tokenFor($this->owner), ['Accept' => 'application/json']))->assertCreated();
         $this->meter();
         $this->assertSame(Overage::UNLIMITED, $this->inTenant(fn () => Overage::query()->latest('started_at')->firstOrFail())->close_reason);
+    }
+
+    public function test_usage_carries_the_trial_end_date_and_counts_the_outlets_over_the_plan(): void
+    {
+        $this->allow([Units::OUTLET => 1]);
+        $ends = CarbonImmutable::now()->addDays(9);
+        $this->app->instance(TrialStatusProvider::class, new class($ends) implements TrialStatusProvider
+        {
+            public function __construct(private readonly CarbonImmutable $ends) {}
+
+            public function status(): TrialStatus
+            {
+                return TrialStatus::until($this->ends);
+            }
+        });
+        $this->inTenant(fn () => $this->branchA->locations()->create(['name' => 'Second outlet', 'type' => 'outlet']));
+
+        $usage = $this->getJson('/api/v1/usage', $this->headersFor())->assertOk()->json('data');
+        $outlet = collect($usage['units'])->firstWhere('unit', 'outlet');
+
+        $this->assertSame('trial', $usage['trial']['state']);
+        $this->assertSame($ends->toIso8601String(), $usage['trial']['ends_at']);
+        $this->assertSame(9, $usage['trial']['days_left']);
+        $this->assertSame([3, 1, 2, 'over'], [$outlet['count'], $outlet['allowed'], $outlet['over'], $outlet['state']]);
     }
 
     public function test_the_owner_sees_usage_against_the_plan_and_others_are_refused(): void

@@ -140,7 +140,7 @@ export default function Vouchers() {
         }
       />
       <FilterBar>
-        <TextField label={t('fuel.vouchers.search')} value={typed} maxLength={40} onChange={(event) => setTyped(event.target.value)} className="w-64" />
+        <TextField label={t('fuel.vouchers.search')} placeholder={t('fuel.vouchers.searchPlaceholder')} type="search" value={typed} maxLength={40} onChange={(event) => setTyped(event.target.value)} className="w-64" />
         <Select label={t('fuel.columns.status')} options={[{ value: '', label: t('fuel.filters.anyStatus') }, ...VOUCHER_STATUSES.map((value) => ({ value, label: t(`fuel.states.${value}`) }))]} value={status} onChange={(event) => setStatus(event.target.value)} className="w-44" />
       </FilterBar>
       <FuelList

@@ -500,6 +500,7 @@
       "dailyLimitHelp": "Leave empty for no limit.",
       "blocked": "Blocked: a credit sale to this vehicle is flagged",
       "search": "Search registration or label",
+      "searchPlaceholder": "Registration or label",
       "showArchived": "Show archived vehicles",
       "empty": "No vehicles yet. Add a customer’s vehicle to track fleet sales.",
       "emptyFiltered": "No vehicles match. Clear the search or the archived filter.",
@@ -524,6 +525,7 @@
       "expiresOn": "Expires on",
       "expiresHelp": "Optional. The last day the voucher can be spent.",
       "search": "Search by code",
+      "searchPlaceholder": "Voucher code",
       "empty": "No vouchers yet. Issue the first one.",
       "emptyFiltered": "No vouchers match. Clear the search or the status filter."
     },

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { Button, StatusBadge } from '@/components/ds'
-import { formatMoney } from '@/lib/format'
+import { formatDate, formatMoney } from '@/lib/format'
 import { unitsOver, USAGE_TONES, useUsage } from '@/lib/usage'
 import { useLocale } from '@/lib/useLocale'
 
@@ -20,6 +20,17 @@ export function UsageBanner() {
 
   if (over.length === 0) return null
 
+  // LIM-02, ONB-04: a trial allows the extra units until it ends, so show that
+  // end date; otherwise the days left of the metered window (never "0 days"
+  // before the meter has opened one).
+  const trialEnds = usage.trial?.state === 'trial' ? usage.trial.ends_at : null
+  const statusLabel = (unit) => {
+    if (unit.state === 'blocked') return t('usage.state.blocked')
+    if (trialEnds) return t('usage.trialAllowed', { date: formatDate(trialEnds, locale) })
+    if (unit.overage) return t('usage.daysLeft', { count: unit.overage.days_left })
+    return t('usage.state.over')
+  }
+
   return (
     <section
       aria-label={t('usage.banner.title')}
@@ -33,9 +44,7 @@ export function UsageBanner() {
               <span className="tabular-nums">
                 {t('usage.banner.line', { item: t(`usage.units.${unit.unit}`), count: unit.count, allowed: unit.allowed, over: unit.over })}
               </span>
-              <StatusBadge tone={USAGE_TONES[unit.state]}>
-                {unit.state === 'blocked' ? t('usage.state.blocked') : t('usage.daysLeft', { count: unit.overage?.days_left ?? 0 })}
-              </StatusBadge>
+              <StatusBadge tone={USAGE_TONES[unit.state]}>{statusLabel(unit)}</StatusBadge>
             </li>
           ))}
         </ul>

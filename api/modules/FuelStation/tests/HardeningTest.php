@@ -2,6 +2,8 @@
 
 namespace Modules\FuelStation\Tests;
 
+use App\Core\Approvals\Models\ApprovalAssignment;
+use App\Core\Approvals\Models\ApprovalRequest;
 use App\Core\Identity\Pin\TillSignIn;
 use App\Core\MasterData\PaymentMethods\PaymentMethod;
 use App\Core\Rbac\Scope;
@@ -334,6 +336,29 @@ class HardeningTest extends TestCase
             'tank_id' => $this->tank->id, 'note_number' => 'DN-S', 'note_litres' => '1020', 'before_dip_cm' => '50', 'after_dip_cm' => '60', 'sold_during_litres' => '500',
             'before_taken_at' => now()->subMinutes(30)->toIso8601String(), 'after_taken_at' => now()->toIso8601String(), 'unit_cost_minor' => 15000, 'currency' => 'KES',
         ], $this->headersFor($this->supervisor))->assertCreated()->assertJsonPath('data.sold_during_litres', '20.000')->assertJsonPath('data.received_litres', '1020.000')->assertJsonPath('data.shortage_litres', '0.000');
+    }
+
+    public function test_fuel_variance_goes_to_station_managers_and_the_branch_manager_of_that_station_but_not_the_attendant(): void
+    {
+        $branchHere = $this->userWith('branch_manager', Scope::branch($this->branchA->id));
+        $branchElsewhere = $this->userWith('branch_manager', Scope::branch($this->branchB->id));
+        $stationHere = $this->userWith('station_manager', Scope::location($this->locationA->id));
+
+        $this->uploadShifts([$this->fuelShiftBody($this->id(), closing: $this->fuelClosing(['A' => '1100.000', 'B' => '5000.000'], ['A' => 0, 'B' => 0]))])->assertOk();
+        $a = $this->settlementOf($this->attendant);
+
+        $approvers = $this->inTenant(fn () => ApprovalAssignment::query()
+            ->whereIn('request_id', ApprovalRequest::query()->where('document_id', $a->id)->select('id'))
+            ->where('status', ApprovalAssignment::PENDING)->pluck('user_id')->all());
+
+        $this->assertContains($branchHere->id, $approvers);
+        $this->assertContains($stationHere->id, $approvers);
+        $this->assertNotContains($branchElsewhere->id, $approvers);
+        $this->assertNotContains($this->attendant->id, $approvers);
+
+        // A branch manager who worked the shift still cannot approve it.
+        $this->inTenant(fn () => $this->assertTrue((new ShiftVarianceType)->mayAct($branchHere, $a->id, 'approve')));
+        $this->inTenant(fn () => $this->assertFalse((new ShiftVarianceType)->mayAct($this->attendant, $a->id, 'approve')));
     }
 
     // 10

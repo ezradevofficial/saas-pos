@@ -37,7 +37,7 @@ class RoleResolver implements ApproverResolver
     {
         $role = $approver['role'] ?? null;
 
-        return is_string($role) && $this->roles->unknown([$role]) === []
+        return is_string($role) && $this->roles->unknown([$role, ...self::also($approver)]) === []
             ? []
             : [__('approvals.validation.role')];
     }
@@ -46,14 +46,24 @@ class RoleResolver implements ApproverResolver
     {
         $role = $approver['role'] ?? null;
 
-        return is_string($role) ? $this->directory->holdersAt($this->roles->resolve([$role]), $subject->chain) : [];
+        return is_string($role) ? $this->directory->holdersAt($this->roles->resolve([$role, ...self::also($approver)]), $subject->chain) : [];
     }
 
     public function describe(array $approver): string
     {
-        $role = is_string($approver['role'] ?? null) ? $this->roles->resolve([$approver['role']]) : [];
-        $name = $role === [] ? null : Role::query()->whereKey($role[0])->value('name');
+        $ids = is_string($approver['role'] ?? null) ? $this->roles->resolve([$approver['role'], ...self::also($approver)]) : [];
+        $names = $ids === [] ? [] : Role::query()->whereKey($ids)->pluck('name')->all();
 
-        return $name === null ? __('approvals.approver_types.role') : (string) $name;
+        return $names === [] ? __('approvals.approver_types.role') : implode(' / ', $names);
+    }
+
+    /**
+     * `also`: more roles that may approve in the same step.
+     *
+     * @return list<mixed>
+     */
+    private static function also(array $approver): array
+    {
+        return is_array($approver['also'] ?? null) ? array_values($approver['also']) : [];
     }
 }

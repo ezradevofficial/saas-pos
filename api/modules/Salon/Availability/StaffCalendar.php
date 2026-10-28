@@ -49,6 +49,8 @@ class StaffCalendar
         foreach ($staff as $member) {
             $work = [];
             $off = [];
+            $breaks = [];
+            $leaves = [];
             $rows = $hours->get($member->id, collect());
             $employee = $linked[$member->id] ?? null;
 
@@ -60,6 +62,7 @@ class StaffCalendar
 
                     if ($row->kind === 'break') {
                         $off[] = $span;
+                        $breaks[] = $span;
                     } elseif ($employee === null) {
                         $work[] = $span;
                     }
@@ -75,15 +78,15 @@ class StaffCalendar
 
                 foreach ($leave[$employee] ?? [] as $row) {
                     $start = CarbonImmutable::parse($row['date'].' 00:00:00', $zone);
-                    $off[] = [$start->utc(), $start->addDay()->utc()];
+                    $off[] = $leaves[] = [$start->utc(), $start->addDay()->utc()];
                 }
             }
 
             foreach ($timeOff->get($member->id, collect()) as $entry) {
-                $off[] = [$entry->starts_at->utc(), $entry->ends_at->utc()];
+                $off[] = $leaves[] = [$entry->starts_at->utc(), $entry->ends_at->utc()];
             }
 
-            $out[$member->id] = ['work' => $work, 'off' => $off];
+            $out[$member->id] = ['work' => $work, 'off' => $off, 'breaks' => $breaks, 'time_off' => $leaves];
         }
 
         return $out;

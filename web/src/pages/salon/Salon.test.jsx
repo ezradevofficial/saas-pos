@@ -27,7 +27,7 @@ const APPOINTMENT = {
 }
 const CALENDAR = {
   date: '2026-10-28', days: 1, timezone: 'Africa/Nairobi',
-  staff: [{ id: 'st-1', name: 'Wanjiru', title: 'Stylist', color: 'c1', work: [['2026-10-28T06:00:00Z', '2026-10-28T14:00:00Z']], off: [['2026-10-28T09:00:00Z', '2026-10-28T10:00:00Z']] }],
+  staff: [{ id: 'st-1', name: 'Wanjiru', title: 'Stylist', color: 'c1', work: [['2026-10-28T06:00:00Z', '2026-10-28T14:00:00Z']], off: [['2026-10-28T09:00:00Z', '2026-10-28T10:00:00Z'], ['2026-10-28T12:00:00Z', '2026-10-28T13:00:00Z']], breaks: [['2026-10-28T09:00:00Z', '2026-10-28T10:00:00Z']], time_off: [['2026-10-28T12:00:00Z', '2026-10-28T13:00:00Z']] }],
   resources: [], appointments: [APPOINTMENT],
 }
 const SLOT = { starts_at: '2026-10-28T08:00:00Z', ends_at: '2026-10-28T08:45:00Z', lines: [{ service_id: 'sv-1', staff_id: 'st-1', staff_name: 'Wanjiru', resource_id: null, starts_at: '2026-10-28T08:00:00Z', ends_at: '2026-10-28T08:45:00Z' }] }
@@ -118,7 +118,9 @@ describe('Salon', () => {
       renderApp('/salon/calendar')
       const column = await screen.findByRole('region', { name: 'Wanjiru' })
       expect(within(column).getByText('Works 09:00–17:00')).toBeInTheDocument()
-      expect(within(column).getByText('Off 12:00–13:00')).toBeInTheDocument()
+      expect(within(column).getByText('Break 12:00–13:00')).toBeInTheDocument()
+      expect(within(column).getByText('Time off 15:00–16:00')).toBeInTheDocument()
+      expect(within(column).queryByText(/^Off /)).not.toBeInTheDocument()
       expect(within(column).getByText('Amina Otieno')).toBeInTheDocument()
       expect(within(column).getByText('10:00–10:45')).toBeInTheDocument()
     })

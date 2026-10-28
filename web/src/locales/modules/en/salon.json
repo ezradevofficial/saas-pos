@@ -237,7 +237,8 @@
       "noStaff": "No staff yet. Add staff and their hours first.",
       "notWorking": "Not working this day",
       "works": "Works {{spans}}",
-      "off": "Off {{spans}}"
+      "breaks": "Break {{spans}}",
+      "timeOff": "Time off {{spans}}"
     },
     "book": {
       "title": "Book an appointment",

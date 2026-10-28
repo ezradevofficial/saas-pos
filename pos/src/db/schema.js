@@ -73,9 +73,13 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * `salon_packages`, and local `salon_records`: what the till makes (appointments, day steps, queue
  * changes), one row each, pending until the server stored it (or rejected, parked with its code).
  *
+ * v17 (Hotel module, HOT-29): local `hotel_queue`: the housekeeper's status changes made offline (start, finish,
+ * room status), one row each with its `op_id`, pending until the server answered; a conflict (the server wins)
+ * is parked with its code until the housekeeper dismisses it.
+ *
  * Raise the version and add a step to migrations.js for every change.
  */
-export const SCHEMA_VERSION = 16;
+export const SCHEMA_VERSION = 17;
 
 const data = { name: 'data', type: 'string' };
 // v2: the pull page that last wrote the row (a per-entity counter, never a clock), so
@@ -242,6 +246,21 @@ export const schema = appSchema({
         { name: 'kind', type: 'string', isIndexed: true },
         { name: 'appointment_id', type: 'string', isIndexed: true },
         // pending | stored | rejected | local
+        { name: 'state', type: 'string', isIndexed: true },
+        { name: 'seq', type: 'number', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        data,
+      ],
+    }),
+    // v17: the housekeeper's changes made offline, local only (HOT-29).
+    tableSchema({
+      name: 'hotel_queue',
+      columns: [
+        // start | finish | room_status
+        { name: 'kind', type: 'string', isIndexed: true },
+        // the task or room the change is about
+        { name: 'subject_id', type: 'string', isIndexed: true },
+        // pending | conflict | failed
         { name: 'state', type: 'string', isIndexed: true },
         { name: 'seq', type: 'number', isIndexed: true },
         { name: 'created_at', type: 'number' },

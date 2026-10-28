@@ -348,6 +348,13 @@ describe('Van sales', () => {
       expect(within(row).getByText(/3,000\.00/)).toBeInTheDocument()
     })
 
+    it('labels the credit accounts search box and gives it a placeholder (VAN-11)', async () => {
+      setup({ extra: [['van-sales/accounts', { data: [] }]] })
+      renderApp('/van-sales/accounts')
+      const box = await screen.findByRole('searchbox', { name: 'Search customers' })
+      expect(box).toHaveAttribute('placeholder', 'Customer name')
+    })
+
     it('queues flagged credit sales and records a review with a note', async () => {
       setup()
       api.post.mockResolvedValue({ data: { ...REVIEW, review_status: 'reviewed' } })

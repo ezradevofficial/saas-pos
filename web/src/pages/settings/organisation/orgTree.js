@@ -62,7 +62,10 @@ export function hasArchived(...lists) {
   return lists.some((list) => list.some(isArchived))
 }
 
+const ORGANISATION_LISTS = ['companies', 'branches', 'locations']
+
 /** The organisation lists every page shares; any change refreshes all three (and the company switcher). */
 export function invalidateOrganisation(queryClient) {
-  return queryClient.invalidateQueries({ predicate: (query) => ['companies', 'branches', 'locations'].includes(query.queryKey[0]) })
+  // Any key part, not just the first: pickers key their lists as e.g. ['ecommerce-options', 'locations', companyId].
+  return queryClient.invalidateQueries({ predicate: (query) => query.queryKey.some((part) => ORGANISATION_LISTS.includes(part)) })
 }

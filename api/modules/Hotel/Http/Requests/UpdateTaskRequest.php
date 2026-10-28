@@ -26,6 +26,7 @@ class UpdateTaskRequest extends HotelRequest
 
     public function rules(): array
     {
-        return [];
+        // HOT-29: `op_id` names a change replayed from a phone's offline queue, so it runs once.
+        return ['op_id' => ['sometimes', 'uuid']];
     }
 }

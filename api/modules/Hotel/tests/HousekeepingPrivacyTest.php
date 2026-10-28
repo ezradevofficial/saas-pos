@@ -6,6 +6,7 @@ use App\Core\Privacy\SubjectData;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Sync\SyncSources;
+use Illuminate\Support\Str;
 use Modules\Hotel\Models\Guest;
 use Modules\Hotel\Models\HousekeepingTask;
 use Modules\Hotel\Models\Room;
@@ -49,6 +50,56 @@ class HousekeepingPrivacyTest extends TestCase
         $this->postJson("/api/v1/hotel/housekeeping/tasks/{$id}/inspect", [], $h)->assertForbidden();
         $this->postJson("/api/v1/hotel/housekeeping/tasks/{$id}/inspect", [], $this->headersFor())->assertOk()->assertJsonPath('data.status', 'inspected');
         $this->assertGreaterThan(0, $this->audited('hotel.housekeeping.finish'));
+    }
+
+    public function test_a_queued_change_replayed_with_the_same_op_id_runs_once_and_answers_the_same(): void
+    {
+        $stay = $this->checkedIn(1, '101');
+        $this->postJson("/api/v1/hotel/stays/{$stay['id']}/check-out", [], $this->headersFor())->assertOk();
+        $housekeeper = $this->userWith('housekeeping', Scope::branch($this->branchA->id));
+        $h = $this->headersFor($housekeeper);
+        $task = $this->getJson('/api/v1/hotel/housekeeping/my-tasks', $h)->assertOk()->json('data.0');
+        $url = "/api/v1/hotel/housekeeping/tasks/{$task['id']}/start";
+        $op = (string) Str::uuid();
+
+        $first = $this->postJson($url, ['op_id' => $op], $h)->assertOk()->assertJsonPath('data.status', 'in_progress');
+        // Without the id a second start is refused; with it, the stored answer comes back and nothing runs again.
+        $this->postJson($url, [], $h)->assertStatus(409);
+        $again = $this->postJson($url, ['op_id' => $op], $h)->assertOk()->assertHeader('Idempotent-Replayed', 'true');
+        $this->assertSame($first->json('data'), $again->json('data'));
+        $this->assertSame(1, $this->audited('hotel.housekeeping.start'));
+
+        // A bad id is refused; another user's id is not answered from this one's.
+        $this->postJson($url, ['op_id' => 'not-a-uuid'], $h)->assertUnprocessable();
+        $this->postJson($url, ['op_id' => $op], $this->headersFor())->assertStatus(409);
+
+        // The room's status change replays the same way.
+        $roomOp = (string) Str::uuid();
+        $body = ['status' => Room::VACANT_CLEAN, 'expected_status' => Room::VACANT_DIRTY, 'op_id' => $roomOp];
+        $roomUrl = "/api/v1/hotel/rooms/{$task['room']['id']}/status";
+        $this->postJson($roomUrl, $body, $h)->assertOk()->assertJsonPath('data.status', Room::VACANT_CLEAN);
+        $this->postJson($roomUrl, $body, $h)->assertOk()->assertHeader('Idempotent-Replayed', 'true')->assertJsonPath('data.status', Room::VACANT_CLEAN);
+    }
+
+    public function test_a_queued_status_change_is_refused_when_the_room_moved_on_while_the_phone_was_offline(): void
+    {
+        $stay = $this->checkedIn(1, '101');
+        $this->postJson("/api/v1/hotel/stays/{$stay['id']}/check-out", [], $this->headersFor())->assertOk();
+        $housekeeper = $this->userWith('housekeeping', Scope::branch($this->branchA->id));
+        $h = $this->headersFor($housekeeper);
+        $roomId = $this->rooms['101']->id;
+
+        // The housekeeper saw the room dirty; a guest was put in it since.
+        $this->inTenant(fn () => Room::query()->whereKey($roomId)->update(['status' => Room::OCCUPIED]));
+
+        $this->postJson("/api/v1/hotel/rooms/{$roomId}/status", ['status' => Room::VACANT_CLEAN, 'expected_status' => Room::VACANT_DIRTY, 'op_id' => (string) Str::uuid()], $h)
+            ->assertStatus(409)->assertJsonPath('code', 'room_status_changed');
+        $this->assertSame(Room::OCCUPIED, $this->inTenant(fn () => Room::find($roomId)->status));
+
+        // Already where the housekeeper wanted it: nothing to refuse.
+        $this->inTenant(fn () => Room::query()->whereKey($roomId)->update(['status' => Room::VACANT_CLEAN]));
+        $this->postJson("/api/v1/hotel/rooms/{$roomId}/status", ['status' => Room::VACANT_CLEAN], $this->headersFor())->assertOk();
+        $this->postJson("/api/v1/hotel/rooms/{$roomId}/status", ['status' => Room::VACANT_CLEAN, 'expected_status' => Room::VACANT_DIRTY], $h)->assertOk();
     }
 
     public function test_the_board_shows_rooms_by_floor_with_status_tasks_and_assignment(): void

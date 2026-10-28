@@ -6,6 +6,7 @@ use App\Core\Tenancy\Models\Branch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Hotel\Housekeeping\Housekeeping;
+use Modules\Hotel\Housekeeping\HousekeepingOps;
 use Modules\Hotel\Http\Requests\ArchiveRoomRequest;
 use Modules\Hotel\Http\Requests\ListRoomsRequest;
 use Modules\Hotel\Http\Requests\RoomStatusRequest;
@@ -20,7 +21,7 @@ use Modules\Hotel\Support\HotelError;
 /** HOT-04, HOT-05: rooms of the properties the reader reaches, and their status. Changes are audited by the model (`hotel.room.*`). */
 class RoomController
 {
-    public function __construct(private readonly Access $access, private readonly Housekeeping $housekeeping) {}
+    public function __construct(private readonly Access $access, private readonly Housekeeping $housekeeping, private readonly HousekeepingOps $ops) {}
 
     public function index(ListRoomsRequest $request): AnonymousResourceCollection
     {
@@ -67,14 +68,22 @@ class RoomController
         return RoomResource::make($hotelRoom->refresh());
     }
 
-    public function status(RoomStatusRequest $request, Room $hotelRoom): RoomResource
+    /**
+     * HOT-05, HOT-29: with an `op_id` (a phone replaying its offline queue) the change runs once;
+     * with `expected_status` (what the housekeeper saw) it is refused 409 `room_status_changed`
+     * when the room has moved on since: the server wins.
+     */
+    public function status(RoomStatusRequest $request, Room $hotelRoom): JsonResponse|RoomResource
     {
-        $room = $this->housekeeping->setStatus(
-            $hotelRoom, $request->validated('status'), $request->user(),
-            ['reason' => $request->validated('reason'), 'from' => $request->validated('from'), 'until' => $request->validated('until')],
-            byHousekeeper: $request->byHousekeeper(),
-        );
+        return $this->ops->once($request, 'room_status', $hotelRoom->id, function () use ($request, $hotelRoom) {
+            $room = $this->housekeeping->setStatus(
+                $hotelRoom, $request->validated('status'), $request->user(),
+                ['reason' => $request->validated('reason'), 'from' => $request->validated('from'), 'until' => $request->validated('until')],
+                byHousekeeper: $request->byHousekeeper(),
+                expected: $request->validated('expected_status'),
+            );
 
-        return RoomResource::make($room->load(['roomType:id,code,name', 'branch:id,name']));
+            return RoomResource::make($room->load(['roomType:id,code,name', 'branch:id,name']));
+        });
     }
 }

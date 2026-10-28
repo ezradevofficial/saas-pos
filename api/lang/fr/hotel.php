@@ -147,6 +147,7 @@ return [
         'room_same' => 'Le client est déjà dans cette chambre. Choisissez-en une autre.',
         'room_in_use' => 'Cette chambre a un client ou une réservation. Déplacez-les d\'abord.',
         'room_status_not_allowed' => 'Ce statut de chambre ne peut pas être changé ainsi. Le ménage ne peut passer que de propre à sale et inversement.',
+        'room_status_changed' => 'Cette chambre a changé pendant que vous étiez hors ligne (elle est maintenant :status). Vérifiez la chambre et réessayez.',
         'room_has_guest' => 'Cette chambre est occupée. Faites partir le client ou déplacez-le d\'abord.',
         'room_type_in_use' => 'Ce type de chambre a encore des chambres ou des réservations. Déplacez-les d\'abord.',
         'rate_plan_in_use' => 'Ce plan tarifaire est utilisé par des réservations encore ouvertes. Attendez qu\'elles se terminent.',

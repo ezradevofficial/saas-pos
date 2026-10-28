@@ -35,7 +35,8 @@ function StaffColumn({ member, appointments, zone, canBook, onBook, onOpen }) {
         ) : null}
       </header>
       <p className="text-caption text-ink-muted">{member.work.length ? t('salon.calendar.works', { spans: spanText(member.work, zone) }) : t('salon.calendar.notWorking')}</p>
-      {member.off.length ? <p className="text-caption text-ink-muted">{t('salon.calendar.off', { spans: spanText(member.off, zone) })}</p> : null}
+      {member.breaks?.length ? <p className="text-caption text-ink-muted">{t('salon.calendar.breaks', { spans: spanText(member.breaks, zone) })}</p> : null}
+      {member.time_off?.length ? <p className="text-caption text-ink-muted">{t('salon.calendar.timeOff', { spans: spanText(member.time_off, zone) })}</p> : null}
       <ul className="flex flex-col gap-2">
         {mine.map(({ appointment, line }) => (
           <li key={line.id}>

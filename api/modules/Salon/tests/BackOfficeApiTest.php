@@ -238,6 +238,10 @@ class BackOfficeApiTest extends TestCase
         $this->assertSame([[$this->at('09:00'), $this->at('17:00')]], $ann['work']);
         $this->assertSame([[$this->at('13:00'), $this->at('14:00')]], $ann['off']);
         $this->assertContains([$this->at('15:00'), $this->at('16:00')], collect($day['staff'])->firstWhere('name', 'Bob')['off']);
+        // The break and the time off are told apart.
+        $this->assertSame([[$this->at('13:00'), $this->at('14:00')]], [$ann['breaks'][0]]);
+        $this->assertSame([], $ann['time_off']);
+        $this->assertSame([[$this->at('15:00'), $this->at('16:00')]], collect($day['staff'])->firstWhere('name', 'Bob')['time_off']);
         $this->assertCount(2, $day['resources']);
 
         $mine = $this->api('GET', 'salon/calendar?'.http_build_query(['branch_id' => $this->branchA->id, 'date' => $this->today]), [], $this->annUser)->assertOk()->json('data');

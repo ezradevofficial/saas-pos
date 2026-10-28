@@ -36,6 +36,8 @@ class RoomStatusRequest extends HotelRequest
     {
         return [
             'status' => ['required', 'string', Rule::in([Room::VACANT_CLEAN, Room::VACANT_DIRTY, Room::OUT_OF_ORDER])],
+            'op_id' => ['sometimes', 'uuid'],
+            'expected_status' => ['sometimes', 'nullable', Rule::in([Room::VACANT_CLEAN, Room::VACANT_DIRTY, Room::OCCUPIED, Room::OUT_OF_ORDER])],
             'reason' => ['required_if:status,out_of_order', 'nullable', 'string', 'max:500'],
             'from' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'until' => ['sometimes', 'nullable', 'date_format:Y-m-d', 'after_or_equal:from'],

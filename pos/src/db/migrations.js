@@ -249,5 +249,22 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      // Hotel module (HOT-29): the housekeeper's status changes made offline.
+      toVersion: 17,
+      steps: [
+        createTable({
+          name: 'hotel_queue',
+          columns: [
+            { name: 'kind', type: 'string', isIndexed: true },
+            { name: 'subject_id', type: 'string', isIndexed: true },
+            { name: 'state', type: 'string', isIndexed: true },
+            { name: 'seq', type: 'number', isIndexed: true },
+            { name: 'created_at', type: 'number' },
+            data,
+          ],
+        }),
+      ],
+    },
   ],
 });
