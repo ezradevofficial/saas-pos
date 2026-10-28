@@ -367,6 +367,7 @@
       "stockTab": "Stock des camionnettes",
       "creditOutstanding": "Crédit en cours",
       "noCredit": "Aucun crédit en cours.",
+      "creditIn": "Dû en {{currency}}",
       "byRep": "Par tournée et par vendeur",
       "empty": "Aucune visite ni vente sur cette période.",
       "visits": "Visites avec vente",

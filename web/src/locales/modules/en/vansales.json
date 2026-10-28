@@ -367,6 +367,7 @@
       "stockTab": "Van stock",
       "creditOutstanding": "Credit outstanding",
       "noCredit": "No credit outstanding.",
+      "creditIn": "Owed in {{currency}}",
       "byRep": "By route and rep",
       "empty": "No visits or sales in this period.",
       "visits": "Visits that sold",

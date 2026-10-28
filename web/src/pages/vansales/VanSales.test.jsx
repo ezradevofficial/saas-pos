@@ -324,6 +324,14 @@ describe('Van sales', () => {
     })
   })
 
+  describe('reports (VAN-25)', () => {
+    it('labels each credit tile with a phrase, not a bare currency code that the amount repeats', async () => {
+      setup({ extra: [[/^van-sales\/reports\/summary\?/, { data: { from: '2026-10-21', to: '2026-10-27', rows: [], cash_variances: [], stock_variances: [], credit_outstanding: [{ currency: 'KES', amount_minor: '48000' }] } }]] })
+      renderApp('/van-sales/reports')
+      expect(await screen.findByText('Owed in KES')).toBeInTheDocument()
+    })
+  })
+
   describe('credit (VAN-11, VAN-12, VAN-13)', () => {
     it('lists balances against limits', async () => {
       setup({ extra: [['van-sales/accounts', { data: [{ customer_id: 'p-1', customer_name: 'Mama Njeri', credit_limit_minor: '300000', credit_limit_currency: 'KES', balances: [{ currency: 'KES', amount_minor: '250000' }] }] }]] })

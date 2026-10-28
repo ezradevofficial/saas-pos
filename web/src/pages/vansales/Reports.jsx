@@ -92,7 +92,7 @@ function Summary() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {(report.credit_outstanding ?? []).length === 0 ? <p className="text-ink-muted">{t('vansales.reports.noCredit')}</p> : null}
               {(report.credit_outstanding ?? []).map((entry) => (
-                <KpiTile key={entry.currency} label={entry.currency} value={<Money amount={entry.amount_minor} currency={entry.currency} size="lg" />} />
+                <KpiTile key={entry.currency} label={t('vansales.reports.creditIn', { currency: entry.currency })} value={<Money amount={entry.amount_minor} currency={entry.currency} size="lg" />} />
               ))}
             </div>
           </section>
