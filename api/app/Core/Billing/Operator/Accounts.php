@@ -3,6 +3,7 @@
 namespace App\Core\Billing\Operator;
 
 use App\Core\Billing\Catalogue\Models\CatalogueBundle;
+use App\Core\Billing\Models\BillingInvoice;
 use App\Core\Billing\Models\OperatorAccount;
 use App\Core\Billing\Models\OperatorAccountEvent;
 use App\Core\Billing\Models\Subscription;
@@ -11,6 +12,7 @@ use App\Core\Rbac\Models\TenantModule;
 use App\Core\Tenancy\Models\Tenant;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -45,6 +47,10 @@ class Accounts
             ->map(fn (TenantModule $m) => ['module' => $m->module, 'switched_off_at' => $m->switched_off_at?->toIso8601String()])
             ->values()->all();
 
+        // SUB-03: a subscribed trial whose first invoice is paid stays a trial until the trial ends, yet it pays.
+        $paidTrial = $subscription->status === Subscription::TRIAL && $subscription->hasPeriod()
+            && BillingInvoice::query()->where('status', BillingInvoice::PAID)->exists();
+
         $values = [
             'name' => $name,
             'country' => $subscription->country,
@@ -55,20 +61,20 @@ class Accounts
             'modules' => self::coveredModules($subscription),
             'cycle' => $subscription->cycle,
             'status' => $subscription->status,
-            'mrr_minor' => $subscription->status === Subscription::TRIAL ? 0 : $subscription->monthly_amount_minor,
+            'mrr_minor' => $subscription->status === Subscription::TRIAL && ! $paidTrial ? 0 : $subscription->monthly_amount_minor,
             'trial_ends_at' => $subscription->trial_ends_at,
             'current_period_end' => $subscription->current_period_end?->toDateString(),
             'grace_days' => $subscription->grace_days,
             'purge_due' => $purgeDue,
         ];
 
-        $this->operator->run(function () use ($customerId, $values) {
-            DB::connection(TenantContext::CONNECTION)->transaction(function () use ($customerId, $values) {
+        $this->operator->run(function () use ($customerId, $values, $paidTrial) {
+            DB::connection(TenantContext::CONNECTION)->transaction(function () use ($customerId, $values, $paidTrial) {
                 $account = OperatorAccount::query()->where('customer_tenant_id', $customerId)->lockForUpdate()->first();
                 $from = $account?->status;
                 $fromMrr = (int) ($account?->mrr_minor ?? 0);
                 OperatorAccount::query()->updateOrCreate(['customer_tenant_id' => $customerId], $values);
-                $this->recordEvent($customerId, $from, $fromMrr, $values);
+                $this->recordEvent($customerId, $from, $fromMrr, $values, $paidTrial);
             });
         });
     }
@@ -76,26 +82,36 @@ class Accounts
     /**
      * ADM-06: the account's status change as a report event (operator
      * context). Churn: a paying account becoming cancelled or suspended;
-     * a conversion: the first time an account that started as a trial
-     * becomes active.
+     * a conversion: once, when the trial's first invoice is paid (a
+     * subscribed trial converts then, though it stays a trial until its
+     * end) or, failing that, when the account first becomes active. A paid
+     * subscribed trial counts as paying, so leaving it is churn.
      *
      * @param  array<string, mixed>  $values
      */
-    private function recordEvent(string $customerId, ?string $from, int $fromMrr, array $values): void
+    private function recordEvent(string $customerId, ?string $from, int $fromMrr, array $values, bool $paidTrial = false): void
     {
         $to = (string) $values['status'];
+        $converted = fn (): bool => OperatorAccountEvent::query()->where('customer_tenant_id', $customerId)
+            ->whereIn('kind', [OperatorAccountEvent::CONVERTED, OperatorAccountEvent::SUBSCRIBED])->exists();
 
         if ($from === $to) {
+            // Same status: only a trial that has just paid its first invoice is an event.
+            if ($from === Subscription::TRIAL && $paidTrial && ! $converted()) {
+                $this->storeEvent($customerId, OperatorAccountEvent::CONVERTED, $from, $values, (int) $values['mrr_minor']);
+            }
+
             return;
         }
 
+        $wasPaying = in_array($from, self::PAYING, true) || ($from === Subscription::TRIAL && $fromMrr > 0);
+
         $kind = match (true) {
             $from === null => $to === Subscription::TRIAL ? OperatorAccountEvent::TRIAL_STARTED : OperatorAccountEvent::SUBSCRIBED,
-            in_array($to, [Subscription::CANCELLED, Subscription::SUSPENDED], true) && in_array($from, self::PAYING, true) => OperatorAccountEvent::CHURNED,
+            in_array($to, [Subscription::CANCELLED, Subscription::SUSPENDED], true) && $wasPaying => OperatorAccountEvent::CHURNED,
             $to === Subscription::SUSPENDED => OperatorAccountEvent::SUSPENDED,
             in_array($from, [Subscription::CANCELLED, Subscription::SUSPENDED], true) => OperatorAccountEvent::REACTIVATED,
-            $to === Subscription::ACTIVE && ! OperatorAccountEvent::query()->where('customer_tenant_id', $customerId)
-                ->whereIn('kind', [OperatorAccountEvent::CONVERTED, OperatorAccountEvent::SUBSCRIBED])->exists() => OperatorAccountEvent::CONVERTED,
+            $to === Subscription::ACTIVE && ! $converted() => OperatorAccountEvent::CONVERTED,
             default => null,
         };
 
@@ -103,17 +119,30 @@ class Accounts
             return;
         }
 
+        $this->storeEvent($customerId, $kind, $from, $values, $kind === OperatorAccountEvent::CHURNED ? $fromMrr : (int) $values['mrr_minor']);
+    }
+
+    /** @param  array<string, mixed>  $values */
+    private function storeEvent(string $customerId, string $kind, ?string $from, array $values, int $mrr): void
+    {
         OperatorAccountEvent::query()->create([
             'customer_tenant_id' => $customerId,
             'kind' => $kind,
             'from_status' => $from,
-            'to_status' => $to,
+            'to_status' => (string) $values['status'],
             'country' => $values['country'],
             'currency' => $values['currency'],
             'bundle' => $values['bundle'],
-            'mrr_minor' => $kind === OperatorAccountEvent::CHURNED ? $fromMrr : (int) $values['mrr_minor'],
+            'mrr_minor' => $mrr,
             'occurred_at' => CarbonImmutable::now(),
         ]);
+    }
+
+    /** Accounts that pay: the paying statuses, and a trial that has paid its first invoice (its MRR is set). */
+    public static function paying(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->whereIn('status', self::PAYING)
+            ->orWhere(fn (Builder $t) => $t->where('status', Subscription::TRIAL)->where('mrr_minor', '>', 0)));
     }
 
     /**
