@@ -92,9 +92,13 @@ export function loadLocale(locale) {
   return Promise.all(work).then(() => undefined)
 }
 
-/** The strings of a module, in the current language and in any language switched to later. */
+// A module whose pages reuse another module's components (and so its strings): the
+// forecourt screens use the pharmacy item picker, document flow and place helpers.
+export const moduleDependencies = { fuel: ['pharmacy'] }
+
+/** The strings of a module (and of the modules it reuses), in the current language and in any language switched to later. */
 export function loadModule(name) {
-  activeModules.add(name)
+  for (const needed of [name, ...(moduleDependencies[name] ?? [])]) activeModules.add(needed)
   return loadLocale(i18n.language ?? 'en')
 }
 

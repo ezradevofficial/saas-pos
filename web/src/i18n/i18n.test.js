@@ -1,6 +1,6 @@
 import en from '../locales/en.json'
 import fr from '../locales/fr.json'
-import i18n, { initialLocale, isLocaleLoaded, loadLocale, LOCALE_STORAGE_KEY, resolveLocale, setLocale } from './index'
+import i18n, { initialLocale, isLocaleLoaded, loadLocale, LOCALE_STORAGE_KEY, moduleDependencies, moduleNames, resolveLocale, setLocale } from './index'
 
 function flatten(object, prefix = '') {
   return Object.entries(object).flatMap(([key, value]) =>
@@ -82,6 +82,11 @@ describe('i18n', () => {
       expect(i18n.language).toBe('en')
       expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en')
     })
+  })
+
+  it('loads the pharmacy strings with the fuel module, whose pages reuse pharmacy components (L10N-02)', () => {
+    expect(moduleDependencies.fuel).toContain('pharmacy')
+    expect(Object.entries(moduleDependencies).flatMap(([name, needed]) => [name, ...needed]).every((name) => moduleNames.includes(name))).toBe(true)
   })
 
   it('resolves a locale from the first supported candidate, else en', () => {
