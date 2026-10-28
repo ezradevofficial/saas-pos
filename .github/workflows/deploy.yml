@@ -1,12 +1,20 @@
-# Deploy to the dev and then the staging Linode once CI has passed on main,
-# or by hand. CI gates every deploy: this workflow starts when the CI
-# workflow completes on main and continues only if it succeeded. Each
-# environment deploys only when its credentials are set as repository
-# secrets (see README, "Deploy"); until the owner provides them the jobs are
+# Deploy to the dev and then the staging Linode.
+#
+# Owner decision (2026-10-28): dev and staging deploy straight away on every
+# push to main, while CI runs alongside, so staging is up to date in minutes
+# instead of after the full suite. If CI then fails for the commit that is
+# live, the last commit CI passed is deployed again (rollback). A newer push
+# makes the rollback moot: it deploys itself and gets its own CI run.
+# Migrations are not reversed by a rollback; they are additive by rule, so
+# the older code runs on the newer schema. Production, when it exists, keeps
+# the full CI gate. Each environment deploys only when its credentials are
+# set as repository secrets (see README, "Deploy"); until then its job is
 # skipped and the run still succeeds (ADR 001).
 name: Deploy
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -20,17 +28,19 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  # Runs only for a successful CI run of a push to main, or a manual run
-  # from main. Deploys the exact commit CI tested.
+  # A push or a manual run deploys its own commit. A failed CI run deploys the
+  # last green commit, but only while the failed commit is still main's head.
   gate:
-    name: Check CI result and deploy credentials
+    name: Choose the commit and check deploy credentials
     if: >-
-      (github.event_name == 'workflow_run'
-        && github.event.workflow_run.conclusion == 'success'
-        && github.event.workflow_run.event == 'push')
+      github.event_name == 'push'
       || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      || (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'failure'
+        && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-24.04
     outputs:
       dev: ${{ steps.check.outputs.dev }}
@@ -40,12 +50,33 @@ jobs:
       - name: Commit to deploy
         id: sha
         env:
-          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-        run: echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          FAILED: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$EVENT" != "workflow_run" ]; then
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          head="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [ "$head" != "$FAILED" ]; then
+            echo "::notice title=No rollback::CI failed for ${FAILED:0:8}, but main has moved on to ${head:0:8}, which deploys itself."
+            echo "sha=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          green="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')"
+          if [ -z "$green" ]; then
+            echo "::warning title=No rollback::CI failed for ${FAILED:0:8} and no green commit was found to roll back to."
+            echo "sha=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::warning title=Rollback::CI failed for ${FAILED:0:8}; deploying the last green commit ${green:0:8}."
+          echo "sha=$green" >> "$GITHUB_OUTPUT"
 
       - name: Check which environments have credentials
         id: check
         env:
+          SHA: ${{ steps.sha.outputs.sha }}
           DEV_HOST: ${{ secrets.DEV_LINODE_HOST }}
           DEV_USER: ${{ secrets.DEV_LINODE_USER }}
           DEV_KEY: ${{ secrets.DEV_LINODE_SSH_KEY }}
@@ -66,11 +97,11 @@ jobs:
               [ -n "${!var}" ] || missing="$missing $var"
             done
             flag="$(echo "$env" | tr '[:upper:]' '[:lower:]')"
-            if [ -z "$missing" ]; then
+            if [ -n "$SHA" ] && [ -z "$missing" ]; then
               echo "$flag=true" >> "$GITHUB_OUTPUT"
             else
               echo "$flag=false" >> "$GITHUB_OUTPUT"
-              echo "::notice title=Deploy to $flag skipped::Missing:$missing (see README, Deploy)"
+              [ -z "$missing" ] || echo "::notice title=Deploy to $flag skipped::Missing:$missing (see README, Deploy)"
             fi
           done
 

@@ -56,7 +56,7 @@ Three clients use the platform: a React web app (back office), an Expo / React N
 
 **Deploy** (`.github/workflows/deploy.yml` and `deploy-target.yml`) deploys to `dev`, then to `staging`, on Linode.
 
-- **CI gates every deploy.** The owner's flow merges to `main` and pushes directly, without pull requests. So the deploy does not start on push. It starts when the CI workflow completes on `main` (`workflow_run`). It continues only if that run succeeded and came from a push, and it deploys exactly the commit CI tested (`head_sha`).
+- **Staging deploys first, CI alongside (owner decision, 2026-10-28; was "CI gates every deploy").** The owner merges to `main` and pushes directly, without pull requests. Dev and staging now deploy on every push to `main` while CI runs, so staging is current in minutes. If CI then fails for the commit that is live on `main`, the deploy workflow redeploys the last commit CI passed. Migrations are additive, so no schema rollback is needed. Production, when it exists, will keep the full CI gate (`workflow_run` on a successful CI run, deploying exactly the tested `head_sha`).
 - A manual run (`workflow_dispatch`) is accepted only from `main`.
 - If pull requests are adopted, also turn on branch protection for `main`, requiring the CI jobs, so that nothing reaches `main` untested.
 - A `gate` job checks which environments have credentials (repository secrets `DEV_*` and `STAGING_*`, listed in the README). An environment without them is skipped with a notice, and the run still succeeds.
