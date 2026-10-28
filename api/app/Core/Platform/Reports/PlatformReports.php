@@ -62,7 +62,7 @@ class PlatformReports
 
     private function mrrRows(): array
     {
-        $accounts = OperatorAccount::query()->whereIn('status', Accounts::PAYING)->get();
+        $accounts = Accounts::paying(OperatorAccount::query())->get();
         $invoices = $this->periodInvoices($accounts->pluck('customer_tenant_id')->all());
         $net = fn (OperatorAccount $a) => self::netOfTax((int) $a->mrr_minor, $invoices[$a->customer_tenant_id] ?? null);
         $sum = fn (Collection $rows, callable $key) => $rows->groupBy(fn (OperatorAccount $a) => $key($a).'|'.$a->currency)
@@ -134,7 +134,7 @@ class PlatformReports
         return $this->inOperator(function () use ($from, $to) {
             $churned = $this->events([OperatorAccountEvent::CHURNED], $from, $to);
             $joined = $this->events([OperatorAccountEvent::CONVERTED, OperatorAccountEvent::SUBSCRIBED, OperatorAccountEvent::REACTIVATED], $from, $to)->count();
-            $payingNow = OperatorAccount::query()->whereIn('status', Accounts::PAYING)->count();
+            $payingNow = Accounts::paying(OperatorAccount::query())->count();
             $atStart = max(0, $payingNow - $joined + $churned->count());
 
             return [

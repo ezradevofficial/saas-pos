@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Platform;
 
 use App\Core\Billing\Models\OperatorAccount;
+use App\Core\Billing\Models\OperatorAccountEvent;
 use App\Core\Billing\Models\OperatorInvoice;
 use App\Core\Billing\Subscriptions\Subscriptions;
 use App\Core\MasterData\Taxes\TaxCode;
@@ -98,6 +99,52 @@ class PlatformReportsTest extends TestCase
         // Outside the range: nothing.
         $empty = $this->getJson('/api/v1/platform/reports/summary?from=2026-12-01&to=2026-12-31', $finance)->assertOk()->json('data');
         $this->assertSame([0, 0, 0], [$empty['trials']['started'], $empty['churn']['churned'], $empty['revenue']['invoices']]);
+    }
+
+    /**
+     * ADM-06, SUB-03: a trial converts when its first invoice is paid, though a subscribed
+     * trial stays a trial until it ends: once (not again when it turns active), never for an
+     * unpaid subscription; and being suspended then is churn with its MRR.
+     */
+    public function test_a_subscribed_trial_converts_when_its_first_invoice_is_paid_once_and_counts_for_churn(): void
+    {
+        $range = '?from=2026-11-01&to=2026-11-30';
+        $finance = $this->staff(PlatformUser::ROLE_FINANCE);
+        $support = $this->staff(PlatformUser::ROLE_SUPPORT);
+        // Staff sessions time out as the clock moves: a fresh token for each call.
+        $report = fn (string $key) => $this->getJson("/api/v1/platform/reports/summary{$range}", $this->staffBearer($finance))->assertOk()->json("data.{$key}");
+        $trials = fn () => $report('trials');
+        $converted = fn () => $this->inOperator(fn () => OperatorAccountEvent::query()->where('customer_tenant_id', $this->owner->tenant_id)->where('kind', 'converted')->count());
+
+        // Subscribed but unpaid: no conversion.
+        $invoice = $this->postJson('/api/v1/subscription/subscribe', [], $this->headersFor())->assertCreated()->json('data.id');
+        $this->assertSame(0, $converted());
+
+        // Paid, the trial still running: converted at once.
+        $this->travelToDay('2026-11-03 10:00:00');
+        $this->payWithMpesa($invoice);
+        $this->assertSame('trial', $this->subscription()->status);
+        $this->assertSame(1, $converted());
+        $this->assertSame(['started' => 1, 'converted' => 1, 'conversion_percent' => '100.0'], array_intersect_key($trials(), array_flip(['started', 'converted', 'conversion_percent'])));
+
+        // The trial ends and it turns active: not counted twice.
+        $this->cycle('2026-11-15 09:00:00');
+        $this->assertSame('active', $this->subscription()->status);
+        $this->assertSame(1, $converted());
+
+        // A second tenant pays during its trial, then is suspended: churn, with the MRR it paid.
+        $other = $this->otherTenant();
+        $headers = $this->headersFor($other['user']);
+        $this->asTenant($other['user']->tenant_id, fn () => app(Subscriptions::class)->startTrial('KE', self::STARTER));
+        $due = $this->postJson('/api/v1/subscription/subscribe', [], $headers)->assertCreated()->json('data.id');
+        $payment = $this->postJson("/api/v1/subscription/invoices/{$due}/pay", ['provider' => 'mpesa_ke', 'phone' => '0712345679'], $headers)->assertCreated()->json('data.id');
+        $this->getJson("/api/v1/subscription/payments/{$payment}", $headers)->assertOk()->assertJsonPath('data.status', 'succeeded');
+        $this->assertSame(2, $trials()['converted']);
+
+        $this->postJson("/api/v1/platform/tenants/{$other['user']->tenant_id}/suspend", ['reason' => 'Chargeback fraud under review'], $this->staffBearer($support))->assertOk();
+        $churn = $report('churn');
+        $this->assertSame(1, $churn['churned']);
+        $this->assertSame([['currency' => 'KES', 'accounts' => 1, 'amount_minor' => 346667]], $churn['mrr_lost']);
     }
 
     public function test_each_report_downloads_as_csv_and_is_audited(): void
