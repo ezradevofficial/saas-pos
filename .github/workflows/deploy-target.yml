@@ -155,6 +155,11 @@ jobs:
             api/ "$DEPLOY_USER@$HOST:$DEPLOY_PATH/api/"
           rsync -az --delete -e "$ssh_cmd" \
             web/dist/ "$DEPLOY_USER@$HOST:$DEPLOY_PATH/web/"
+          # The user manual's topics and screenshots (config/manual.php reads
+          # ../docs/manual from the API); without them Help is empty and
+          # "Download my guide" answers 404.
+          rsync -az --delete --mkpath -e "$ssh_cmd" \
+            docs/manual/ "$DEPLOY_USER@$HOST:$DEPLOY_PATH/docs/manual/"
 
       # The previous release's cached config is deleted first, so nothing
       # boots with it. app:preflight gates the migration. Migrations run as
