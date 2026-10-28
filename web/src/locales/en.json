@@ -5778,6 +5778,7 @@
     "perMonth": "a month",
     "daysLeft_one": "{{count}} day left to upgrade",
     "daysLeft_other": "{{count}} days left to upgrade",
+    "trialAllowed": "Allowed during your trial, until {{date}}",
     "paused": "Adding more is paused until you upgrade.",
     "upgrade": "Upgrade",
     "error": "Usage could not be loaded. Refresh the page to try again.",

@@ -8,6 +8,8 @@ use App\Core\Http\ApiException;
 use App\Core\Identity\Models\User;
 use App\Core\Limits\Models\Overage;
 use App\Core\Limits\Models\UsageMeter;
+use App\Core\Onboarding\Trial\TrialStatus;
+use App\Core\Onboarding\Trial\TrialStatusProvider;
 use App\Core\Rbac\OwnerGuard;
 use App\Core\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -209,11 +211,26 @@ class UsageLimits
 
         return [
             'units' => $units,
+            'trial' => $this->trial(),
             'extra_cost' => $cost !== null && $cost['total'] > 0 ? ['amount_minor' => (string) $cost['total'], 'currency' => $cost['currency']] : null,
             'window_days' => Overage::windowDays(),
             'upgrade_url' => (string) config('limits.upgrade_path', '/settings/subscription'),
             'metered_at' => $metered === null ? null : CarbonImmutable::parse($metered)->toIso8601String(),
         ];
+    }
+
+    /**
+     * LIM-02, ONB-04: the trial's real state and end date, so the banner
+     * says the trial allows the extra units instead of counting days of a
+     * window that has not been metered yet.
+     *
+     * @return array{state: string, ends_at: ?string, days_left: int}
+     */
+    private function trial(): array
+    {
+        $provider = app()->bound(TrialStatusProvider::class) ? app(TrialStatusProvider::class) : null;
+
+        return ($provider?->status() ?? TrialStatus::none())->toArray();
     }
 
     /** @param  callable(): ?array  $cost */

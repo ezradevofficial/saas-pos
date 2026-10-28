@@ -335,6 +335,30 @@ class UsageLimitsTest extends TestCase
         $this->assertSame(Overage::UNLIMITED, $this->inTenant(fn () => Overage::query()->latest('started_at')->firstOrFail())->close_reason);
     }
 
+    public function test_usage_carries_the_trial_end_date_and_counts_the_outlets_over_the_plan(): void
+    {
+        $this->allow([Units::OUTLET => 1]);
+        $ends = CarbonImmutable::now()->addDays(9);
+        $this->app->instance(\App\Core\Onboarding\Trial\TrialStatusProvider::class, new class($ends) implements \App\Core\Onboarding\Trial\TrialStatusProvider
+        {
+            public function __construct(private readonly CarbonImmutable $ends) {}
+
+            public function status(): \App\Core\Onboarding\Trial\TrialStatus
+            {
+                return \App\Core\Onboarding\Trial\TrialStatus::until($this->ends);
+            }
+        });
+        $this->inTenant(fn () => $this->branchA->locations()->create(['name' => 'Second outlet', 'type' => 'outlet']));
+
+        $usage = $this->getJson('/api/v1/usage', $this->headersFor())->assertOk()->json('data');
+        $outlet = collect($usage['units'])->firstWhere('unit', 'outlet');
+
+        $this->assertSame('trial', $usage['trial']['state']);
+        $this->assertSame($ends->toIso8601String(), $usage['trial']['ends_at']);
+        $this->assertSame(9, $usage['trial']['days_left']);
+        $this->assertSame([3, 1, 2, 'over'], [$outlet['count'], $outlet['allowed'], $outlet['over'], $outlet['state']]);
+    }
+
     public function test_the_owner_sees_usage_against_the_plan_and_others_are_refused(): void
     {
         $other = $this->otherTenant();
