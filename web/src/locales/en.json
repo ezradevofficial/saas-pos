@@ -5895,7 +5895,11 @@
       "manufacturing": "Recipes, production, wastage",
       "hr": "Staff records, leave, shifts, attendance",
       "payroll": "Statutory deductions and payslips",
-      "hotel": "Rooms and rates, reservations, front desk, folios, housekeeping, night audit"
+      "hotel": "Rooms and rates, reservations, front desk, folios, housekeeping, night audit",
+      "restaurant": "Tables, kitchen display, bar tabs, split bills",
+      "fuel": "Tanks, pumps, shifts, dips, forecourt shop",
+      "van_sales": "Sell and collect in the field, van stock",
+      "salon": "Appointments, staff commissions, packages"
     },
     "setup": {
       "title": "Get ready for your first sale",

@@ -5895,7 +5895,11 @@
       "manufacturing": "Recettes, production, pertes",
       "hr": "Dossiers du personnel, congés, horaires, présences",
       "payroll": "Retenues légales et bulletins de paie",
-      "hotel": "Chambres et tarifs, réservations, réception, folios, entretien des chambres, audit de nuit"
+      "hotel": "Chambres et tarifs, réservations, réception, folios, entretien des chambres, audit de nuit",
+      "restaurant": "Tables, écran cuisine, ardoises de bar, additions partagées",
+      "fuel": "Cuves, pompes, quarts, jaugeages, boutique de la station",
+      "van_sales": "Vente et encaissement sur le terrain, stock du véhicule",
+      "salon": "Rendez-vous, commissions du personnel, forfaits"
     },
     "setup": {
       "title": "Préparez votre première vente",
