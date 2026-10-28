@@ -2,10 +2,10 @@
 
 The owner asked for these values to be researched and used ("put what is currently being used").
 
-**These are not legal confirmations.** They come from public sources: government notices where available, and law-firm and payroll-vendor summaries otherwise. Each value is labelled with a confidence level:
+**These are not legal confirmations; the owner decided on 2026-10-28 that no external review will follow, so the values below are final.** They come from public sources: government notices where available, and law-firm and payroll-vendor summaries otherwise. Each value is labelled with a confidence level:
 
 - **High**: several independent sources agree, or KRA/NSSF published it. **Applied.**
-- **Medium**: sources mostly agree, with a minor gap. **Applied** and marked `researched`. Runs show a "researched, not yet confirmed by an accountant" notice.
+- **Medium**: sources mostly agree, with a minor gap. **Applied** and marked `researched`. Runs show a "from public research" notice.
 - **Low**: sources conflict. **Not applied** (until 2026-10-22). The value stays "needs confirmation" and blocks the action that depends on it, as before. Since the owner decision of 2026-10-22, low-confidence values are applied too, with the stronger notice: see [Applied 2026-10-22 by owner decision](#applied-2026-10-22-by-owner-decision).
 
 Values go into the packs with their source and an effective date. When the owner confirms or corrects a value, it is published through the country pack release flow (ADM-04, ADR 022).
@@ -268,3 +268,35 @@ above the third band (one source). In the CD payroll pack's `todo`.
 - Africarrières, labour law RDC: https://africarrieres.com/rd-congo/fr/guide/droit-du-travail/code-du-travail
 - ILO, Code du travail RDC 2002: https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf
 - DRC VAT overview: https://trykintsugi.com/fr-ca/sales-tax-guides/africa/democratic-republic-of-congo
+
+## Final research 2026-10-28 (owner: no external review)
+
+On 2026-10-28 the owner decided that no accountant or lawyer will review the
+packs. The researched values are final: where confidence was low or a value
+was missing, more research was done and the best-supported value is applied
+(`status: researched`, `confidence`, `researched_on: 2026-10-28`, `source`).
+Nothing blocks a run. The low-confidence notice stays on low rows, so users
+still see where the sources were thin. Corrections go through a pack release
+(ADM-04, ADR 022). Primary sources (Journal officiel RDC, CNSS, INPP, DGI,
+Kenya Law's page text) were mostly not readable online; the conclusions rest
+on the order's listing in the Journal officiel index (Leganews), PwC, Sage,
+PaySpace and Congolese legal and tax sites.
+
+| Item | Conclusion and value applied | Confidence | Sources |
+| --- | --- | --- | --- |
+| **CD INPP from 2026** | The interministerial order exists: N°002/CAB/MET/2025, N°158/CAB/MIN/FINANCES/2025, N°003/CAB/VPM/MIN/BUD/2025 of 2025-09-24, "fixant le taux de la cotisation due par les employeurs à l'INPP", listed as in force, repeals the 2006 order. Its text is paywalled; the rates are 3.5% (1 to 50 employees), 3% (51 to 300), 2% (above 300) private; public sector 4%. Council of Ministers reports describe the same step-up. Applied from 2026-01-01 (the `legal_text` assumption removed). Until 2025-12-31: 3/2/1% (unchanged). | Medium from 2026 (was low); low to 2025 | Leganews https://leganews.pro/category/social-et-rh; PaySpace https://payspace.com/blog/drc-inpp-contribution-rate-changes; Sage https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/263531/democratic-republic-of-congo-drc-increase-in-national-institute-of-professional-preparation-inpp-contribution-rates; BETO https://beto.cd/rdc-la-fixation-du-smig-a-21-500-fc-entre-en-vigueur-en-janvier-2026/ |
+| **CD CNSS employee share and the IPR base** | Settled by weight of sources: PwC (reviewed April 2026) says the employee share is deductible from the IPR base; one 2026 calculator agrees; two private guides disagree. No official text was readable. Kept deducted (`reduces_taxable: true`). | Low | PwC https://taxsummaries.pwc.com/democratic-republic-of-the-congo/individual/deductions; Afrotools https://afrotools.com/fr/rdc/calculateur-salaire-net; Iustech https://iustech-rdc.com/ipr-rdc-calcul-obligations-optimisation-impot-professionnel-remunerations/ |
+| **CD dependants reduction** | Applies: 2% of the IPR per dependant, at most 9 (PwC, Monrespro, Sage). Unchanged. | Medium | PwC (above); Monrespro https://business.monrespro.cd/blog/ipr-impot-professionnel-remunerations-rdc |
+| **CD family allowance per child** | Employer-paid on the payslip (Code du travail arts 87 and 96; Arrêté 137/2018). Formula from Decree 25/22 of 2025-05-30, art. 5: 1/27 of the daily minimum wage per child per day, times 26 days. Daily minimum CDF 14,500 from 2025-05 gives CDF 13,963 a month; CDF 21,500 from 2026-01 gives **CDF 20,704** a month. Two rows applied. Taxable and contributory assumed true (part of the minimum remuneration; CNSS exemptions are barred, Decree 18/027 art. 8). A usual ceiling of 6 children is cited without a text, so none is applied. No longer blocks runs. | Low | Monrespro https://business.monrespro.com/guides/allocations-familiales-droit-travail-congolais; Kiyana https://maxencekiyana.com/salaire-minimum-en-rdc-en-2026-ce-que-prevoit-le-decret-n-25-22-du-30-mai-2025/; BETO (above) |
+| **CD maternity pay** | 14 weeks (98 days) at 2/3 of pay, art. 130 (actualite.cd, Wikisource). Unchanged. | Medium | actualite.cd https://actualite.cd/2023/05/01/rdc-que-dit-le-code-du-travail-au-sujet-de-la-maternite |
+| **CD annual leave** | Unchanged: adults 12 working days a year, under 18 18 days, +1 day per 5 years of service, after 12 months (art. 141). | Medium adults; low under 18 | Wikisource https://fr.wikisource.org/wiki/Code_du_Travail_de_la_R%C3%A9publique_d%C3%A9mocratique_du_Congo |
+| **CD sick leave** (was "Days needed") | 2/3 of pay (art. 105) for up to 180 calendar days, the six months after which the employer may end the contract (art. 60). The Code states no day count; 180 is an inference. | Low | Wikisource (above); ILO https://www.ilo.org/dyn/travail/docs/730/RDC%20-%20Code%20du%20travail%202002.pdf |
+| **CD IPR minimum against the 30% cap** | No source states the order. Kept: the CDF 2,000 minimum first, then the 30% cap wins. | Low | Monrespro; PwC (above) |
+| **KE tax depreciation, year of acquisition** | The Second Schedule rates stand (buildings 10%, machinery 50% then 25% of the residue, vehicles 25%, computers 25%, furniture 10%). The Kenya Law page text could not be read, and no apportionment by months was found, so the year of first use counts in full. | Medium rates; low rule | Kenya Law https://new.kenyalaw.org/akn/ke/act/1973/16/eng@2026-07-01; PwC https://taxsummaries.pwc.com/kenya/corporate/deductions |
+| **CD fixed asset tax classes** (were refused) | Straight line, usual rates from a Congolese tax site: buildings 5% (range 2.5 to 5), machinery 10% (10 to 15), motor vehicles 20%, computers 33.33% (site: 33), furniture 10% (10 to 15), other 10%; full-year acquisition. No statutory table was found. The tax book now computes. | Low | Tax en RDC https://www.taxenrdc.com/actualites/taux-d-amortissement-autoris%C3%A9-pour-les-immobilisations-en-rdc; World Bank draft income tax law 2020 (straight line) |
+
+Other low rows were re-checked and left as they were (CD IPR 2025 period,
+INPP to 2025, under-18 leave, rounding assumptions, KE insurance relief
+medium). Still not modelled: weekly and bi-weekly pay, return and payment
+file layouts, CD national ID and CNSS number formats (none found, none
+enforced).

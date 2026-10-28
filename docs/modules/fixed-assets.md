@@ -298,8 +298,8 @@ guessed and the tax book stays refused. The packs' `todo` repeats this.
 The owner must confirm, from official sources, with legal references and
 effective dates:
 
-- **KE** (Income Tax Act, Second Schedule): confirm the applied classes
-  (an accountant), and the classes not modelled (hotels, manufacturing
+- **KE** (Income Tax Act, Second Schedule): the applied classes are used
+  as researched (owner: no external review), and the classes not modelled (hotels, manufacturing
   buildings and hospitals at 50% then 25%, educational and industrial
   buildings and docks 10%, filming equipment 25%, exploration machinery
   and farm works 50% then 25%, fibre-optic IRU and spectrum 10%, the 100%
@@ -387,7 +387,7 @@ effective dates:
 | ID | Status |
 | --- | --- |
 | FA-01 to FA-30 | Built and tested on `feat/fixed-assets` (modules/FixedAssets/tests: DepreciationMath, Assets, Runs, Movements, AccountingPosting, ProcurementCapitalisation, TaxBook, Maintenance, LabelsReportsImport, RoleTemplates, ReviewFixes; Accounting's ChartCodes; the isolation suite; web FixedAssets.test.jsx) |
-| FA-20 | Built; computes nothing until the owner confirms the KE and CD classes and the year-of-acquisition rule (list above) |
+| FA-20 | Built; computes from the researched KE (medium) and CD (low) classes and the full-year acquisition rule (final research 2026-10-28) |
 
 ## Deferred
 
