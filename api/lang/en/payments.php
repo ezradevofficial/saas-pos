@@ -18,6 +18,8 @@ return [
         'provider_refused' => 'The payment provider refused the request. Check the details and try again, or take another payment method.',
         'declined' => 'The customer declined the payment on their phone. Ask them to try again, or take another payment method.',
         'not_reached' => 'The customer’s phone didn’t answer in time. Ask them to check their phone and try again.',
+        'checkout_abandoned' => 'The checkout page was not completed in time. Start the payment again.',
+        'checkout_superseded' => 'The checkout was replaced by a new payment choice.',
         'provider_auth' => 'The payment provider refused the credentials. Check the payment method’s keys in the back office.',
         'phone_invalid' => 'Enter a valid mobile number, for example 0712 345 678.',
         'receipt_used' => 'This payment code was already used for another sale. Check the code on the customer’s message.',

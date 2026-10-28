@@ -566,10 +566,16 @@ class PaymentIntents
         }
 
         if ($result->isPending()) {
-            if ($intent->created_at->lessThanOrEqualTo($at->subSeconds((int) config('payments.stk_give_up_seconds', 300)))) {
-                $this->apply($intent, new ProviderResult('timeout', resultCode: 'no_answer', message: __('payments.errors.not_reached')));
+            // A hosted checkout page (Paystack) lives as long as its link; nobody is asked on a phone.
+            $page = $intent->mode === 'checkout';
+            $giveUp = $page ? (int) config('payments.paystack.checkout_minutes', 30) * 60 : (int) config('payments.stk_give_up_seconds', 300);
+
+            if ($intent->created_at->lessThanOrEqualTo($at->subSeconds($giveUp))) {
+                $this->apply($intent, $page
+                    ? new ProviderResult('timeout', resultCode: 'abandoned', message: __('payments.errors.checkout_abandoned'))
+                    : new ProviderResult('timeout', resultCode: 'no_answer', message: __('payments.errors.not_reached')));
             } else {
-                $intent->fill(['expires_at' => $at->addSeconds(30)])->save();
+                $intent->fill(['expires_at' => $at->addSeconds($page ? 120 : 30)])->save();
             }
 
             return;

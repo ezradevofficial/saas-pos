@@ -114,6 +114,8 @@ return [
         // The browser return page the owner registered in Paystack's dashboard.
         'callback_url' => env('PAYSTACK_CALLBACK_URL', rtrim((string) env('FRONTEND_URL', env('APP_URL')), '/').'/settings/subscription/paystack-return'),
         'timeout' => 20,
+        // Paystack's checkout link lasts about this long; an intent still pending after it is verified, then released (SUB-04).
+        'checkout_minutes' => (int) env('PAYSTACK_CHECKOUT_MINUTES', 30),
     ],
 
     // pawaPay (DRC: Vodacom M-Pesa, Airtel, Orange; CDF and USD). Billing
