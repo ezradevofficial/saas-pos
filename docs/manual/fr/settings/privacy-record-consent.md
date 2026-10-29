@@ -5,7 +5,7 @@ module: core
 order: 450
 permissions: [core.consent.view, core.consent.manage]
 roles: [owner, admin]
-screens: [/settings/privacy]
+screens: [/settings/privacy, /opt-out/:token]
 ---
 Enregistrez si un client accepte les messages marketing, par canal, avec ce qu'il a dit comme preuve.
 
@@ -18,3 +18,5 @@ Enregistrez si un client accepte les messages marketing, par canal, avec ce qu'i
 7. Touchez « Enregistrer l’accord » ou « Enregistrer le retrait ».
 
 « Historique » garde chaque réponse. N'envoyez pas de messages marketing sur un canal que le client a retiré.
+
+Un client peut aussi se retirer lui-même. Chaque e-mail marketing contient un lien de désinscription. Il ouvre une page, dans la langue de l’e-mail, intitulée « Ne plus recevoir d’e-mails marketing ». Le client touche une fois « Ne plus recevoir d’e-mails marketing » et voit « Vous êtes désinscrit ». Les messages sur ses commandes lui parviennent toujours, et le retrait apparaît dans « Historique ». Pour lui envoyer de nouveau des offres, demandez son accord et enregistrez-le comme ci-dessus.

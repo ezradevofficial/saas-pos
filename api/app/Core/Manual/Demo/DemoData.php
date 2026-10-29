@@ -23,6 +23,9 @@ class DemoData
     /** Sections of the user manual's second batch: procurement beyond the basics, stores, fixed assets and manufacturing. */
     private const MANUAL_BATCH_B = ['procurement_more', 'stores', 'fixed_assets', 'manufacturing'];
 
+    /** Sections for the pages the manual's back-office topics read: invoices, payments and a budget, a staff advance, a credit limit request. */
+    private const MANUAL_BACKLOG_E2 = ['accounting_more', 'payroll_more', 'contacts'];
+
     /** @var array<string, mixed> */
     public array $ids = [];
 
@@ -33,7 +36,7 @@ class DemoData
     {
         $this->base();
 
-        foreach (['inventory', 'procurement', 'pos', 'accounting', 'hr', 'payroll', 'hotel', 'restaurant', 'pharmacy', 'vansales', 'fuel', 'salon', 'crm', 'loyalty', 'ecommerce', 'approvals', ...self::MANUAL_BATCH_B] as $name) {
+        foreach (['inventory', 'procurement', 'pos', 'accounting', 'hr', 'payroll', 'hotel', 'restaurant', 'pharmacy', 'vansales', 'fuel', 'salon', 'crm', 'loyalty', 'ecommerce', 'approvals', ...self::MANUAL_BATCH_B, ...self::MANUAL_BACKLOG_E2] as $name) {
             $this->section($name, $only);
         }
 

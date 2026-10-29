@@ -5,7 +5,7 @@ module: procurement
 order: 10
 permissions: [procurement.receipt.view, procurement.receipt.create, procurement.po.view]
 roles: [storekeeper]
-screens: [/procurement/receipts, /procurement/receipts/new]
+screens: [/procurement/receipts, /procurement/receipts/new, /procurement/receipts/:receiptId]
 ---
 Les marchandises se réceptionnent à partir d’un bon de commande approuvé.
 
@@ -21,3 +21,5 @@ Les marchandises se réceptionnent à partir d’un bon de commande approuvé.
 Si des lignes sont signalées comme non entrées en stock, vérifiez l’article, son unité ou ses numéros de série, puis ajustez le stock à la main. Pour abandonner un brouillon, touchez « Annuler le brouillon ».
 
 Une livraison ne peut dépasser la commande que dans la limite de la « Réception excédentaire admise » des « Paramètres des achats ». Le fret et les droits payés sur la livraison s’ajoutent ensuite avec les frais d’approche : voir « Ajouter des frais d’approche aux marchandises reçues ». La facture du fournisseur se saisit depuis le bon de commande : voir « Saisir et approuver une facture fournisseur ».
+
+Pour relire une livraison plus tard, ouvrez « Réceptions » sous « Achats » et touchez-la. La page montre le « Bon de commande », le « Fournisseur », l’« Emplacement », le « Bon de livraison » et la « Valeur », et pour chaque ligne ce qui était « Commandé », « Reçu », « Refusé » et « Accepté », avec les numéros de lot ou de série et les « Frais d’approche ».

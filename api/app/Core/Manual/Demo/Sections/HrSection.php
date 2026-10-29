@@ -14,6 +14,8 @@ class HrSection
         $company = $demo->ids['company'];
 
         if ($api->rows('hr/employees') !== []) {
+            $this->linkOwner($demo);
+
             return;
         }
 
@@ -59,6 +61,7 @@ class HrSection
         }
 
         $demo->ids['employees'] = $employees;
+        $this->linkOwner($demo);
 
         $api->post('hr/leave-types/apply-pack', ['company_id' => $company]);
         $types = collect($api->rows('hr/leave-types', ['company_id' => $company]));
@@ -81,6 +84,27 @@ class HrSection
                 'end_date' => $start->copy()->addDays($length - 1)->format('Y-m-d'),
                 'reason' => $reason,
             ]);
+        }
+    }
+
+    /**
+     * Links the demo owner's user to the first unlinked employee, through HR's own API as the HR officer (AUTH-12: nobody links
+     * themselves), so the self-service and "my payslips" screens have a person to show. Does nothing when the owner is already linked.
+     */
+    private function linkOwner(DemoData $demo): void
+    {
+        $api = $demo->api;
+        $employees = $api->rows('hr/employees');
+        $owner = $demo->userId('owner');
+
+        if (collect($employees)->contains(fn ($employee) => ($employee['user']['id'] ?? null) === $owner)) {
+            return;
+        }
+
+        $employee = collect($employees)->first(fn ($employee) => ($employee['user'] ?? null) === null);
+
+        if ($employee !== null) {
+            $api->as('hr_officer')->patch("hr/employees/{$employee['id']}", ['user_id' => $owner]);
         }
     }
 }

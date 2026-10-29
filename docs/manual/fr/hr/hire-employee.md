@@ -5,7 +5,7 @@ module: hr
 order: 10
 permissions: [hr.employee.view, hr.employee.create]
 roles: [hr_officer]
-screens: [/hr/employees, /hr/employees/new]
+screens: [/hr/employees, /hr/employees/new, /hr/employees/:employeeId]
 ---
 Une fiche d’employé n’exige pas de compte utilisateur. Le numéro d’employé est attribué à l’enregistrement.
 
@@ -17,3 +17,5 @@ Une fiche d’employé n’exige pas de compte utilisateur. Le numéro d’emplo
 6. Touchez « Embaucher l’employé ».
 
 La fiche s’ouvre. Les données sensibles, les contrats et les comptes de paiement s’y ajoutent, dans ses onglets, par les personnes autorisées à les voir. Pour retrouver quelqu’un plus tard, utilisez « Rechercher par numéro, nom ou e-mail professionnel » sur « Employés ».
+
+La fiche a des onglets : « Aperçu », « Personnel », « Identité », « Comptes de paie », « Contrats », « Congés », « Présence », « Pièces du dossier », « Listes de tâches », « Discipline » et « Évaluations ». Vous voyez ceux que votre rôle peut lire. Ajoutez un contrat dans « Contrats » avant que la paie puisse verser quoi que ce soit à la personne, et un compte de paie dans « Comptes de paie ». Pour lier la personne à un compte utilisateur pour son libre-service, demandez à un responsable RH autorisé à lier des utilisateurs ; personne ne se lie soi-même.
