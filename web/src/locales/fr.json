@@ -439,6 +439,7 @@
     "accountingBudgets": "Budgets",
     "accountingPeriods": "Périodes",
     "accountingReports": "États financiers",
+    "accountingTaxReturns": "Déclarations fiscales",
     "accountingChart": "Plan comptable",
     "storesRequisitions": "Demandes",
     "storesIssues": "Sorties",
@@ -624,6 +625,7 @@
       "newInvoice": "Nouvelle facture",
       "newEmployee": "Nouvel employé",
       "newReservation": "Nouvelle réservation",
+      "newSalonAppointment": "Réserver un rendez-vous",
       "newQuote": "Nouveau devis",
       "newLead": "Nouvelle piste",
       "newOpportunity": "Nouvelle opportunité",
@@ -7658,6 +7660,66 @@
       "noLines": "Aucune écriture sur cette période.",
       "openSource": "Ouvrir",
       "truncated": "Seules les 2 000 premières lignes sont affichées. Réduisez la période."
+    },
+    "taxReturn": {
+      "title": {
+        "vat": "Récapitulatif de la déclaration de TVA",
+        "tva": "Récapitulatif de la déclaration de TVA",
+        "generic": "Récapitulatif de la déclaration fiscale"
+      },
+      "description": {
+        "vat": "TVA collectée et déductible par code et taux, à partir des opérations comptabilisées, avec le net à payer. Un récapitulatif pour préparer la déclaration, pas le formulaire déposé.",
+        "tva": "TVA collectée et déductible par code et taux, à partir des opérations comptabilisées, avec le net à payer. Un récapitulatif pour préparer la déclaration, pas le formulaire déposé.",
+        "generic": "Taxe collectée et déductible par code et taux, à partir des opérations comptabilisées, avec le net à payer."
+      },
+      "period": "Période",
+      "customPeriod": "Dates libres",
+      "rangeInvalid": "La date de début est après la date de fin. Modifiez l'une des deux.",
+      "export": "Exporter en CSV",
+      "close": "Fermer",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "pageOf": "Page {{page}} sur {{last}}",
+      "sections": {
+        "output": "Taxe collectée",
+        "input": "Taxe déductible"
+      },
+      "kinds": {
+        "vat": "TVA",
+        "withholding": "Retenue à la source",
+        "excise": "Accise",
+        "exempt": "Exonéré",
+        "zero_rated": "Taux zéro"
+      },
+      "taxCode": "Code de taxe",
+      "kind": "Nature",
+      "rate": "Taux",
+      "rateNeeded": "Taux à confirmer",
+      "taxable": "Base imposable",
+      "tax": "Taxe",
+      "lines": "Lignes",
+      "noCode": "Sans code de taxe",
+      "noRows": "Aucune taxe sur cette période.",
+      "noEntries": "Aucun document pour cette ligne.",
+      "document": "Document",
+      "journal": "Écriture",
+      "fiscal": "Administration fiscale",
+      "totalOf": "Total : {{section}}",
+      "netPayable": "Net à payer",
+      "netRefundable": "Net récupérable",
+      "reconciled": "Concorde avec le grand livre",
+      "notReconciled": "Ne concorde pas avec le grand livre",
+      "fiscalSummary": {
+        "KE": "{{accepted}} factures et avoirs sur {{total}} acceptés par eTIMS",
+        "CD": "{{accepted}} factures et avoirs sur {{total}} acceptés par la DGI"
+      },
+      "notes": {
+        "statutory_boxes_unmapped": "Les cases du formulaire officiel ne sont pas encore associées. Les totaux ci-dessous viennent du grand livre ; saisissez-les à la main dans le formulaire.",
+        "taxable_value_partial": "Les lignes marquées * omettent la base imposable des ventes comptabilisées par d'autres modules : elle n'est pas conservée par code de taxe dans ces écritures.",
+        "no_tax_code": "Certaines lignes de taxe n'ont pas de code (écritures manuelles ou écritures antérieures à la conservation des codes). Elles sont affichées sous Sans code de taxe.",
+        "rate_needed": "Un code de taxe n'a pas de taux confirmé. Confirmez-le dans les réglages des taxes.",
+        "not_reconciled": "Les lignes de taxe ne correspondent pas au grand livre (collectée {{output}}, déductible {{input}} en unités mineures). Contactez le support avant de déposer."
+      }
     }
   },
   "stores": {

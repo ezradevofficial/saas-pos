@@ -68,7 +68,7 @@ class ClientSearcher implements RecordSearcher
                 $party->id,
                 $party->name,
                 $hides('phones') ? null : ($party->phones[0]['number'] ?? null),
-                '/salon/clients',
+                '/salon/clients/'.$party->id,
             ))
             ->all();
     }

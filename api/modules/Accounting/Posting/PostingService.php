@@ -118,10 +118,12 @@ class PostingService
 
                 $account = $this->account($company, $line, $field, $key);
                 $foreign = $source->foreign[$field] ?? null;
+                // ACC-36: a `tax.{tax code}` line keeps its tax code, for the tax return.
+                $fieldDimensions = str_starts_with($field, 'tax.') && $key !== null && Str::isUuid($key) ? [...$lineDimensions, 'tax_code_id' => $key] : $lineDimensions;
                 $description = isset($source->labels[$field]) ? mb_substr((string) $source->labels[$field], 0, 255) : $source->reference;
                 $lines[] = is_array($foreign)
-                    ? $this->foreignLine($company, $account, $side, $amount, $foreign, $source, $lineDimensions)
-                    : LineInput::signed($account, $side, $amount, $source->fx, $description, $lineDimensions);
+                    ? $this->foreignLine($company, $account, $side, $amount, $foreign, $source, $fieldDimensions)
+                    : LineInput::signed($account, $side, $amount, $source->fx, $description, $fieldDimensions);
             }
         }
 

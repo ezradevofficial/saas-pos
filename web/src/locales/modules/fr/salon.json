@@ -617,6 +617,41 @@
       "checkPayment": "Vérifier le paiement",
       "pushSent": "Une demande de paiement a été envoyée à votre téléphone.",
       "reminder": "Nous vous rappellerons avant votre rendez-vous."
+    },
+    "newAppointment": {
+      "title": "Nouveau rendez-vous",
+      "description": "Choisissez la cliente ou le client, les prestations et un coiffeur, puis un des créneaux libres.",
+      "clientStep": "Client",
+      "whenStep": "Prestations et horaire",
+      "detailsStep": "Note et acompte",
+      "changeClient": "Changer de client",
+      "findClientHelp": "Saisissez deux lettres d'un nom ou d'un numéro. Un client absent du fichier peut être ajouté ci-dessous.",
+      "matches": "Clients trouvés",
+      "pickNamed": "Choisir {{name}}",
+      "quickAdd": "Ajouter un nouveau client",
+      "guestHelp": "Ou indiquez le nom d'un invité sans fiche client.",
+      "staffHelp": "Choisissez d'abord les prestations : seul le personnel qui les réalise toutes est proposé.",
+      "depositMethod": "Acompte payé par",
+      "noDeposit": "Pas d'acompte maintenant",
+      "depositAmount": "Montant de l'acompte",
+      "depositFailed": "Le rendez-vous est enregistré, mais l'acompte n'a pas été encaissé : {{reason}} Encaissez-le depuis le rendez-vous."
+    },
+    "clientPage": {
+      "back": "Clients",
+      "edit": "Modifier la fiche",
+      "bookAgain": "Reprendre rendez-vous",
+      "visits": "Visites",
+      "spend": "Dépensé",
+      "deposits": "Acomptes détenus",
+      "credit": "Valeur prépayée restante",
+      "profile": "Fiche",
+      "total": "Total",
+      "lastVisit": "Dernière visite : {{date}}",
+      "next": "Prochain rendez-vous : {{date}}",
+      "noShows_one": "{{count}} absence",
+      "noShows_other": "{{count}} absences",
+      "cancellations_one": "{{count}} annulation",
+      "cancellations_other": "{{count}} annulations"
     }
   }
 }

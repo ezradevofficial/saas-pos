@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { formErrors } from '@/api/formErrors'
@@ -14,7 +15,7 @@ import { formatCalendarDate } from '@/lib/dates'
 import { useLocale } from '@/lib/useLocale'
 
 /** SAL-25: a client's profile and visit history. Allergies and formulas show only when the API sends them. */
-function ClientDialog({ partyId, company, onClose }) {
+export function ClientDialog({ partyId, company, onClose }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { can } = usePermissions()
@@ -161,6 +162,7 @@ export default function Clients() {
   const locale = useLocale()
   const queryClient = useQueryClient()
   const { can } = usePermissions()
+  const navigate = useNavigate()
   const place = useSalonPlace()
   const company = place.company
   const [tab, setTab] = useState('clients')
@@ -183,7 +185,7 @@ export default function Clients() {
       label: <ActionsLabel />,
       align: 'end',
       render: (row) => (
-        <Button variant="ghost" aria-label={t('salon.clients.openNamed', { name: row.name })} onClick={() => setDialog({ type: 'client', id: row.party_id })}>
+        <Button variant="ghost" aria-label={t('salon.clients.openNamed', { name: row.name })} onClick={() => navigate(`/salon/clients/${row.party_id}`)}>
           {t('salon.clients.open')}
         </Button>
       ),
@@ -262,8 +264,7 @@ export default function Clients() {
           </>
         ) : null}
       </div>
-      {dialog?.type === 'client' ? <ClientDialog partyId={dialog.id} company={company} onClose={() => setDialog(null)} /> : null}
-      {dialog?.type === 'new' ? <NewClientDialog company={company} onClose={() => setDialog(null)} onCreated={(id) => setDialog({ type: 'client', id })} /> : null}
+      {dialog?.type === 'new' ? <NewClientDialog company={company} onClose={() => setDialog(null)} onCreated={(id) => navigate(`/salon/clients/${id}`)} /> : null}
       {dialog?.type === 'adjust' ? <AdjustDialog pack={dialog.pack} onClose={() => setDialog(null)} onDone={refresh} /> : null}
       {dialog?.type === 'resolve' ? <ReasonDialog title={t('salon.exceptions.resolveTitle')} label={t('salon.exceptions.note')} field="note" required={false} confirm={t('salon.exceptions.resolve')} path={`salon/exceptions/${dialog.id}/resolve`} onClose={() => setDialog(null)} onDone={refresh} /> : null}
     </>

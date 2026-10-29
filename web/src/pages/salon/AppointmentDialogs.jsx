@@ -26,7 +26,7 @@ import {
  * SAL-06, SAL-07: the open times for services on a day (GET salon/availability), picked as one button each; the same
  * list serves a new booking and a move. A refusal from the server (the time was just taken) shows and the list reloads.
  */
-function SlotPicker({ branchId, date, serviceIds, staffId, zone, slot, onPick }) {
+export function SlotPicker({ branchId, date, serviceIds, staffId, zone, slot, onPick }) {
   const { t } = useTranslation()
   const ready = Boolean(branchId && date && serviceIds.length)
   const query = useQuery({

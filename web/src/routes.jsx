@@ -229,6 +229,8 @@ const SalonCalendar = lazyModule('salon', () => import('./pages/salon/Calendar')
 const SalonServices = lazyModule('salon', () => import('./pages/salon/Services'))
 const SalonStaff = lazyModule('salon', () => import('./pages/salon/StaffPage'))
 const SalonClients = lazyModule('salon', () => import('./pages/salon/Clients'))
+const SalonClientDetail = lazyModule('salon', () => import('./pages/salon/ClientDetail'))
+const SalonNewAppointment = lazyModule('salon', () => import('./pages/salon/NewAppointment'))
 const SalonCommissions = lazyModule('salon', () => import('./pages/salon/Commissions'))
 const SalonReports = lazyModule('salon', () => import('./pages/salon/Reports'))
 const SalonSettings = lazyModule('salon', () => import('./pages/salon/SalonSettings'))
@@ -451,6 +453,7 @@ const Journals = lazy(() => import('./pages/accounting/Journals'))
 const AccountingPayments = lazy(() => import('./pages/accounting/Payments'))
 const PaymentDetail = lazy(() => import('./pages/accounting/Payments').then((m) => ({ default: m.PaymentDetail })))
 const Periods = lazy(() => import('./pages/accounting/Periods'))
+const TaxReturns = lazy(() => import('./pages/accounting/TaxReturns'))
 const Reports = lazy(() => import('./pages/accounting/Reports'))
 const GeneralLedger = lazy(() => import('./pages/accounting/Reports').then((m) => ({ default: m.GeneralLedger })))
 const Appearance = lazy(() => import('./pages/settings/Appearance'))
@@ -899,7 +902,9 @@ export const routes = [
         ['/salon/calendar', SALON_APPOINTMENT_VIEW, <SalonCalendar key="salon-calendar" />],
         ['/salon/services', SALON_SERVICE_VIEW, <SalonServices key="salon-services" />],
         ['/salon/staff', SALON_STAFF_VIEW, <SalonStaff key="salon-staff" />],
+        ['/salon/appointments/new', 'salon.appointment.create', <SalonNewAppointment key="salon-appointment-new" />],
         ['/salon/clients', SALON_CLIENT_VIEW, <SalonClients key="salon-clients" />],
+        ['/salon/clients/:clientId', 'salon.client.view', <SalonClientDetail key="salon-client" />],
         ['/salon/commissions', SALON_COMMISSION_VIEW, <SalonCommissions key="salon-commissions" />],
         ['/salon/reports', SALON_REPORT_VIEW, <SalonReports key="salon-reports" />],
         ['/salon/settings', SALON_SETTINGS_VIEW, <SalonSettings key="salon-settings" />],
@@ -997,6 +1002,7 @@ export const routes = [
         ['/accounting/periods', PERIOD_VIEW, <Periods key="acc-periods" />],
         ['/accounting/reports', REPORT_VIEW, <Reports key="acc-reports" />],
         ['/accounting/reports/ledger', 'accounting.report.view', <GeneralLedger key="acc-ledger" />],
+        ['/accounting/tax-returns', 'accounting.report.view', <TaxReturns key="acc-tax-returns" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // WF-01, WF-10: credit limit change requests.
       { path: '/contacts/credit-limit-changes', element: <RequirePermission permission={PARTY_VIEW}><CreditLimitChanges /></RequirePermission> },

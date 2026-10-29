@@ -56,6 +56,7 @@ export const ACTIONS = [
   { to: '/manufacturing/orders/new', group: 'manufacturing', label: (t) => t('quickSearch.actions.newProductionOrder'), permission: 'manufacturing.order.create', module: 'manufacturing', keywords: 'make production fabrication ordre' },
   { to: '/stores/requisitions/new', group: 'stores', label: (t) => t('quickSearch.actions.newStoreRequisition'), permission: 'stores.requisition.create', module: 'stores', keywords: 'request issue demande sortie magasin' },
   { to: '/loyalty/promotions/new', group: 'loyalty', label: (t) => t('quickSearch.actions.newPromotion'), permission: 'loyalty.promotion.create', module: 'loyalty', keywords: 'discount offer remise promo' },
+  { to: '/salon/appointments/new', group: 'salon', label: (t) => t('quickSearch.actions.newSalonAppointment'), permission: 'salon.appointment.create', module: 'salon', keywords: 'book booking appointment client stylist salon rendez-vous reserver coiffure' },
   { to: '/pharmacy/write-offs/new', group: 'pharmacy', label: (t) => t('quickSearch.actions.newWriteOff'), permission: WRITEOFF_CREATE, module: 'pharmacy', keywords: 'expired destroy perte peremption' },
 ]
 

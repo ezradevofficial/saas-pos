@@ -168,6 +168,16 @@ return [
         'supplier_credit' => 'Supplier credit',
     ],
 
+    'tax_return' => [
+        'sections' => ['output' => 'Output tax', 'input' => 'Input tax'],
+        'kinds' => ['vat' => 'VAT', 'withholding' => 'Withholding', 'excise' => 'Excise', 'exempt' => 'Exempt', 'zero_rated' => 'Zero-rated'],
+        'csv' => [
+            'section' => 'Section', 'tax_code' => 'Tax code', 'tax_code_name' => 'Tax code name', 'kind' => 'Kind', 'rate' => 'Rate (%)',
+            'document' => 'Document', 'number' => 'Number', 'date' => 'Date', 'source' => 'Source', 'taxable' => 'Taxable value', 'tax' => 'Tax', 'currency' => 'Currency',
+            'journal' => 'Journal',
+        ],
+    ],
+
     'document_statuses' => [
         'draft' => 'Draft',
         'posted' => 'Posted',

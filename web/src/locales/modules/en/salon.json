@@ -617,6 +617,41 @@
       "checkPayment": "Check payment",
       "pushSent": "A payment request was sent to your phone.",
       "reminder": "We will remind you before your appointment."
+    },
+    "newAppointment": {
+      "title": "New appointment",
+      "description": "Pick the client, the services and a stylist, then one of the open times.",
+      "clientStep": "Client",
+      "whenStep": "Services and time",
+      "detailsStep": "Note and deposit",
+      "changeClient": "Change client",
+      "findClientHelp": "Type two letters of a name or phone number. A client who is not on file can be added below.",
+      "matches": "Matching clients",
+      "pickNamed": "Choose {{name}}",
+      "quickAdd": "Add a new client",
+      "guestHelp": "Or give a name for a guest with no client record.",
+      "staffHelp": "Choose the services first: only staff who do all of them are listed.",
+      "depositMethod": "Deposit paid with",
+      "noDeposit": "No deposit now",
+      "depositAmount": "Deposit amount",
+      "depositFailed": "The appointment is booked, but the deposit was not taken: {{reason}} Take it from the appointment."
+    },
+    "clientPage": {
+      "back": "Clients",
+      "edit": "Edit profile",
+      "bookAgain": "Book again",
+      "visits": "Visits",
+      "spend": "Spent",
+      "deposits": "Deposits held",
+      "credit": "Prepaid value left",
+      "profile": "Profile",
+      "total": "Total",
+      "lastVisit": "Last visit {{date}}",
+      "next": "Next booking {{date}}",
+      "noShows_one": "{{count}} no-show",
+      "noShows_other": "{{count}} no-shows",
+      "cancellations_one": "{{count}} cancellation",
+      "cancellations_other": "{{count}} cancellations"
     }
   }
 }

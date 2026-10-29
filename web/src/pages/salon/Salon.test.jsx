@@ -149,7 +149,7 @@ describe('Salon', () => {
       api.post.mockRejectedValue(apiError(409, 'slot_taken', 'This time was just taken. Choose another time.'))
       renderApp('/salon/calendar')
       await screen.findByRole('region', { name: 'Wanjiru' })
-      fireEvent.click(screen.getByRole('button', { name: 'New booking' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Book with Wanjiru' }))
       const dialog = await screen.findByRole('dialog')
       fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Faith Njeri' } })
       fireEvent.click(openCombobox(within(dialog).getByLabelText('Services')).querySelector('[role="option"]'))
@@ -253,6 +253,9 @@ describe('Salon', () => {
         })
         const { unmount } = renderApp('/salon/clients')
         fireEvent.click(await screen.findByRole('button', { name: 'Open Amina Otieno' }))
+        // The client page shows the profile; editing it opens the form.
+        expect(await screen.findByRole('heading', { name: 'Amina Otieno' })).toBeInTheDocument()
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit profile' }))
         const dialog = await screen.findByRole('dialog')
         await within(dialog).findByLabelText('Preferences')
         if (shown) expect(within(dialog).getByLabelText('Allergies')).toHaveValue('Latex')

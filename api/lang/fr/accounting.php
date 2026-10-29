@@ -168,6 +168,16 @@ return [
         'supplier_credit' => 'Avoir fournisseur',
     ],
 
+    'tax_return' => [
+        'sections' => ['output' => 'Taxe collectée', 'input' => 'Taxe déductible'],
+        'kinds' => ['vat' => 'TVA', 'withholding' => 'Retenue à la source', 'excise' => 'Accise', 'exempt' => 'Exonéré', 'zero_rated' => 'Taux zéro'],
+        'csv' => [
+            'section' => 'Section', 'tax_code' => 'Code de taxe', 'tax_code_name' => 'Nom du code de taxe', 'kind' => 'Nature', 'rate' => 'Taux (%)',
+            'document' => 'Document', 'number' => 'Numéro', 'date' => 'Date', 'source' => 'Origine', 'taxable' => 'Base imposable', 'tax' => 'Taxe', 'currency' => 'Devise',
+            'journal' => 'Écriture',
+        ],
+    ],
+
     'document_statuses' => [
         'draft' => 'Brouillon',
         'posted' => 'Validé',

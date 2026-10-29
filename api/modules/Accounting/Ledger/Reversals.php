@@ -65,7 +65,7 @@ class Reversals
                 $line->fx,
                 Money::ofMinor((string) ($line->base_debit_minor + $line->base_credit_minor), $journal->base_currency),
                 $line->description,
-                $line->only(['party_id', 'branch_id', 'cost_centre_id', 'department_id', 'project_id']),
+                $line->only(['party_id', 'branch_id', 'cost_centre_id', 'department_id', 'project_id', 'tax_code_id']),
             ))->all();
 
             $reversal = $this->poster->record($company, [

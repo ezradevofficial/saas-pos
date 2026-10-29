@@ -13,6 +13,7 @@ use Modules\Accounting\Http\Controllers\PaymentController;
 use Modules\Accounting\Http\Controllers\PeriodController;
 use Modules\Accounting\Http\Controllers\PostingRuleController;
 use Modules\Accounting\Http\Controllers\ReportController;
+use Modules\Accounting\Http\Controllers\TaxReturnController;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\BankAccount;
 use Modules\Accounting\Models\BankRule;
@@ -132,6 +133,11 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('companies/{company}/accounting/reports/general-ledger', [ReportController::class, 'generalLedger']);
     Route::get('companies/{company}/accounting/reports/ageing', [ReportController::class, 'ageing']);
     Route::get('companies/{company}/accounting/reports/party-statement', [ReportController::class, 'partyStatement']);
+
+    // ACC-36: the tax return of a period, the documents behind it and its CSV export.
+    Route::get('companies/{company}/accounting/reports/tax-return', [TaxReturnController::class, 'show']);
+    Route::get('companies/{company}/accounting/reports/tax-return/entries', [TaxReturnController::class, 'entries']);
+    Route::get('companies/{company}/accounting/reports/tax-return/export', [TaxReturnController::class, 'export']);
 });
 
 // Decision 1: Accounting Pro (revaluation, budgets, consolidation).

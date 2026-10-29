@@ -16,6 +16,8 @@ use Modules\Salon\Http\Requests\ViewRequest;
 use Modules\Salon\Http\Resources\Views;
 use Modules\Salon\Models\Appointment;
 use Modules\Salon\Models\Client;
+use Modules\Salon\Models\Package;
+use Modules\Salon\Payments\Deposits;
 use Modules\Salon\Support\Errors;
 use Modules\Salon\Support\Parties;
 use Modules\Salon\Support\Places;
@@ -28,6 +30,7 @@ class ClientController
         private readonly Parties $parties,
         private readonly Views $views,
         private readonly Places $places,
+        private readonly Deposits $deposits,
     ) {}
 
     /** Customers of the company by name, phone or email (a page of 50), each with whether a profile with alerts exists. */
@@ -92,6 +95,40 @@ class ClientController
         $appointments = Appointment::query()->where('company_id', $companyId)->where('client_id', $salonClient->id)->orderByDesc('starts_at')->orderBy('id')->limit(100)->get();
 
         return response()->json(['data' => $this->views->appointments($appointments, $request, true)]);
+    }
+
+    /**
+     * SAL-25: the client at a glance for the client page: visits, what they spent (paid visits, per currency), the deposits
+     * held for open bookings and, for those who may read packages, the prepaid value left. Same permission and company
+     * as the visits.
+     */
+    public function summary(ClientRequest $request, Party $salonClient): JsonResponse
+    {
+        $companyId = $this->company($request, $salonClient);
+        $this->parties->customer($salonClient->id, $companyId, 'party');
+        $all = Appointment::query()->where('company_id', $companyId)->where('client_id', $salonClient->id)->get();
+        $served = $all->whereIn('status', [Appointment::COMPLETED, Appointment::PAID]);
+        $sum = fn ($rows, callable $amount) => $rows->groupBy('currency')->map(fn ($group, $currency) => ['currency' => $currency, 'amount_minor' => (string) $group->sum($amount)])->values()->all();
+        $next = $all->whereIn('status', Appointment::OPEN)->where('starts_at', '>=', now())->sortBy('starts_at')->first();
+        $held = $all->whereIn('status', [Appointment::BOOKED, Appointment::CHECKED_IN, Appointment::IN_SERVICE, Appointment::COMPLETED]);
+        $credit = null;
+
+        if ($this->places->inCompany($request->user(), 'salon.package.view', $companyId)) {
+            $packages = Package::query()->where('company_id', $companyId)->where('customer_id', $salonClient->id)->where('status', Package::ACTIVE)->get();
+            $credit = $packages->groupBy('currency')->map(fn ($group, $currency) => ['currency' => $currency, 'remaining_minor' => (string) $group->sum('remaining_minor'), 'packages' => $group->count()])->values()->all();
+        }
+
+        return response()->json(['data' => [
+            'visits' => $served->count(),
+            'first_visit_at' => $served->min('starts_at')?->utc()->toIso8601String(),
+            'last_visit_at' => $served->max('starts_at')?->utc()->toIso8601String(),
+            'next_appointment' => $next === null ? null : ['id' => $next->id, 'number' => $next->number, 'starts_at' => $next->starts_at->utc()->toIso8601String()],
+            'no_shows' => $all->where('status', Appointment::NO_SHOW)->count(),
+            'cancellations' => $all->where('status', Appointment::CANCELLED)->count(),
+            'spend' => $sum($all->where('status', Appointment::PAID), fn (Appointment $a) => $a->total_minor),
+            'deposits_held' => array_values(array_filter($sum($held, fn (Appointment $a) => $this->deposits->balance($a)), fn (array $row) => $row['amount_minor'] !== '0')),
+            'credit' => $credit,
+        ]]);
     }
 
     /** The company asked for; else the client's own; else the first one the reader may view clients in. */
