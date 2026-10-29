@@ -49,6 +49,8 @@ class RecordSearchHttpTest extends TestCase
     public function test_it_is_rate_limited_per_user(): void
     {
         $headers = $this->headersFor();
+        // The window is a minute: freeze time so a slow machine cannot let it lapse mid-test.
+        $this->travelTo(now());
 
         for ($i = 0; $i < 60; $i++) {
             $this->getJson('/api/v1/search?q=ab', $headers)->assertOk();

@@ -72,7 +72,21 @@ class RecordSearchTest extends TestCase
         config(['search.budget_ms' => 60000]);
     }
 
-    public function test_every_searcher_finds_the_users_own_records_and_never_another_tenants(): void
+    /**
+     * One test, one TwoTenants build (about two minutes of set-up): the scenarios
+     * run in turn on the same fixture, the module switch-off last.
+     */
+    public function test_the_record_search_follows_tenancy_permissions_scope_modules_and_field_rules(): void
+    {
+        $this->theRegistryListsASearcherPerDocumentedType();
+        $this->findsOwnRecordsAndNeverAnotherTenants();
+        $this->withoutTheViewPermissionNothingOfThatTypeComesBack();
+        $this->branchScopedUsersFindOnlyTheirBranches();
+        $this->hiddenFieldsAreNeitherMatchedNorShown();
+        $this->inactiveModulesAreSkipped();
+    }
+
+    private function findsOwnRecordsAndNeverAnotherTenants(): void
     {
         foreach ([$this->tenants->a, $this->tenants->b] as $tenant) {
             $other = $tenant === $this->tenants->a ? $this->tenants->b : $this->tenants->a;
@@ -99,7 +113,7 @@ class RecordSearchTest extends TestCase
         $this->assertLessThanOrEqual(5, count(collect($response->json('data'))->firstWhere('type', 'customer')['results']));
     }
 
-    public function test_a_user_without_the_view_permission_gets_nothing_of_that_type(): void
+    private function withoutTheViewPermissionNothingOfThatTypeComesBack(): void
     {
         $a = $this->tenants->a;
         $permissions = array_values(array_unique(array_values(self::PERMISSIONS)));
@@ -124,7 +138,7 @@ class RecordSearchTest extends TestCase
         }
     }
 
-    public function test_a_branch_scoped_user_finds_only_the_records_of_their_branches(): void
+    private function branchScopedUsersFindOnlyTheirBranches(): void
     {
         $a = $this->tenants->a;
         $permissions = array_values(array_unique(array_values(self::PERMISSIONS)));
@@ -145,7 +159,7 @@ class RecordSearchTest extends TestCase
         foreach (['sale', 'purchase_order', 'employee', 'reservation'] as $type) {
             [$id, $query] = $terms[$type];
             $this->assertNotContains($id, $this->search($this->headers($away), $query)[$type] ?? [], "A user at another branch found the {$type}");
-            $this->assertContains($id, $this->search($this->headers($here), $query)[$type] ?? [], "A user at the branch should find the {$type}: ".$this->getJson('/api/v1/search?q='.urlencode($query), $this->headers($here))->getContent().' branch '.$a->id('branch'));
+            $this->assertContains($id, $this->search($this->headers($here), $query)[$type] ?? [], "A user at the branch should find the {$type}");
         }
 
         // Company-level records (documents) and tenant-wide ones (the subscription) need a wider assignment.
@@ -166,7 +180,7 @@ class RecordSearchTest extends TestCase
         }
     }
 
-    public function test_a_searcher_of_an_inactive_module_is_skipped(): void
+    private function inactiveModulesAreSkipped(): void
     {
         $a = $this->tenants->a;
         $terms = $this->terms($a);
@@ -190,7 +204,7 @@ class RecordSearchTest extends TestCase
         $this->assertContains($terms['item'][0], $this->search($a->bearer(), $terms['item'][1])['item'] ?? []);
     }
 
-    public function test_fields_hidden_by_field_rules_are_neither_matched_nor_shown(): void
+    private function hiddenFieldsAreNeitherMatchedNorShown(): void
     {
         $a = $this->tenants->a;
         $permissions = array_values(array_unique(array_values(self::PERMISSIONS)));
@@ -216,7 +230,10 @@ class RecordSearchTest extends TestCase
         // Item code: neither matched nor shown.
         $hide('item', 'code');
         $this->assertArrayNotHasKey('item', $this->searchResults($this->headers($user), 'ITEM-A'));
-        $item = collect($this->searchResults($this->headers($user), 'Item A')['item'])->firstWhere('id', $a->id('item'));
+        // Found by a barcode (the fixture's other items share the "Item A" prefix), shown without the code.
+        $barcode = (string) app(TenantContext::class)->run($a->tenantId, fn () => DB::connection(TenantContext::CONNECTION)->table('item_barcodes')->where('item_id', $a->id('item'))->value('barcode'));
+        $item = collect($this->searchResults($this->headers($user), $barcode)['item'])->firstWhere('id', $a->id('item'));
+        $this->assertNotNull($item);
         $this->assertNull($item['subtitle']);
 
         // Hotel guest name: the reservation is found by its number only, without the guest's name.
@@ -229,7 +246,7 @@ class RecordSearchTest extends TestCase
         $this->assertNull($reservation['subtitle']);
     }
 
-    public function test_the_registry_lists_a_searcher_per_documented_type(): void
+    private function theRegistryListsASearcherPerDocumentedType(): void
     {
         $this->assertEqualsCanonicalizing(array_keys(self::PERMISSIONS), app(RecordSearch::class)->types());
     }

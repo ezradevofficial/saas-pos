@@ -19,6 +19,9 @@ const PERMISSIONS = tenantWide(['core.company.view', 'core.item.view', 'core.ite
 
 function setup({ permissions = PERMISSIONS, modules = ['core', 'inventory'], path = '/', user = OWNER } = {}) {
   mockApi(api, { user, permissions, modules, extra: { 'manual/topics?locale=en': TOPICS, 'manual/topics?locale=fr': TOPICS } })
+  // Record search: no records unless a test answers a query itself.
+  const answer = api.get.getMockImplementation()
+  api.get.mockImplementation(async (requested) => (requested.startsWith('search?') ? { data: [], meta: { partial: false } } : answer(requested)))
   return renderApp(path)
 }
 
