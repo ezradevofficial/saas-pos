@@ -18,6 +18,8 @@ return [
         'inventory' => 'Inventory',
         'stores' => 'Stores',
         'procurement' => 'Procurement',
+        'manufacturing' => 'Manufacturing',
+        'fixed_assets' => 'Fixed assets',
         'accounting' => 'Accounting',
         'hr' => 'HR',
         'payroll' => 'Payroll',

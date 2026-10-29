@@ -122,3 +122,7 @@ The Owner and Admin share the owner and admin guides: the topics list `[owner, a
 
 - The audit log has no screen in the web app yet, so there is no topic to read it. The access review export is covered by "Export the access review".
 - Single sign-on, domains, API keys, webhooks and the other settings screens.
+
+## Demo data for procurement, stores, fixed assets and manufacturing
+
+`manual:demo-tenant --only=procurement_more`, `--only=stores`, `--only=fixed_assets` and `--only=manufacturing` fill those modules (an approved requisition, a request for quotation with quotes, a published tender, a received purchase order with a matched invoice, a store requisition issued and part returned, assets with two depreciation runs, a BOM and a production order in progress). Approvals are created by a queued listener, so run a queue worker (`php artisan queue:work`) while the demo tenant is built. The supplier portal pages are signed-out pages and have no picture.

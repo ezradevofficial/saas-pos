@@ -18,6 +18,8 @@ return [
         'inventory' => 'Stocks',
         'stores' => 'Magasins',
         'procurement' => 'Achats',
+        'manufacturing' => 'Fabrication',
+        'fixed_assets' => 'Immobilisations',
         'accounting' => 'Comptabilité',
         'hr' => 'RH',
         'payroll' => 'Paie',

@@ -20,6 +20,9 @@ class DemoData
     /** The till PIN of every demo user. */
     public const TILL_PIN = '739152';
 
+    /** Sections of the user manual's second batch: procurement beyond the basics, stores, fixed assets and manufacturing. */
+    private const MANUAL_BATCH_B = ['procurement_more', 'stores', 'fixed_assets', 'manufacturing'];
+
     /** @var array<string, mixed> */
     public array $ids = [];
 
@@ -30,7 +33,7 @@ class DemoData
     {
         $this->base();
 
-        foreach (['inventory', 'procurement', 'pos', 'accounting', 'hr', 'payroll', 'hotel', 'restaurant', 'pharmacy', 'vansales', 'fuel', 'salon', 'approvals'] as $name) {
+        foreach (['inventory', 'procurement', 'pos', 'accounting', 'hr', 'payroll', 'hotel', 'restaurant', 'pharmacy', 'vansales', 'fuel', 'salon', 'approvals', ...self::MANUAL_BATCH_B] as $name) {
             if ($only !== [] && ! in_array($name, $only, true)) {
                 continue;
             }
