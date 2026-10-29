@@ -113,6 +113,20 @@ swapon --show; sudo fail2ban-client status sshd
 
 Test that alerts arrive: `sudo systemctl stop php8.3-fpm`, wait for the next 5-minute mark (one "Problem" email), then `sudo systemctl start php8.3-fpm` (one "Recovered" email).
 
+## Module activation defaults (ONB-03, MD-03, CP-01)
+
+Switching a module on, by any route (sign-up, a plan change in Settings > Subscription, or staff), gives each company the core master data the module needs. Point of sale declares a default price list in the company's currency (prices include tax), the tax categories in the country pack (`tax_categories` in `api/country-packs/{KE,CD}/pack.json`, each mapped to the company's copy of a pack tax code) and cash payment methods. A module declares its own with `ModuleDefaults::register('<module>', <class implementing ModuleDefault>)`. Anything the tenant already has is left alone, and running it again changes nothing.
+
+To fix tenants that already have POS on but lack these (for example the staging tenant that added POS later), run on the API host as the app user:
+
+```sh
+php artisan module-defaults:seed                          # every tenant, every module that declares defaults
+php artisan module-defaults:seed --module=pos             # one module
+php artisan module-defaults:seed --tenant=<tenant uuid>   # one tenant
+```
+
+It prints how many records it created. The deploy runs it after `billing:sync-modules`, so no manual step is needed after the deploy that ships it. `SEED_MODULE_DEFAULTS=false` in the `.env` switches the automatic seeding off (the test suite does); leave it unset.
+
 ## After every deploy
 
 From the host (or the runner, for the public ones):

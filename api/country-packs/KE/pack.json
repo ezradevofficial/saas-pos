@@ -30,6 +30,11 @@
             "qr": true
         }
     },
+    "tax_categories": [
+        {"key": "standard", "tax_code": "VAT_STD"},
+        {"key": "zero_rated", "tax_code": "VAT_ZERO"},
+        {"key": "exempt", "tax_code": "VAT_EXEMPT"}
+    ],
     "tax_codes": [
         {
             "code": "VAT_STD",

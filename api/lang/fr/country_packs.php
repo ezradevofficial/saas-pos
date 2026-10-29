@@ -7,6 +7,11 @@ return [
         'VAT_STD' => 'TVA, taux normal',
         'VAT_ZERO' => 'TVA, taux zéro',
         'VAT_EXEMPT' => 'Exonéré de TVA',
+        'categories' => [
+            'standard' => 'Taux normal',
+            'zero_rated' => 'Taux zéro',
+            'exempt' => 'Exonéré',
+        ],
         'VAT_WHT' => 'Retenue de TVA à la source',
     ],
     'CD' => [
@@ -14,6 +19,11 @@ return [
         'VAT_STD' => 'TVA, taux normal',
         'VAT_ZERO' => 'TVA, taux zéro',
         'VAT_EXEMPT' => 'Exonéré de TVA',
+        'categories' => [
+            'standard' => 'Taux normal',
+            'zero_rated' => 'Taux zéro',
+            'exempt' => 'Exonéré',
+        ],
     ],
     // ADM-04 (ADR 022) : versions de packs dans la console de la plateforme.
     'releases' => [

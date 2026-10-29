@@ -9,6 +9,11 @@ return [
         'VAT_STD' => 'VAT, standard rate',
         'VAT_ZERO' => 'VAT, zero-rated',
         'VAT_EXEMPT' => 'VAT exempt',
+        'categories' => [
+            'standard' => 'Standard-rated',
+            'zero_rated' => 'Zero-rated',
+            'exempt' => 'Exempt',
+        ],
         'VAT_WHT' => 'VAT withholding',
     ],
     'CD' => [
@@ -16,6 +21,11 @@ return [
         'VAT_STD' => 'VAT, standard rate',
         'VAT_ZERO' => 'VAT, zero-rated',
         'VAT_EXEMPT' => 'VAT exempt',
+        'categories' => [
+            'standard' => 'Standard-rated',
+            'zero_rated' => 'Zero-rated',
+            'exempt' => 'Exempt',
+        ],
     ],
     // ADM-04 (ADR 022): pack releases in the platform console.
     'releases' => [

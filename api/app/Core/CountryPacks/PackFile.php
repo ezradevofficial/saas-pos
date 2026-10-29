@@ -66,6 +66,11 @@ final class PackFile
             'documents.fiscal.required_on' => ['required_with:documents.fiscal', 'array'],
             'documents.fiscal.required_on.*' => ['string', 'regex:/^[a-z][a-z0-9_.]{0,59}\z/'],
             'documents.fiscal.qr' => ['required_with:documents.fiscal', 'boolean'],
+            // MD-03: the tax categories a company starts with, each pointing
+            // at one of the pack's tax codes (labels: country_packs.{pack}.categories.{key}).
+            'tax_categories' => ['sometimes', 'array'],
+            'tax_categories.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,39}\z/'],
+            'tax_categories.*.tax_code' => ['required', 'string', 'max:30', 'regex:/^[A-Z0-9_]+\z/'],
             'tax_codes' => ['required', 'array', 'min:1'],
             'tax_codes.*.code' => ['required', 'string', 'max:30', 'regex:/^[A-Z0-9_]+\z/'],
             'tax_codes.*.kind' => ['required', 'string', 'in:'.implode(',', TaxCode::KINDS)],
@@ -137,6 +142,21 @@ final class PackFile
         }
 
         self::checkPeriods($data['tax_codes']);
+
+        $codes = array_column($data['tax_codes'], 'code');
+        $keys = [];
+
+        foreach ($data['tax_categories'] ?? [] as $index => $row) {
+            if (! in_array($row['tax_code'], $codes, true)) {
+                throw new InvalidArgumentException("tax_categories.{$index} ({$row['key']}): [{$row['tax_code']}] is not one of the pack's tax codes.");
+            }
+
+            if (isset($keys[$row['key']])) {
+                throw new InvalidArgumentException("tax_categories.{$index}: the key [{$row['key']}] appears twice.");
+            }
+
+            $keys[$row['key']] = true;
+        }
 
         return new self($data);
     }
@@ -217,6 +237,12 @@ final class PackFile
         unset($research['assumed']);
 
         return $research;
+    }
+
+    /** @return list<array{key: string, tax_code: string}> the categories a company starts with (MD-03) */
+    public function taxCategories(): array
+    {
+        return array_values($this->data['tax_categories'] ?? []);
     }
 
     /** @return list<array<string, mixed>> */

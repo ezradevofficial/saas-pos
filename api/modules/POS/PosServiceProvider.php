@@ -8,6 +8,8 @@ use App\Core\DocumentTemplates\DataSources;
 use App\Core\Fiscal\FiscalSources;
 use App\Core\Layouts\Dashboards\DashboardSources;
 use App\Core\Layouts\ListViewCatalogue;
+use App\Core\MasterData\Defaults\ModuleDefaults;
+use App\Core\MasterData\Defaults\SalesDefaults;
 use App\Core\MasterData\RecordUsage;
 use App\Core\Numbering\DocumentNumberType;
 use App\Core\Numbering\DocumentNumberTypes;
@@ -114,6 +116,8 @@ class PosServiceProvider extends ServiceProvider
         PosWebhookEvents::register($this->app->make(WebhookCatalogue::class));
 
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
+        // ONB-03: selling needs a price list, tax categories and cash (core master data).
+        $this->app->make(ModuleDefaults::class)->register(self::MODULE, SalesDefaults::class);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
         // LAY-01: the quick search finds this module's records (only while it is active).
         $this->app->make(RecordSearch::class)->register(new SaleSearcher);

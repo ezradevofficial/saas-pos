@@ -4,6 +4,10 @@ namespace App\Core\MasterData;
 
 use App\Core\Currency\CurrencyUsage;
 use App\Core\Identity\Models\User;
+use App\Core\MasterData\Defaults\Console\SeedModuleDefaultsCommand;
+use App\Core\MasterData\Defaults\Listeners\SeedCompanyModuleDefaults;
+use App\Core\MasterData\Defaults\Listeners\SeedModuleDefaults;
+use App\Core\MasterData\Defaults\ModuleDefaults;
 use App\Core\MasterData\Dimensions\Dimension;
 use App\Core\MasterData\Dimensions\Dimensions;
 use App\Core\MasterData\Duplicates\DuplicateFinder;
@@ -40,6 +44,7 @@ use App\Core\MasterData\Taxes\PriceList;
 use App\Core\MasterData\Taxes\TaxCategory;
 use App\Core\MasterData\Taxes\TaxCategorySharedRecords;
 use App\Core\MasterData\Taxes\TaxCode;
+use App\Core\Rbac\Events\ModuleActivated;
 use App\Core\Rbac\Models\Role;
 use App\Core\Tenancy\Events\CompanyCreated;
 use App\Core\Tenancy\Events\TenantProvisioned;
@@ -71,6 +76,8 @@ class MasterDataServiceProvider extends ServiceProvider
         // POS-07, LOY-11: modules vouching for part of a line's discount (promotions).
         $this->app->singleton(DiscountSources::class);
         $this->app->singleton(DefaultPaymentMethods::class);
+        // ONB-03: the activation defaults modules declare (price list, tax categories, cash).
+        $this->app->singleton(ModuleDefaults::class);
     }
 
     public function boot(): void
@@ -98,6 +105,11 @@ class MasterDataServiceProvider extends ServiceProvider
         // (after its currencies, in the creating transaction).
         Event::listen(CompanyCreated::class, SeedDefaultPaymentMethods::class);
 
+        // ONB-03, RBAC-08: a module's declared defaults, when it is switched on
+        // (onboarding, plan change or staff) and for a company made while it is on.
+        Event::listen(ModuleActivated::class, SeedModuleDefaults::class);
+        Event::listen(CompanyCreated::class, SeedCompanyModuleDefaults::class);
+
         // CUR-01: a party's credit limit is a stored amount; its currency's
         // decimals lock once any party (archived ones too) has one in it.
         $this->app->make(CurrencyUsage::class)->register(
@@ -109,7 +121,7 @@ class MasterDataServiceProvider extends ServiceProvider
         );
 
         if ($this->app->runningInConsole()) {
-            $this->commands([SeedDefaultUomsCommand::class, SeedDefaultPaymentMethodsCommand::class]);
+            $this->commands([SeedDefaultUomsCommand::class, SeedDefaultPaymentMethodsCommand::class, SeedModuleDefaultsCommand::class]);
         }
 
         $history = $this->app->make(HistoryTypes::class);

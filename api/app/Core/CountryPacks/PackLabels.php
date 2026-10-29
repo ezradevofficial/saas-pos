@@ -25,6 +25,11 @@ final class PackLabels
         return self::label("{$pack}.{$code}", $locale) ?? $code;
     }
 
+    public static function taxCategory(string $pack, string $key, ?string $locale = null): string
+    {
+        return self::label("{$pack}.categories.{$key}", $locale) ?? $key;
+    }
+
     /**
      * The translation keys the pack needs that a supported locale lacks,
      * as "fr: country_packs.KE.VAT_STD".
@@ -37,6 +42,10 @@ final class PackLabels
 
         foreach (array_unique(array_column($file->taxCodes(), 'code')) as $code) {
             $keys[] = "{$file->code()}.{$code}";
+        }
+
+        foreach (array_unique(array_column($file->taxCategories(), 'key')) as $key) {
+            $keys[] = "{$file->code()}.categories.{$key}";
         }
 
         $missing = [];
