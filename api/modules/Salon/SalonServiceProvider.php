@@ -14,6 +14,7 @@ use App\Core\Rbac\Events\ModuleActivated;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
 use App\Core\Rbac\RoleTemplates;
+use App\Core\Search\RecordSearch;
 use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\Models\Company;
 use App\Core\Tenancy\Models\Tenant;
@@ -37,6 +38,7 @@ use Modules\Salon\Listeners\HandleSales;
 use Modules\Salon\Payments\SettleDeposit;
 use Modules\Salon\Pos\CreditTender;
 use Modules\Salon\Reminders\Notices;
+use Modules\Salon\Search\ClientSearcher;
 use Modules\Salon\Support\Catalogue;
 use Modules\Salon\Sync\Sources\PackagesSource;
 use Modules\Salon\Sync\Sources\QueueSource;
@@ -133,6 +135,8 @@ class SalonServiceProvider extends ServiceProvider
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // LAY-01: the quick search finds this module's records (only while it is active).
+        $this->app->make(RecordSearch::class)->register(new ClientSearcher);
 
         // NUM-01, SAL-07, SAL-23: appointments are numbered per branch, commission batches per company.
         $types = $this->app->make(DocumentNumberTypes::class);

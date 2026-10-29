@@ -19,6 +19,7 @@ use App\Core\Privacy\PrivacySubjects;
 use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Search\RecordSearch;
 use App\Core\Support\EventReplays;
 use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\Events\DeviceUnpaired;
@@ -41,6 +42,7 @@ use Modules\POS\Listeners\ApplyPaymentSettlement;
 use Modules\POS\Listeners\LinkMobileMoneyPayments;
 use Modules\POS\Listeners\QueueFiscalDocument;
 use Modules\POS\Listeners\RetireDeviceRanges;
+use Modules\POS\Search\SaleSearcher;
 use Modules\POS\Sync\CoreOverrides;
 use Modules\POS\Sync\OverrideVerifier;
 use Modules\POS\Sync\Sellability;
@@ -113,6 +115,8 @@ class PosServiceProvider extends ServiceProvider
 
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // LAY-01: the quick search finds this module's records (only while it is active).
+        $this->app->make(RecordSearch::class)->register(new SaleSearcher);
 
         // Stage 7B: the module's events raised again for a period (a later module's backfill).
         $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(PosEventReplay::class)($from, $to, $emit));

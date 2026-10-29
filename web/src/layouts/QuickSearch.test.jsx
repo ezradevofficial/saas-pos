@@ -176,6 +176,100 @@ describe('quick search (LAY-01, RBAC-08, L10N-01)', () => {
     expect(within(dialog).getByRole('combobox', { name: 'Search pages, actions and help' })).toBeInTheDocument()
   })
 
+  describe('records (LAY-01, RBAC-04, RBAC-08)', () => {
+    const KAMAU = {
+      data: [
+        { type: 'customer', results: [{ type: 'customer', id: 'c-1', title: 'Kamau Traders', subtitle: '+254700000301', path: '/contacts/customers/c-1' }] },
+        { type: 'sales_invoice', results: [{ type: 'sales_invoice', id: 'd-1', title: 'INV-0001', subtitle: 'KES 1,000.00', path: '/accounting/documents/d-1' }] },
+      ],
+      meta: { partial: false },
+    }
+
+    function setupRecords(answer, options = {}) {
+      return setupWith({ ...options, extra: { 'search?q=kamau': answer } })
+    }
+
+    // Like setup(), with extra GET answers (the search results).
+    function setupWith(options = {}) {
+      const { extra, ...rest } = options
+      mockApi(api, {
+        user: rest.user ?? OWNER,
+        permissions: rest.permissions ?? PERMISSIONS,
+        modules: rest.modules ?? ['core', 'inventory'],
+        extra: { 'manual/topics?locale=en': TOPICS, 'manual/topics?locale=fr': TOPICS, ...extra },
+      })
+      return renderApp(rest.path ?? '/')
+    }
+
+    const searchCalls = () => api.get.mock.calls.filter(([path]) => path.startsWith('search?'))
+
+    it('does not search records for one character', async () => {
+      setupRecords(KAMAU)
+      await openPalette()
+      await typeQuery('k')
+      await new Promise((resolve) => setTimeout(resolve, 400))
+      expect(searchCalls()).toHaveLength(0)
+    })
+
+    it('waits for a pause in typing, shows a loading state, then the Records group under the others', async () => {
+      let release
+      setupRecords(() => new Promise((resolve) => (release = () => resolve(KAMAU))))
+      await openPalette()
+      await typeQuery('kam')
+      await typeQuery('kamau')
+      // Debounced: nothing is asked while the user is still typing.
+      expect(searchCalls()).toHaveLength(0)
+      expect(await screen.findByRole('status')).toHaveTextContent('Searching records…')
+      expect(screen.queryByText('No matches. Try another word, or check the spelling.')).not.toBeInTheDocument()
+      await waitFor(() => expect(searchCalls()).toEqual([['search?q=kamau']]))
+      await act(async () => release())
+      expect(await screen.findByText('Records')).toBeInTheDocument()
+      const option = screen.getByRole('option', { name: /Kamau Traders/ })
+      expect(option).toHaveTextContent('+254700000301')
+      expect(option).toHaveTextContent('Customer')
+      expect(screen.getByRole('option', { name: /INV-0001/ })).toHaveTextContent('Sales invoice')
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('opens the highlighted record with Enter', async () => {
+      const { router } = setupRecords(KAMAU)
+      await openPalette()
+      await typeQuery('kamau')
+      await screen.findByRole('option', { name: /Kamau Traders/ })
+      fireEvent.keyDown(await field(), { key: 'Enter' })
+      await waitFor(() => expect(router.state.location.pathname).toBe('/contacts/customers/c-1'))
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Search' })).not.toBeInTheDocument())
+    })
+
+    it('says so when nothing matches anywhere', async () => {
+      setupRecords({ data: [], meta: { partial: false } })
+      await openPalette()
+      await typeQuery('kamau')
+      expect(await screen.findByText(/No matches/)).toBeInTheDocument()
+      expect(screen.queryByText('Records')).not.toBeInTheDocument()
+    })
+
+    it('keeps pages and actions when the record search fails', async () => {
+      setupRecords(new Error('boom'))
+      await openPalette()
+      await typeQuery('kamau')
+      expect(await screen.findByText(/Records could not be searched/)).toBeInTheDocument()
+      await typeQuery('stock')
+      expect(await screen.findByRole('option', { name: /Stock on hand/ })).toBeInTheDocument()
+    })
+
+    it('shows the group and the type in French', async () => {
+      setupWith({ user: { ...OWNER, locale: 'fr' }, extra: { 'search?q=kamau': KAMAU } })
+      await screen.findAllByRole('navigation', { name: 'Principal' })
+      await waitFor(() => expect(screen.getAllByRole('link', { name: /Stock disponible/ }).length).toBeGreaterThan(0))
+      pressCtrlK()
+      fireEvent.change(await screen.findByRole('combobox', { name: /Rechercher des pages/ }), { target: { value: 'kamau' } })
+      expect(await screen.findByText('Enregistrements')).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /Kamau Traders/ })).toHaveTextContent('Client')
+      expect(screen.getByRole('option', { name: /INV-0001/ })).toHaveTextContent('Facture de vente')
+    })
+  })
+
   it('opens from the Search box at the top of the sidebar', async () => {
     setup()
     const nav = (await screen.findAllByRole('navigation', { name: 'Main' }))[0]

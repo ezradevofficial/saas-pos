@@ -10,6 +10,7 @@ use App\Core\Identity\Models\User;
 use App\Core\Identity\Models\VerificationChallenge;
 use App\Core\Identity\Notifications\VerificationCode;
 use App\Core\MasterData\History\HistoryTypes;
+use App\Core\Search\SearchServiceProvider;
 use App\Core\Tenancy\CompanyClock;
 use App\Core\Tenancy\DueTenants;
 use App\Core\Tenancy\Http\EnsureDeviceToken;
@@ -774,6 +775,10 @@ class TenantIsolationTest extends TestCase
         ['period' => '2026-01'],
         // PAY-05, PAY-14: employees not in a pay group, run lines with errors.
         ['unassigned' => '1', 'errors' => '1'],
+        // LAY-01: the quick search's record search (both tenants have a "Customer", an "Item" and a "Worker").
+        ['q' => 'Customer'],
+        ['q' => 'Item', 'limit' => 5],
+        ['q' => 'Worker'],
     ];
 
     /**
@@ -790,7 +795,7 @@ class TenantIsolationTest extends TestCase
         'staff_id' => 'salon_staff', 'service_id' => 'salon_service', 'batch_id' => 'salon_batch'];
 
     /** Query parameters LIST_QUERIES and LIST_ID_QUERIES cover; `page` only pages through the same rows. */
-    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id',
+    public const LIST_QUERY_PARAMETERS = ['status', 'per_page', 'page', 'format', 'pair', 'from', 'to', 'kind', 'search', 'q', 'role', 'tag', 'type', 'barcode', 'category', 'company', 'sort', 'columns', 'channel', 'view', 'overdue', 'party', 'outcome', 'rule', 'state', 'entities', 'cursors', 'limit', 'branch', 'location', 'flagged', 'flag', 'reviewed', 'currency', 'key', 'entity', 'target', 'id', 'custom', 'scope_type', 'scope_id', 'form', 'importer', 'locale', 'item', 'account', 'cost_centre', 'year', 'as_of', 'department', 'group', 'document', 'source', 'employee', 'qty', 'at', 'order', 'uom_id', 'pay_group', 'unassigned', 'errors', 'run', 'owner', 'pipeline', 'asset', 'custodian', 'period', 'store', 'rider', 'payment_status', 'fulfilment', 'days', 'webhook', 'subject_type', 'subject_id',
         // Restaurant: the filters of the orders, tickets, tables and reports.
         'location_id', 'company_id', 'branch_id', 'station_id', 'table_id', 'waiter_id', 'since', 'archived',
         // Van sales: the filters of the vans, routes, plan, runs, collections, credit reviews, counts and reports.
@@ -826,6 +831,8 @@ class TenantIsolationTest extends TestCase
         RateLimiter::for(ListExport::EXPORT_LIMITER, fn () => Limit::none());
         // NFR-04: the suite calls the device routes far more than a till would.
         RateLimiter::for('device-sync', fn () => Limit::none());
+        // LAY-01: the search is called with every query above by several users; its limit is tested in RecordSearchHttpTest.
+        RateLimiter::for(SearchServiceProvider::LIMITER, fn () => Limit::none());
         RateLimiter::for('device-secret', fn () => Limit::none());
         RateLimiter::for('loyalty-lookup', fn () => Limit::none());
         // PAY-20, PAY-21: the suite builds payment and return files far more often than a person would.
@@ -988,6 +995,12 @@ class TenantIsolationTest extends TestCase
         // Control: the party search really selects A's customer (and nothing of B, checked above).
         $parties = $this->json('GET', '/api/v1/parties?'.http_build_query(self::LIST_QUERIES[4]), [], $a->bearer())->assertOk();
         $this->assertSame([$a->id('customer')], array_column($parties->json('data'), 'id'));
+
+        // Control (LAY-01): the record search really finds A's customer and item, and nothing of B (checked above).
+        $found = $this->json('GET', '/api/v1/search?q=Customer', [], $a->bearer())->assertOk();
+        $this->assertContains($a->id('customer'), array_column(array_merge(...array_column($found->json('data'), 'results')), 'id'));
+        $found = $this->json('GET', '/api/v1/search?q=Item', [], $a->bearer())->assertOk();
+        $this->assertContains($a->id('item'), array_column(array_merge(...array_column($found->json('data'), 'results')), 'id'));
 
         // Control: the item search and barcode lookup really select A's item.
         $items = $this->json('GET', '/api/v1/items?'.http_build_query(self::LIST_QUERIES[5]), [], $a->bearer())->assertOk();

@@ -18,6 +18,7 @@ use App\Core\Privacy\PrivacySubjects;
 use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Search\RecordSearch;
 use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\TenantContext;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
@@ -53,6 +54,7 @@ use Modules\HR\Models\DisciplinaryCase;
 use Modules\HR\Models\Employee;
 use Modules\HR\Rosters\Schedules;
 use Modules\HR\Rosters\ShiftSwapType;
+use Modules\HR\Search\EmployeeSearcher;
 use Modules\HR\Support\Access;
 use Modules\HR\Support\HrPack;
 use Modules\HR\Support\HrPackSchema;
@@ -178,6 +180,8 @@ class HrServiceProvider extends ServiceProvider
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // LAY-01: the quick search finds this module's records (only while it is active).
+        $this->app->make(RecordSearch::class)->register(new EmployeeSearcher);
         // ADM-04b: the HR pack release schema (ADR 022).
         HrPackSchema::register($this->app->make(PackSchemas::class));
         $this->app->make(ModuleRegistry::class)->provide(self::MODULE, self::PAYROLL, self::CORE_RESOURCES);

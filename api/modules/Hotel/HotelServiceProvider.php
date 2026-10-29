@@ -13,6 +13,7 @@ use App\Core\Privacy\Retention;
 use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Search\RecordSearch;
 use App\Core\Sync\SyncSources;
 use App\Core\Tenancy\TenantContext;
 use Illuminate\Console\Scheduling\Schedule;
@@ -28,6 +29,7 @@ use Modules\Hotel\Integrations\HotelFiscalSource;
 use Modules\Hotel\Pos\HandlePosEvents;
 use Modules\Hotel\Pos\RoomChargeTender;
 use Modules\Hotel\Reservations\Reservations;
+use Modules\Hotel\Search\ReservationSearcher;
 use Modules\Hotel\Support\Properties;
 use Modules\Hotel\Sync\InHouseSource;
 use Modules\POS\Events\SaleCompleted;
@@ -102,6 +104,8 @@ class HotelServiceProvider extends ServiceProvider
     {
         $this->app->make(ModuleRegistry::class)->register(self::MODULE);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // LAY-01: the quick search finds this module's records (only while it is active).
+        $this->app->make(RecordSearch::class)->register(new ReservationSearcher);
 
         // NUM-01, HOT-36: reservations, folios and invoices are numbered per branch.
         $types = $this->app->make(DocumentNumberTypes::class);

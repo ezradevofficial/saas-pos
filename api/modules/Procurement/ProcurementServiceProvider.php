@@ -13,6 +13,7 @@ use App\Core\Privacy\PrivacySubjects;
 use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Search\RecordSearch;
 use App\Core\Support\EventReplays;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
@@ -37,6 +38,7 @@ use Modules\Procurement\Listeners\RecordReceiptExceptions;
 use Modules\Procurement\Listeners\SettleProcurementDocument;
 use Modules\Procurement\Portal\PortalNotices;
 use Modules\Procurement\Printing\ProcurementSource;
+use Modules\Procurement\Search\PurchaseOrderSearcher;
 use Modules\Procurement\Webhooks\ProcurementWebhookEvents;
 
 /**
@@ -107,6 +109,8 @@ class ProcurementServiceProvider extends ServiceProvider
         // ACC-29: GRNs, landed costs and approved invoices raised again for the Accounting backfill.
         $this->app->make(EventReplays::class)->register(self::MODULE, fn ($from, $to, $emit) => $this->app->make(ProcurementEventReplay::class)($from, $to, $emit));
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // LAY-01: the quick search finds this module's records (only while it is active).
+        $this->app->make(RecordSearch::class)->register(new PurchaseOrderSearcher);
 
         // WF-01, WF-02: requisitions and POs run through flows.
         $documents = $this->app->make(DocumentTypeRegistry::class);
