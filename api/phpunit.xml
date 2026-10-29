@@ -35,6 +35,28 @@
             <exclude>tests/Feature/Core/Automation</exclude>
             <exclude>tests/Feature/Core/Tenancy</exclude>
             <exclude>tests/Feature/Core/Rbac</exclude>
+            <exclude>tests/Feature/Core/Billing</exclude>
+            <exclude>tests/Feature/Core/Notifications</exclude>
+            <exclude>tests/Feature/Core/Workflow</exclude>
+            <exclude>tests/Feature/Core/Platform</exclude>
+            <exclude>tests/Feature/Core/Approvals</exclude>
+            <exclude>tests/Feature/Core/Payments</exclude>
+            <exclude>tests/Feature/Core/Sso</exclude>
+            <exclude>tests/Feature/Core/Marketplace</exclude>
+            <exclude>tests/Feature/Core/Sync</exclude>
+            <exclude>tests/Feature/Core/Api</exclude>
+        </testsuite>
+        <testsuite name="ShardCoreC">
+            <directory>tests/Feature/Core/Billing</directory>
+            <directory>tests/Feature/Core/Notifications</directory>
+            <directory>tests/Feature/Core/Workflow</directory>
+            <directory>tests/Feature/Core/Platform</directory>
+            <directory>tests/Feature/Core/Approvals</directory>
+            <directory>tests/Feature/Core/Payments</directory>
+            <directory>tests/Feature/Core/Sso</directory>
+            <directory>tests/Feature/Core/Marketplace</directory>
+            <directory>tests/Feature/Core/Sync</directory>
+            <directory>tests/Feature/Core/Api</directory>
         </testsuite>
         <testsuite name="ShardModulesA">
             <directory>modules/POS/tests</directory>

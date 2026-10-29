@@ -29,8 +29,8 @@ jobs:
       fail-fast: false
       matrix:
         suite:
-          # Unit + Feature in five shards (phpunit.xml ShardCoreA, ShardCoreB,
-          # ShardModulesA, ShardModulesB, ShardModulesC) so no job nears the time limit as
+          # Unit + Feature in six shards (phpunit.xml ShardCoreA, ShardCoreB,
+          # ShardCoreC, ShardModulesA, ShardModulesB, ShardModulesC) so no job nears the time limit as
           # modules are added. A new module's tests go in one of the module shards.
           - name: core a
             pint: true
@@ -38,6 +38,9 @@ jobs:
           - name: core b
             pint: false
             command: php artisan test --testsuite=ShardCoreB --exclude-group=slow
+          - name: core c
+            pint: false
+            command: php artisan test --testsuite=ShardCoreC --exclude-group=slow
           - name: modules a
             pint: false
             command: php artisan test --testsuite=ShardModulesA --exclude-group=slow
