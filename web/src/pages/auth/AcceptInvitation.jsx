@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
 import { formErrors } from '@/api/formErrors'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { Alert, Button, TextField } from '@/components/ds'
 import { AuthForm, AuthPage, TextLink } from './AuthPage'
 

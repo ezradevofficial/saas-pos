@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink } from 'react-router'
 import { PageOutlet } from '@/layouts/PageOutlet'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { LanguageSwitch } from '@/layouts/AuthLayout'
 import { LogoMark } from '@/layouts/Sidebar'
 import { cn } from '@/lib/utils'

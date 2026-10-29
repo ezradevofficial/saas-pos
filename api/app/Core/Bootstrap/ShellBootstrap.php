@@ -65,7 +65,13 @@ class ShellBootstrap
             $parts[$name] = $this->part($parent, $uri);
         }
 
-        // BR-08: the theme at the user's chosen place, when the client names one.
+        // BR-08: the theme at the user's chosen place, when the client names one. With none stored
+        // (first sign-in) and a single company, that company is what the switcher chooses (NFR-02).
+        if ($place === []) {
+            $only = collect([$parts['companies']['data'] ?? null, $parts['my_companies']['data'] ?? null])->first(fn ($list) => is_array($list) && count($list) === 1);
+            $place = isset($only[0]['id']) ? ['company' => $only[0]['id']] : [];
+        }
+
         $parts['theme_place'] = $place === [] ? null : $this->part($parent, 'config/theme/resolved?'.http_build_query($place));
 
         return $parts;
@@ -138,7 +144,12 @@ class ShellBootstrap
         }
 
         if ($result instanceof SymfonyResponse) {
-            if ($result->getStatusCode() >= 300 || $result->getStatusCode() === Response::HTTP_NO_CONTENT) {
+            // An empty answer (GET hr/me for a user not linked to an employee) is a part with no data, so the client need not ask again; a refusal is null.
+            if ($result->getStatusCode() === Response::HTTP_NO_CONTENT) {
+                return ['data' => null];
+            }
+
+            if ($result->getStatusCode() >= 300) {
                 return null;
             }
 

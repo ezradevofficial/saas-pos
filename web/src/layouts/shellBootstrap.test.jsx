@@ -1,4 +1,4 @@
-import { waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { api } from '@/api/client'
 import i18n from '@/i18n'
 import { mockApi, OWNER, renderApp, resetSession, signedIn } from '@/test/renderApp'
@@ -72,5 +72,35 @@ describe('shell bootstrap', () => {
     await queryClient.invalidateQueries({ queryKey: ['me', 'permissions'] })
 
     expect(api.get.mock.calls.map(([path]) => path)).toContain('me/permissions')
+  })
+
+  // NFR-02: sign in, land in the shell: one bootstrap call, and permissions, hr/me and the themed place come from it.
+  it('after sign-in makes one bootstrap call and none of me/permissions, hr/me or the company theme', async () => {
+    resetSession()
+    const parts = {
+      ...PARTS,
+      permissions: { ...PERMISSIONS, modules: ['core', 'hr'] },
+      hr_me: { data: null },
+      theme_place: { data: { kind: 'theme', payload: {}, source: null } },
+    }
+    mockApi(api, { user: OWNER })
+    const base = api.get.getMockImplementation()
+    api.get.mockImplementation(async (path) => (path.startsWith('bootstrap') ? { data: parts } : base(path)))
+    api.post.mockResolvedValue({ token: 'new-token', user: OWNER, two_factor_enrollment_required: false })
+    const { router, queryClient } = renderApp('/sign-in')
+
+    fireEvent.change(screen.getByLabelText('Email or phone number', { exact: false }), { target: { value: 'amina@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password', { exact: false }), { target: { value: 'correct horse' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    await waitFor(() => expect(queryClient.getQueryData(['hr', 'me'])).toEqual({ data: null }))
+    await waitFor(() => expect(queryClient.getQueryData(['config', 'theme', 'resolved', OWNER.id, { company: 'c-1' }])).toBeTruthy())
+    expect(router.state.location.pathname).not.toBe('/sign-in')
+
+    const paths = api.get.mock.calls.map(([path]) => path)
+    expect(paths.filter((path) => path.startsWith('bootstrap'))).toHaveLength(1)
+    expect(paths).not.toContain('me/permissions')
+    expect(paths).not.toContain('hr/me')
+    expect(paths.filter((path) => path.startsWith('config/theme/resolved'))).toEqual([])
   })
 })

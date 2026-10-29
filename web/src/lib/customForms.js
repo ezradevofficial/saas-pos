@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router'
 import { api } from '@/api/client'
 import { fromShell } from '@/api/shellBootstrap'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { toApiValue, toFormValue } from './customFields'
 
 export const RECORD_STATUSES = ['draft', 'pending', 'submitted', 'approved', 'rejected', 'cancelled']

@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { api } from '@/api/client'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { usePermissions } from '@/auth/usePermissions'
 import { QuickSearch } from '@/components/ds/QuickSearch'
 import { loadRecents, saveRecent } from '@/lib/quickSearch'

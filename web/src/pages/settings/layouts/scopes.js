@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { usePermissions } from '@/auth/usePermissions'
 
 /** `tenant:`, `role:<id>` or `user:<id>` as a config scope `{ type, id }`. */
