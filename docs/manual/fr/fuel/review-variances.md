@@ -5,7 +5,7 @@ module: fuel
 order: 40
 permissions: [fuel.variance.view, fuel.variance.approve, fuel.meter.approve_reset]
 roles: [station_manager]
-screens: [/fuel/settlements, /fuel/reconciliations, /fuel/meter-resets]
+screens: [/fuel/settlements, /fuel/reconciliations, /fuel/meter-resets, /fuel/settlements/:settlementId, /fuel/reconciliations/:reconciliationId]
 ---
 Décidez de ce qui dépasse la tolérance. Vous ne pouvez pas approuver un poste que vous avez ouvert ou clôturé, ni votre propre demande.
 

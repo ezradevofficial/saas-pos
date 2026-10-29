@@ -5,7 +5,7 @@ module: hotel
 order: 30
 permissions: [hotel.folio.view, hotel.folio.charge, hotel.folio.payment]
 roles: [receptionist]
-screens: [/hotel/folios]
+screens: [/hotel/folios, /hotel/folios/:folioId]
 ---
 Le folio est la note du client : charges, paiements et ce qui reste à payer.
 

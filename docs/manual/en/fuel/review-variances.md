@@ -5,7 +5,7 @@ module: fuel
 order: 40
 permissions: [fuel.variance.view, fuel.variance.approve, fuel.meter.approve_reset]
 roles: [station_manager]
-screens: [/fuel/settlements, /fuel/reconciliations, /fuel/meter-resets]
+screens: [/fuel/settlements, /fuel/reconciliations, /fuel/meter-resets, /fuel/settlements/:settlementId, /fuel/reconciliations/:reconciliationId]
 ---
 Decide what is outside tolerance. You cannot approve a shift you opened or closed, or your own request.
 

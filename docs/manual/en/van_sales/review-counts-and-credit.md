@@ -5,7 +5,7 @@ module: van_sales
 order: 50
 permissions: [van_sales.reconciliation.view, van_sales.reconciliation.approve, van_sales.credit.review, van_sales.unload.receive]
 roles: [route_supervisor]
-screens: [/van-sales/reconciliations, /van-sales/credit-reviews]
+screens: [/van-sales/reconciliations, /van-sales/credit-reviews, /van-sales/reconciliations/:reconciliationId, /van-sales/accounts, /van-sales/accounts/:customerId]
 ---
 Check each rep's day after the van returns.
 

@@ -5,7 +5,7 @@ module: pharmacy
 order: 50
 permissions: [pharmacy.lot.quarantine, pharmacy.recall.issue, pharmacy.recall.lift]
 roles: [pharmacist]
-screens: [/pharmacy/lots, /pharmacy/recalls]
+screens: [/pharmacy/lots, /pharmacy/recalls, /pharmacy/lots/:lotId, /pharmacy/recalls/:recallId]
 ---
 Stop a doubtful batch from being sold.
 

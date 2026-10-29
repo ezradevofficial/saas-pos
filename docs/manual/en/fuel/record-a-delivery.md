@@ -5,7 +5,7 @@ module: fuel
 order: 35
 permissions: [fuel.delivery.record, fuel.delivery.view]
 roles: [shift_supervisor, station_manager]
-screens: [/fuel/deliveries]
+screens: [/fuel/deliveries, /fuel/deliveries/:deliveryId]
 ---
 Record a tanker offloading into a tank. The stock is posted from what the dips measured, not from the delivery note, so dip the tank before and after.
 
