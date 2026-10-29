@@ -1,0 +1,13 @@
+# EAS builds only the POS app; everything else stays local (the build uploads the repository root).
+.claude/
+.git/
+.playwright-mcp/
+api/
+docs/
+deploy/
+design/
+**/node_modules/
+**/vendor/
+*.log
+.env
+.env.*
