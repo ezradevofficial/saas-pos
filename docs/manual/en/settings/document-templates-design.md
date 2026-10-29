@@ -5,7 +5,7 @@ module: core
 order: 560
 permissions: [core.template.view, core.template.edit, core.template.publish]
 roles: [owner, admin]
-screens: [/settings/document-templates]
+screens: [/settings/document-templates, /settings/document-templates/:type]
 ---
 Design how receipts, invoices and other documents print. Printed documents are black on white. Tax authority details and tax lines always print where the law requires them, and their blocks are locked.
 

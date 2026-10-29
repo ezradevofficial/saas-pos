@@ -5,7 +5,7 @@ module: accounting
 order: 20
 permissions: [accounting.journal.view, accounting.journal.create, accounting.journal.approve, accounting.journal.reverse]
 roles: [accountant]
-screens: [/accounting/journals, /accounting/journals/new, /accounting/journals/:journalId]
+screens: [/accounting/journals, /accounting/journals/new, /accounting/journals/:journalId, /accounting/journals/:journalId/edit]
 ---
 Une écriture manuelle enregistre ce qu’aucun autre document ne génère à votre place.
 

@@ -5,7 +5,7 @@ module: procurement
 order: 14
 permissions: [procurement.landed_cost.view, procurement.landed_cost.create]
 roles: [accountant, procurement_officer, owner]
-screens: [/procurement/landed-costs, /procurement/landed-costs/new, /procurement/landed-costs/:landedCostId]
+screens: [/procurement/landed-costs, /procurement/landed-costs/new, /procurement/landed-costs/:landedCostId, /procurement/landed-costs/:landedCostId/edit]
 ---
 Le fret, les droits, l’assurance et le dédouanement sont répartis sur les marchandises reçues : le coût de chaque article les inclut.
 

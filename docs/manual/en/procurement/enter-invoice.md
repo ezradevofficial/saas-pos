@@ -5,7 +5,7 @@ module: procurement
 order: 12
 permissions: [procurement.invoice.view, procurement.invoice.create, procurement.invoice.approve, procurement.invoice.override]
 roles: [accountant, procurement_officer, owner]
-screens: [/procurement/invoices, /procurement/invoices/:invoiceId]
+screens: [/procurement/invoices, /procurement/invoices/:invoiceId, /procurement/invoices/new]
 ---
 Every supplier invoice is matched against the purchase order (price) and against what was received and not yet invoiced (quantity).
 

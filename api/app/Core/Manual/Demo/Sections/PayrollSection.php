@@ -7,6 +7,8 @@ use App\Core\Manual\Demo\DemoData;
 /** A monthly pay group, this month's payroll run calculated with the Kenyan country pack's statutory values (CP-01), approved and posted. */
 class PayrollSection
 {
+    use WaitsForApproval;
+
     public function run(DemoData $demo): void
     {
         $api = $demo->api;
@@ -30,7 +32,7 @@ class PayrollSection
         $run = $officer->post('payroll/runs', ['pay_group_id' => $group['id']])['data'];
         $officer->post("payroll/runs/{$run['id']}/calculate");
         $officer->post("payroll/runs/{$run['id']}/submit");
-        $demo->approveAll('owner');
+        $this->approveUntil($demo, 'owner', fn () => $officer->get("payroll/runs/{$run['id']}")['data']['status'] === 'approved');
         $officer->post("payroll/runs/{$run['id']}/post");
     }
 }

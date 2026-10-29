@@ -5,7 +5,7 @@ module: procurement
 order: 2
 permissions: [procurement.rfq.view, procurement.rfq.create]
 roles: [procurement_officer, owner]
-screens: [/procurement/rfqs, /procurement/rfqs/new, /procurement/rfqs/:rfqId]
+screens: [/procurement/rfqs, /procurement/rfqs/new, /procurement/rfqs/:rfqId, /procurement/rfqs/:rfqId/edit]
 ---
 A request for quotation (RFQ) asks several suppliers for prices. You type in their quotes as they come back.
 

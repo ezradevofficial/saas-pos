@@ -5,7 +5,7 @@ module: core
 order: 30
 permissions: [core.onboarding.view, core.onboarding.edit]
 roles: [owner, admin]
-screens: [/onboarding/setup]
+screens: [/onboarding/setup, /onboarding/setup/:step]
 ---
 "Get ready for your first sale" lists the setup steps. Do them in any order and skip what you do not need today. You can come back from Settings.
 

@@ -5,7 +5,7 @@ module: procurement
 order: 4
 permissions: [procurement.tender.view, procurement.tender.create]
 roles: [procurement_officer, owner]
-screens: [/procurement/tenders, /procurement/tenders/new, /procurement/tenders/:tenderId]
+screens: [/procurement/tenders, /procurement/tenders/new, /procurement/tenders/:tenderId, /procurement/tenders/:tenderId/edit]
 ---
 A tender collects sealed bids. A committee opens them together and scores them before the award.
 

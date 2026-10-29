@@ -5,7 +5,7 @@ module: core
 order: 860
 permissions: [core.automation.view, core.automation.edit]
 roles: [owner, admin]
-screens: [/settings/automation-rules]
+screens: [/settings/automation-rules, /settings/automation-runs]
 ---
 1. Open Automation, then "Automation rules".
 2. Search the list by name, or filter by status, document type and company.

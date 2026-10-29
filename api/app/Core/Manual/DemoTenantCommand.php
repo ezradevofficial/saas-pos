@@ -53,6 +53,9 @@ class DemoTenantCommand extends Command
             return self::FAILURE;
         }
 
+        // Approvals are made by queued listeners: run them inline so no queue worker is needed.
+        config(['queue.default' => 'sync']);
+
         $id = self::TENANT_ID;
         $exists = $tenants->run($id, fn () => Tenant::query()->whereKey($id)->exists());
 

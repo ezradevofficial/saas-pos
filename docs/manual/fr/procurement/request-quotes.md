@@ -5,7 +5,7 @@ module: procurement
 order: 2
 permissions: [procurement.rfq.view, procurement.rfq.create]
 roles: [procurement_officer, owner]
-screens: [/procurement/rfqs, /procurement/rfqs/new, /procurement/rfqs/:rfqId]
+screens: [/procurement/rfqs, /procurement/rfqs/new, /procurement/rfqs/:rfqId, /procurement/rfqs/:rfqId/edit]
 ---
 Une demande de prix interroge plusieurs fournisseurs. Vous saisissez leurs offres à leur arrivée.
 

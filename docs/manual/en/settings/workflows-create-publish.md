@@ -5,7 +5,7 @@ module: core
 order: 830
 permissions: [core.workflow.view, core.workflow.edit, core.workflow.publish]
 roles: [owner, admin]
-screens: [/settings/workflows]
+screens: [/settings/workflows, /settings/workflows/:workflowId]
 ---
 A workflow sets the stages, approvals and actions a document type goes through, per company. Edit a draft, test it, then publish it. Nothing changes for documents until you publish.
 

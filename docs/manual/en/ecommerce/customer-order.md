@@ -5,7 +5,7 @@ module: ecommerce
 order: 160
 permissions: []
 roles: [owner, admin, branch_manager, cashier]
-screens: [/shop/:store, /shop/:store/cart, /shop/:store/checkout, /shop/:store/orders/:number, /shop/:store/account]
+screens: [/shop/:store, /shop/:store/cart, /shop/:store/checkout, /shop/:store/orders/:number, /shop/:store/account, /shop/:store/products/:slug]
 ---
 Customers use the store without signing in to {{app_name}}. Knowing the steps helps you support them.
 

@@ -5,7 +5,7 @@ module: procurement
 order: 1
 permissions: [procurement.requisition.view, procurement.requisition.create]
 roles: [branch_manager, procurement_officer, storekeeper, owner]
-screens: [/procurement/requisitions, /procurement/requisitions/:requisitionId, /procurement/requisitions/:requisitionId/edit]
+screens: [/procurement/requisitions, /procurement/requisitions/:requisitionId, /procurement/requisitions/:requisitionId/edit, /procurement/requisitions/new]
 ---
 Une demande d’achat est une demande d’acheter des biens ou des services. Elle est approuvée avant tout achat.
 

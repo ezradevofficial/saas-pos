@@ -4,7 +4,7 @@ title: Soumissionner à un appel d’offres dans le portail fournisseurs
 module: procurement
 order: 5
 permissions: []
-roles: [procurement_officer, owner]
+roles: [procurement_officer, owner, admin]
 screens: [/supplier-portal/notices/:notice, /supplier-portal/:token, /supplier-portal/tender]
 ---
 Ce sujet s’adresse aux fournisseurs. Transmettez-le aux soumissionnaires d’un appel d’offres. Les fournisseurs n’ont pas besoin de compte {{app_name}} : ils utilisent un lien personnel.

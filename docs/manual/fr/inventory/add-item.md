@@ -5,7 +5,7 @@ module: inventory
 order: 10
 permissions: [core.item.view, core.item.create, core.uom.view]
 roles: [storekeeper, branch_manager]
-screens: [/catalogue/items, /catalogue/items/new]
+screens: [/catalogue/items, /catalogue/items/new, /catalogue/items/:itemId]
 ---
 Un article est ce que vous stockez et vendez. Le stock se compte dans son unité de base.
 

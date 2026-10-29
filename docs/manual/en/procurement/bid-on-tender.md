@@ -4,7 +4,7 @@ title: Bid on a tender in the supplier portal
 module: procurement
 order: 5
 permissions: []
-roles: [procurement_officer, owner]
+roles: [procurement_officer, owner, admin]
 screens: [/supplier-portal/notices/:notice, /supplier-portal/:token, /supplier-portal/tender]
 ---
 This topic is for suppliers. Share it with the bidders of a tender. Suppliers do not need a {{app_name}} account: they use a personal link.

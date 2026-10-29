@@ -5,7 +5,7 @@ module: core
 order: 640
 permissions: [core.marketplace.view, core.marketplace.install]
 roles: [owner, admin]
-screens: [/marketplace]
+screens: [/marketplace, /marketplace/:appId]
 ---
 Les applications se connectent à votre organisation par l'API publique. Chacune demande ce dont elle a besoin, et vous choisissez le rôle sous lequel elle agit.
 
