@@ -135,7 +135,11 @@ class TaxReturnTest extends TestCase
 
     public function test_the_period_is_validated(): void
     {
-        $this->api('GET', $this->companyUri('reports/tax-return'), [], $this->accountant)->assertUnprocessable()->assertJsonValidationErrors(['from', 'to']);
+        // No period: last month, as the page opens on.
+        $month = now()->subMonthNoOverflow();
+        $this->api('GET', $this->companyUri('reports/tax-return'), [], $this->accountant)->assertOk()
+            ->assertJsonPath('data.from', $month->startOfMonth()->toDateString())->assertJsonPath('data.to', $month->endOfMonth()->toDateString());
+        $this->api('GET', $this->companyUri('reports/tax-return').'?from=2026-10-01', [], $this->accountant)->assertUnprocessable()->assertJsonValidationErrors(['to']);
         $this->api('GET', $this->companyUri('reports/tax-return').'?from=2026-10-31&to=2026-10-01', [], $this->accountant)->assertUnprocessable()->assertJsonValidationErrors(['to']);
         $this->api('GET', $this->returnUri('/entries').'&tax_code='.Str::uuid(), [], $this->accountant)->assertUnprocessable()->assertJsonValidationErrors(['tax_code']);
     }
