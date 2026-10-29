@@ -10,7 +10,8 @@
     "dev:web": "npm run dev --workspace web",
     "dev:pos": "npm run start --workspace pos",
     "dev:api": "cd api && PHP_CLI_SERVER_WORKERS=4 php artisan serve --port=8008 --no-reload",
-    "check:i18n": "node scripts/check-i18n.mjs"
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "check:manual": "npm run test:manual -w web"
   },
   "overrides": {
     "react-native-worklets": "0.10.1"

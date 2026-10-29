@@ -5,7 +5,7 @@ module: core
 order: 830
 permissions: [core.workflow.view, core.workflow.edit, core.workflow.publish]
 roles: [owner, admin]
-screens: [/settings/workflows]
+screens: [/settings/workflows, /settings/workflows/:workflowId]
 ---
 Un flux de travail définit les étapes, approbations et actions par lesquelles passe un type de document, par société. Modifiez un brouillon, testez-le, puis publiez-le. Rien ne change pour les documents avant la publication.
 

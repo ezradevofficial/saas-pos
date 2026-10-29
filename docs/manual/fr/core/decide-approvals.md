@@ -5,7 +5,7 @@ module: core
 order: 140
 permissions: []
 roles: [branch_manager]
-screens: [/approvals/:approvalId]
+screens: [/approvals/:approvalId, /approvals]
 ---
 La boîte des approbations liste tout ce qui attend votre décision, tous modules confondus. Vous ne voyez que ce que vous pouvez décider.
 

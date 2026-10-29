@@ -5,7 +5,7 @@ module: core
 order: 410
 permissions: [core.webhook.manage]
 roles: [owner, admin]
-screens: [/settings/webhooks]
+screens: [/settings/webhooks, /settings/webhooks/:webhookId]
 ---
 Le journal des livraisons montre chaque événement envoyé, la réponse et le nombre de tentatives.
 

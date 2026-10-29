@@ -5,7 +5,7 @@ module: procurement
 order: 14
 permissions: [procurement.landed_cost.view, procurement.landed_cost.create]
 roles: [accountant, procurement_officer, owner]
-screens: [/procurement/landed-costs, /procurement/landed-costs/new, /procurement/landed-costs/:landedCostId]
+screens: [/procurement/landed-costs, /procurement/landed-costs/new, /procurement/landed-costs/:landedCostId, /procurement/landed-costs/:landedCostId/edit]
 ---
 Freight, duty, insurance and clearing are spread over the goods received, so each item’s cost includes them.
 

@@ -5,7 +5,7 @@ module: core
 order: 140
 permissions: []
 roles: [branch_manager]
-screens: [/approvals/:approvalId]
+screens: [/approvals/:approvalId, /approvals]
 ---
 The approvals inbox lists everything waiting for you, across modules. You see only what you are allowed to decide.
 

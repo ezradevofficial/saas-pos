@@ -5,7 +5,7 @@ module: core
 order: 530
 permissions: [core.import.run]
 roles: [owner, admin, accountant]
-screens: [/settings/imports]
+screens: [/settings/imports, /settings/imports/new, /settings/imports/:importId]
 ---
 Importez des articles, clients, fournisseurs et prix depuis un tableur. Chaque ligne est vérifiée avec les mêmes règles qu'un enregistrement saisi dans l'application, et rien n'est enregistré avant l'import. Vous ne voyez que les types d'import que vous pouvez créer.
 

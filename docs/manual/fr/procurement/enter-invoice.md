@@ -5,7 +5,7 @@ module: procurement
 order: 12
 permissions: [procurement.invoice.view, procurement.invoice.create, procurement.invoice.approve, procurement.invoice.override]
 roles: [accountant, procurement_officer, owner]
-screens: [/procurement/invoices, /procurement/invoices/:invoiceId]
+screens: [/procurement/invoices, /procurement/invoices/:invoiceId, /procurement/invoices/new]
 ---
 Chaque facture fournisseur est rapprochée du bon de commande (prix) et de ce qui a été reçu et pas encore facturé (quantité).
 

@@ -10,7 +10,8 @@
     "manual:screenshots": "node scripts/manual-screenshots.mjs",
     "manual:screenshots:pos": "node scripts/manual-pos-screenshots.mjs",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "test:manual": "vitest run src/manualCoverage.test.js"
   },
   "browserslist": [
     "last 2 Chrome versions",

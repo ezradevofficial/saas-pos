@@ -5,7 +5,7 @@ module: core
 order: 530
 permissions: [core.import.run]
 roles: [owner, admin, accountant]
-screens: [/settings/imports]
+screens: [/settings/imports, /settings/imports/new, /settings/imports/:importId]
 ---
 Bring items, customers, suppliers and prices from a spreadsheet. Each row is checked with the same rules as a record typed in the app, and nothing is saved until you import. You see only the import types you may create.
 

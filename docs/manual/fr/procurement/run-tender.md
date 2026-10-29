@@ -5,7 +5,7 @@ module: procurement
 order: 4
 permissions: [procurement.tender.view, procurement.tender.create]
 roles: [procurement_officer, owner]
-screens: [/procurement/tenders, /procurement/tenders/new, /procurement/tenders/:tenderId]
+screens: [/procurement/tenders, /procurement/tenders/new, /procurement/tenders/:tenderId, /procurement/tenders/:tenderId/edit]
 ---
 Un appel d’offres recueille des offres sous pli scellé. Une commission les ouvre ensemble et les note avant l’attribution.
 

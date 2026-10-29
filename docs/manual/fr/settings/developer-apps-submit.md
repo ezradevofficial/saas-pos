@@ -5,7 +5,7 @@ module: core
 order: 660
 permissions: [core.developer.manage]
 roles: [owner, admin]
-screens: [/settings/developer-apps]
+screens: [/settings/developer-apps, /settings/developer-apps/:appId]
 ---
 Créez des applications pour la place de marché. L'équipe de la plateforme examine chaque version avant sa mise en ligne.
 

@@ -5,7 +5,7 @@ module: core
 order: 850
 permissions: [core.automation.view, core.automation.edit]
 roles: [owner, admin]
-screens: [/settings/automation-rules]
+screens: [/settings/automation-rules, /settings/automation-rules/:ruleId]
 ---
 An automation rule acts on its own when something happens to a document: it can send a notification, update a field, change a stage, assign a person, create a document, set a credit hold or call a webhook.
 

@@ -5,7 +5,7 @@ module: core
 order: 410
 permissions: [core.webhook.manage]
 roles: [owner, admin]
-screens: [/settings/webhooks]
+screens: [/settings/webhooks, /settings/webhooks/:webhookId]
 ---
 The delivery log shows every event sent, the answer, and how many times it was tried.
 

@@ -5,7 +5,7 @@ module: procurement
 order: 1
 permissions: [procurement.requisition.view, procurement.requisition.create]
 roles: [branch_manager, procurement_officer, storekeeper, owner]
-screens: [/procurement/requisitions, /procurement/requisitions/:requisitionId, /procurement/requisitions/:requisitionId/edit]
+screens: [/procurement/requisitions, /procurement/requisitions/:requisitionId, /procurement/requisitions/:requisitionId/edit, /procurement/requisitions/new]
 ---
 A requisition is a request to buy goods or services. It is approved before anything is bought.
 

@@ -5,7 +5,7 @@ module: core
 order: 740
 permissions: [core.tax.view, core.tax.edit, core.price_list.view, core.price_list.edit]
 roles: [owner, admin]
-screens: [/settings/taxes]
+screens: [/settings/taxes, /settings/taxes/price-lists/:priceListId]
 ---
 Tax categories group items taxed the same way. Price lists hold the prices you sell at, in one currency each.
 

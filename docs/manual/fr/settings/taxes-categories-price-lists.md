@@ -5,7 +5,7 @@ module: core
 order: 740
 permissions: [core.tax.view, core.tax.edit, core.price_list.view, core.price_list.edit]
 roles: [owner, admin]
-screens: [/settings/taxes]
+screens: [/settings/taxes, /settings/taxes/price-lists/:priceListId]
 ---
 Les catégories de taxe regroupent les articles taxés de la même façon. Les listes de prix contiennent les prix de vente, dans une seule devise chacune.
 

@@ -5,7 +5,7 @@ module: core
 order: 850
 permissions: [core.automation.view, core.automation.edit]
 roles: [owner, admin]
-screens: [/settings/automation-rules]
+screens: [/settings/automation-rules, /settings/automation-rules/:ruleId]
 ---
 Une règle d'automatisation agit d'elle-même quand quelque chose arrive à un document : elle peut envoyer une notification, mettre à jour un champ, changer d'étape, assigner une personne, créer un document, bloquer le crédit ou appeler un webhook.
 

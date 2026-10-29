@@ -5,7 +5,7 @@ module: core
 order: 30
 permissions: [core.onboarding.view, core.onboarding.edit]
 roles: [owner, admin]
-screens: [/onboarding/setup]
+screens: [/onboarding/setup, /onboarding/setup/:step]
 ---
 « Préparez votre première vente » liste les étapes de mise en place. Faites-les dans l'ordre que vous voulez et passez celles dont vous n'avez pas besoin aujourd'hui. Vous pourrez y revenir depuis Paramètres.
 

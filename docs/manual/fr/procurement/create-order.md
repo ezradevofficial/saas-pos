@@ -5,7 +5,7 @@ module: procurement
 order: 8
 permissions: [procurement.po.view, procurement.po.create, procurement.po.print]
 roles: [procurement_officer, branch_manager, owner]
-screens: [/procurement/orders, /procurement/orders/new, /procurement/orders/:orderId]
+screens: [/procurement/orders, /procurement/orders/new, /procurement/orders/:orderId, /procurement/orders/:orderId/edit]
 ---
 Un bon de commande est approuvé avant d’être envoyé au fournisseur.
 

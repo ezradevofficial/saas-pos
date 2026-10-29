@@ -5,7 +5,7 @@ module: core
 order: 650
 permissions: [core.marketplace.view, core.marketplace.install]
 roles: [owner, admin]
-screens: [/settings/apps]
+screens: [/settings/apps, /settings/apps/:installationId]
 ---
 Applications installées liste les applications que votre organisation a installées, ce que chacune a reçu et le rôle sous lequel elle agit.
 

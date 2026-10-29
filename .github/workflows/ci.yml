@@ -208,6 +208,10 @@ jobs:
       - name: Lint
         run: npm run lint -w web
 
+      # The manual stays complete: every route is in a topic or the exclusion list (docs/manual/route-exclusions.json).
+      - name: Manual coverage
+        run: npm run check:manual
+
       - name: Tests
         working-directory: web
         run: npx vitest run
@@ -231,6 +235,10 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # The manual stays complete: every route is in a topic or the exclusion list (docs/manual/route-exclusions.json).
+      - name: Manual coverage
+        run: npm run check:manual
 
       - name: Tests
         working-directory: pos
@@ -265,6 +273,10 @@ jobs:
             echo "$untracked"
             exit 1
           fi
+
+      # The manual stays complete: every route is in a topic or the exclusion list (docs/manual/route-exclusions.json).
+      - name: Manual coverage
+        run: npm run check:manual
 
       - name: Tests
         run: npm test -w @app/tokens

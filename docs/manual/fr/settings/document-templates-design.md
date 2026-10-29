@@ -5,7 +5,7 @@ module: core
 order: 560
 permissions: [core.template.view, core.template.edit, core.template.publish]
 roles: [owner, admin]
-screens: [/settings/document-templates]
+screens: [/settings/document-templates, /settings/document-templates/:type]
 ---
 Concevez l'impression des reçus, factures et autres documents. Les documents imprimés sont en noir sur blanc. Les informations de l'autorité fiscale et les lignes de taxe s'impriment toujours là où la loi l'exige, et leurs blocs sont verrouillés.
 

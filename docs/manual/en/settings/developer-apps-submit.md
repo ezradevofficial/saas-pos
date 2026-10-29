@@ -5,7 +5,7 @@ module: core
 order: 660
 permissions: [core.developer.manage]
 roles: [owner, admin]
-screens: [/settings/developer-apps]
+screens: [/settings/developer-apps, /settings/developer-apps/:appId]
 ---
 Build apps for the marketplace. The platform team reviews each version before it is listed.
 
