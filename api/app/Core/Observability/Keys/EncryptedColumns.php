@@ -37,6 +37,7 @@ final class EncryptedColumns
      * @var array<string, string>
      */
     public const CRYPT_CALLERS = [
+        'app/Core/Payments/Paystack/PaystackProvider.php' => 'a card authorization handed back by Paystack, kept sealed in the cache for a few minutes until the method is saved, never stored in a table',
         'app/Core/Platform/PlatformAuth.php' => 'a staff sign-in challenge handed to the browser for a few minutes, never stored',
         'modules/Procurement/Tenders/Tenders.php' => 'procurement_tenders.public_token_secret (MANUAL)',
         'modules/Procurement/Tenders/Seal.php' => 'procurement_tenders.seal_secret (MANUAL); bids are sealed with the tender key, not the app key',

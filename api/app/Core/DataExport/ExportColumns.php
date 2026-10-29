@@ -55,6 +55,7 @@ final class ExportColumns
         'payment_intents.phone' => 'the payer\'s phone number, shown only masked (encrypted)',
         'billing_payment_methods.token' => 'a card provider\'s token for charging the subscription (SUB-04, encrypted)',
         'billing_payments.redirect_url' => 'a hosted card checkout link for a subscription payment, which may carry a session token (SUB-04)',
+        'billing_payment_methods.customer_email' => 'the payer\'s email Paystack charges a saved card with (SUB-04, encrypted)',
         'billing_payment_methods.phone' => 'the wallet phone number of a saved subscription payment method, shown only masked (encrypted)',
         // HR-10: employees' personal data stored encrypted; the masked hints are exported.
         'hr_employee_identifiers.value' => 'an employee\'s ID number (national ID, KRA PIN, CNSS number), shown in full only to identity readers (encrypted)',
