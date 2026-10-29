@@ -2,10 +2,10 @@
 
 namespace App\Core\Billing\Http\Controllers;
 
+use App\Core\Billing\Http\Requests\BillingWebhookRequest;
 use App\Core\Billing\Payments\BillingWebhooks;
 use App\Core\Payments\Pawapay\PawapaySignatures;
 use Illuminate\Http\JsonResponse;
-use App\Core\Billing\Http\Requests\BillingWebhookRequest;
 
 /**
  * SUB-04: the providers' public webhooks for the platform's billing (the
