@@ -31,22 +31,35 @@ class DemoData
         $this->base();
 
         foreach (['inventory', 'procurement', 'pos', 'accounting', 'hr', 'payroll', 'hotel', 'restaurant', 'pharmacy', 'vansales', 'fuel', 'salon', 'crm', 'loyalty', 'ecommerce', 'approvals'] as $name) {
-            if ($only !== [] && ! in_array($name, $only, true)) {
-                continue;
-            }
+            $this->section($name, $only);
+        }
 
-            $class = __NAMESPACE__.'\\Sections\\'.str_replace(' ', '', ucwords(str_replace('_', ' ', $name))).'Section';
+        // Settings screens that would be empty without a record (their own section file).
+        $this->section('settings', $only);
+    }
 
-            if (! class_exists($class)) {
-                continue;
-            }
+    /**
+     * One data section by name, unless --only leaves it out. A section that fails is reported and the others still run.
+     *
+     * @param  list<string>  $only
+     */
+    private function section(string $name, array $only): void
+    {
+        if ($only !== [] && ! in_array($name, $only, true)) {
+            return;
+        }
 
-            try {
-                $this->console->line("Demo data: {$name}");
-                (new $class)->run($this);
-            } catch (Throwable $e) {
-                $this->console->warn("Demo data: {$name} stopped: ".$e->getMessage());
-            }
+        $class = __NAMESPACE__.'\\Sections\\'.str_replace(' ', '', ucwords(str_replace('_', ' ', $name))).'Section';
+
+        if (! class_exists($class)) {
+            return;
+        }
+
+        try {
+            $this->console->line("Demo data: {$name}");
+            (new $class)->run($this);
+        } catch (Throwable $e) {
+            $this->console->warn("Demo data: {$name} stopped: ".$e->getMessage());
         }
     }
 
