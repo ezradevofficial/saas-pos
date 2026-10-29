@@ -41,7 +41,8 @@ class AvailabilityController
         }
 
         $wanted = $this->bookings->wanted($branch->company_id, array_map(fn (string $id) => ['service_id' => $id, 'staff_id' => $request->input('staff_id')], array_values($services)));
-        $slots = $this->bookings->slots($branch, $branch->company_id, $wanted, $date, Settings::for($branch->company_id)['slot_minutes']);
+        // SAL-06: a start time already gone is never offered (the online page has its own lead time on top).
+        $slots = $this->bookings->slots($branch, $branch->company_id, $wanted, $date, Settings::for($branch->company_id)['slot_minutes'], CarbonImmutable::now());
 
         return response()->json(['data' => ['date' => $date, 'slots' => array_map(fn (array $slot) => [
             'starts_at' => $slot['starts_at']->toIso8601String(), 'ends_at' => $slot['ends_at']->toIso8601String(),
