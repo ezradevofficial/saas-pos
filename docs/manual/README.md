@@ -98,7 +98,7 @@ npm run manual:screenshots -- --locale=fr --topic=pos-sell   # one topic (the sa
 ```
 
 - `manual:demo-tenant` creates the tenant "Demo Trading" (one company, two branches, every module) and one user per role template, `demo-{role}@demo.example.com` (underscores become hyphens), all with the password `Demo-Harbour-4242`, no second factor and the till PIN `739152`. It refuses to run unless `APP_ENV` is `local` or `testing`. It never reads a code from the mail log.
-- It then fills the tenant with Kenyan sample data through the application's own API, signed in as demo users, so every rule and approval applies (`api/app/Core/Manual/Demo`, one section per module: stock at both branches, a purchase order received and one waiting for approval, POS sales and shifts, a chart of accounts with journals, employees with a payroll run and leave requests, hotel rooms and reservations, restaurant tables and open orders, pharmacy lots, a van route and load, a petrol and diesel forecourt with a shift variance, salon staff and appointments). Run one section with `--only=hotel`. Every section checks what exists first, so a repeat run adds nothing.
+- It then fills the tenant with Kenyan sample data through the application's own API, signed in as demo users, so every rule and approval applies (`api/app/Core/Manual/Demo`, one section per module: stock at both branches, a purchase order received and one waiting for approval, POS sales and shifts, a chart of accounts with journals, employees with a payroll run and leave requests, hotel rooms and reservations, restaurant tables and open orders, pharmacy lots, a van route and load, a petrol and diesel forecourt with a shift variance, salon staff and appointments, and a `settings` section with a custom field, a form type, an automation rule, a webhook and an API key name so those screens are not empty; the webhook address is a placeholder that is never called and the API key's secret is not kept). Run one section with `--only=hotel`. Every section checks what exists first, so a repeat run adds nothing.
 - The web script signs in as `demo-owner@demo.example.com`, sets the user's language to `en` or `fr`, opens the topic's route and saves the picture. A topic that names a "new" or "invite" form is captured with the form filled in. It uses the Chromium that Playwright installs (headless).
 - The POS script pairs tills named "Manual till en" and "Manual till fr" (made once, paired again on each run) and a van till at the van's location, signs in with the PIN, and follows the steps in `web/scripts/manual-pos-recipes.mjs`. A recipe signs in as a user, reaches the screen and leaves it there. Run it with the fuel, salon and van topics last: the recipes close the shifts they open.
 - Install `pngquant` (or set `MANUAL_PNGQUANT` to its path) before a refresh: the images then shrink to about a third. Without it they are only re-compressed.
@@ -121,7 +121,7 @@ The Owner and Admin share the owner and admin guides: the topics list `[owner, a
 ## Not covered yet
 
 - The audit log has no screen in the web app yet, so there is no topic to read it. The access review export is covered by "Export the access review".
-- Single sign-on, domains, API keys, webhooks and the other settings screens.
+- The sandbox reset and outbox on the API keys screen, the platform console, and the pages of the developer portal (`/developers`).
 
 ## Demo data for procurement, stores, fixed assets and manufacturing
 
