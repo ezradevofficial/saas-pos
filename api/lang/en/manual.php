@@ -27,5 +27,8 @@ return [
         'van_sales' => 'Van sales',
         'fuel' => 'Fuel station',
         'salon' => 'Salon',
+        'crm' => 'CRM and sales',
+        'ecommerce' => 'Online store and delivery',
+        'loyalty' => 'Loyalty, gift cards and credit',
     ],
 ];
