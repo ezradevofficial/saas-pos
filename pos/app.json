@@ -10,7 +10,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true
-      }
+      },
+      "bundleIdentifier": "app.platform.pos"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +19,8 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "package": "app.platform.pos"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -47,6 +49,12 @@
         }
       ],
       "@sentry/react-native"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f4c2f3d8-7a1f-4f41-8341-52d6fb490c0a"
+      }
+    },
+    "owner": "ezradevofficial"
   }
 }

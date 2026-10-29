@@ -1,0 +1,20 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.curaafrya.com",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://249e6bbfe8c9ad6e81565e2993b8c07d@o4512299847581696.ingest.de.sentry.io/4512299875893328",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "staging"
+      },
+      "environment": "preview"
+    }
+  }
+}
