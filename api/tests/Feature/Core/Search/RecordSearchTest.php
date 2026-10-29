@@ -297,6 +297,8 @@ class RecordSearchTest extends TestCase
     {
         $response = $this->getJson('/api/v1/search?'.http_build_query(['q' => $query]), $headers);
         $this->assertSame(200, $response->getStatusCode(), "GET search?q={$query}: {$response->getContent()}");
+        // A searcher that failed or ran out of time is skipped: say so, rather than report a type as not found.
+        $this->assertFalse($response->json('meta.partial'), "GET search?q={$query} was partial (a searcher failed or the budget ran out; see the log)");
 
         return collect($response->json('data'))->mapWithKeys(fn (array $group) => [$group['type'] => $group['results']])->all();
     }

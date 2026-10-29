@@ -57,18 +57,30 @@ class RecordSearch
         $groups = [];
         $partial = false;
 
-        DB::connection(TenantContext::CONNECTION)->transaction(function ($connection) use ($user, $term, $started, $budget, &$groups, &$partial) {
+        // RBAC-08: an inactive module's records are never searched; RBAC-01, RBAC-04: nor without
+        // the view permission, and only where it is held. Decided before the search's transaction:
+        // inside one, access data is neither read from nor written to the shared caches
+        // (AccessVersion, TenantPermissionRegistrar), so a cold permission cache (after any role
+        // change) was rebuilt by every searcher's checks and spent the budget (NFR-02).
+        $allowed = [];
+
+        foreach ($this->searchers as $searcher) {
+            if ($this->modules->isActive($searcher->module()) && $this->resolver->can($user, $searcher->permission())) {
+                $allowed[] = [$searcher, $this->resolver->visibleIds($user, $searcher->permission())];
+            }
+        }
+
+        if ($allowed === []) {
+            return ['groups' => [], 'partial' => false];
+        }
+
+        DB::connection(TenantContext::CONNECTION)->transaction(function ($connection) use ($user, $term, $started, $budget, $allowed, &$groups, &$partial) {
             // Local to this transaction (put back afterwards, as a caller's own transaction may outlive it).
             $previous = (string) ($connection->selectOne('show statement_timeout')->statement_timeout ?? '0');
             $connection->statement('set local statement_timeout = '.$budget);
 
             try {
-                foreach ($this->searchers as $searcher) {
-                    // RBAC-08: an inactive module's records are never searched; RBAC-01: nor without the view permission.
-                    if (! $this->modules->isActive($searcher->module()) || ! $this->resolver->can($user, $searcher->permission())) {
-                        continue;
-                    }
-
+                foreach ($allowed as [$searcher, $visible]) {
                     if ((hrtime(true) - $started) / 1_000_000 >= $budget) {
                         $partial = true;
 
@@ -77,10 +89,7 @@ class RecordSearch
 
                     try {
                         // A savepoint, so one failed or cancelled query does not poison the rest.
-                        $hits = $connection->transaction(fn () => $searcher->search(
-                            $term,
-                            new SearchContext($user, $this->resolver->visibleIds($user, $searcher->permission()), $this->fieldRules),
-                        ));
+                        $hits = $connection->transaction(fn () => $searcher->search($term, new SearchContext($user, $visible, $this->fieldRules)));
                     } catch (Throwable $e) {
                         report($e);
                         $partial = true;

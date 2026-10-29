@@ -45,6 +45,12 @@ class SyncPerformanceTest extends TestCase
             $this->inTenant(fn () => app(Pins::class)->set($user, '48'.$n.'6', null));
         }
 
+        // NFR-02: the tenant's access data (active modules...) is cached across requests under its
+        // permissions version, which the set-up above moved on. A warm-up pull (by another till, so
+        // the two measured ones both pay their token's first use) fills it, so both measured pulls
+        // find it cached, as in steady state, and only rows differ between them.
+        $this->queriesFor($tills[self::DEVICES - 1]);
+
         $this->rows(10, $taxes['category']->id);
         $small = $this->queriesFor($tills[0]);
 
