@@ -130,3 +130,7 @@ Pages for the business's own customers or suppliers (the online booking page, th
 ## Demo data for procurement, stores, fixed assets and manufacturing
 
 `manual:demo-tenant --only=procurement_more`, `--only=stores`, `--only=fixed_assets` and `--only=manufacturing` fill those modules (an approved requisition, a request for quotation with quotes, a published tender, a received purchase order with a matched invoice, a store requisition issued and part returned, assets with two depreciation runs, a BOM and a production order in progress). Approvals are created by a queued listener; the command runs the queue inline, so no worker is needed. The supplier portal pages are signed-out pages and have no picture.
+
+## Demo data for contacts, invoices, payroll loans and HR links
+
+`manual:demo-tenant --only=accounting_more`, `--only=payroll_more` and `--only=contacts` add a bank account, a posted invoice and bill, a receipt, an operating budget, a salary advance and a credit limit request (repeat `--only` for several). The `hr` section links the demo owner to the first employee through HR's own API, as the HR officer, so the self-service and "my payslips" pictures show a person instead of the "not linked" notice.
