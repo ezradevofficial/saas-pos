@@ -3,15 +3,20 @@
 namespace App\Core\Bootstrap;
 
 use App\Core\Platform\SupportAccess\Http\EnforceSupportSession;
+use App\Core\Rbac\ModuleRegistry;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\Responsable;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\ControllerDispatcher;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
@@ -92,10 +97,10 @@ class ShellBootstrap
             return $this->run($parent, $sub, $route);
         } catch (Throwable $e) {
             // Refusals (403, 404, 422) are simply "not for this user"; anything else is reported.
-            if (! $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
-                && ! $e instanceof \Illuminate\Auth\Access\AuthorizationException
-                && ! $e instanceof \Illuminate\Validation\ValidationException
-                && ! $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+            if (! $e instanceof HttpExceptionInterface
+                && ! $e instanceof AuthorizationException
+                && ! $e instanceof ValidationException
+                && ! $e instanceof ModelNotFoundException) {
                 report($e);
             }
 
@@ -108,7 +113,7 @@ class ShellBootstrap
     {
         foreach ($route->gatherMiddleware() as $middleware) {
             if (is_string($middleware) && preg_match('/^(?:module|.*EnsureModuleActive):(.+)$/', $middleware, $m)
-                && ! $this->app->make(\App\Core\Rbac\ModuleRegistry::class)->anyActive(explode(',', $m[1]))) {
+                && ! $this->app->make(ModuleRegistry::class)->anyActive(explode(',', $m[1]))) {
                 return false;
             }
         }

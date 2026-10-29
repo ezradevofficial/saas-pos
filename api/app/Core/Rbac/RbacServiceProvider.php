@@ -2,6 +2,7 @@
 
 namespace App\Core\Rbac;
 
+use App\Core\Bootstrap\ShellBootstrap;
 use App\Core\Identity\Models\User;
 use App\Core\Rbac\Console\SyncPermissions;
 use App\Core\Rbac\Listeners\ProvisionTenantRoles;
@@ -53,14 +54,14 @@ class RbacServiceProvider extends ServiceProvider
         Event::listen(JobProcessing::class, fn () => $this->app->make(ModuleRegistry::class)->flush());
         // NFR-02: the app shell's bootstrap runs parts as sub-requests of one request: they share its memos.
         $this->app->rebinding('request', function ($app, $request) {
-            if (! $request->attributes->has(\App\Core\Bootstrap\ShellBootstrap::ATTRIBUTE)) {
+            if (! $request->attributes->has(ShellBootstrap::ATTRIBUTE)) {
                 $app->make(ModuleRegistry::class)->flush();
             }
         });
         // NFR-02: the same for the permissions version held in memory.
         Event::listen(JobProcessing::class, fn () => $this->app->make(AccessVersion::class)->flush());
         $this->app->rebinding('request', function ($app, $request) {
-            if (! $request->attributes->has(\App\Core\Bootstrap\ShellBootstrap::ATTRIBUTE)) {
+            if (! $request->attributes->has(ShellBootstrap::ATTRIBUTE)) {
                 $app->make(AccessVersion::class)->flush();
             }
         });
