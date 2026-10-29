@@ -7,6 +7,8 @@ use App\Core\Manual\Demo\DemoData;
 /** A van with its rep, a Tuesday and Friday route through four kiosks, and a morning load released from the main outlet's stock (VAN-01 to VAN-10). */
 class VansalesSection
 {
+    use WaitsForApproval;
+
     public function run(DemoData $demo): void
     {
         $api = $demo->api;
@@ -32,7 +34,7 @@ class VansalesSection
             'van_id' => $van['id'], 'from_location_id' => $demo->ids['locations'][0], 'note' => 'Morning load for the Tuesday route',
             'lines' => [['item_id' => $demo->ids['items'][0], 'qty' => 24], ['item_id' => $demo->ids['items'][1], 'qty' => 12], ['item_id' => $demo->ids['items'][4], 'qty' => 10], ['item_id' => $demo->ids['items'][5], 'qty' => 8]],
         ])['data'];
-        $demo->approveAll('branch_manager');
+        $this->approveUntil($demo, 'branch_manager', fn () => $api->get("van-sales/loads/{$load['id']}")['data']['status'] === 'approved');
         $api->post("van-sales/loads/{$load['id']}/release");
     }
 }

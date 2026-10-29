@@ -23,7 +23,7 @@ const MAX_HEIGHT = 900
 const pngquant = process.env.MANUAL_PNGQUANT ?? 'pngquant'
 
 // Signed-out or one-off pages that cannot be captured with a demo session.
-const SKIP = new Set(['/welcome', '/sign-up', '/verify', '/two-factor', '/two-factor/enrol', '/supplier-portal/tender'])
+const SKIP = new Set(['/welcome', '/sign-up', '/verify', '/two-factor', '/two-factor/enrol', '/supplier-portal/tender', '/sign-in', '/forgot-password', '/reset-password'])
 
 const args = Object.fromEntries(process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => a.slice(2).split('=')))
 const locales = args.locale ? [args.locale] : ['en', 'fr']

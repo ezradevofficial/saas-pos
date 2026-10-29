@@ -118,6 +118,10 @@ The Owner and Admin share the owner and admin guides: the topics list `[owner, a
   - the cashier guide builds in each language as a valid PDF set in Geist holding every topic title;
   - the screenshot route (`tests/Feature/Core/Manual/ManualImageTest.php`): a visible topic's image is served, a hidden topic's is 404, signed out is 401.
 
+- `npm run check:manual` (CI runs it in the web job): every route of `web/src/routes.jsx` (including nested and generated route tables) is in some topic's `screens`, or in `docs/manual/route-exclusions.json` with a reason. Exclusions are for development, platform-staff, OAuth, redirect and technical pages. An entry marked `"backlog": true` is a page that still needs a topic: remove it when you write one. The check also fails when a topic names a web screen that is not a route, so the help "?" (which matches the page's path against `screens`, `:param` segments matching anything) always finds its topics.
+
+Pages for the business's own customers or suppliers (the online booking page, the shop, the supplier portal) are written as topics for the owner and admin, so they learn what those people see. Signed-out pages (sign-in, reset, invitation, email approval) have no picture.
+
 ## Not covered yet
 
 - The audit log has no screen in the web app yet, so there is no topic to read it. The access review export is covered by "Export the access review".
@@ -125,4 +129,4 @@ The Owner and Admin share the owner and admin guides: the topics list `[owner, a
 
 ## Demo data for procurement, stores, fixed assets and manufacturing
 
-`manual:demo-tenant --only=procurement_more`, `--only=stores`, `--only=fixed_assets` and `--only=manufacturing` fill those modules (an approved requisition, a request for quotation with quotes, a published tender, a received purchase order with a matched invoice, a store requisition issued and part returned, assets with two depreciation runs, a BOM and a production order in progress). Approvals are created by a queued listener, so run a queue worker (`php artisan queue:work`) while the demo tenant is built. The supplier portal pages are signed-out pages and have no picture.
+`manual:demo-tenant --only=procurement_more`, `--only=stores`, `--only=fixed_assets` and `--only=manufacturing` fill those modules (an approved requisition, a request for quotation with quotes, a published tender, a received purchase order with a matched invoice, a store requisition issued and part returned, assets with two depreciation runs, a BOM and a production order in progress). Approvals are created by a queued listener; the command runs the queue inline, so no worker is needed. The supplier portal pages are signed-out pages and have no picture.

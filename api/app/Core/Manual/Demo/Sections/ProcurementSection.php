@@ -7,6 +7,8 @@ use App\Core\Manual\Demo\DemoData;
 /** Three Kenyan suppliers, one purchase order received into the main outlet, one waiting for approval. */
 class ProcurementSection
 {
+    use WaitsForApproval;
+
     public function run(DemoData $demo): void
     {
         $api = $demo->api;
@@ -46,7 +48,8 @@ class ProcurementSection
         ])['data'];
 
         $api->post("procurement/orders/{$order['id']}/submit");
-        $demo->approveAll('branch_manager');
+        // The approval is made by a queued listener; wait for it (no worker needed once the loop drives it).
+        $this->approveUntil($demo, 'branch_manager', fn () => $api->get("procurement/orders/{$order['id']}")['data']['status'] === 'approved');
         $api->post("procurement/orders/{$order['id']}/send");
 
         $receipt = $api->post('procurement/receipts', [
