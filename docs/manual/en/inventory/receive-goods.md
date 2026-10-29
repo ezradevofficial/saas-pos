@@ -5,7 +5,7 @@ module: procurement
 order: 10
 permissions: [procurement.receipt.view, procurement.receipt.create, procurement.po.view]
 roles: [storekeeper]
-screens: [/procurement/receipts, /procurement/receipts/new]
+screens: [/procurement/receipts, /procurement/receipts/new, /procurement/receipts/:receiptId]
 ---
 Goods are received against an approved purchase order.
 
@@ -21,3 +21,5 @@ Goods are received against an approved purchase order.
 If some lines are marked as not received into stock, check the item, its unit or its serial numbers, then adjust the stock by hand. To drop a draft, tap "Cancel draft".
 
 A delivery may take more than ordered only up to the "Over-receipt allowance" in "Procurement settings". The freight and duty paid on the delivery are added later with landed costs: see "Add landed costs to goods received". The supplier’s invoice is entered from the purchase order: see "Enter and approve a supplier invoice".
+
+To read a delivery later, open "Goods received" under "Procurement" and tap it. The page shows the "Purchase order", the "Supplier", the "Location", the "Delivery note" and the "Value", and for each line what was "Ordered", "Received", "Rejected" and "Accepted", with the batch or serial numbers and the "Landed cost".

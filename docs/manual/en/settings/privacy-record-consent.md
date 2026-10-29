@@ -5,7 +5,7 @@ module: core
 order: 450
 permissions: [core.consent.view, core.consent.manage]
 roles: [owner, admin]
-screens: [/settings/privacy]
+screens: [/settings/privacy, /opt-out/:token]
 ---
 Record whether a customer agrees to marketing messages, by channel, with what they said as evidence.
 
@@ -18,3 +18,5 @@ Record whether a customer agrees to marketing messages, by channel, with what th
 7. Tap "Record agreement" or "Record withdrawal".
 
 "History" keeps every answer. Do not send marketing on a channel where the customer withdrew.
+
+A customer can also withdraw by themselves. Every marketing email carries an unsubscribe link. It opens a page, in the language of the email, titled "Stop marketing emails". They tap "Stop marketing emails" once and see "You are unsubscribed". Messages about their orders still reach them, and the withdrawal shows in "History". To send them offers again, ask for their agreement and record it as above.
