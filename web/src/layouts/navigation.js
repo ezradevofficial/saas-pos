@@ -451,6 +451,7 @@ export const NAV_GROUPS = [
       { to: '/accounting/budgets', icon: 'chart', label: (t) => t('nav.accountingBudgets'), permission: 'accounting.budget.view', module: 'accounting_pro' },
       { to: '/accounting/periods', icon: 'lock', label: (t) => t('nav.accountingPeriods'), permission: 'accounting.period.view', module: 'accounting' },
       { to: '/accounting/reports', icon: 'chart', label: (t) => t('nav.accountingReports'), permission: ['accounting.report.view', 'accounting.report.consolidate'], module: 'accounting' },
+      { to: '/accounting/tax-returns', icon: 'chart', label: (t) => t('nav.accountingTaxReturns'), permission: 'accounting.report.view', module: 'accounting' },
       { to: '/accounting/chart', icon: 'numbering', label: (t) => t('nav.accountingChart'), permission: ['accounting.account.view', 'accounting.account.manage'], module: 'accounting' },
     ],
   },

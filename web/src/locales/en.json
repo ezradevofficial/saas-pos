@@ -439,6 +439,7 @@
     "accountingBudgets": "Budgets",
     "accountingPeriods": "Periods",
     "accountingReports": "Reports",
+    "accountingTaxReturns": "Tax returns",
     "accountingChart": "Chart of accounts",
     "storesRequisitions": "Requisitions",
     "storesIssues": "Issues",
@@ -7658,6 +7659,66 @@
       "noLines": "No postings in this range.",
       "openSource": "Open",
       "truncated": "Only the first 2,000 lines are shown. Narrow the dates."
+    },
+    "taxReturn": {
+      "title": {
+        "vat": "VAT return summary",
+        "tva": "TVA declaration summary",
+        "generic": "Tax return summary"
+      },
+      "description": {
+        "vat": "Output and input VAT per tax code and rate from posted transactions, with the net payable. A summary to prepare the return, not the filed form.",
+        "tva": "Output and input TVA per tax code and rate from posted transactions, with the net payable. A summary to prepare the declaration, not the filed form.",
+        "generic": "Output and input tax per tax code and rate from posted transactions, with the net payable."
+      },
+      "period": "Period",
+      "customPeriod": "Custom dates",
+      "rangeInvalid": "The start date is after the end date. Change one of them.",
+      "export": "Export CSV",
+      "close": "Close",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {{page}} of {{last}}",
+      "sections": {
+        "output": "Output tax",
+        "input": "Input tax"
+      },
+      "kinds": {
+        "vat": "VAT",
+        "withholding": "Withholding",
+        "excise": "Excise",
+        "exempt": "Exempt",
+        "zero_rated": "Zero-rated"
+      },
+      "taxCode": "Tax code",
+      "kind": "Kind",
+      "rate": "Rate",
+      "rateNeeded": "Rate needed",
+      "taxable": "Taxable value",
+      "tax": "Tax",
+      "lines": "Lines",
+      "noCode": "No tax code",
+      "noRows": "No tax in this period.",
+      "noEntries": "No documents for this row.",
+      "document": "Document",
+      "journal": "Journal",
+      "fiscal": "Tax authority",
+      "totalOf": "Total {{section}}",
+      "netPayable": "Net payable",
+      "netRefundable": "Net recoverable",
+      "reconciled": "Matches the ledger",
+      "notReconciled": "Does not match the ledger",
+      "fiscalSummary": {
+        "KE": "{{accepted}} of {{total}} invoices and credit notes accepted by eTIMS",
+        "CD": "{{accepted}} of {{total}} invoices and credit notes accepted by the DGI"
+      },
+      "notes": {
+        "statutory_boxes_unmapped": "The statutory form boxes are not mapped in this version. The totals below come from the ledger; enter them in the form by hand.",
+        "taxable_value_partial": "Rows marked * leave out the taxable value of sales posted by other modules: it is not kept per tax code in those journals.",
+        "no_tax_code": "Some tax lines have no tax code (manual journals or journals posted before codes were kept). They are shown under No tax code.",
+        "rate_needed": "A tax code has no confirmed rate. Confirm it in the tax settings.",
+        "not_reconciled": "The tax lines do not add up to the ledger (output {{output}}, input {{input}} in minor units). Contact support before filing."
+      }
     }
   },
   "stores": {

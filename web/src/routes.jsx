@@ -451,6 +451,7 @@ const Journals = lazy(() => import('./pages/accounting/Journals'))
 const AccountingPayments = lazy(() => import('./pages/accounting/Payments'))
 const PaymentDetail = lazy(() => import('./pages/accounting/Payments').then((m) => ({ default: m.PaymentDetail })))
 const Periods = lazy(() => import('./pages/accounting/Periods'))
+const TaxReturns = lazy(() => import('./pages/accounting/TaxReturns'))
 const Reports = lazy(() => import('./pages/accounting/Reports'))
 const GeneralLedger = lazy(() => import('./pages/accounting/Reports').then((m) => ({ default: m.GeneralLedger })))
 const Appearance = lazy(() => import('./pages/settings/Appearance'))
@@ -997,6 +998,7 @@ export const routes = [
         ['/accounting/periods', PERIOD_VIEW, <Periods key="acc-periods" />],
         ['/accounting/reports', REPORT_VIEW, <Reports key="acc-reports" />],
         ['/accounting/reports/ledger', 'accounting.report.view', <GeneralLedger key="acc-ledger" />],
+        ['/accounting/tax-returns', 'accounting.report.view', <TaxReturns key="acc-tax-returns" />],
       ].map(([path, permission, page]) => ({ path, element: <RequirePermission permission={permission}>{page}</RequirePermission> })),
       // WF-01, WF-10: credit limit change requests.
       { path: '/contacts/credit-limit-changes', element: <RequirePermission permission={PARTY_VIEW}><CreditLimitChanges /></RequirePermission> },
