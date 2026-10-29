@@ -88,6 +88,7 @@ function HoursDialog({ member, branches, onClose }) {
     <Dialog
       open
       title={t('salon.hours.title', { name: member.name })}
+      size="lg"
       onClose={onClose}
       footer={
         <>
@@ -105,13 +106,14 @@ function HoursDialog({ member, branches, onClose }) {
         <QueryNotes query={query} />
         {save.isError ? <Alert tone="danger" title={salonError(save.error)} /> : null}
         {spans.map((row, index) => (
-          <div key={index} className="flex flex-wrap items-end gap-3">
-            {usable.length > 1 ? <Select label={t('salon.fields.branch')} options={usable.map((branch) => ({ value: branch.id, label: branch.name }))} value={row.branch_id} onChange={(event) => change(index, { branch_id: event.target.value })} className="min-w-36" /> : null}
-            <Select label={t('salon.hours.day')} options={WEEKDAYS.map((day) => ({ value: String(day), label: t(`salon.days.${day}`) }))} value={String(row.weekday)} onChange={(event) => change(index, { weekday: event.target.value })} className="w-36" />
-            <Select label={t('salon.hours.kind')} options={['work', 'break'].map((kind) => ({ value: kind, label: t(`salon.hours.kinds.${kind}`) }))} value={row.kind} onChange={(event) => change(index, { kind: event.target.value })} className="w-32" />
-            <TextField label={t('salon.hours.from')} type="time" value={row.start} onChange={(event) => change(index, { start: event.target.value })} className="w-32" />
-            <TextField label={t('salon.hours.to')} type="time" value={row.end} onChange={(event) => change(index, { end: event.target.value })} className="w-32" />
-            <Button variant="ghost" aria-label={t('salon.hours.removeSpan')} onClick={() => setRows(spans.filter((_, at) => at !== index))}>
+          // One fixed grid per span, so every row lines up whatever the day's name (two columns on phones).
+          <div key={index} className="grid grid-cols-2 items-end gap-3 sm:grid-cols-5">
+            {usable.length > 1 ? <Select label={t('salon.fields.branch')} options={usable.map((branch) => ({ value: branch.id, label: branch.name }))} value={row.branch_id} onChange={(event) => change(index, { branch_id: event.target.value })} className="col-span-2 sm:col-span-5" /> : null}
+            <Select label={t('salon.hours.day')} options={WEEKDAYS.map((day) => ({ value: String(day), label: t(`salon.days.${day}`) }))} value={String(row.weekday)} onChange={(event) => change(index, { weekday: event.target.value })} className="w-full" />
+            <Select label={t('salon.hours.kind')} options={['work', 'break'].map((kind) => ({ value: kind, label: t(`salon.hours.kinds.${kind}`) }))} value={row.kind} onChange={(event) => change(index, { kind: event.target.value })} className="w-full" />
+            <TextField label={t('salon.hours.from')} type="time" value={row.start} onChange={(event) => change(index, { start: event.target.value })} className="w-full" />
+            <TextField label={t('salon.hours.to')} type="time" value={row.end} onChange={(event) => change(index, { end: event.target.value })} className="w-full" />
+            <Button variant="ghost" aria-label={t('salon.hours.removeSpan')} className="justify-self-start" onClick={() => setRows(spans.filter((_, at) => at !== index))}>
               {t('salon.hours.remove')}
             </Button>
           </div>
