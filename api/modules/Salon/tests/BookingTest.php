@@ -37,6 +37,20 @@ class BookingTest extends TestCase
         $this->assertSame(3, $this->inTenant(fn () => Appointment::query()->count()));
     }
 
+    public function test_the_back_office_never_offers_a_start_time_already_gone_today(): void
+    {
+        // Found walking the back office: at lunchtime the new-appointment page still offered 08:00.
+        $this->setUpSalon();
+        $this->clockAt('11:05');
+
+        $starts = array_column($this->api('GET', 'salon/availability?'.http_build_query(['branch_id' => $this->branchA->id, 'date' => $this->today, 'service_ids' => [$this->haircut->id], 'staff_id' => $this->ann->id]), [], $this->desk)
+            ->assertOk()->json('data.slots'), 'starts_at');
+
+        $this->assertNotContains($this->at('09:00'), $starts);
+        $this->assertNotContains($this->at('11:00'), $starts);
+        $this->assertContains($this->at('11:15'), $starts);
+    }
+
     public function test_hours_breaks_time_off_and_qualifications_are_applied_unless_overridden(): void
     {
         $this->setUpSalon();

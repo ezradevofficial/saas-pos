@@ -100,7 +100,8 @@ export default function ClientDetail() {
         {stats ? (
           <p className="text-caption text-ink-muted">
             {[
-              stats.last_visit_at ? t('salon.clientPage.lastVisit', { date: formatDateTime(stats.last_visit_at, locale, company?.timezone) }) : t('salon.clients.noVisits'),
+              // No visits yet: the visits table below already says so.
+              stats.last_visit_at ? t('salon.clientPage.lastVisit', { date: formatDateTime(stats.last_visit_at, locale, company?.timezone) }) : null,
               stats.next_appointment ? t('salon.clientPage.next', { date: formatDateTime(stats.next_appointment.starts_at, locale, company?.timezone) }) : null,
               stats.no_shows ? t('salon.clientPage.noShows', { count: stats.no_shows }) : null,
               stats.cancellations ? t('salon.clientPage.cancellations', { count: stats.cancellations }) : null,
