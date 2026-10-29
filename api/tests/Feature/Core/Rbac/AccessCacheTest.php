@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core\Rbac;
 
 use App\Core\Rbac\AccessVersion;
+use App\Core\Rbac\Models\RoleAssignment;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
@@ -56,6 +57,18 @@ class AccessCacheTest extends TestCase
         $this->inTenant(fn () => $this->assign($user, $this->roles->get('admin'), Scope::tenant()));
 
         $this->assertContains('core.user.view', $this->names($headers));
+    }
+
+    public function test_a_role_removed_in_bulk_is_seen_by_the_next_request(): void
+    {
+        // Found in CI: a bulk delete skips model events, and the cached access outlived the removed role.
+        $user = $this->userWith('admin', Scope::tenant());
+        $headers = $this->headersFor($user);
+        $this->assertContains('core.user.view', $this->names($headers));
+
+        $this->inTenant(fn () => RoleAssignment::query()->where('user_id', $user->id)->delete());
+
+        $this->assertNotContains('core.user.view', $this->names($headers));
     }
 
     public function test_a_removed_assignment_and_a_changed_role_are_seen_straight_away(): void

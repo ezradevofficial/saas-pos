@@ -5,6 +5,7 @@ namespace App\Core\Rbac\Models;
 use App\Core\Audit\Audited;
 use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\AccessChangingBuilder;
 use App\Core\Rbac\AccessVersion;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\BelongsToTenant;
@@ -29,6 +30,12 @@ class RoleAssignment extends Model
 
     /** The scope's display name, filled by ScopeNames for API output; never stored. */
     public ?string $scopeName = null;
+
+    /** RBAC-12: bulk writes move the tenant's access version on, as single ones do (AccessChangingBuilder). */
+    public function newEloquentBuilder($query): AccessChangingBuilder
+    {
+        return new AccessChangingBuilder($query);
+    }
 
     protected static function booted(): void
     {
