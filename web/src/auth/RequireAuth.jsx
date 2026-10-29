@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation, useSearchParams } from 'react-router'
 import { Alert, Button } from '@/components/ds'
-import { useAuth } from './AuthProvider'
+import { useAuth } from './useAuth'
 import { ENROL_PATH, safeNext } from './paths'
 
 

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { api } from '@/api/client'
 import { fromShell } from '@/api/shellBootstrap'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { usePermissions } from '@/auth/usePermissions'
 import { useCompanySelection } from '@/layouts/companySelection'
 
@@ -21,6 +21,14 @@ export function themePlace(permissions, companyId) {
     if (scope) return { [type]: scope.id }
   }
   return {}
+}
+
+// The bootstrap's themed company: the one stored when it was asked, or (first sign-in) the only company, which the switcher then chooses.
+const themeAtPlace = (place) => (parts) => {
+  if (place.company === undefined) return false
+  if (parts.company) return parts.company === place.company
+  const only = [parts.companies?.data, parts.my_companies?.data].find((list) => list?.length === 1)
+  return only?.[0]?.id === place.company
 }
 
 const fromResolved = (payload, user) => ({
@@ -64,7 +72,7 @@ export function useBrand() {
     queryFn: async () => {
       const query = new URLSearchParams(place).toString()
       // NFR-02: the bootstrap resolved the tenant's theme and the theme at the stored company.
-      const shell = () => (query ? fromShell('theme_place', () => api.get(`config/theme/resolved?${query}`), (parts) => place.company !== undefined && parts.company === place.company) : fromShell('theme', () => api.get('config/theme/resolved')))
+      const shell = () => (query ? fromShell('theme_place', () => api.get(`config/theme/resolved?${query}`), themeAtPlace(place)) : fromShell('theme', () => api.get('config/theme/resolved')))
       try {
         return await shell()
       } catch (error) {

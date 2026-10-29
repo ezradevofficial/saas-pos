@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { usePermissions } from '@/auth/usePermissions'
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
 import { Widget } from '@/components/dashboard/widgets'

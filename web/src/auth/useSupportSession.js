@@ -1,4 +1,4 @@
-import { useAuth } from './AuthProvider'
+import { useAuth } from './useAuth'
 
 /**
  * RBAC-13: whether this sign-in is platform staff in a support session, and

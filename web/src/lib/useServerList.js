@@ -9,7 +9,7 @@ import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { saveFile } from '@/lib/files'
 import { applyView, collectViews, defaultViewKey, exportKeyOf, hiddenColumnKeys, withoutHiddenColumns } from './listViews'
 

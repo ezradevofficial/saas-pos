@@ -4,7 +4,7 @@ import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { api } from '@/api/client'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { Icon } from '@/components/ds'
 import {
   DropdownMenu,

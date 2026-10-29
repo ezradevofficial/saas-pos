@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { api, startSupportTab } from '@/api/client'
 import { errorMessage } from '@/api/errorMessage'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { Alert } from '@/components/ds'
 
 /**

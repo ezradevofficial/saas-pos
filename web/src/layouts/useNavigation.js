@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import { fromShell } from '@/api/shellBootstrap'
-import { useAuth } from '@/auth/AuthProvider'
+import { useAuth } from '@/auth/useAuth'
 import { usePermissions } from '@/auth/usePermissions'
 import { useCompanies } from './companySelection'
 import { useCustomFormTypes } from '@/lib/customForms'

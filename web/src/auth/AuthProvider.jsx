@@ -1,9 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, clearToken, getToken, isSupportTab, onAuthEvent, setCompanyId, setToken, TOKEN_KEY } from '@/api/client'
 import { setLocale } from '@/i18n'
-
-const AuthContext = createContext(null)
+import { AuthContext } from './authContext'
 
 const browserLanguage = () => (typeof navigator === 'undefined' ? undefined : navigator.language)
 
@@ -117,10 +116,4 @@ export function AuthProvider({ children }) {
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) throw new Error('useAuth must be used inside AuthProvider')
-  return context
 }

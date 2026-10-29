@@ -44,7 +44,7 @@ class BootstrapTest extends TestCase
         $this->assertNotNull($parts['companies']);
         $this->assertSame([], $parts['custom_form_types']['data']);
         $this->assertNull($parts['hr_me'], 'HR is not subscribed');
-        $this->assertNull($parts['theme_place'], 'no place asked for');
+        $this->assertNotNull($parts['theme_place'], 'no place asked for: the only company is the default');
     }
 
     public function test_a_cashier_gets_the_same_parts_as_their_endpoints_and_not_the_owners(): void
