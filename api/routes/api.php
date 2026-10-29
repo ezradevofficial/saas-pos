@@ -115,6 +115,8 @@ use App\Core\Rbac\Http\Controllers\MyCompaniesController;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
 use App\Core\Rbac\Http\Controllers\PermissionCatalogueController;
 use App\Core\Rbac\Http\Controllers\RoleController;
+use App\Core\Search\Http\Controllers\SearchController;
+use App\Core\Search\SearchServiceProvider;
 use App\Core\Sso\Http\Controllers\SsoAuthController;
 use App\Core\Sso\Http\Controllers\SsoConnectionController;
 use App\Core\Sso\Http\Controllers\SsoController;
@@ -755,6 +757,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
         ->middleware('throttle:'.DashboardSources::LIMITER);
     // LAY-03: the forms whose layouts may be designed, and one form's fields and default layout.
     Route::get('form-layouts', FormLayoutCatalogueController::class);
+    // LAY-01, RBAC-08: the quick search's record search, one group per type the user may view.
+    Route::get('search', [SearchController::class, 'index'])->middleware('throttle:'.SearchServiceProvider::LIMITER);
     // RBAC-08: the user manual, filtered to the tenant's modules and the user's permissions.
     Route::get('manual/topics', [ManualController::class, 'index']);
     Route::get('manual/topics/{topic}', [ManualController::class, 'show'])->where('topic', '[a-z0-9][a-z0-9_-]{0,99}');

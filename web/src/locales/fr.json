@@ -632,6 +632,23 @@
       "newStoreRequisition": "Nouvelle demande au magasin",
       "newPromotion": "Nouvelle promotion",
       "newWriteOff": "Nouvelle mise au rebut"
+    },
+    "records": {
+      "heading": "Enregistrements",
+      "searching": "Recherche des enregistrements…",
+      "failed": "La recherche d'enregistrements a échoué. Les pages, les actions et l'aide restent disponibles ; réessayez dans un instant.",
+      "types": {
+        "customer": "Client",
+        "supplier": "Fournisseur",
+        "item": "Article",
+        "billing_invoice": "Facture d'abonnement",
+        "sale": "Vente",
+        "sales_invoice": "Facture de vente",
+        "purchase_order": "Bon de commande",
+        "employee": "Employé",
+        "reservation": "Réservation",
+        "salon_client": "Client du salon"
+      }
     }
   },
   "shell": {

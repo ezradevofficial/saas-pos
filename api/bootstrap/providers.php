@@ -29,6 +29,7 @@ use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Platform\PlatformServiceProvider;
 use App\Core\Privacy\PrivacyServiceProvider;
 use App\Core\Rbac\RbacServiceProvider;
+use App\Core\Search\SearchServiceProvider;
 use App\Core\Sso\SsoServiceProvider;
 use App\Core\Sync\SyncServiceProvider;
 use App\Core\Webhooks\WebhooksServiceProvider;
@@ -89,6 +90,8 @@ return [
     BillingServiceProvider::class,
     LimitsServiceProvider::class,
     OnboardingServiceProvider::class,
+    // LAY-01: the record search; the modules below register their searchers with it.
+    SearchServiceProvider::class,
     PosServiceProvider::class,
     LoyaltyServiceProvider::class,
     InventoryServiceProvider::class,

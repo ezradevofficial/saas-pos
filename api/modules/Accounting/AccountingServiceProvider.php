@@ -18,6 +18,7 @@ use App\Core\Privacy\SubjectSource;
 use App\Core\Rbac\Events\ModuleActivated;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Rbac\PermissionRegistry;
+use App\Core\Search\RecordSearch;
 use App\Core\Webhooks\Catalogue\WebhookCatalogue;
 use App\Core\Workflow\DocumentTypes\DocumentTypeRegistry;
 use App\Core\Workflow\Events\WorkflowCancelled;
@@ -46,6 +47,7 @@ use Modules\Accounting\Listeners\SeedModuleRules;
 use Modules\Accounting\Listeners\SettleJournal;
 use Modules\Accounting\Models\PostingException;
 use Modules\Accounting\Payments\Payments;
+use Modules\Accounting\Search\SalesInvoiceSearcher;
 use Modules\Accounting\Webhooks\AccountingWebhookEvents;
 use Modules\CRM\Events\QuoteConverted;
 use Modules\Ecommerce\Events\EcommercePosting;
@@ -158,6 +160,8 @@ class AccountingServiceProvider extends ServiceProvider
         // SUB-07: Accounting is sold as Essentials or Pro; Pro also unlocks the Pro features.
         $modules->soldAs(self::MODULE, ['accounting_essentials', 'accounting_pro']);
         $this->app->make(PermissionRegistry::class)->register(self::MODULE, self::PERMISSIONS);
+        // LAY-01: the quick search finds this module's records (only while it is active).
+        $this->app->make(RecordSearch::class)->register(new SalesInvoiceSearcher);
         // ADM-04b: chart template releases are checked like the shipped files (ADR 022).
         $this->app->make(PackSchemas::class)->register('accounts', fn (array $content) => $this->app->make(ChartTemplates::class)->check((string) ($content['code'] ?? ''), $content), ['accounts' => ['code']], []);
         // ADM-01b: open posting exceptions, a count in the console's tenant health.

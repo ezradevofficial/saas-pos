@@ -632,6 +632,23 @@
       "newStoreRequisition": "New store requisition",
       "newPromotion": "New promotion",
       "newWriteOff": "New write-off"
+    },
+    "records": {
+      "heading": "Records",
+      "searching": "Searching records…",
+      "failed": "Records could not be searched. Pages, actions and help still work; try again in a moment.",
+      "types": {
+        "customer": "Customer",
+        "supplier": "Supplier",
+        "item": "Item",
+        "billing_invoice": "Subscription invoice",
+        "sale": "Sale",
+        "sales_invoice": "Sales invoice",
+        "purchase_order": "Purchase order",
+        "employee": "Employee",
+        "reservation": "Reservation",
+        "salon_client": "Salon client"
+      }
     }
   },
   "shell": {
