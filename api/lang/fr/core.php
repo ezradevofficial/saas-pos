@@ -4,6 +4,7 @@ return [
     'defaults' => [
         'branch' => 'Succursale principale',
         'location' => 'Point de vente principal',
+        'price_list' => 'Prix de détail',
     ],
 
     'errors' => [

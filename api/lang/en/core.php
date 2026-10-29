@@ -4,6 +4,7 @@ return [
     'defaults' => [
         'branch' => 'Main branch',
         'location' => 'Main outlet',
+        'price_list' => 'Retail prices',
     ],
 
     'errors' => [

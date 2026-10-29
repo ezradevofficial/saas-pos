@@ -220,6 +220,8 @@ jobs:
           php artisan payment-methods:seed-defaults
           # SUB-02, SUB-07: modules installed since a tenant subscribed are switched on when its plan covers them.
           php artisan billing:sync-modules
+          # ONB-03: price list, tax categories and cash for tenants whose POS was switched on without them (idempotent).
+          php artisan module-defaults:seed
           # SUB-02, ADR 016: once per environment, trial subscriptions for
           # tenants created before billing (idempotent). The marker lives in
           # storage/, which deploys never touch. A failure (for example no

@@ -71,6 +71,14 @@ return [
     'timezone' => 'UTC',
 
     /*
+     * ONB-03: whether switching a module on gives each company the defaults the module
+     * declares (ModuleDefaults). On everywhere; the test suite turns it off so fixtures
+     * that build their own price list and tax categories stay as they are, and the tests
+     * of the defaults turn it on.
+     */
+    'seed_module_defaults' => (bool) env('SEED_MODULE_DEFAULTS', true),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
