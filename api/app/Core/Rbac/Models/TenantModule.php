@@ -3,6 +3,7 @@
 namespace App\Core\Rbac\Models;
 
 use App\Core\Audit\Audited;
+use App\Core\Rbac\AccessVersion;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -31,6 +32,11 @@ class TenantModule extends Model
         $flush = fn () => app(ModuleRegistry::class)->flush();
         static::saved($flush);
         static::deleted($flush);
+
+        // NFR-02, RBAC-08: modules and subscriptions decide the permissions; cached access data is dropped with a version bump.
+        $bump = fn (self $module) => app(AccessVersion::class)->bump((string) $module->tenant_id);
+        static::saved($bump);
+        static::deleted($bump);
     }
 
     protected function casts(): array

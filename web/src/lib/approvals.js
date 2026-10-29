@@ -5,6 +5,7 @@
 // the notification bell too.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { NOTIFICATIONS_KEY } from './notifications'
 
 export const APPROVALS_KEY = ['approvals']
@@ -23,8 +24,10 @@ export const WAITING_POLL_MS = 60_000
 export function useWaitingCount({ enabled = true } = {}) {
   return useQuery({
     queryKey: WAITING_COUNT_KEY,
-    queryFn: () => api.get('approvals?status=waiting&per_page=1&page=1'),
+    queryFn: () => fromShell('approvals_waiting', () => api.get('approvals?status=waiting&per_page=1&page=1')),
     select: (response) => Math.max(0, Number(response?.meta?.total) || 0),
+    // NFR-02: a count that came with the shell's bootstrap is fresh enough to show without asking again.
+    staleTime: 5000,
     enabled,
     refetchInterval: WAITING_POLL_MS,
     refetchOnWindowFocus: true,

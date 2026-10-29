@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { api } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
 import { useCompanySelection } from '@/layouts/companySelection'
@@ -62,8 +63,10 @@ export function useBrand() {
     queryKey: ['config', 'theme', 'resolved', user?.id, place],
     queryFn: async () => {
       const query = new URLSearchParams(place).toString()
+      // NFR-02: the bootstrap resolved the tenant's theme and the theme at the stored company.
+      const shell = () => (query ? fromShell('theme_place', () => api.get(`config/theme/resolved?${query}`), (parts) => place.company !== undefined && parts.company === place.company) : fromShell('theme', () => api.get('config/theme/resolved')))
       try {
-        return await api.get(`config/theme/resolved${query ? `?${query}` : ''}`)
+        return await shell()
       } catch (error) {
         // A place the user no longer works at: the tenant's theme.
         if (error?.status === 422 && query) return api.get('config/theme/resolved')

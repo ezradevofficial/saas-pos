@@ -4,6 +4,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router'
 import { api } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { useAuth } from '@/auth/AuthProvider'
 import { toApiValue, toFormValue } from './customFields'
 
@@ -16,7 +17,7 @@ export function useCustomFormTypes({ status = 'active', enabled = true } = {}) {
   const { token, user } = useAuth()
   const query = useQuery({
     queryKey: [...typesKey, status],
-    queryFn: () => api.get(`custom-form-types${status === 'active' ? '' : `?status=${status}`}`),
+    queryFn: () => (status === 'active' ? fromShell('custom_form_types', () => api.get('custom-form-types')) : api.get(`custom-form-types?status=${status}`)),
     enabled: Boolean(token && user) && enabled,
     staleTime: 60_000,
     retry: false,

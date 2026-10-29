@@ -19,6 +19,7 @@ use App\Core\Automation\Http\Controllers\AutomationRunController;
 use App\Core\Automation\Http\Controllers\AutomationTemplateController;
 use App\Core\Automation\Models\AutomationRule;
 use App\Core\Automation\Models\AutomationRun;
+use App\Core\Bootstrap\Http\Controllers\BootstrapController;
 use App\Core\Branding\BrandingServiceProvider;
 use App\Core\Branding\Http\Controllers\BrandAssetController;
 use App\Core\Branding\Http\Controllers\BrandAssetFileController;
@@ -351,6 +352,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('onboarding/checklist', [OnboardingController::class, 'checklist']);
     Route::post('onboarding/checklist/dismiss', [OnboardingController::class, 'dismissChecklist']);
 
+    // NFR-02: the app shell's payloads in one call (each part is its own endpoint's body, or null).
+    Route::get('bootstrap', BootstrapController::class);
     // RBAC-09: what the UI may show; the API checks every action again.
     Route::get('me/permissions', MyPermissionsController::class);
     // RBAC-04 (stage 7B walkthrough): the companies the user holds a role in, for the company switcher.

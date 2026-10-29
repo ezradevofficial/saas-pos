@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { useAuth } from '@/auth/AuthProvider'
 import { StatusBadge } from '@/components/ds'
 import { formatCalendarDate } from '@/lib/dates'
@@ -27,7 +28,7 @@ export function TrialBanner() {
   const { token, user, enrolmentRequired } = useAuth()
   const { data: trial } = useTrialStatus()
   // SUB-03: subscribed during the trial. The subscription banner's query: one request for both.
-  const status = useQuery({ queryKey: STATUS_KEY, queryFn: () => api.get('subscription/status'), enabled: Boolean(token && user && !enrolmentRequired), staleTime: 60_000, retry: false })
+  const status = useQuery({ queryKey: STATUS_KEY, queryFn: () => fromShell('subscription', () => api.get('subscription/status')), enabled: Boolean(token && user && !enrolmentRequired), staleTime: 60_000, retry: false })
   const firstPeriod = status.data?.data?.first_period_start
   if (!trial || trial.state === 'none') return null
   const help =

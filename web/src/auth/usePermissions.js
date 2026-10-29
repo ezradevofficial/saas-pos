@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { api } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { useAuth } from './AuthProvider'
 
 /**
@@ -35,7 +36,7 @@ export function usePermissions() {
   const { token, user, enrolmentRequired } = useAuth()
   const query = useQuery({
     queryKey: ['me', 'permissions'],
-    queryFn: () => api.get('me/permissions'),
+    queryFn: () => fromShell('permissions', () => api.get('me/permissions')),
     enabled: Boolean(token && user && !enrolmentRequired),
     staleTime: 60_000,
   })

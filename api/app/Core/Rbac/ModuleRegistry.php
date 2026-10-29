@@ -38,11 +38,31 @@ class ModuleRegistry
     /** @var array<string, list<string>> tenant id => its active optional modules (active()) */
     private array $activeLists = [];
 
-    public function __construct(private readonly TenantContext $tenants) {}
+    /** @var array<string, list<string>> tenant id => its active module rows (activeRows()) */
+    private array $rows = [];
+
+    public function __construct(private readonly TenantContext $tenants, private readonly AccessVersion $access) {}
 
     public function register(string $module): void
     {
         $this->modules[$module] = true;
+        $this->flush();
+    }
+
+    /**
+     * The tenant's `active` module rows by name, ordered, whether or not the
+     * module is registered here. Kept in the cache under the tenant's
+     * permissions version (NFR-02, RBAC-08: any module change moves it on).
+     *
+     * @return list<string>
+     */
+    private function activeRows(string $tenantId): array
+    {
+        return $this->rows[$tenantId] ??= $this->access->remember(
+            'modules',
+            null,
+            fn () => TenantModule::where('status', TenantModule::ACTIVE)->orderBy('module')->pluck('module')->all(),
+        );
     }
 
     /**
@@ -145,7 +165,8 @@ class ModuleRegistry
             return false;
         }
 
-        return $this->memo[$tenantId][$module] ??= TenantModule::where('module', $module)->where('status', TenantModule::ACTIVE)->exists();
+        // NFR-02: one query (kept across requests until the tenant's version changes) answers every module.
+        return $this->memo[$tenantId][$module] ??= in_array($module, $this->activeRows($tenantId), true);
     }
 
     /** Forget what was memoised (a tenant's modules changed, or a new request or job starts). */
@@ -153,6 +174,7 @@ class ModuleRegistry
     {
         $this->memo = [];
         $this->activeLists = [];
+        $this->rows = [];
     }
 
     /** @return list<string> core first, then the tenant's active modules */
@@ -164,11 +186,10 @@ class ModuleRegistry
             return [self::CORE];
         }
 
-        $optional = $this->activeLists[$tenantId] ??= TenantModule::where('status', TenantModule::ACTIVE)
-            ->whereIn('module', array_diff($this->registered(), [self::CORE]))
-            ->orderBy('module')
-            ->pluck('module')
-            ->all();
+        $optional = $this->activeLists[$tenantId] ??= array_values(array_filter(
+            $this->activeRows($tenantId),
+            fn (string $module) => $module !== self::CORE && isset($this->modules[$module]),
+        ));
 
         return [self::CORE, ...$optional];
     }

@@ -7,6 +7,7 @@ import { render } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { AppProviders } from '@/App'
 import { ApiError, clearToken, setCompanyId, setToken } from '@/api/client'
+import { resetShellBootstrap } from '@/api/shellBootstrap'
 import { routes } from '@/routes'
 
 export const OWNER = {
@@ -64,6 +65,7 @@ export function signedIn(token = 'test-token') {
 }
 
 export function resetSession() {
+  resetShellBootstrap()
   clearToken()
   setCompanyId(null)
   try {

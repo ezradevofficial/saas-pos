@@ -5,6 +5,7 @@ namespace App\Core\Rbac\Models;
 use App\Core\Audit\Audited;
 use App\Core\Audit\Auditor;
 use App\Core\Identity\Models\User;
+use App\Core\Rbac\AccessVersion;
 use App\Core\Rbac\Scope;
 use App\Core\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -37,6 +38,11 @@ class RoleAssignment extends Model
                 $assignment->scope_id = $assignment->tenant_id;
             }
         });
+
+        // NFR-02, RBAC-12: a changed assignment moves the tenant's permissions version on, so no cached access data outlives it.
+        $bump = fn (self $assignment) => app(AccessVersion::class)->bump((string) $assignment->tenant_id);
+        static::saved($bump);
+        static::deleted($bump);
 
         static::deleted(function (self $assignment) {
             app(Auditor::class)->record(

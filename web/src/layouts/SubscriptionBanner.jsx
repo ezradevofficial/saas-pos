@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
 import { StatusBadge } from '@/components/ds'
@@ -24,7 +25,7 @@ export function SubscriptionBanner() {
   const { tenantWide } = usePermissions()
   const status = useQuery({
     queryKey: STATUS_KEY,
-    queryFn: () => api.get('subscription/status'),
+    queryFn: () => fromShell('subscription', () => api.get('subscription/status')),
     enabled: Boolean(token && user && !enrolmentRequired),
     staleTime: 60_000,
     retry: false,
