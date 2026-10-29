@@ -1,17 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { useAuth } from '@/auth/useAuth'
 import { usePermissions } from '@/auth/usePermissions'
-import { QuickSearch } from '@/components/ds/QuickSearch'
 import { loadRecents, saveRecent } from '@/lib/quickSearch'
 import { useLocale } from '@/lib/useLocale'
 import { ACTIONS, EXTRA_PAGES, PAGE_KEYWORDS } from '@/searchRegistry'
 import { useCompanies } from './companySelection'
 import { NAV_GROUPS, visibleGroups } from './navigation'
 import { useNavigation } from './useNavigation'
+
+// NFR-02: the palette (cmdk and its lists) loads the first time it opens, not with the entry bundle.
+const QuickSearch = lazy(() => import('@/components/ds/QuickSearch').then((m) => ({ default: m.QuickSearch })))
 
 const QuickSearchContext = createContext({ openSearch: () => {} })
 
@@ -129,7 +131,11 @@ export function QuickSearchProvider({ children }) {
   return (
     <QuickSearchContext.Provider value={value}>
       {children}
-      <QuickSearch open={open} onClose={() => setOpen(false)} pages={pages} actions={actions} help={help} recents={recents} onSelect={select} />
+      {open ? (
+        <Suspense fallback={null}>
+          <QuickSearch open={open} onClose={() => setOpen(false)} pages={pages} actions={actions} help={help} recents={recents} onSelect={select} />
+        </Suspense>
+      ) : null}
     </QuickSearchContext.Provider>
   )
 }

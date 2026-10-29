@@ -67,7 +67,7 @@ module.exports = {
         {
           "lineHeight": "var(--text-display-line)",
           "fontWeight": "var(--text-display-weight)",
-          "letterSpacing": "var(--text-display-tracking)"
+          "letterSpacing": "-0.8px"
         }
       ],
       "h1": [
@@ -75,7 +75,7 @@ module.exports = {
         {
           "lineHeight": "var(--text-h1-line)",
           "fontWeight": "var(--text-h1-weight)",
-          "letterSpacing": "var(--text-h1-tracking)"
+          "letterSpacing": "-0.48px"
         }
       ],
       "h2": [
@@ -83,7 +83,7 @@ module.exports = {
         {
           "lineHeight": "var(--text-h2-line)",
           "fontWeight": "var(--text-h2-weight)",
-          "letterSpacing": "var(--text-h2-tracking)"
+          "letterSpacing": "-0.16px"
         }
       ],
       "h3": [
@@ -133,7 +133,7 @@ module.exports = {
         {
           "lineHeight": "var(--text-amount-lg-line)",
           "fontWeight": "var(--text-amount-lg-weight)",
-          "letterSpacing": "var(--text-amount-lg-tracking)"
+          "letterSpacing": "-0.56px"
         }
       ]
     }

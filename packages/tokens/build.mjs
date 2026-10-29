@@ -101,6 +101,16 @@ const tailwindCss = twLines.join('\n');
 // Tailwind 3 preset (replaces the default theme)
 const sp = { 0: '0px', px: '1px' };
 for (const t of spacing) sp[t.name.replace(/^space-/, '')] = `var(--${t.name})`;
+/** A text style's tracking in px ("-0.02em" at 24px is "-0.48px"); a px value passes through. */
+function trackingPx(style) {
+  const value = String(style.letterSpacing).trim();
+  if (value.endsWith('px')) return value;
+  const em = Number.parseFloat(value);
+  const size = Number.parseFloat(style.fontSize);
+  if (!Number.isFinite(em) || !Number.isFinite(size)) throw new Error(`Cannot turn tracking ${value} of ${style.name} into pixels`);
+  return `${Math.round(em * size * 100) / 100}px`;
+}
+
 const preset = {
   theme: {
     colors: {
@@ -118,7 +128,10 @@ const preset = {
           lineHeight: `var(--text-${s.name}-line)`,
           fontWeight: `var(--text-${s.name}-weight)`,
         };
-        if (s.letterSpacing) extra.letterSpacing = `var(--text-${s.name}-tracking)`;
+        // React Native takes letter spacing in pixels only: an em value ("-0.02em") crashes the
+        // Android text view. Tracking is not tenant-themable (BR-02), so the preset carries the
+        // pixel value (em × the style's font size), rounded to two decimals.
+        if (s.letterSpacing) extra.letterSpacing = trackingPx(s);
         return [s.name, [`var(--text-${s.name}-size)`, extra]];
       }),
     ),
