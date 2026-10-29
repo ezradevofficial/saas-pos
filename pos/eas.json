@@ -11,7 +11,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.curaafrya.com",
-        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "staging"
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "staging",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "environment": "preview"
     }
