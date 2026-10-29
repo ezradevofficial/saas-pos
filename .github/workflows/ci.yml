@@ -217,9 +217,14 @@ jobs:
         run: npx vitest run
 
       - name: Build
+        # The deploy build sets a Sentry DSN, which the bundle carries: build the same way here so the
+        # bundle budget (NFR-02) fails in CI, never only at deploy time.
         env:
           VITE_APP_NAME: App
           VITE_API_URL: http://localhost:8008
+          VITE_SENTRY_DSN: https://public@o0.ingest.de.sentry.io/0
+          VITE_SENTRY_RELEASE: ci
+          VITE_SENTRY_ENVIRONMENT: ci
         run: npm run build -w web
 
   pos:
