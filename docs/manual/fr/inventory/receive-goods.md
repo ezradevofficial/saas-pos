@@ -19,3 +19,5 @@ Les marchandises se réceptionnent à partir d’un bon de commande approuvé.
 8. Vérifiez le brouillon, puis touchez « Comptabiliser la réception ». Le stock augmente à l’emplacement.
 
 Si des lignes sont signalées comme non entrées en stock, vérifiez l’article, son unité ou ses numéros de série, puis ajustez le stock à la main. Pour abandonner un brouillon, touchez « Annuler le brouillon ».
+
+Une livraison ne peut dépasser la commande que dans la limite de la « Réception excédentaire admise » des « Paramètres des achats ». Le fret et les droits payés sur la livraison s’ajoutent ensuite avec les frais d’approche : voir « Ajouter des frais d’approche aux marchandises reçues ». La facture du fournisseur se saisit depuis le bon de commande : voir « Saisir et approuver une facture fournisseur ».
