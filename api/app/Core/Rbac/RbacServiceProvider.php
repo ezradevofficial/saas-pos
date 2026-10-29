@@ -28,6 +28,7 @@ class RbacServiceProvider extends ServiceProvider
     {
         $this->app->singleton(PermissionRegistry::class);
         $this->app->singleton(ModuleRegistry::class);
+        $this->app->singleton(AccessVersion::class);
         $this->app->singleton(RoleTemplates::class);
         $this->app->singleton(ScopeResolver::class);
         $this->app->singleton(FieldRules::class);
@@ -50,7 +51,19 @@ class RbacServiceProvider extends ServiceProvider
 
         // Stage 7B performance review: module flags are memoised per request; each request (also in tests and Octane) and each queued job starts afresh.
         Event::listen(JobProcessing::class, fn () => $this->app->make(ModuleRegistry::class)->flush());
-        $this->app->rebinding('request', fn () => $this->app->make(ModuleRegistry::class)->flush());
+        // NFR-02: the app shell's bootstrap runs parts as sub-requests of one request: they share its memos.
+        $this->app->rebinding('request', function ($app, $request) {
+            if (! $request->attributes->has(\App\Core\Bootstrap\ShellBootstrap::ATTRIBUTE)) {
+                $app->make(ModuleRegistry::class)->flush();
+            }
+        });
+        // NFR-02: the same for the permissions version held in memory.
+        Event::listen(JobProcessing::class, fn () => $this->app->make(AccessVersion::class)->flush());
+        $this->app->rebinding('request', function ($app, $request) {
+            if (! $request->attributes->has(\App\Core\Bootstrap\ShellBootstrap::ATTRIBUTE)) {
+                $app->make(AccessVersion::class)->flush();
+            }
+        });
 
         // RBAC-09: `$user->can('module.resource.action', $target)` is answered
         // by ScopeResolver when the target has a scope (a HasScope model or a

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { usePermissions } from '@/auth/usePermissions'
 
 export const USAGE_KEY = ['usage']
@@ -16,7 +17,7 @@ export function useUsage() {
   const { isOwner, isLoading } = usePermissions()
   const query = useQuery({
     queryKey: USAGE_KEY,
-    queryFn: () => api.get('usage'),
+    queryFn: () => fromShell('usage', () => api.get('usage')),
     enabled: !isLoading && isOwner,
     staleTime: 60_000,
   })

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useSyncExternalStore } from 'react'
 import { api, getCompanyId, setCompanyId } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { usePermissions } from '@/auth/usePermissions'
 
 export const ALL_COMPANIES = 'all'
@@ -38,7 +39,7 @@ export function useCompanies() {
   const viewer = !isLoading && companyViewer(permissions)
   const query = useQuery({
     queryKey: ['companies', 'switcher', viewer ? 'all' : 'mine'],
-    queryFn: () => api.get(viewer ? 'companies?per_page=200' : 'me/companies'),
+    queryFn: () => (viewer ? fromShell('companies', () => api.get('companies?per_page=200')) : fromShell('my_companies', () => api.get('me/companies'))),
     enabled: !isLoading,
   })
   return { allowed: !isLoading, ready: !isLoading && query.isSuccess, companies: query.data?.data ?? [] }

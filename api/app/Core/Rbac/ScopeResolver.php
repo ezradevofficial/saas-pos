@@ -43,6 +43,7 @@ class ScopeResolver
         private readonly PermissionRegistry $catalogue,
         private readonly ModuleRegistry $modules,
         private readonly ApiScopes $apiScopes,
+        private readonly AccessVersion $access,
     ) {}
 
     /** @var array<string, true> permission names found missing after a reload, per cache key */
@@ -199,6 +200,17 @@ class ScopeResolver
             return $names->map(fn (string $name) => ['name' => $name, 'scopes' => [$tenant]])->all();
         }
 
+        // NFR-02: people's lists are kept per user and permissions version; a key's principal is limited by its key's scopes, so it is always computed.
+        if ($user->isServicePrincipal()) {
+            return $this->computePermissions($user);
+        }
+
+        return $this->access->remember('permissions', (string) $user->getKey(), fn () => $this->computePermissions($user));
+    }
+
+    /** @return list<array{name: string, scopes: list<array{type: string, id: string}>}> */
+    private function computePermissions(User $user): array
+    {
         $assignments = $this->assignments($user)->groupBy('role_id');
 
         if ($assignments->isEmpty()) {
@@ -253,15 +265,25 @@ class ScopeResolver
         return $this->assignments($user)->whereIn('role_id', $roleIds)->values();
     }
 
-    /** @return Collection<int, object{role_id: string, scope_type: string, scope_id: string}> */
+    /**
+     * NFR-02: read once per user and permissions version (AccessVersion): a
+     * request asks many questions of the same user, and the answer only
+     * changes with a role, assignment, module or subscription change.
+     *
+     * @return Collection<int, object{role_id: string, scope_type: string, scope_id: string}>
+     */
     private function assignments(User $user): Collection
     {
-        return RoleAssignment::query()
+        $rows = $this->access->remember('assignments', (string) $user->getKey(), fn () => RoleAssignment::query()
             ->join('roles', 'roles.id', '=', 'role_assignments.role_id')
             ->whereNull('roles.archived_at')
             ->where('role_assignments.user_id', $user->getKey())
             ->toBase()
-            ->get(['role_assignments.role_id', 'role_assignments.scope_type', 'role_assignments.scope_id']);
+            ->get(['role_assignments.role_id', 'role_assignments.scope_type', 'role_assignments.scope_id'])
+            ->map(fn (object $row) => (array) $row)
+            ->all());
+
+        return collect($rows)->map(fn (array $row) => (object) $row);
     }
 
     /**

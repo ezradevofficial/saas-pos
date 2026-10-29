@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, endSupportTab } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
 import { Button, StatusBadge } from '@/components/ds'
@@ -56,7 +57,7 @@ function ActiveBar() {
   const locale = useLocale()
   const { tenantWide } = usePermissions()
   const visible = tenantWide('core.support_access.view')
-  const active = useQuery({ queryKey: ACTIVE_SUPPORT_KEY, queryFn: () => api.get('support-access/active'), enabled: visible, staleTime: 30_000, refetchInterval: 60_000, retry: false })
+  const active = useQuery({ queryKey: ACTIVE_SUPPORT_KEY, queryFn: () => fromShell('support_active', () => api.get('support-access/active')), enabled: visible, staleTime: 30_000, refetchInterval: 60_000, retry: false })
   const grants = active.data?.data ?? []
   if (!visible || grants.length === 0) return null
   return (

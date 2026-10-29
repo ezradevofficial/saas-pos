@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { api } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 
 export const NOTIFICATIONS_KEY = ['notifications']
 export const UNREAD_COUNT_KEY = ['notifications', 'unread-count']
@@ -28,12 +29,13 @@ export function unreadOf(response) {
 export function useUnreadCount({ enabled = true } = {}) {
   const query = useQuery({
     queryKey: UNREAD_COUNT_KEY,
-    queryFn: () => api.get('notifications/unread-count'),
+    queryFn: () => fromShell('unread', () => api.get('notifications/unread-count')),
     select: unreadOf,
     enabled,
     refetchInterval: UNREAD_POLL_MS,
     refetchOnWindowFocus: true,
-    staleTime: 0,
+    // NFR-02: a count that came with the shell's bootstrap is fresh enough to show without asking again.
+    staleTime: 5000,
   })
   const { refetch } = query
   useEffect(() => {

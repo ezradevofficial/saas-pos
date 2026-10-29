@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api/client'
+import { fromShell } from '@/api/shellBootstrap'
 import { useAuth } from '@/auth/AuthProvider'
 import { usePermissions } from '@/auth/usePermissions'
 import { useCompanies } from './companySelection'
@@ -17,7 +18,7 @@ export function useNavigationLayout() {
   const { token, user, enrolmentRequired } = useAuth()
   const query = useQuery({
     queryKey: NAVIGATION_KEY,
-    queryFn: () => api.get('config/navigation/resolved'),
+    queryFn: () => fromShell('navigation', () => api.get('config/navigation/resolved')),
     enabled: Boolean(token && user && !enrolmentRequired),
     staleTime: 60_000,
     retry: false,
@@ -38,7 +39,7 @@ export function useNavigation() {
   const { types } = useCustomFormTypes()
   // HR-31, PAY-24: self-service shows while HR or Payroll is active and the user is linked to an employee (GET hr/me answers with a record, 204 when not linked; Payroll brings HR's employee core).
   const selfService = permissions.hasModule('hr') || permissions.hasModule('payroll')
-  const hrSelf = useQuery({ queryKey: ['hr', 'me'], queryFn: () => api.get('hr/me'), enabled: !permissions.isLoading && selfService, retry: false, staleTime: 60_000 })
+  const hrSelf = useQuery({ queryKey: ['hr', 'me'], queryFn: () => fromShell('hr_me', () => api.get('hr/me')), enabled: !permissions.isLoading && selfService, retry: false, staleTime: 60_000 })
   const isEmployee = selfService && hrSelf.isSuccess && Boolean(hrSelf.data?.data)
   const groups = permissions.isLoading ? [] : withFormsGroup(visibleGroups(applyNavigationLayout(NAV_GROUPS, layout), { ...permissions, hasCompany: ready && companies.length > 0, isEmployee }), types)
   return { groups, home: homeOf(layout, groups), isLoading: isLoading || permissions.isLoading }

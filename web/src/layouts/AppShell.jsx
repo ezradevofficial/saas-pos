@@ -1,7 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMatches } from 'react-router'
 import { PageOutlet } from './PageOutlet'
+import { startShellBootstrap } from '@/api/shellBootstrap'
+import { useAuth } from '@/auth/AuthProvider'
 import { Button, Icon } from '@/components/ds'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
@@ -20,6 +23,10 @@ import { UsageBanner } from './UsageBanner'
  * 768px the sidebar becomes a top bar whose menu button opens it in a sheet.
  */
 export function AppShell() {
+  const queryClient = useQueryClient()
+  const { user, enrolmentRequired } = useAuth()
+  // NFR-02: one call for the shell's payloads, started before the shell's hooks ask for them one by one.
+  useState(() => (user && !enrolmentRequired ? startShellBootstrap(queryClient) : null))
   return (
     <QuickSearchProvider>
       <Shell />

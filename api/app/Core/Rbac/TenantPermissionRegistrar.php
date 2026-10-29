@@ -27,6 +27,9 @@ class TenantPermissionRegistrar extends PermissionRegistrar
     {
         $forgotten = parent::forgetCachedPermissions();
 
+        // NFR-02, RBAC-12: whatever flushes the tenant's permission cache also retires its cached access data.
+        app(AccessVersion::class)->bump();
+
         if ($this->inTransaction()) {
             $store = $this->cache;
             $key = $this->cacheKey;

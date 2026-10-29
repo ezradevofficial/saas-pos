@@ -111,6 +111,7 @@ use App\Core\Payments\PaymentsServiceProvider;
 use App\Core\Rbac\Http\Controllers\AccessReviewController;
 use App\Core\Rbac\Http\Controllers\AssignmentController;
 use App\Core\Rbac\Http\Controllers\MyCompaniesController;
+use App\Core\Bootstrap\Http\Controllers\BootstrapController;
 use App\Core\Rbac\Http\Controllers\MyPermissionsController;
 use App\Core\Rbac\Http\Controllers\PermissionCatalogueController;
 use App\Core\Rbac\Http\Controllers\RoleController;
@@ -351,6 +352,8 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('onboarding/checklist', [OnboardingController::class, 'checklist']);
     Route::post('onboarding/checklist/dismiss', [OnboardingController::class, 'dismissChecklist']);
 
+    // NFR-02: the app shell's payloads in one call (each part is its own endpoint's body, or null).
+    Route::get('bootstrap', BootstrapController::class);
     // RBAC-09: what the UI may show; the API checks every action again.
     Route::get('me/permissions', MyPermissionsController::class);
     // RBAC-04 (stage 7B walkthrough): the companies the user holds a role in, for the company switcher.
