@@ -9,6 +9,7 @@ use App\Core\Rbac\Scope;
 use App\Core\Rbac\ScopeResolver;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\Concerns\BuildsOrganisation;
 use Tests\Concerns\RefreshTenantDatabase;
 use Tests\TestCase;
@@ -105,6 +106,27 @@ class AccessCacheTest extends TestCase
 
         $this->inTenant(fn () => app(ModuleRegistry::class)->deactivate('demo'));
         $this->assertNotContains('demo', $this->getJson('/api/v1/me/permissions', $headers)->json('modules'));
+    }
+
+    public function test_a_search_after_a_role_change_builds_the_permission_map_once(): void
+    {
+        // Found in CI (RecordSearchTest, NFR-02): the record search runs in one transaction, where a
+        // cold permission cache is neither read nor filled, so every searcher's permission and scope
+        // check rebuilt the tenant's whole permission map; the search spent its time budget on that
+        // and dropped the last searchers' results (meta.partial).
+        $headers = $this->headersFor();
+        $this->inTenant(fn () => app(PermissionRegistrar::class)->forgetCachedPermissions());
+
+        $sql = [];
+        DB::listen(function (QueryExecuted $q) use (&$sql) {
+            $sql[] = $q->sql;
+        });
+        $response = $this->getJson('/api/v1/search?q=Acme', $headers)->assertOk();
+        DB::getEventDispatcher()->forget(QueryExecuted::class);
+
+        $this->assertFalse($response->json('meta.partial'));
+        $builds = array_filter($sql, fn (string $s) => str_contains($s, 'from "permissions"'));
+        $this->assertCount(1, $builds, 'the permission map was built '.count($builds).' times for one search');
     }
 
     public function test_an_entry_of_one_tenant_is_never_used_for_another(): void
