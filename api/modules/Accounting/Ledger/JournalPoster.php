@@ -313,6 +313,8 @@ class JournalPoster
             'cost_centre_id' => $line->dimension('cost_centre_id'),
             'department_id' => $line->dimension('department_id'),
             'project_id' => $line->dimension('project_id'),
+            // ACC-36: the tax code a module's `tax.{code}` line came from (null for every other line).
+            'tax_code_id' => $line->dimension('tax_code_id'),
         ];
     }
 
