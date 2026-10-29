@@ -5,7 +5,7 @@ namespace App\Core\Billing\Http\Controllers;
 use App\Core\Billing\Payments\BillingWebhooks;
 use App\Core\Payments\Pawapay\PawapaySignatures;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use App\Core\Billing\Http\Requests\BillingWebhookRequest;
 
 /**
  * SUB-04: the providers' public webhooks for the platform's billing (the
@@ -21,7 +21,7 @@ class BillingWebhookController
     ) {}
 
     /** POST billing/paystack/webhook: `x-paystack-signature` is HMAC SHA512 of the raw body. */
-    public function paystack(Request $request): JsonResponse
+    public function paystack(BillingWebhookRequest $request): JsonResponse
     {
         abort_unless($this->webhooks->paystackSignatureValid($request->getContent(), $request->header('x-paystack-signature')), 401);
 
@@ -32,7 +32,7 @@ class BillingWebhookController
     }
 
     /** POST billing/pawapay/deposits: a deposit reached a final status; pawaPay is asked again. */
-    public function pawapayDeposits(Request $request): JsonResponse
+    public function pawapayDeposits(BillingWebhookRequest $request): JsonResponse
     {
         $this->authenticatePawapay($request);
         $this->webhooks->pawapayDeposit($request->json()->all(), $request->ip());
@@ -40,7 +40,7 @@ class BillingWebhookController
         return response()->json(['status' => 'ok']);
     }
 
-    public function pawapayRefunds(Request $request): JsonResponse
+    public function pawapayRefunds(BillingWebhookRequest $request): JsonResponse
     {
         $this->authenticatePawapay($request);
         $this->webhooks->pawapayRefund($request->json()->all(), $request->ip());
@@ -49,14 +49,14 @@ class BillingWebhookController
     }
 
     /** Payouts and checkouts are not used for billing: acknowledged. */
-    public function pawapayAcknowledge(Request $request): JsonResponse
+    public function pawapayAcknowledge(BillingWebhookRequest $request): JsonResponse
     {
         $this->authenticatePawapay($request);
 
         return response()->json(['status' => 'ok']);
     }
 
-    private function authenticatePawapay(Request $request): void
+    private function authenticatePawapay(BillingWebhookRequest $request): void
     {
         abort_if($this->signatures->enabled() && ! $this->signatures->valid($request), 401);
     }
