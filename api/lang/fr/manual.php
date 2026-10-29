@@ -27,5 +27,8 @@ return [
         'van_sales' => 'Vente itinérante',
         'fuel' => 'Station-service',
         'salon' => 'Salon',
+        'crm' => 'Relation client et ventes',
+        'ecommerce' => 'Boutique en ligne et livraison',
+        'loyalty' => 'Fidélité, cartes cadeaux et crédit',
     ],
 ];

@@ -30,7 +30,7 @@ class DemoData
     {
         $this->base();
 
-        foreach (['inventory', 'procurement', 'pos', 'accounting', 'hr', 'payroll', 'hotel', 'restaurant', 'pharmacy', 'vansales', 'fuel', 'salon', 'approvals'] as $name) {
+        foreach (['inventory', 'procurement', 'pos', 'accounting', 'hr', 'payroll', 'hotel', 'restaurant', 'pharmacy', 'vansales', 'fuel', 'salon', 'crm', 'loyalty', 'ecommerce', 'approvals'] as $name) {
             if ($only !== [] && ! in_array($name, $only, true)) {
                 continue;
             }
