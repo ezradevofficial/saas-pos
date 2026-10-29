@@ -164,7 +164,7 @@ class TaxReturn
 
         // Posted invoices and credit notes, by their lines.
         Document::query()->where('company_id', $company->id)->where('status', Document::POSTED)->whereIn('journal_id', $inRange)
-            ->orderBy('id')->chunkById(self::CHUNK, function ($documents) use ($sink, $accounts, $base, $codes) {
+            ->orderBy('id')->chunkById(self::CHUNK, function ($documents) use ($sink, $accounts) {
                 $journals = Journal::query()->whereIn('id', $documents->pluck('journal_id'))->get()->keyBy('id');
                 $lines = DocumentLine::query()->whereIn('document_id', $documents->modelKeys())->orderBy('line_no')->get()->groupBy('document_id');
                 $taxLines = $accounts === [] ? collect() : JournalLine::query()->whereIn('journal_id', $documents->pluck('journal_id'))->whereIn('account_id', array_values($accounts))->get()->groupBy('journal_id');

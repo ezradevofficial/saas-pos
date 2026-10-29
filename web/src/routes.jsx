@@ -229,6 +229,8 @@ const SalonCalendar = lazyModule('salon', () => import('./pages/salon/Calendar')
 const SalonServices = lazyModule('salon', () => import('./pages/salon/Services'))
 const SalonStaff = lazyModule('salon', () => import('./pages/salon/StaffPage'))
 const SalonClients = lazyModule('salon', () => import('./pages/salon/Clients'))
+const SalonClientDetail = lazyModule('salon', () => import('./pages/salon/ClientDetail'))
+const SalonNewAppointment = lazyModule('salon', () => import('./pages/salon/NewAppointment'))
 const SalonCommissions = lazyModule('salon', () => import('./pages/salon/Commissions'))
 const SalonReports = lazyModule('salon', () => import('./pages/salon/Reports'))
 const SalonSettings = lazyModule('salon', () => import('./pages/salon/SalonSettings'))
@@ -900,7 +902,9 @@ export const routes = [
         ['/salon/calendar', SALON_APPOINTMENT_VIEW, <SalonCalendar key="salon-calendar" />],
         ['/salon/services', SALON_SERVICE_VIEW, <SalonServices key="salon-services" />],
         ['/salon/staff', SALON_STAFF_VIEW, <SalonStaff key="salon-staff" />],
+        ['/salon/appointments/new', 'salon.appointment.create', <SalonNewAppointment key="salon-appointment-new" />],
         ['/salon/clients', SALON_CLIENT_VIEW, <SalonClients key="salon-clients" />],
+        ['/salon/clients/:clientId', 'salon.client.view', <SalonClientDetail key="salon-client" />],
         ['/salon/commissions', SALON_COMMISSION_VIEW, <SalonCommissions key="salon-commissions" />],
         ['/salon/reports', SALON_REPORT_VIEW, <SalonReports key="salon-reports" />],
         ['/salon/settings', SALON_SETTINGS_VIEW, <SalonSettings key="salon-settings" />],

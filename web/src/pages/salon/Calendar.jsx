@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { usePermissions } from '@/auth/usePermissions'
@@ -194,6 +195,7 @@ export default function Calendar() {
   const { t } = useTranslation()
   const { can } = usePermissions()
   const place = useSalonPlace()
+  const navigate = useNavigate()
   const branch = place.branch
   const [date, setDate] = useState('')
   const [booking, setBooking] = useState(null)
@@ -216,7 +218,7 @@ export default function Calendar() {
         description={t('salon.calendar.description')}
         actions={
           branch && can(APPOINTMENT_CREATE) ? (
-            <Button variant="primary" icon="plus" onClick={() => setBooking({ staffId: '' })}>
+            <Button variant="primary" icon="plus" onClick={() => navigate(`/salon/appointments/new?date=${day}`)}>
               {t('salon.calendar.newBooking')}
             </Button>
           ) : null

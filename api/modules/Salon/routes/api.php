@@ -131,6 +131,7 @@ Route::middleware(['auth:sanctum', 'tenant', ApplyTenantLocale::class, EnsureUse
     Route::get('salon/clients/{salon_client}', [ClientController::class, 'show'])->defaults('permission', 'salon.client.view');
     Route::put('salon/clients/{salon_client}', [ClientController::class, 'update'])->defaults('permission', 'salon.client.manage');
     Route::get('salon/clients/{salon_client}/visits', [ClientController::class, 'visits'])->defaults('permission', 'salon.client.view');
+    Route::get('salon/clients/{salon_client}/summary', [ClientController::class, 'summary'])->defaults('permission', 'salon.client.view');
 
     // SAL-18: packages and the credit exceptions.
     Route::get('salon/packages', [PackageController::class, 'index'])->defaults('permission', 'salon.package.view');

@@ -139,6 +139,7 @@ zone, hours `HH:MM` local. Lists are `{data: [...]}`, whole, unless noted
 | `POST salon/appointments/{id}/deposit`, `.../deposit/refund` | `{payment_method_id, amount_minor, mode: direct\|stk, phone?, reference?}`; payments listed in the appointment; `GET salon/payments/{id}/check` polls a push |
 | `GET/POST salon/queue`, `POST salon/queue/{id}/seat\|leave` | `{branch_id, guest_name, guest_phone?, salon_client_id?, service_ids, staff_id?}`; seat `{staff_id, resource_id?}` |
 | `GET/POST salon/clients`, `GET/PUT salon/clients/{id}`, `GET salon/clients/{id}/visits` | `company_id` is optional on reads (the client's own, else the first company the reader may view); profile `{party_id, name, phone, email, preferred_staff_id, preferences, allergies, formulas, notes}` |
+| `GET salon/clients/{id}/summary` | The client page: `{visits, first_visit_at, last_visit_at, next_appointment, no_shows, cancellations, spend: [{currency, amount_minor}] (paid visits), deposits_held, credit}`; `credit` (prepaid value left in active packages) only for holders of `salon.package.view`, else null. Permission `salon.client.view` |
 | `GET salon/packages`, `GET salon/packages/{id}`, `POST salon/packages/{id}/adjust` | `{customer_id, status}`; adjust `{sessions, reason}` |
 | `GET salon/exceptions`, `POST salon/exceptions/{id}/resolve` | `{note}` |
 | `GET/POST salon/commission-rules`, `PUT .../{id}`, `POST .../archive` | `{company_id, staff_id?, service_id?, applies_to: service\|product, kind: percent\|fixed, rate?, amount_minor?, currency?, effective_from, effective_to?}` |
