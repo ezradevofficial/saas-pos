@@ -5,7 +5,7 @@ module: pharmacy
 order: 30
 permissions: [pharmacy.writeoff.create, pharmacy.writeoff.view]
 roles: [pharmacist, pharmacy_technician]
-screens: [/pharmacy/write-offs, /pharmacy/write-offs/new]
+screens: [/pharmacy/write-offs, /pharmacy/write-offs/new, /pharmacy/write-offs/:writeOffId]
 ---
 Sortez des livres le stock périmé, abîmé ou rappelé. Un responsable doit d'abord l'approuver.
 

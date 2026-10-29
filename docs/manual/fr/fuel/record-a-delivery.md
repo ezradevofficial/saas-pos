@@ -5,7 +5,7 @@ module: fuel
 order: 35
 permissions: [fuel.delivery.record, fuel.delivery.view]
 roles: [shift_supervisor, station_manager]
-screens: [/fuel/deliveries]
+screens: [/fuel/deliveries, /fuel/deliveries/:deliveryId]
 ---
 Enregistrez un camion-citerne qui dépote dans une cuve. Le stock est passé d'après ce que les jaugeages ont mesuré, pas d'après le bon de livraison : jaugez donc la cuve avant et après.
 
