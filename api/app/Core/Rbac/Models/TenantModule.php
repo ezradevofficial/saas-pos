@@ -3,6 +3,7 @@
 namespace App\Core\Rbac\Models;
 
 use App\Core\Audit\Audited;
+use App\Core\Rbac\AccessChangingBuilder;
 use App\Core\Rbac\AccessVersion;
 use App\Core\Rbac\ModuleRegistry;
 use App\Core\Tenancy\BelongsToTenant;
@@ -25,6 +26,12 @@ class TenantModule extends Model
     protected string $auditResource = 'module';
 
     protected $fillable = ['module', 'status', 'activated_at', 'deactivated_at', 'switched_off_at', 'purge_flagged_at'];
+
+    /** RBAC-12: bulk writes move the tenant's access version on, as single ones do (AccessChangingBuilder). */
+    public function newEloquentBuilder($query): AccessChangingBuilder
+    {
+        return new AccessChangingBuilder($query);
+    }
 
     protected static function booted(): void
     {
